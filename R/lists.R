@@ -3,6 +3,7 @@
 #' This function allows the user to declare a list of subseting
 #' conditions and variable names in non-character form. This is used
 #' to ensure clean entry of arguments into the function.
+#' 
 #' @param ... subset conditions or variable names
 #' @return list.
 #'

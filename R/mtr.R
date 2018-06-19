@@ -66,7 +66,9 @@ genmono <- function(vector, basis, zero = FALSE) {
 polylisteval <- function(polynomials, points) {
   
     if (length(polynomials) != length(points)) {
-        stop("List of polynomials to evaluate, and list of points to evaluate each polynomial, are not equal.")
+        stop(gsub("\\s+", " ",
+                  "List of polynomials to evaluate, and list of points to
+                  evaluate each polynomial, are not equal."))
     }
     output <- mapply(predict, polynomials, points)
     return(output)
@@ -111,7 +113,7 @@ polyparse.mst <- function(formula, data, uname = u) {
 
     ## Separate and parse the original terms
     nterms <- oterms
-    for (sep in c("I\\(", "\\)", "\\*", ":", "  ", "  ")) { # the repetition of "  " is necessary
+    for (sep in c("I\\(", "\\)", "\\*", ":", "  ", "  ")) {
         nterms <- lapply(nterms, gsub, pattern = sep, replacement = " ")
     }
     nterms <- strsplit(trimws(unlist(nterms)), " ")
@@ -124,7 +126,8 @@ polyparse.mst <- function(formula, data, uname = u) {
     trunc_nterms <- lapply(nterms, substr, 0, nchar(uname) + 1)
     uexp_pos     <- lapply(trunc_nterms, whichforlist, obj = paste0(uname, "^"))
     uexp_pos     <- which(uexp_pos > 0)
-    uexp_subpos  <- lapply(trunc_nterms[uexp_pos], whichforlist, obj =  paste0(uname, "^"))
+    uexp_subpos  <- lapply(trunc_nterms[uexp_pos],
+                           whichforlist, obj =  paste0(uname, "^"))
     deggtr2      <- FALSE
     if (length(unlist(uexp_subpos)) > 0) deggtr2 <- TRUE    
     
@@ -176,8 +179,13 @@ polyparse.mst <- function(formula, data, uname = u) {
     polymat <- dmat[, oterms]
     
     ## prepare monomials and their integrals
-    monomial_list <- lapply(split(polymat, seq(nrow(polymat))), genmono, basis = exporder)
-    integral_list <- lapply(monomial_list, lapply, polynom::integral)
+    monomial_list <- lapply(split(polymat, seq(nrow(polymat))),
+                            genmono,
+                            basis = exporder)
+
+    integral_list <- lapply(monomial_list,
+                            lapply,
+                            polynom::integral)
 
     names(monomial_list) <- rownames(data)
     names(integral_list) <- rownames(data)

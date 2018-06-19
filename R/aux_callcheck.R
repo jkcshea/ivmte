@@ -51,3 +51,27 @@ class_list <- function(obj) {
     suppressWarnings(try(class(obj), silent = TRUE) == "list")
 }
     
+#' Auxiliary function: extract X and Z covariates from a formula
+#'
+#' Auxiliary function that takes in a formula, and extracts the
+#' variable names of either the covariates or instruments.
+#' @param fm the formula.
+#' @param inst boolean expression, set to TRUE if the instrument names
+#'     are to be extracted. Otherwise, the covariate names are
+#'     extracted.
+get_xz <- function(fm, inst = FALSE) {
+    fm <- Formula::as.Formula(fm)
+    if (length(fm)[2] == 1) {
+        x <- all.vars(fm)[-1]
+        z <- NULL
+    }
+    if (length(fm)[2] == 2) {
+        x <- all.vars(formula(fm, rhs = 1))[-1]
+        z <- all.vars(formula(fm, rhs = 2))[-1]
+    }
+    if (inst == TRUE) {
+        return(z)
+    } else {
+        return(x)
+    }
+}

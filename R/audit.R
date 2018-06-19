@@ -23,13 +23,13 @@
 #'     function for control group.
 #' @param m1 one-sided formula for marginal treatment response
 #'     function for treated group.
-#' @param u.n number of evenly-spread points of the unobservable u to
+#' @param audit.Nu number of evenly-spread points of the unobservable u to
 #'     use to form the grid in the audit procedure.
-#' @param X.n number of `evenly' spread points of the covariates to
+#' @param audit.Nx number of `evenly' spread points of the covariates to
 #'     use to form the grid in the audit procedure.
-#' @param add.audit number of points to add to the grid in each
+#' @param audit.add number of points to add to the grid in each
 #'     iteration of the audit procedure.
-#' @param max.audits maximum number of iterations in the audit
+#' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param m1.ub numeric value for upper bound on MTR for treated
 #'     group.
@@ -62,7 +62,7 @@
 #'
 #' @export
 audit.mst <- function(data, uname, m0, m1,
-                      u.n = 10, X.n = 10, add.audit = 2, max.audits = 5,
+                      audit.Nu = 10, audit.Nx = 10, audit.add = 2, audit.max = 5,
                       m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                       m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
                       sset, gstar0, gstar1) {
@@ -73,7 +73,7 @@ audit.mst <- function(data, uname, m0, m1,
 
     ## Obtain name of unobservable variable
     if(hasArg(uname)) {
-        if(! suppressWarnings(try(class(uname), silent = TRUE) == "character")) {
+        if(! suppressWarnings(try(class(uname), silent = TRUE) == "character")){
             uname <- deparse(substitute(uname))
         }
     } else {
@@ -86,7 +86,7 @@ audit.mst <- function(data, uname, m0, m1,
                      ## variable. I use this in case I want to
                      ## generalize the monotonciity restrictions to
                      ## other covariates
-    uvec    <- seq(0, 1, length.out = u.n)
+    uvec    <- seq(0, 1, length.out = audit.Nu)
     xvars   <- unique(c(all.vars(m0), all.vars(m1)))
     xvars   <- xvars[xvars != uname]
     otherx  <- xvars[xvars != monov]
@@ -107,7 +107,7 @@ audit.mst <- function(data, uname, m0, m1,
         grid_index <- rownames(grid)
         grid_resid <- c()
         gridobj <- list(grid = grid,
-                        map  = replicate(u.n, 1))
+                        map  = replicate(audit.Nu, 1))
     } else {
         noX <- FALSE
         
@@ -123,16 +123,16 @@ audit.mst <- function(data, uname, m0, m1,
         ## Select first iteration of the grid
         full_index <- seq(1, nrow(support))
         
-        X.n <- min(X.n, nrow(support))
+        audit.Nx <- min(audit.Nx, nrow(support))
         grid_index <- sample(full_index,
-                             X.n,
+                             audit.Nx,
                              replace = FALSE,
                              prob = replicate(nrow(support), (1/nrow(support))))   
         grid_resid <- full_index[!(full_index %in% grid_index)]
     }
     ## Begin performing the audit
     audit_count <- 1        
-    while (audit_count <= max.audits & audit == TRUE) {
+    while (audit_count <= audit.max & audit == TRUE) {
         cat("Audit count:", audit_count, "\n")
         if (length(grid_resid) == 0) {
             audit <- FALSE
@@ -153,12 +153,15 @@ audit.mst <- function(data, uname, m0, m1,
         bdA     <- NULL
         monoA   <- NULL
 
-        ## generate matrices for imposing bounds on m0 and m1 and treatment effects
+        ## generate matrices for imposing bounds on m0 and m1 and
+        ## treatment effects
         if (hasArg(m0.lb) | hasArg(m0.ub) |
             hasArg(m1.lb) | hasArg(m1.lb) |
             hasArg(mte.lb) | hasArg(mte.ub)) {
 
-            boundlist  <- c("m0.lb", "m0.ub", "m1.lb", "m1.ub", "mte.lb", "mte.ub")
+            boundlist  <- c("m0.lb", "m0.ub",
+                            "m1.lb", "m1.ub",
+                            "mte.lb", "mte.ub")
             boundAcall <- modcall(call,
                                   newcall = genboundA.mst,
                                   keepargs = boundlist,
@@ -174,7 +177,9 @@ audit.mst <- function(data, uname, m0, m1,
             hasArg(m1.inc)  | hasArg(m1.dec) |
             hasArg(mte.inc) | hasArg(mte.dec)) {
             
-            monolist  <- c("m0.dec", "m0.inc", "m1.dec", "m1.inc", "mte.dec", "mte.inc")
+            monolist  <- c("m0.dec", "m0.inc",
+                           "m1.dec", "m1.inc",
+                           "mte.dec", "mte.inc")
             monoAcall <- modcall(call,
                                  newcall = fullgenmonoA.mst,
                                  keepargs = monolist,
@@ -194,7 +199,8 @@ audit.mst <- function(data, uname, m0, m1,
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs)
         minobseq  <- obseqmin.mst(sset, lpobj)
-        cat("Minimum observational equivalence deviation:", minobseq$obj, "\n\n")
+        cat("Minimum observational equivalence deviation:",
+            minobseq$obj, "\n\n")
         
         ## Now perform the audit (which can only happen if there
         ## remain observations in your empirical support that have not
@@ -204,15 +210,17 @@ audit.mst <- function(data, uname, m0, m1,
             solutionvec <- c(minobseq$g0, minobseq$g1)
 
             resid_support <- support[grid_resid, ]
-            if(is.null(dim(resid_support))) resid_support <- as.matrix(resid_support)
+            if(is.null(dim(resid_support))) {
+                resid_support <- as.matrix(resid_support)
+            }
 
             ## Generate alternate grid from residual indexes
-            add.audit <- min(add.audit, length(grid_resid)) ## numeber of points to add
-            if (add.audit == length(grid_resid)) {
+            audit.add <- min(audit.add, length(grid_resid)) 
+            if (audit.add == length(grid_resid)) {
                 newgrid_index <- grid_resid
             } else {
                 newgrid_index <- sample(grid_resid,
-                                        add.audit,
+                                        audit.add,
                                         replace = FALSE,
                                         prob = replicate(nrow(resid_support),
                                         (1/nrow(resid_support))))
@@ -230,7 +238,9 @@ audit.mst <- function(data, uname, m0, m1,
                 hasArg(m1.lb) | hasArg(m1.lb) |
                 hasArg(mte.lb) | hasArg(mte.ub)) {
 
-                boundlist  <- c("m0.lb", "m0.ub", "m1.lb", "m1.ub", "mte.lb", "mte.ub")
+                boundlist  <- c("m0.lb", "m0.ub",
+                                "m1.lb", "m1.ub",
+                                "mte.lb", "mte.ub")
                 boundAcall <- modcall(call,
                                       newcall = genboundA.mst,
                                       keepargs = boundlist,
@@ -248,7 +258,9 @@ audit.mst <- function(data, uname, m0, m1,
                 hasArg(m1.inc)  | hasArg(m1.dec) |
                 hasArg(mte.inc) | hasArg(mte.dec)) {
                 
-                monolist  <- c("m0.dec", "m0.inc", "m1.dec", "m1.inc", "mte.dec", "mte.inc")
+                monolist  <- c("m0.dec", "m0.inc",
+                               "m1.dec", "m1.inc",
+                               "mte.dec", "mte.inc")
                 monoAcall <- modcall(call,
                                      newcall = fullgenmonoA.mst,
                                      keepargs = monolist,
