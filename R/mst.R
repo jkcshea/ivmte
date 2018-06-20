@@ -459,13 +459,25 @@ mst <- function(formula, data, subset, components, propensity,
 
     
     ## Collect list of all terms used in propensity formula
-    propisvar <- FALSE
+
     if (hasArg(propensity)) {
         if (class_formula(propensity)) {
             treat <- all.vars(propensity)[1]
             vars_propensity <- all.vars(propensity)
+
+            if (hasArg(treat)) {
+                if (treat != deparse(substitute(treat))) {
+                    warning(gsub("\\s+", " ",
+                                 "Variable listed in 'treat' argument differs
+                                 from dependent variable in propensity score
+                                 formula. Dependent variable from propensity
+                                 score formula will be used as the treatment
+                                 variable."),
+                            call. = FALSE)
+                }
+            }
+            
         } else {
-            propisvar <- TRUE
 
             if (! deparse(substitute(propensity)) %in% colnames(data)) {
                 stop(gsub("\\s+", " ",
@@ -474,7 +486,9 @@ mst <- function(formula, data, subset, components, propensity,
             }
 
             vars_propensity <- c(vars_propensity,
-                                  deparse(substitute(propensity)))
+                                 deparse(substitute(propensity)))
+
+            ## Determine treatment variable
             if (hasArg(treat)) {
                 treat <- deparse(substitute(treat))
                 vars_propensity <- c(vars_propensity,
@@ -498,26 +512,90 @@ mst <- function(formula, data, subset, components, propensity,
                 stop("Treatment variable indeterminable.")
             }
         }
+    } else {
+        ## Determine treatment variable
+        if (hasArg(treat)) {
+            treat <- deparse(substitute(treat))
+            vars_propensity <- treat
+        } else if (class(formula) == "formula") {
+            warning(gsub("\\s+", " ",
+                         "First independent variable of IV-like
+                             specification regression is selected as the
+                             treatment variable."))
+            treat <- all.vars(formula)[2]
+        } else if (is.list(formula)) {
+            warning(gsub("\\s+", " ",
+                         "First independent variable of first IV regression
+                             is selected as the treatment variable."))
+            treat <- all.vars(formula[[1]])[2]
+        } else {
+            stop("Treatment variable indeterminable.")
+        }
+
+        ## Construct propensity formula
+        terms_propensity <- c(unlist(terms_formulas_x),
+                              unlist(terms_formulas_z),
+                              unlist(terms_mtr))
+
+        ## Remove all u terms
+        uterms <- c()
+        
+        um1 <- which(terms_propensity == deparse(substitute(uname)))
+        um2 <- grep(paste0("^[", deparse(substitute(uname)), "][[:punct:]]"),
+                    terms_propensity)
+        um3 <- grep(paste0("[[:punct:]][", deparse(substitute(uname)), "]$"),
+                    terms_propensity)
+        um4 <- grep(paste0("[[:punct:]][",
+                           deparse(substitute(uname)),
+                           "][[:punct:]]"),
+                    terms_propensity)
+        um5 <- grep(paste0("[[:punct:]][", deparse(substitute(uname)), "]\\s+"),
+                    terms_propensity)
+        um6 <- grep(paste0("\\s+[", deparse(substitute(uname)), "][[:punct:]]"),
+                    terms_propensity)
+        um7 <- grep(paste0("\\s+[", deparse(substitute(uname)), "]\\s+"),
+                    terms_propensity)
+        um8 <- grep("uSpline", terms_propensity)
+        
+        for (i in 1:8) {
+            uterms <- c(uterms, terms_propensity[get(paste0("um", i))])
+        }
+        terms_propensity <- terms_propensity[!(terms_propensity %in% uterms) &
+                                           !(terms_propensity == treat)]
+        propensity <- paste(treat,
+                            paste(unique(terms_propensity),
+                                  collapse = " + "),
+                            sep = " ~ ")
+        propWarn <- paste("No propensity score formula or propensity score
+                           variable name provided. By default, the function will
+                           create a propensity score formula using all the
+                           covariates in the IV-like specifications and the
+                           MTRs. The propensity score formula generated is:",
+                           propensity)
+        warning(gsub("\\s+", " ", propWarn), call. = FALSE)
+        propensity <- as.formula(propensity)
     }
 
     ## Remove unobserved variable from list
     allvars <- unique(c(vars_y,
-                         vars_formulas_x,
-                         vars_formulas_z,
-                         vars_subsets,
-                         vars_mtr,
-                         vars_propensity))
+                        vars_formulas_x,
+                        vars_formulas_z,
+                        vars_subsets,
+                        vars_mtr,
+                        vars_propensity))
     allvars <- allvars[allvars != deparse(substitute(uname))]
     
     newpropensity <- unique(c(vars_formulas_x,
                               vars_formulas_z,
                               vars_mtr))
+    
     newpropensity <- newpropensity[(newpropensity !=
                                     deparse(substitute(uname))) &
                                    (newpropensity != treat)]
-
+    
     comp_filler <- lapply(terms_formulas_x,
-                               function(x) as.character(unstring(x)))
+                          function(x) as.character(unstring(x)))
+    
     if (userComponents) {
         compMissing <- unlist(lapply(components, function(x) deparse(x) == ""))
         if (sum(compMissing) > 0 & specCompWarn) {
@@ -531,7 +609,7 @@ mst <- function(formula, data, subset, components, propensity,
     } else {
         components <- comp_filler
     }
-      
+    
     ## You need to separate out the unobervable u. So how can you
     ## safely determine how the u's enter? For instance, you can't use
     ## ":u" as a marker for u entering, since you could have something
@@ -554,8 +632,12 @@ mst <- function(formula, data, subset, components, propensity,
     ## 2. Obtain propensity scores
     ##---------------------------
 
-    if (!hasArg(propensity)) { ## if no propensity declared, then use
-                               ## first stage specification
+
+    ## FIX: defualt propensity score needs to be updated.
+    
+    ## if no propensity declared, then use# first stage specification
+
+    if (!hasArg(propensity)) { 
         treat <- all.vars(formula)[2]
         updateprop <- "update(formula(formula, collapse = TRUE, lhs = 0),"
         updateprop <- paste(updateprop, paste(treat, "~ . -", treat), ")")
