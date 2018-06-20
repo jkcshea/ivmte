@@ -60,21 +60,18 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #'              list = FALSE)
 #'
 #' @export 
-sweights.mst <- function(formula, data, subset, components = NULL, treat, list = FALSE) {
+sweights.mst <- function(formula, data, subset, components = NULL, treat,
+                         list = FALSE) {
   
     formula <- Formula::as.Formula(formula)
-    
-    ## match call arguments
+
     call     <- match.call(expand.dots = FALSE)
-    call_arg <- match(c("formula", "data", "subset", "na.action", "weights", 
-                        "components"), names(call), 0)
-    call_arg <- call[c(1, call_arg)]
 
     ## obtain design matrices
     if (list == TRUE) {
         mf <- design.mst(formula, data)
     } else {
-        mf <- eval(modcall(call_arg,
+        mf <- eval(modcall(call,
                            newcall = design.mst,
                            keepargs = c("formula", "subset"),
                            newargs = list(data = quote(data))))
@@ -84,9 +81,13 @@ sweights.mst <- function(formula, data, subset, components = NULL, treat, list =
 
     ## select components
     if (list == TRUE) {
-        components <- deparse(components)
+        if (!is.character(components)) {
+            components <- deparse(components)
+        }
     } else {
-        components <- deparse(substitute(components))
+        if (!is.character(components)) {
+            components <- deparse(substitute(components))
+        }
     }
     
     if (components == "NULL") {

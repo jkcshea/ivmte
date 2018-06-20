@@ -59,19 +59,28 @@ class_list <- function(obj) {
 #' @param inst boolean expression, set to TRUE if the instrument names
 #'     are to be extracted. Otherwise, the covariate names are
 #'     extracted.
-get_xz <- function(fm, inst = FALSE) {
+get_xz <- function(fm, inst = FALSE, terms = FALSE) {
     fm <- Formula::as.Formula(fm)
     if (length(fm)[2] == 1) {
-        x <- all.vars(fm)[-1]
+        if (terms == FALSE) {
+            x <- all.vars(fm)[-1]
+        } else {
+            x <- attr(terms(fm), "term.labels")
+        }
         z <- NULL
     }
     if (length(fm)[2] == 2) {
-        x <- all.vars(formula(fm, rhs = 1))[-1]
-        z <- all.vars(formula(fm, rhs = 2))[-1]
+        if (terms == FALSE) {
+            x <- all.vars(formula(fm, rhs = 1))[-1]
+            z <- all.vars(formula(fm, rhs = 2))[-1]
+        } else {
+            x <- attr(terms(formula(fm, rhs = 1)), "term.labels")
+            z <- attr(terms(formula(fm, rhs = 2)), "term.labels")
+        }        
     }
-    if (inst == TRUE) {
-        return(z)
-    } else {
+    if (inst == FALSE) {
         return(x)
+    } else {
+        return(z)
     }
 }

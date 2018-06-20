@@ -252,7 +252,7 @@ audit.mst <- function(data, uname, m0, m1,
             } else {
                 a_bdA <-  NULL
             }
-            
+
             ## Prepare to generate matrices for monotonicity constraints 
             if (hasArg(m0.inc)  | hasArg(m0.dec) |
                 hasArg(m1.inc)  | hasArg(m1.dec) |

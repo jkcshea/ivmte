@@ -97,6 +97,9 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
     sn <- length(sset)
     grid <- gridobj$grid
     gridmap <- gridobj$map
+
+    print("SSET")
+    print(sset)
     
     ## Generate place holders for the matrices representing monotonicity
     lbdA0  <- NULL
@@ -121,9 +124,14 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
       
     ## Generate matrices for imposing bounds on m0
     if (hasArg(m0.ub) | hasArg(m0.lb)) {
+        print(c(nrow(grid), 2 * sn))
+        print(dim(A0))
+        print(dim(A1))
+        
         bdA0 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                       A0,
                       matrix(0, nrow = nrow(A1),   ncol = ncol(A1)))
+
         map <- c(map, gridmap)
         if (is.numeric(try(m0.ub, silent = TRUE))) {
             ubdA0 <- bdA0

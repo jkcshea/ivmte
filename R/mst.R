@@ -140,7 +140,7 @@
 #'     to= c(1,2))
 #'
 #' @export
-mst <- function(formula, data, subset, components = NULL, propensity,
+mst <- function(formula, data, subset, components, propensity,
                 link, treat, m0, m1, uname = u, target, late.Z,
                 late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
                 threshold = 1e-08, audit.Nu = 10, audit.Nx = 10, audit.add = 2,
@@ -150,16 +150,16 @@ mst <- function(formula, data, subset, components = NULL, propensity,
 
     ## Match call arguments
     call     <- match.call(expand.dots = FALSE)
-    call_arg <- match(c("formula", "data", "subset", "propensity",
-                        "link", "components"), names(call), 0)
-    call_arg <- call[c(1, call_arg)]
+    ## call_arg <- match(c("formula", "data", "subset", "propensity",
+    ##                     "link", "components"), names(call), 0)
+    ## call_arg <- call[c(1, call_arg)]
 
-    ## FIX: at some point, you may want to include "weights",
+    ## FIX: at some point, you may want to include "weights"
 
     ##---------------------------
     ## 0.a Check format of `formula', `subset', and `component' inputs
     ##---------------------------
-
+    
     inputerror <- gsub("\\s+", " ",
                        "List of IV formulas, components, and subsetting
                        conditions are not conformable with each other. Either
@@ -168,51 +168,83 @@ mst <- function(formula, data, subset, components = NULL, propensity,
                        have two be lists of equal length, and the other be
                        singular.")
 
-    if (class_list(formula) |
-        class_list(subset)  |
-        class_list(components)) {
-
+    if (class_list(formula)) {
+        
         ## Convert formula, components, and subset inputs into lists
-        if (!class_list(formula)) formula <- list(formula)
-        if (!class_list(components)) components <- list(components)
-
-        ## Check if the length of the inputs are the same, or if they
-        ## differ in an acceptable way
         length_formula <- length(formula)
-        length_components <- length(components)
 
-        if (length_formula != length_components &
-            length_formula > 1 & length_components > 1) stop(inputerror)
-
-        length_max <- max(length_formula, length_components)
+        if (hasArg(components)) {
+            userComponents <- TRUE
+            if (class_list(components)) {
+                length_components <- length(components)
+            } else {
+                length_components <- 1
+                compList <- list()
+                compList[[1]] <- components
+                components <- complist
+            }
+        } else {
+            userComponents <- FALSE
+            length_components <- length_formula
+            components <- as.list(replicate(length_formula, ""))
+            warning(gsub("\\s+", " ",
+                         "No list of components provided. All covariates in each
+                         IV-like specification will be included when
+                         constructing each S-set."),
+                    call. = FALSE)
+        }
+        
+        if (length_formula > length_components & length_components > 0) {
+            warning(gsub("\\s+", " ",
+                         "List of components not the same length of list of
+                         IV-like specifications: more specifications than
+                         component vectors. Specifications without coresponding
+                         component vectors will include all covariates when
+                         constructing the S-set."),
+                    call. = FALSE)
+            components[length(components) + 1 : length(formula)] <- ""
+        }
+        
+        if (length_formula < length_components) {
+            warning(gsub("\\s+", " ",
+                         "List of components not the same length of list of
+                         IV-like specifications: more component vectors than
+                         specifications. Component vectors without coresponding
+                         specifications will be dropped."),
+                    call. = FALSE)
+            components <- components[1 : length(formula)]
+        }
 
         ## Check the subset input---of the three lists that are input,
         ## only this can be omitted by the user, in which case no
         ## subsetting is used
         if (hasArg(subset)) {
             if (!class(subset) == "list") subset <- list(subset)
-            if (length(subset) == 1) {
-                subset <- replicate(length_max, subset)
-            } else {
-                ## Check if subset vector is of the same length of the
-                ## other vectors
-                if(length(subset) != length_max & length_max > 1) {
-                    stop(inputerror)
-                }
+            if(length(subset) > length_formula) {
+                warning(gsub("\\s+", " ",
+                             "List of subset conditions not the same length
+                              of list IV-like specifications: more
+                              specifications than subsetting conditions.
+                              Specifications without corresponding subset
+                              conditions will include all observations."),
+                        call. = FALSE)
+                subset[length(subset) + 1 : length(formula)] <- ""
+            }
+            if(length(subset) < length_formula) {
+                warning(gsub("\\s+", " ",
+                             "List of subset conditions not the same length
+                              of list IV-like specifications: more subset
+                              conditions than IV-like specifications.
+                              Subset conditions without corresponding
+                              specifications will be dropped."),
+                        call. = FALSE)
+                subset <- subset[1 : length(formula)]
             }
         } else {
             ## if no subset input, then we construct it
-            subset <- as.list(replicate(length_max, ""))
+            subset <- as.list(replicate(length_formula, ""))
         }
 
-        ## Duplicate the other components that need to be duplicated
-        ## to get balanced inputs.
-        length_max <- max(length_formula,
-                          length_components,
-                          length(subset))
-        if (length_formula == 1) formula <- replicate(length_max, formula)
-        if (length_components == 1) components <- replicate(length_max,
-                                                            components)
     }
 
     ##---------------------------
@@ -324,17 +356,23 @@ mst <- function(formula, data, subset, components = NULL, propensity,
     ## Restrict data used for all parts of procedure to be the same
     ## Collect list of all terms used in formula
 
-    terms_y          <- NULL
+    vars_y          <- NULL
+    vars_formulas_x <- c()
+    vars_formulas_z <- c()
+    vars_subsets    <- c()
+    vars_mtr        <- c()
+    vars_propensity <- c()
+
     terms_formulas_x <- c()
     terms_formulas_z <- c()
-    terms_subsets    <- c()
     terms_mtr        <- c()
-    terms_propensity <- c()
     
     if (class_formula(formula)) {
-        terms_formulas_x <- get_xz(formula)
-        terms_formulas_z <- get_xz(formula, inst = TRUE)
-        terms_y <- all.vars(formula)[1]
+        vars_formulas_x <- get_xz(formula)
+        vars_formulas_z <- get_xz(formula, inst = TRUE)
+        vars_y <- all.vars(formula)[1]
+        terms_formulas <- attr(terms(Formula::as.Formula(formula)),
+                               "term.labels")
         
     } else if (class_list(formula)) {
         if(!min(unlist(lapply(formula, class_formula)))) {
@@ -342,16 +380,27 @@ mst <- function(formula, data, subset, components = NULL, propensity,
                       "Not all elements in list of formulas are specified
                       correctly."))
         } else {
-            terms_formulas_x <- unlist(lapply(formula,
-                                              get_xz,
-                                              inst = FALSE))
-            terms_formulas_z <- unlist(lapply(formula,
-                                              get_xz,
-                                              inst = TRUE))
+            vars_formulas_x <- unlist(lapply(formula,
+                                             get_xz,
+                                             inst = FALSE))
+            vars_formulas_z <- unlist(lapply(formula,
+                                             get_xz,
+                                             inst = TRUE))
             
-            terms_y <- unique(unlist(lapply(formula,
-                                            function(x) all.vars(x)[[1]])))
-            if (length(terms_y) > 1) {
+            vars_y <- unique(unlist(lapply(formula,
+                                           function(x) all.vars(x)[[1]])))
+            
+            terms_formulas_x <- lapply(formula,
+                                       get_xz,
+                                       inst = FALSE,
+                                       terms = TRUE)
+            
+            terms_formulas_z <- lapply(formula,
+                                       get_xz,
+                                       inst = TRUE,
+                                       terms = TRUE)
+        
+            if (length(vars_y) > 1) {
                 stop(gsub("\\s+", " ",
                           "Multiple response variables specified in list of
                           IV-like specifications."))
@@ -384,7 +433,7 @@ mst <- function(formula, data, subset, components = NULL, propensity,
         }
 
         for (w in checklist) {
-            if (w %in% vnames) terms_subsets <- c(terms_subsets, w)
+            if (w %in% vnames) vars_subsets <- c(vars_subsets, w)
         }
     }
 
@@ -394,7 +443,10 @@ mst <- function(formula, data, subset, components = NULL, propensity,
            length(Formula::as.Formula(m1))[1] != 0) {
             stop("m0 and m1 must be one-sided formulas.")
         }
-        terms_mtr <- c(all.vars(m1), all.vars(m0))
+        vars_mtr <- c(all.vars(m1), all.vars(m0))
+
+        terms_mtr <- c(attr(terms(m0), "term.labels"),
+                       attr(terms(m1), "term.labels"))
         
     } else {
         stop("m0 and m1 must be one-sided formulas.")
@@ -406,7 +458,7 @@ mst <- function(formula, data, subset, components = NULL, propensity,
     if (hasArg(propensity)) {
         if (class_formula(propensity)) {
             treat <- all.vars(propensity)[1]
-            terms_propensity <- all.vars(propensity)
+            vars_propensity <- all.vars(propensity)
         } else {
             propisvar <- TRUE
 
@@ -416,25 +468,26 @@ mst <- function(formula, data, subset, components = NULL, propensity,
                           variable name, but is not found in the data set."))
             }
 
-            terms_propensity <- c(terms_propensity,
+            vars_propensity <- c(vars_propensity,
                                   deparse(substitute(propensity)))
             if (hasArg(treat)) {
                 treat <- deparse(substitute(treat))
-                terms_propensity <- c(terms_propensity,
+                vars_propensity <- c(vars_propensity,
                                       treat)
             } else if (class(formula) == "formula") {
                 warning(gsub("\\s+", " ",
-                             "First independent variable of IV regression is
-                             selected as the treatment variable."))
+                             "First independent variable of IV-like
+                             specification regression is selected as the
+                             treatment variable."))
                 treat <- all.vars(formula)[2]
-                terms_propensity <- c(terms_propensity,
+                vars_propensity <- c(vars_propensity,
                                       treat)
             } else if (is.list(formula)) {
                 warning(gsub("\\s+", " ",
                              "First independent variable of first IV regression
                              is selected as the treatment variable."))
                 treat <- all.vars(formula[[1]])[2]
-                terms_propensity <- c(terms_propensity,
+                vars_propensity <- c(vars_propensity,
                                       treat)
             } else {
                 stop("Treatment variable indeterminable.")
@@ -443,17 +496,48 @@ mst <- function(formula, data, subset, components = NULL, propensity,
     }
 
     ## Remove unobserved variable from list
-    allterms <- unique(c(terms_y,
-                         terms_formulas_x,
-                         terms_formulas_z,
-                         terms_subsets,
-                         terms_mtr,
-                         terms_propensity))
-    allterms <- allterms[allterms != deparse(substitute(uname))]
+    allvars <- unique(c(vars_y,
+                         vars_formulas_x,
+                         vars_formulas_z,
+                         vars_subsets,
+                         vars_mtr,
+                         vars_propensity))
+    allvars <- allvars[allvars != deparse(substitute(uname))]
+    
+    newpropensity <- unique(c(vars_formulas_x,
+                              vars_formulas_z,
+                              vars_mtr))
+    newpropensity <- newpropensity[(newpropensity !=
+                                    deparse(substitute(uname))) &
+                                   (newpropensity != treat)]
 
+    comp_filler <- lapply(terms_formulas_x,
+                               function(x) as.character(unstring(x)))
+    if (userComponents) {
+        compMissing <- unlist(lapply(components, function(x) deparse(x) == ""))
+        components[compMissing] <- comp_filler[compMissing]
+    } else {
+        components <- comp_filler
+    }
+    print("FILLED IN COMPONENTS")
+    print(components)
+      
+    ## You need to separate out the unobervable u. So how can you
+    ## safely determine how the u's enter? For instance, you can't use
+    ## ":u" as a marker for u entering, since you could have something
+    ## like "x1:umbrella" as a term, which would satisfy that market.
+    ## Also, you don't want to use "u", you want uname.
+    ## uEntries <- c(paste0("(", uname, ")"))
+    
+    ## stop("WORK IS NOT YET DONE!")
+    ## Next steps: so now that you have separated out the y, x, and z
+    ## variables, what you need to do is:
+    ## 1. Generate the propensity score model. You should only use the X and Z
+    ##    variables for the propensity score, since the subsetting may give you
+    ##    degenerate RVs.
     
     ## Keep only complete cases
-    data  <- data[(complete.cases(data[, allterms])), ]
+    data  <- data[(complete.cases(data[, allvars])), ]
     cdata <- data
 
     ##---------------------------
@@ -595,6 +679,7 @@ mst <- function(formula, data, subset, components = NULL, propensity,
 
             sformula   <- formula[[i]]
             scomponent <- components[[i]]
+           
             if (subset[[i]] == "") {
                 ssubset <- replicate(nrow(data), TRUE)
             } else {
@@ -665,7 +750,7 @@ mst <- function(formula, data, subset, components = NULL, propensity,
 
         ## Impose default upper and lower bounds on m0 and m1
         if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
-            maxy <- max(cdata[, terms_y])
+            maxy <- max(cdata[, vars_y])
             if (!hasArg(m1.ub)) {
                 audit_call <- modcall(audit_call,
                                       newargs = list(m1.ub = maxy))
@@ -676,7 +761,7 @@ mst <- function(formula, data, subset, components = NULL, propensity,
             }
         }
         if (!hasArg(m1.lb) | !hasArg(m0.lb)) {
-            miny <- min(cdata[, terms_y])
+            miny <- min(cdata[, vars_y])
             if (!hasArg(m1.ub)) {
                 audit_call <- modcall(audit_call,
                                       newargs = list(m1.lb = miny))
