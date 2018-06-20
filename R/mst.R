@@ -177,6 +177,11 @@ mst <- function(formula, data, subset, components, propensity,
             userComponents <- TRUE
             if (class_list(components)) {
                 length_components <- length(components)
+                if (length_components == length_formula) {
+                    specCompWarn <- TRUE
+                } else {
+                    specCompWarn <- FALSE
+                }
             } else {
                 length_components <- 1
                 compList <- list()
@@ -515,12 +520,17 @@ mst <- function(formula, data, subset, components, propensity,
                                function(x) as.character(unstring(x)))
     if (userComponents) {
         compMissing <- unlist(lapply(components, function(x) deparse(x) == ""))
+        if (sum(compMissing) > 0 & specCompWarn) {
+            warning(gsub("\\s+", " ",
+                         "Specifications without coresponding
+                         component vectors will include all covariates when
+                         constructing the S-set."),
+                    call. = FALSE)
+        }
         components[compMissing] <- comp_filler[compMissing]
     } else {
         components <- comp_filler
     }
-    print("FILLED IN COMPONENTS")
-    print(components)
       
     ## You need to separate out the unobervable u. So how can you
     ## safely determine how the u's enter? For instance, you can't use
@@ -747,7 +757,6 @@ mst <- function(formula, data, subset, components, propensity,
                                            gstar0 = quote(gstar0),
                                            gstar1 = quote(gstar1)))
 
-
         ## Impose default upper and lower bounds on m0 and m1
         if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
             maxy <- max(cdata[, vars_y])
@@ -762,16 +771,15 @@ mst <- function(formula, data, subset, components, propensity,
         }
         if (!hasArg(m1.lb) | !hasArg(m0.lb)) {
             miny <- min(cdata[, vars_y])
-            if (!hasArg(m1.ub)) {
+            if (!hasArg(m1.lb)) {
                 audit_call <- modcall(audit_call,
                                       newargs = list(m1.lb = miny))
             }
-            if (!hasArg(m0.ub)) {
+            if (!hasArg(m0.lb)) {
                 audit_call <- modcall(audit_call,
                                       newargs = list(m0.lb = miny))
             }
         }
-
         audit <- eval(audit_call)
         lpobj <- audit$lpobj
         minobseq <- audit$minobseq

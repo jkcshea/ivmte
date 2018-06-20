@@ -11,7 +11,7 @@
 tukeydist <- function(x, data) {
     if (is.null(dim(data))) {
         data <- as.matrix(data)
-        ineqvec <- mapply("<=", split(data, seq(1, nrow(data))), x)      
+        ineqvec <- mapply("<=", split(data, seq(1, nrow(data))), x)
         F <- sum(ineqvec)/length(ineqvec)
     } else {
         ineqvec <- mapply("<=", split(data, seq(1, nrow(data))), x)
@@ -49,7 +49,7 @@ gengrid.mst <- function(index, xsupport, usupport, uname) {
         colnames(subsupport) <- colnames(xsupport)
     }
     subsupport$grid.index <- index
-   
+
     ## generate a record for which rows correspond to which
     ## index---this will be useful for the audit.
     supportrep <- do.call("rbind",
@@ -62,11 +62,11 @@ gengrid.mst <- function(index, xsupport, usupport, uname) {
     colnames(grid) <- c(colnames(xsupport), uname)
 
     return(list(grid = grid,
-                map = map))    
+                map = map))
 }
 
 #' Generating the LP constraint matrix for bounds
-#' 
+#'
 #' This function generates the component of the constraint matrix in
 #' the LP problem pertaining to bounds on the MTRs and MTEs. These
 #' bounds are declared by the user.
@@ -98,9 +98,6 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
     grid <- gridobj$grid
     gridmap <- gridobj$map
 
-    print("SSET")
-    print(sset)
-    
     ## Generate place holders for the matrices representing monotonicity
     lbdA0  <- NULL
     lbdA1  <- NULL
@@ -121,27 +118,24 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
     teub  <- NULL
     teubs <- NULL
     map   <- NULL
-      
+
     ## Generate matrices for imposing bounds on m0
     if (hasArg(m0.ub) | hasArg(m0.lb)) {
-        print(c(nrow(grid), 2 * sn))
-        print(dim(A0))
-        print(dim(A1))
-        
+
         bdA0 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                       A0,
                       matrix(0, nrow = nrow(A1),   ncol = ncol(A1)))
-
-        map <- c(map, gridmap)
         if (is.numeric(try(m0.ub, silent = TRUE))) {
             ubdA0 <- bdA0
             m0ub  <- replicate(nrow(A0), m0.ub)
             m0ubs <- replicate(nrow(A0), "<=")
+            map <- c(map, gridmap)
         }
         if (is.numeric(try(m0.lb, silent = TRUE))) {
             lbdA0 <- bdA0
             m0lb  <- replicate(nrow(A0), m0.lb)
             m0lbs <- replicate(nrow(A0), ">=")
+            map <- c(map, gridmap)
         }
     }
     ## Generate matrices for imposing bounds on m1
@@ -149,32 +143,34 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
         bdA1 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                       matrix(0, nrow = nrow(A0),   ncol = ncol(A0)),
                       A1)
-        map <- c(map, gridmap)
         if (is.numeric(try(m1.ub, silent = TRUE))) {
             ubdA1 <- bdA1
             m1ub  <- replicate(nrow(A1), m1.ub)
             m1ubs <- replicate(nrow(A1), "<=")
+            map <- c(map, gridmap)
         }
         if (is.numeric(try(m1.lb, silent = TRUE))) {
             lbdA1 <- bdA1
             m1lb  <- replicate(nrow(A1), m1.lb)
             m1lbs <- replicate(nrow(A1), ">=")
+            map <- c(map, gridmap)
         }
     }
     ## Generate matrices for imposing bounds on m1 - m0
     if(hasArg(mte.lb) | hasArg(mte.ub)) {
         bdAte <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                        -A0, A1)
-        map <- c(map, gridmap)
         if (is.numeric(try(mte.ub, silent = TRUE))) {
             ubdAte <- bdAte
             teub  <- replicate(nrow(A1), mte.ub)
             teubs <- replicate(nrow(A1), "<=")
+            map <- c(map, gridmap)
         }
         if (is.numeric(try(mte.lb, silent = TRUE))) {
             lbdAte <- bdAte
             telb  <- replicate(nrow(A1), mte.lb)
             telbs <- replicate(nrow(A1), ">=")
+            map <- c(map, gridmap)
         }
     }
 
@@ -185,7 +181,7 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
                m0ubs, m1ubs, teubs)
     bdrhs <- c(m0lb,  m1lb,  telb,
                m0ub,  m1ub,  teub)
-    return(list(A = bdA, sense = bds, rhs = bdrhs, map = map))   
+    return(list(A = bdA, sense = bds, rhs = bdrhs, map = map))
 }
 
 #' Generating the A matrix in the monotonicity constraint
@@ -206,17 +202,23 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
 #'     group (\code{d = 0}).
 #' @param ndcols number of terms in the MTR for the other experimental
 #'     group. This is used to generate a matrix that is of the correct
-#'     dimension. 
+#'     dimension.
 monoA <- function(A, monogrid, sn, d, ndcols) {
 
 
-    A_mono <- A[rownames(monogrid),]       
-    A_max  <- A_mono[!as.logical(maxminmatch(monogrid, ".mst.monoc", ".mst.monog", min)), ]
-    A_min  <- A_mono[!as.logical(maxminmatch(monogrid, ".mst.monoc", ".mst.monog", max)), ]
+    A_mono <- A[rownames(monogrid),]
+    A_max  <- A_mono[!as.logical(maxminmatch(monogrid,
+                                             ".mst.monoc",
+                                             ".mst.monog",
+                                             min)), ]
+    A_min  <- A_mono[!as.logical(maxminmatch(monogrid,
+                                             ".mst.monoc",
+                                             ".mst.monog",
+                                             max)), ]
     mono   <- A_max - A_min
 
     if (d == 0) monoA <- cbind(matrix(0, nrow = nrow(mono), ncol = 2 * sn),
-                               mono, 
+                               mono,
                                matrix(0, nrow = nrow(mono), ncol = ndcols))
     if (d == 1) monoA <- cbind(matrix(0, nrow = nrow(mono), ncol = 2 * sn),
                                matrix(0, nrow = nrow(mono), ncol = ndcols),
@@ -271,17 +273,17 @@ monoA <- function(A, monogrid, sn, d, ndcols) {
 genmonoA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
                          m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
                          mte.inc) {
-    
+
     sn <- length(sset)
-    
+
     ## Generate place holders for the matriecs representing monotonicity
-    monoA0  <- NULL 
+    monoA0  <- NULL
     monoA1  <- NULL
     monoAte <- NULL
-    mono0z  <- NULL 
+    mono0z  <- NULL
     mono1z  <- NULL
     monotez <- NULL
-    mono0s  <- NULL 
+    mono0s  <- NULL
     mono1s  <- NULL
     monotes <- NULL
 
@@ -303,7 +305,7 @@ genmonoA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
             monoA(A0, monogrid, sn, 0, length(gstar1))
         monotez <- replicate(nrow(monoAte), 0)
     }
-    
+
     ## Now generate the model sense vectors
     if (try(m0.inc, silent = TRUE) == TRUE) {
         mono0s <- replicate(nrow(monoA0), ">=")
@@ -326,14 +328,14 @@ genmonoA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
 
     ## Combine matrices and return
     monoA <- rbind(monoA0, monoA1, monoAte)
-    monos   <- c(mono0s, mono1s, monotes)    
+    monos   <- c(mono0s, mono1s, monotes)
     monorhs <- c(mono0z, mono1z, monotez)
-    
-    return(list(A = monoA, sense = monos, rhs = monorhs))  
+
+    return(list(A = monoA, sense = monos, rhs = monorhs))
 }
 
 #' Wrapper to generate components of the monotonicity constraints
-#' 
+#'
 #' This function generates the entire monotonicity constraint
 #' matrix. It takes in a grid of the covariates on which we define the
 #' LP contraints, and then calculates the values of the MTR and MTE
@@ -403,7 +405,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     ## group, so just drop the row for which count == 1
     monomap <- monogrid[monogrid$.mst.monoc > 1, ]$grid.index
     monogrid$grid.index <- NULL
-    
+
     ## Now we can construct the matrices for monotonicity
     arglist  <- c("sset",
                   "gstar0", "gstar1",
@@ -411,7 +413,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                   "m1.inc", "mte.dec", "mte.inc")
     monolist <- c("m0.dec", "m0.inc", "m1.dec",
                   "m1.inc", "mte.dec", "mte.inc")
-    
+
     call <- match.call(expand.dots = FALSE)
     monoAcall <- modcall(call,
                          newcall = genmonoA.mst,
@@ -432,7 +434,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
 #'
 #' This function combines the objects associated with the boundedness
 #' constraints and the monotonicity constraints.
-#' 
+#'
 #' @param bdA list containing the constraint matrix, vector of
 #'     inequalities, and RHS vector associated with the boundedness
 #'     constraints.
@@ -442,7 +444,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
 #'     boundedness and monotonicity constraints.
-genfullmbA <- function(bdA, monoA) {   
+genfullmbA <- function(bdA, monoA) {
     mbA   <- NULL
     mbs   <- NULL
     mbrhs <- NULL
