@@ -25,7 +25,7 @@
 #' or not the constraints hold. The user can specify how stringent
 #' this audit procedure is using the function arguments.
 #'
-#' @param formula formula or vector of formulas used to specify the
+#' @param ivlike formula or vector of formulas used to specify the
 #'     regressions for the IV-like estimands.
 #' @param data \code{data.frame} used to estimate the treatment
 #'     effects.
@@ -109,14 +109,15 @@
 #'     results of the LP problem.
 #'
 #' @examples
-#' formulas <- c(ey ~ d | z,
-#'               ey ~ d | factor(z),
-#'               ey ~ d,
-#'               ey ~ d | factor(z))
+#' ivlikespecs <- c(ey ~ d | z,
+#'                ey ~ d | factor(z),
+#'                ey ~ d,
+#'                ey ~ d | factor(z))
 #' jvec <- lists.mst(d, d, d, d)
 #' svec <- lists.mst(, , , z %in% c(2, 4))
 #'
-#' mst(formula = tform, data = dtm,
+#' mst(ivlike = ivlikespecs,
+#'     data = dtm,
 #'     components = jvec,
 #'     propensity = pz,
 #'     subset = svec,
@@ -128,7 +129,7 @@
 #'     m1.dec = TRUE)
 #'
 #'
-#' mst(formula = y ~ d + x1 + x2 | x1 + x2 + z1 + z2, dt,
+#' mst(ivlike = y ~ d + x1 + x2 | x1 + x2 + z1 + z2, dt,
 #'     components = d,
 #'     propensity = d ~ z1 + z2 + x1 + x2,
 #'     link = "logit",
@@ -140,7 +141,7 @@
 #'     to= c(1,2))
 #'
 #' @export
-mst <- function(formula, data, subset, components, propensity,
+mst <- function(ivlike, data, subset, components, propensity,
                 link, treat, m0, m1, uname = u, target, late.Z,
                 late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
                 threshold = 1e-08, audit.Nu = 10, audit.Nx = 10, audit.add = 2,
@@ -150,9 +151,6 @@ mst <- function(formula, data, subset, components, propensity,
 
     ## Match call arguments
     call     <- match.call(expand.dots = FALSE)
-    ## call_arg <- match(c("formula", "data", "subset", "propensity",
-    ##                     "link", "components"), names(call), 0)
-    ## call_arg <- call[c(1, call_arg)]
 
     ## FIX: at some point, you may want to include "weights"
 
@@ -160,18 +158,10 @@ mst <- function(formula, data, subset, components, propensity,
     ## 0.a Check format of `formula', `subset', and `component' inputs
     ##---------------------------
     
-    inputerror <- gsub("\\s+", " ",
-                       "List of IV formulas, components, and subsetting
-                       conditions are not conformable with each other. Either
-                       set all three inputs to be lists of the same length; or
-                       have one be a list, while the other two be singular; or
-                       have two be lists of equal length, and the other be
-                       singular.")
-
-    if (class_list(formula)) {
+    if (class_list(ivlike)) {
         
         ## Convert formula, components, and subset inputs into lists
-        length_formula <- length(formula)
+        length_formula <- length(ivlike)
 
         if (hasArg(components)) {
             userComponents <- TRUE
@@ -207,7 +197,7 @@ mst <- function(formula, data, subset, components, propensity,
                          component vectors will include all covariates when
                          constructing the S-set."),
                     call. = FALSE)
-            components[length(components) + 1 : length(formula)] <- ""
+            components[length(components) + 1 : length(ivlike)] <- ""
         }
         
         if (length_formula < length_components) {
@@ -217,7 +207,7 @@ mst <- function(formula, data, subset, components, propensity,
                          specifications. Component vectors without coresponding
                          specifications will be dropped."),
                     call. = FALSE)
-            components <- components[1 : length(formula)]
+            components <- components[1 : length(ivlike)]
         }
 
         ## Check the subset input---of the three lists that are input,
@@ -233,7 +223,7 @@ mst <- function(formula, data, subset, components, propensity,
                               Specifications without corresponding subset
                               conditions will include all observations."),
                         call. = FALSE)
-                subset[length(subset) + 1 : length(formula)] <- ""
+                subset[length(subset) + 1 : length(ivlike)] <- ""
             }
             if(length(subset) < length_formula) {
                 warning(gsub("\\s+", " ",
@@ -243,7 +233,7 @@ mst <- function(formula, data, subset, components, propensity,
                               Subset conditions without corresponding
                               specifications will be dropped."),
                         call. = FALSE)
-                subset <- subset[1 : length(formula)]
+                subset <- subset[1 : length(ivlike)]
             }
         } else {
             ## if no subset input, then we construct it
@@ -372,35 +362,35 @@ mst <- function(formula, data, subset, components, propensity,
     terms_formulas_z <- c()
     terms_mtr        <- c()
     
-    if (class_formula(formula)) {
-        vars_formulas_x <- get_xz(formula)
-        vars_formulas_z <- get_xz(formula, inst = TRUE)
-        vars_y <- all.vars(formula)[1]
-        terms_formulas <- attr(terms(Formula::as.Formula(formula)),
+    if (class_formula(ivlike)) {
+        vars_formulas_x <- get_xz(ivlike)
+        vars_formulas_z <- get_xz(ivlike, inst = TRUE)
+        vars_y <- all.vars(ivlike)[1]
+        terms_formulas <- attr(terms(Formula::as.Formula(ivlike)),
                                "term.labels")
         
-    } else if (class_list(formula)) {
-        if(!min(unlist(lapply(formula, class_formula)))) {
+    } else if (class_list(ivlike)) {
+        if(!min(unlist(lapply(ivlike, class_formula)))) {
             stop(gsub("\\s+", " ",
                       "Not all elements in list of formulas are specified
                       correctly."))
         } else {
-            vars_formulas_x <- unlist(lapply(formula,
+            vars_formulas_x <- unlist(lapply(ivlike,
                                              get_xz,
                                              inst = FALSE))
-            vars_formulas_z <- unlist(lapply(formula,
+            vars_formulas_z <- unlist(lapply(ivlike,
                                              get_xz,
                                              inst = TRUE))
             
-            vars_y <- unique(unlist(lapply(formula,
+            vars_y <- unique(unlist(lapply(ivlike,
                                            function(x) all.vars(x)[[1]])))
             
-            terms_formulas_x <- lapply(formula,
+            terms_formulas_x <- lapply(ivlike,
                                        get_xz,
                                        inst = FALSE,
                                        terms = TRUE)
             
-            terms_formulas_z <- lapply(formula,
+            terms_formulas_z <- lapply(ivlike,
                                        get_xz,
                                        inst = TRUE,
                                        terms = TRUE)
@@ -413,7 +403,7 @@ mst <- function(formula, data, subset, components, propensity,
         }
     } else {
         stop(gsub("\\s+", " ",
-                  "'formula' argument must either be a formula or a vector of
+                  "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
 
@@ -493,19 +483,19 @@ mst <- function(formula, data, subset, components, propensity,
                 treat <- deparse(substitute(treat))
                 vars_propensity <- c(vars_propensity,
                                       treat)
-            } else if (class(formula) == "formula") {
+            } else if (class(ivlike) == "formula") {
                 warning(gsub("\\s+", " ",
                              "First independent variable of IV-like
                              specification regression is selected as the
                              treatment variable."))
-                treat <- all.vars(formula)[2]
+                treat <- all.vars(ivlike)[2]
                 vars_propensity <- c(vars_propensity,
                                       treat)
-            } else if (is.list(formula)) {
+            } else if (is.list(ivlike)) {
                 warning(gsub("\\s+", " ",
                              "First independent variable of first IV regression
                              is selected as the treatment variable."))
-                treat <- all.vars(formula[[1]])[2]
+                treat <- all.vars(ivlike[[1]])[2]
                 vars_propensity <- c(vars_propensity,
                                       treat)
             } else {
@@ -517,17 +507,17 @@ mst <- function(formula, data, subset, components, propensity,
         if (hasArg(treat)) {
             treat <- deparse(substitute(treat))
             vars_propensity <- treat
-        } else if (class(formula) == "formula") {
+        } else if (class(ivlike) == "formula") {
             warning(gsub("\\s+", " ",
                          "First independent variable of IV-like
                              specification regression is selected as the
                              treatment variable."))
-            treat <- all.vars(formula)[2]
-        } else if (is.list(formula)) {
+            treat <- all.vars(ivlike)[2]
+        } else if (is.list(ivlike)) {
             warning(gsub("\\s+", " ",
                          "First independent variable of first IV regression
                              is selected as the treatment variable."))
-            treat <- all.vars(formula[[1]])[2]
+            treat <- all.vars(ivlike[[1]])[2]
         } else {
             stop("Treatment variable indeterminable.")
         }
@@ -608,22 +598,8 @@ mst <- function(formula, data, subset, components, propensity,
         components[compMissing] <- comp_filler[compMissing]
     } else {
         components <- comp_filler
-    }
-    
-    ## You need to separate out the unobervable u. So how can you
-    ## safely determine how the u's enter? For instance, you can't use
-    ## ":u" as a marker for u entering, since you could have something
-    ## like "x1:umbrella" as a term, which would satisfy that market.
-    ## Also, you don't want to use "u", you want uname.
-    ## uEntries <- c(paste0("(", uname, ")"))
-    
-    ## stop("WORK IS NOT YET DONE!")
-    ## Next steps: so now that you have separated out the y, x, and z
-    ## variables, what you need to do is:
-    ## 1. Generate the propensity score model. You should only use the X and Z
-    ##    variables for the propensity score, since the subsetting may give you
-    ##    degenerate RVs.
-    
+    }  
+   
     ## Keep only complete cases
     data  <- data[(complete.cases(data[, allvars])), ]
     cdata <- data
@@ -632,22 +608,8 @@ mst <- function(formula, data, subset, components, propensity,
     ## 2. Obtain propensity scores
     ##---------------------------
 
-
-    ## FIX: defualt propensity score needs to be updated.
+    message("Obtaining propensity scores...\n")
     
-    ## if no propensity declared, then use# first stage specification
-
-    if (!hasArg(propensity)) { 
-        treat <- all.vars(formula)[2]
-        updateprop <- "update(formula(formula, collapse = TRUE, lhs = 0),"
-        updateprop <- paste(updateprop, paste(treat, "~ . -", treat), ")")
-        propensity <- eval(parse(text = updateprop))
-
-        ## determine instrument names
-        instnames  <- colnames(design.mst(propensity, data = data[0, ])$Z)
-        instnames  <- instnames[instnames != "(Intercept)"]
-    }
-
     ## Estimate propensity scores
     if (class_formula(propensity)) {
         pcall <- modcall(call,
@@ -670,6 +632,8 @@ mst <- function(formula, data, subset, components, propensity,
     ## 3. Generate target moments/gamma terms
     ##---------------------------
 
+    message("Generating target moments...\n")
+    
     ## Generate target S- weights
     if (target == "ate") {
         w1 <- wate1.mst(data)
@@ -724,18 +688,20 @@ mst <- function(formula, data, subset, components, propensity,
     ## 4. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
 
+    message("Generating IV-like moments...")
+    
     sset  <- list() ## Contains all IV-like estimates and their
                     ## coresponding moments/gammas
     scount <- 1     ## counter for S-set constraints
 
     ## Construct `sset' object when a single IV-like specification is
     ## provided
-    if (class_formula(formula)) {
+    if (class_formula(ivlike)) {
 
         ## Obtain coefficient estimates and S-weights
         scall <- modcall(call,
                        newcall = sweights.mst,
-                       keepargs = c("formula", "subset", "components"),
+                       keepargs = c("ivlike", "subset", "components"),
                        newargs = list(treat = quote(treat),
                                       data = quote(cdata)))
 
@@ -762,14 +728,14 @@ mst <- function(formula, data, subset, components, propensity,
         sset <- setobj$sset
         scount <- setobj$scount
 
-    } else if (class_list(formula)) {
+    } else if (class_list(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
 
         ## loop across IV specifications
-        for (i in 1:length(formula)) {
+        for (i in 1:length(ivlike)) {
 
-            sformula   <- formula[[i]]
+            sformula   <- ivlike[[i]]
             scomponent <- components[[i]]
            
             if (subset[[i]] == "") {
@@ -802,14 +768,14 @@ mst <- function(formula, data, subset, components, propensity,
         }
     } else {
         stop(gsub("\\s+", " ",
-                  "'formula' argument must either be a formula or a vector of
+                  "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
 
     ##---------------------------
     ## 5. Define constraint matrices using the audit
     ##---------------------------
-
+    
     ## Switch to determine whether we want to loop
     audit <- FALSE
     if(hasArg(m0.ub)  | hasArg(m0.lb)  |
@@ -824,8 +790,10 @@ mst <- function(formula, data, subset, components, propensity,
         ## Minimize observational equivalence
         lpobj <- lpsetup.mst(sset)
         minobseq  <- obseqmin.mst(sset, lpobj)
-        cat("Min. obs. eq. threshold Q:", minobseq$obj, "\n\n")
+        message(paste("Minimum observational equivalence deviation:",
+                      round(minobseq$obj, 6), "\n"))
     } else {
+        message("\nPerforming audit procedure...\n")
         audit.args <- c("uname", "m0", "m1", "audit.Nu", "audit.Nx",
                         "audit.add", "audit.max", "m1.ub", "m0.ub",
                         "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
@@ -872,6 +840,7 @@ mst <- function(formula, data, subset, components, propensity,
     ## 6. Obtain the bounds
     ##---------------------------
 
+    message("Obtaining bounds...\n")
     lpresult  <- bound.mst(gstar0,
                            gstar1,
                            sset,
@@ -912,7 +881,7 @@ gensset.mst <- function(sset, sest, pmodobj, pm0, pm1, ncomponents,
                         scount,  subset_index) {
 
     for (j in 1:ncomponents) {
-
+        message(paste0("    Moment ", scount, "..."))
         gs0 <- gengamma.mst(pm0,
                             pmodobj,
                             1,

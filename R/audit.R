@@ -67,7 +67,6 @@ audit.mst <- function(data, uname, m0, m1,
                       m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
                       sset, gstar0, gstar1) {
 
-    cat("Performing audit...\n")
     call  <- match.call()
     audit <- TRUE
 
@@ -200,8 +199,8 @@ audit.mst <- function(data, uname, m0, m1,
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs)
         minobseq  <- obseqmin.mst(sset, lpobj)
-        cat("Minimum observational equivalence deviation:",
-            minobseq$obj, "\n\n")
+        message(paste("Minimum observational equivalence deviation:",
+            round(minobseq$obj, 6), "\n"))
 
         ## Now perform the audit (which can only happen if there
         ## remain observations in your empirical support that have not
