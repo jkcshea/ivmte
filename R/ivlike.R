@@ -19,7 +19,7 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
     ## FIX: account for weights
 
     ## project regressors x on image of instruments z
-    if (ncol(Z) < ncol(X)) warning("more regressors than instruments")
+    if (ncol(Z) < ncol(X)) warning("More regressors than instruments")
     fstage <- if(is.null(weights)) lm.fit(Z, X) else lm.wfit(Z, X, weights)
     Xhat   <- as.matrix(fstage$fitted.values)
     colnames(Xhat) <- colnames(X)
@@ -62,7 +62,7 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #' @export 
 sweights.mst <- function(formula, data, subset, components = NULL, treat,
                          list = FALSE) {
-  
+    
     formula <- Formula::as.Formula(formula)
 
     call     <- match.call(expand.dots = FALSE)
@@ -80,14 +80,16 @@ sweights.mst <- function(formula, data, subset, components = NULL, treat,
     instrumented <- !is.null(mf$Z)
 
     ## select components
-    if (list == TRUE) {
+    if (list == TRUE) {      
         if (!is.character(components)) {
             components <- deparse(components)
         }
     } else {
-        if (!is.character(components)) {
-            components <- deparse(substitute(components))
-        }
+        components <- (unlist(lapply(components, deparse)))
+        components <- paste0("c(",
+                            paste(components, collapse = ", "),
+                            ")")
+
     }
     
     if (components == "NULL") {

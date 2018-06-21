@@ -26,7 +26,6 @@ vecextract <- function(vector, position, truncation = 0) {
     return(elem)
 }
 
-
 #' Generating monomials
 #' 
 #' This function takes in a first vector of coefficients, and a second
@@ -259,4 +258,171 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     } else {
         return(monoeval * multiplier)
     }
+}
+
+#' Separating splines from MTR formulas
+#'
+#' This function separates out the function call "uSpline()"
+#' potentially embedded in the MTR formulas from the rest of the
+#' fomrula. The terms involving splines are treated separately from
+#' the terms that do not involve splines when creating the gamma
+#' moments.
+#' @param formula the formula that is to be parsed.
+#' @return a list containing two objects. One object is \code{formula}
+#'     but with the spline components removed. The second object is a
+#'     list. The name of each element is the "uSpline()" command, and
+#'     the elements are a vector of the names of covariates that were
+#'     interacted with the "uSpline()" command.
+removeSplines <- function(formula) {
+
+    fterms <- attr(terms(formula), "term.labels")
+    whichspline <- sapply(fterms,
+                          function(y) grepl(x = y, pattern = "uSpline\\("))
+    if (max(whichspline) == 1) {
+        ftobj <- terms(formula)
+        splinepos <- which(whichspline == TRUE)
+        nosplines <- drop.terms(ftobj, splinepos)
+        nosplines <- Formula::as.Formula(nosplines)
+        
+        splineterms <- fterms[whichspline]
+        splinelist <- list()
+        for (splineobj in splineterms) {
+            
+            splinepos <- regexpr("uSpline\\(", splineobj)
+            degreepos <- regexpr("degree = ", splineobj)
+            knotspos  <- regexpr("knots = ", splineobj)
+            knotslpos <- regexpr("knots = c\\(", splineobj)
+            interpos  <- regexpr("intercept = ", splineobj)
+
+            substr(splineobj, splinepos, nchar(splineobj))
+
+            ## Check if vectors or sequences are declared to adjust parsing
+            firstopen  <- regexpr("\\(",
+                                  substr(splineobj,
+                                         splinepos + 8,
+                                         nchar(splineobj)))
+            firstclose <- regexpr("\\)",
+                                  substr(splineobj,
+                                         splinepos,
+                                         nchar(splineobj)))
+            secondclose <- regexpr("\\)",
+                                   substr(splineobj,
+                                          splinepos + 8 + firstclose,
+                                          nchar(splineobj)))
+
+            if ((firstopen < firstclose) & (firstopen != - 1)) {
+                splinecmd <- substr(splineobj,
+                                    splinepos,
+                                    splinepos + 8 + firstclose + secondclose)
+            } else {
+                splinecmd <- substr(splineobj,
+                                    splinepos,
+                                    splinepos + firstclose - 1)
+            }
+
+            ## Separate uSpline command from terms interacting with the spline
+            splinecmdstr <- gsub("\\)", "\\\\)",
+                                 gsub("\\(", "\\\\(", splinecmd))   
+
+            interobj <- gsub(paste0(":", splinecmdstr), "", splineobj)
+            interobj <- gsub(paste0(splinecmdstr, ":"), "", interobj)
+            interobj <- gsub("::", ":", interobj)
+            
+            if (interobj == splinecmd) interobj <- "1"
+            
+            if (splinecmd %in% names(splinelist)) {
+                splinelist[[splinecmd]] <- c(splinelist[[splinecmd]], interobj)
+            } else {
+                splinelist[[splinecmd]] <- c(interobj)
+            }
+        }
+        
+    } else {
+        nosplines <- formula
+        splinelist <- NULL
+    }
+    
+    return(list(formula = nosplines,
+                splinelist = splinelist))
+}
+
+#' Integrated splines
+#'
+#' This function integrates out splines that the user specifies when
+#' declaring the MTRs. This is to be used when generating the gamma
+#' moments.
+#' @param x the points to evluate the interal of the the splines.
+#' @param knots the knots of the spline.
+#' @param degree the degree of the spline; default is set to 0
+#'     (constant splines).
+#' @param intercept boolean, set to TRUE if intercept term is to be
+#'     included (i.e. an additional basis such that the sum of the
+#'     splines at every point in \code{x} is equal to 1).
+#' @return a matrix, the values of the integrated splines. Each row
+#'     corresponds to a value of \code{x}; each column corresponds to
+#'     a basis defined by the degrees and knots.
+#'
+#' @examples
+#' Since the splines are declared as part of the MTR, you will need to
+#' have parsed out the spline command. Thus, this command will be
+#' called via eval(parse(text = .)). In the examples below, the
+#' commands are parsed from the object "splinelist" generated by
+#' \code{\link[MST]{removeSplines}}. The names of the elements in the
+#' list are the spline commands, and the elements themselves are the
+#' terms that interact with the splines.
+#'
+#' eval(parse(text = gsub("uSpline\\(",
+#'                        "uSplineInt(x = x, ",
+#'                        names(splinelist)[1])))
+#'
+#' eval(parse(text = gsub("uSpline\\(",
+#'                        "uSplineInt(x = x, ",
+#'                         names(splinelist)[2])))
+uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
+    ibs(x = x,
+        knots = knots,
+        degree = degree,
+        intercept = intercept,
+        Boundary.knots = c(0, 1))
+}
+
+#' Spline basis function
+#'
+#' This function evaluates the splines that the user specifies when
+#' declaring the MTRs. This is to be used for auditing, namely when
+#' checking the boundedness and monotonicity conditions.
+#' @param x the points to evluate the interal of the the splines.
+#' @param knots the knots of the spline.
+#' @param degree the degree of the spline; default is set to 0
+#'     (constant splines).
+#' @param intercept boolean, set to TRUE if intercept term is to be
+#'     included (i.e. an additional basis such that the sum of the
+#'     splines at every point in \code{x} is equal to 1).
+#' @return a matrix, the values of the integrated splines. Each row
+#'     corresponds to a value of \code{x}; each column corresponds to
+#'     a basis defined by the degrees and knots.
+#'
+#' @examples
+#'
+#' Since the splines are declared as part of the MTR, you will need to
+#' have parsed out the spline command. Thus, this command will be
+#' called via eval(parse(text = .)). In the examples below, the
+#' commands are parsed from the object "splinelist" generated by
+#' \code{\link[MST]{removeSplines}}. The names of the elements in the
+#' list are the spline commands, and the elements themselves are the
+#' terms that interact with the splines.
+#' 
+#' eval(parse(text = gsub("uSpline\\(",
+#'                        "uSplineBasis(x = x, ",
+#'                         names(splinelist)[1])))
+#'
+#' eval(parse(text = gsub("uSpline\\(",
+#'                        "uSplineBasis(x = x, ",
+#'                        names(splinelist)[2])))
+uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
+    bSpline(x = x,
+            knots = knots,
+            degree = degree,
+            intercept = intercept,
+            Boundary.knots = c(0, 1))
 }

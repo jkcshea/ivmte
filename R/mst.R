@@ -197,7 +197,7 @@ mst <- function(ivlike, data, subset, components, propensity,
                          component vectors will include all covariates when
                          constructing the S-set."),
                     call. = FALSE)
-            components[length(components) + 1 : length(ivlike)] <- ""
+            components[(length(components) + 1) : length(ivlike)] <- ""
         }
         
         if (length_formula < length_components) {
@@ -239,9 +239,24 @@ mst <- function(ivlike, data, subset, components, propensity,
             ## if no subset input, then we construct it
             subset <- as.list(replicate(length_formula, ""))
         }
-
+       
+    } else {
+        specCompWarn <- FALSE
+        if (hasArg(components)) {
+            userComponents <- TRUE
+            compString <- (unlist(lapply(components, deparse)))
+            components <- components[compString != ""]
+        } else {
+            userComponents <- FALSE
+            components <- as.list("")
+            warning(gsub("\\s+", " ",
+                         "No list of components provided. All covariates in each
+                         IV-like specification will be included when
+                         constructing each S-set."),
+                    call. = FALSE)
+        }
     }
-
+    
     ##---------------------------
     ## 0.b Check monotonicity conditions
     ##---------------------------
@@ -348,7 +363,12 @@ mst <- function(ivlike, data, subset, components, propensity,
     ## 1. Restrict data to complete observations
     ##---------------------------
 
-    ## Restrict data used for all parts of procedure to be the same
+    ## FIX: you need to remove the spline terms, but you also need to
+    ## keep track of the variables that interact with the
+    ## splines. This should not be hard since the list you generate
+    ## includes the variables that interact with the spline.
+    
+    ## Restrict data used for all parts of procedure to be the same.
     ## Collect list of all terms used in formula
 
     vars_y          <- NULL
@@ -438,10 +458,34 @@ mst <- function(ivlike, data, subset, components, propensity,
            length(Formula::as.Formula(m1))[1] != 0) {
             stop("m0 and m1 must be one-sided formulas.")
         }
-        vars_mtr <- c(all.vars(m1), all.vars(m0))
 
-        terms_mtr <- c(attr(terms(m0), "term.labels"),
-                       attr(terms(m1), "term.labels"))
+        splineless0 <- removeSplines(m0)
+        splineless1 <- removeSplines(m1)
+
+        m0 <- splineless0$formula
+        m1 <- splineless1$formula
+        
+        vars_mtr <- c(all.vars(splineless0$formula),
+                      all.vars(splineless1$formula))
+
+        terms_mtr <- c(attr(terms(removeSplines(m0)$formula), "term.labels"),
+                       attr(terms(removeSplines(m1)$formula), "term.labels"))
+        
+        if (!is.null(splineless0$splinelist)) {
+            sf0 <- as.formula(paste("~",
+                                    paste(unlist(splineless0$splinelist),
+                                          collapse = " + ")))
+            vars_mtr <- c(vars_mtr, all.vars(sf0))
+            terms_mtr <- c(terms_mtr, attr(terms(sf0), "term.labels"))
+        }
+      
+        if (!is.null(splineless1$splinelist)) {
+            sf1 <- as.formula(paste("~",
+                                    paste(unlist(splineless1$splinelist),
+                                          collapse = " + ")))
+            vars_mtr <- c(vars_mtr, all.vars(sf1))
+            terms_mtr <- c(terms_mtr, attr(terms(sf1), "term.labels"))
+        }
         
     } else {
         stop("m0 and m1 must be one-sided formulas.")
@@ -585,9 +629,12 @@ mst <- function(ivlike, data, subset, components, propensity,
     
     comp_filler <- lapply(terms_formulas_x,
                           function(x) as.character(unstring(x)))
-    
+
+    ## Fill in components list if necessary
     if (userComponents) {
-        compMissing <- unlist(lapply(components, function(x) deparse(x) == ""))
+        compMissing1 <- unlist(lapply(components, function(x) deparse(x) == ""))
+        compMissing2 <- unlist(lapply(components, function(x) x == ""))
+        compMissing <- as.logical(compMissing1 + compMissing2)
         if (sum(compMissing) > 0 & specCompWarn) {
             warning(gsub("\\s+", " ",
                          "Specifications without coresponding
@@ -598,6 +645,7 @@ mst <- function(ivlike, data, subset, components, propensity,
         components[compMissing] <- comp_filler[compMissing]
     } else {
         components <- comp_filler
+
     }  
    
     ## Keep only complete cases
@@ -701,9 +749,11 @@ mst <- function(ivlike, data, subset, components, propensity,
         ## Obtain coefficient estimates and S-weights
         scall <- modcall(call,
                        newcall = sweights.mst,
-                       keepargs = c("ivlike", "subset", "components"),
-                       newargs = list(treat = quote(treat),
-                                      data = quote(cdata)))
+                       keepargs = c("subset"),
+                       newargs = list(formula = ivlike,
+                                      treat = quote(treat),
+                                      data = quote(cdata),
+                                      components = components))
 
         sest <- eval(scall)
 
@@ -887,6 +937,7 @@ gensset.mst <- function(sset, sest, pmodobj, pm0, pm1, ncomponents,
                             1,
                             sest$sw0[, j],
                             subset_index)
+
         gs1 <- gengamma.mst(pm1,
                             0,
                             pmodobj,

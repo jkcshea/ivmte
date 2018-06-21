@@ -24,6 +24,7 @@ extractcols <- function(M, components) {
         e <- genej(pos, n)
         emat <- cbind(emat, e)
     }
+
     return(M %*% emat)
 }
 
@@ -79,7 +80,8 @@ wald.mst <- function(D, Z) {
     pz   <- mean(Z)
     ed0  <- mean(wdt[wdt[, 2] == 0, 1])
     ed1  <- mean(wdt[wdt[, 2] == 1, 1])
-    wvec <- as.matrix((as.integer(Z == 1) / pz - as.integer(Z == 0) / (1 - pz)) / (ed1 - ed0))
+    wvec <- as.matrix((as.integer(Z == 1) / pz - as.integer(Z == 0) /
+                       (1 - pz)) / (ed1 - ed0))
     return(list(s0 = wvec, s1 = wvec))
 }
 
@@ -94,11 +96,25 @@ wald.mst <- function(D, Z) {
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
 ivj.mst <- function(X, Z, components, treat) {
-
-    ## replace intercept name (since user cannot input parentheses---they don't use strings)
+    
+    ## replace intercept name (since user cannot input
+    ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
     cpos <- which(colnames(X) %in% components)
 
+    cposcheck <- which(!components %in% colnames(X))
+    if (length(cposcheck) > 0) {
+        errornames  <- paste(components[cposcheck], collapse = ", ")
+        matrixnames <- paste(colnames(X), collapse = ", ")
+        emessage <- paste0("The following components are not found in the design
+                           matrix: ", errornames, ". The variables included in
+                           the design matrix are: ", matrixnames, ". Please
+                           select the components from the listed variables in
+                           the design matrix.")
+        emessage <- gsub("\\s+", " ", emessage)
+        stop(emessage)
+    }
+    
     ## construct weights
     ezx  <- (1 / nrow(X)) * t(Z) %*% X
     wvec <- solve(ezx) %*% t(Z)
@@ -118,10 +134,23 @@ ivj.mst <- function(X, Z, components, treat) {
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
 tsls.mst <- function(X, Z, components, treat) {
-
-    ## replace intercept name (since user cannot input parentheses---they don't use strings)
+    ## replace intercept name (since user cannot input
+    ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
     cpos <- which(colnames(X) %in% components)
+
+    cposcheck <- which(!components %in% colnames(X))
+    if (length(cposcheck) > 0) {
+        errornames  <- paste(components[cposcheck], collapse = ", ")
+        matrixnames <- paste(colnames(X), collapse = ", ")
+        emessage <- paste0("The following components are not found in the design
+                           matrix: ", errornames, ". The variables included in
+                           the design matrix are: ", matrixnames, ". Please
+                           select the components from the listed variables in
+                           the design matrix.")
+        emessage <- gsub("\\s+", " ", emessage)
+        stop(emessage)
+    }
 
     ## construct first stage matrix
     exz <- (1 / nrow(X)) * t(X) %*% Z
