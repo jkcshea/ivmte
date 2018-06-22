@@ -461,7 +461,7 @@ mst <- function(ivlike, data, subset, components, propensity,
 
         splinesobj <- list(removeSplines(m0),
                            removeSplines(m1))
-        
+
         m0 <- splinesobj[[1]]$formula
         m1 <- splinesobj[[2]]$formula
         
@@ -470,18 +470,18 @@ mst <- function(ivlike, data, subset, components, propensity,
 
         terms_mtr <- c(attr(terms(splinesobj[[1]]$formula), "term.labels"),
                        attr(terms(splinesobj[[2]]$formula), "term.labels"))
-        
-        if (!is.null(splinesobj[[1]]$splinelist)) {
+
+        if (!is.null(splinesobj[[1]]$splineslist)) {
             sf0 <- as.formula(paste("~",
-                                    paste(unlist(splinesobj[[1]]$splinelist),
+                                    paste(unlist(splinesobj[[1]]$splineslist),
                                           collapse = " + ")))
             vars_mtr <- c(vars_mtr, all.vars(sf0))
             terms_mtr <- c(terms_mtr, attr(terms(sf0), "term.labels"))
         }
       
-        if (!is.null(splinesobj[[2]]$splinelist)) {
+        if (!is.null(splinesobj[[2]]$splineslist)) {
             sf1 <- as.formula(paste("~",
-                                    paste(unlist(splinesobj[[2]]$splinelist),
+                                    paste(unlist(splinesobj[[2]]$splineslist),
                                           collapse = " + ")))
             vars_mtr <- c(vars_mtr, all.vars(sf1))
             terms_mtr <- c(terms_mtr, attr(terms(sf1), "term.labels"))
@@ -676,6 +676,11 @@ mst <- function(ivlike, data, subset, components, propensity,
     }
     pmodel <- eval(pcall)
 
+    ##---------------------------
+    ## TESTING: Generate the spline components for 
+    ##---------------------------
+
+    
     ##---------------------------
     ## 3. Generate target moments/gamma terms
     ##---------------------------
@@ -942,14 +947,14 @@ gensset.mst <- function(sset, sest, splinesobj, pmodobj, pm0, pm1,
     for (j in 1:ncomponents) {
         message(paste0("    Moment ", scount, "..."))
         gs0 <- gengamma.mst(monomials = pm0,
-                            splines = splinesobj[[1]],
+                            splines = splinesobj[[1]]$splineslist,
                             lb = pmodobj,
                             ub = 1,
                             multiplier = sest$sw0[, j],
                             subset = subset_index)
 
         gs1 <- gengamma.mst(monomials = pm1,
-                            splines = splinesobj[[2]],
+                            splines = splinesobj[[2]]$splineslist,
                             lb = 0,
                             ub = pmodobj,
                             multiplier = sest$sw1[, j],
