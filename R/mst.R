@@ -461,9 +461,6 @@ mst <- function(ivlike, data, subset, components, propensity,
 
         splinesobj <- list(removeSplines(m0),
                            removeSplines(m1))
-
-        print(splinesobj[[1]])
-        print(splinesobj[[2]])
         
         m0 <- splinesobj[[1]]$formula
         m1 <- splinesobj[[2]]$formula
@@ -480,7 +477,6 @@ mst <- function(ivlike, data, subset, components, propensity,
                                           collapse = " + ")))
             vars_mtr <- c(vars_mtr, all.vars(sf0))
             terms_mtr <- c(terms_mtr, attr(terms(sf0), "term.labels"))
-            print(attr(terms(sf0), "term.labels"))
         }
       
         if (!is.null(splinesobj[[2]]$splinelist)) {
@@ -489,7 +485,6 @@ mst <- function(ivlike, data, subset, components, propensity,
                                           collapse = " + ")))
             vars_mtr <- c(vars_mtr, all.vars(sf1))
             terms_mtr <- c(terms_mtr, attr(terms(sf1), "term.labels"))
-            print(attr(terms(sf1), "term.labels"))
         }
         
     } else {
@@ -734,8 +729,8 @@ mst <- function(ivlike, data, subset, components, propensity,
     pm1 <- eval(as.call(m1call))
 
     ## Estimate gamma-star
-    gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
-    gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
+    gstar0 <- gengamma.mst(pm0, splinesobj[[1]], w0$lb, w0$ub, w0$mp)
+    gstar1 <- gengamma.mst(pm1, splinesobj[[2]], w1$lb, w1$ub, w1$mp)
 
     ##---------------------------
     ## 4. Generate moments/gamma terms for IV-like estimands
@@ -773,14 +768,14 @@ mst <- function(ivlike, data, subset, components, propensity,
         ## estimands
         setobj <- gensset.mst(sset = sset,
                               sest = sest,
-                              splinesobj = splinesobj,
+                              splinesobj = splinesobj, 
                               pmodobj = pmodel$phat[subset_index],
                               pm0 = pm0,
                               pm1 = pm1,
                               ncomponents = ncomponents,
                               scount = scount,
                               subset_index = subset_index)
-        
+
         sset <- setobj$sset
         scount <- setobj$scount
 
@@ -816,14 +811,14 @@ mst <- function(ivlike, data, subset, components, propensity,
             pmodobj <- pmodel$phat[subset_index]
             setobj <- gensset.mst(sset = sset,
                                   sest = sest,
-                                  splinesobj = splinesobj,
+                                  splinesobj = splinesobj, 
                                   pmodobj = pmodobj,
                                   pm0 = pm0,
                                   pm1 = pm1,
                                   ncomponents = ncomponents,
                                   scount = scount,
                                   subset_index = subset_index)
-           
+            
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
