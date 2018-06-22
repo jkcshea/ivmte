@@ -459,32 +459,37 @@ mst <- function(ivlike, data, subset, components, propensity,
             stop("m0 and m1 must be one-sided formulas.")
         }
 
-        splineless0 <- removeSplines(m0)
-        splineless1 <- removeSplines(m1)
+        splinesobj <- list(removeSplines(m0),
+                           removeSplines(m1))
 
-        m0 <- splineless0$formula
-        m1 <- splineless1$formula
+        print(splinesobj[[1]])
+        print(splinesobj[[2]])
         
-        vars_mtr <- c(all.vars(splineless0$formula),
-                      all.vars(splineless1$formula))
+        m0 <- splinesobj[[1]]$formula
+        m1 <- splinesobj[[2]]$formula
+        
+        vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
+                      all.vars(splinesobj[[2]]$formula))
 
-        terms_mtr <- c(attr(terms(removeSplines(m0)$formula), "term.labels"),
-                       attr(terms(removeSplines(m1)$formula), "term.labels"))
+        terms_mtr <- c(attr(terms(splinesobj[[1]]$formula), "term.labels"),
+                       attr(terms(splinesobj[[2]]$formula), "term.labels"))
         
-        if (!is.null(splineless0$splinelist)) {
+        if (!is.null(splinesobj[[1]]$splinelist)) {
             sf0 <- as.formula(paste("~",
-                                    paste(unlist(splineless0$splinelist),
+                                    paste(unlist(splinesobj[[1]]$splinelist),
                                           collapse = " + ")))
             vars_mtr <- c(vars_mtr, all.vars(sf0))
             terms_mtr <- c(terms_mtr, attr(terms(sf0), "term.labels"))
+            print(attr(terms(sf0), "term.labels"))
         }
       
-        if (!is.null(splineless1$splinelist)) {
+        if (!is.null(splinesobj[[2]]$splinelist)) {
             sf1 <- as.formula(paste("~",
-                                    paste(unlist(splineless1$splinelist),
+                                    paste(unlist(splinesobj[[2]]$splinelist),
                                           collapse = " + ")))
             vars_mtr <- c(vars_mtr, all.vars(sf1))
             terms_mtr <- c(terms_mtr, attr(terms(sf1), "term.labels"))
+            print(attr(terms(sf1), "term.labels"))
         }
         
     } else {
@@ -766,15 +771,16 @@ mst <- function(ivlike, data, subset, components, propensity,
 
         ## Generate moments (gammas) corresponding to IV-like
         ## estimands
-        setobj <- gensset.mst(sset,
-                              sest,
-                              pmodel$phat[subset_index],
-                              pm0,
-                              pm1,
-                              ncomponents,
-                              scount,
-                              subset_index)
-
+        setobj <- gensset.mst(sset = sset,
+                              sest = sest,
+                              splinesobj = splinesobj,
+                              pmodobj = pmodel$phat[subset_index],
+                              pm0 = pm0,
+                              pm1 = pm1,
+                              ncomponents = ncomponents,
+                              scount = scount,
+                              subset_index = subset_index)
+        
         sset <- setobj$sset
         scount <- setobj$scount
 
@@ -808,10 +814,16 @@ mst <- function(ivlike, data, subset, components, propensity,
             subset_index <- rownames(sdata)
             ncomponents <- length(sest$betas)
             pmodobj <- pmodel$phat[subset_index]
-            setobj <- gensset.mst(sset, sest, pmodobj, pm0, pm1,
-                                  ncomponents, scount,
-                                  subset_index)
-
+            setobj <- gensset.mst(sset = sset,
+                                  sest = sest,
+                                  splinesobj = splinesobj,
+                                  pmodobj = pmodobj,
+                                  pm0 = pm0,
+                                  pm1 = pm1,
+                                  ncomponents = ncomponents,
+                                  scount = scount,
+                                  subset_index = subset_index)
+           
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
@@ -821,11 +833,11 @@ mst <- function(ivlike, data, subset, components, propensity,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
-
+    
     ##---------------------------
     ## 5. Define constraint matrices using the audit
     ##---------------------------
-    
+  
     ## Switch to determine whether we want to loop
     audit <- FALSE
     if(hasArg(m0.ub)  | hasArg(m0.lb)  |
@@ -844,7 +856,7 @@ mst <- function(ivlike, data, subset, components, propensity,
                       round(minobseq$obj, 6), "\n"))
     } else {
         message("\nPerforming audit procedure...\n")
-        audit.args <- c("uname", "m0", "m1", "audit.Nu", "audit.Nx",
+        audit.args <- c("uname", "audit.Nu", "audit.Nx",
                         "audit.add", "audit.max", "m1.ub", "m0.ub",
                         "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
                         "m0.inc", "m1.dec", "m1.inc", "mte.dec",
@@ -853,6 +865,8 @@ mst <- function(ivlike, data, subset, components, propensity,
                             newcall = audit.mst,
                             keepargs = audit.args,
                             newargs = list(data = quote(cdata),
+                                           m0   = quote(m0),
+                                           m1   = quote(m1),
                                            sset = quote(sset),
                                            gstar0 = quote(gstar0),
                                            gstar1 = quote(gstar1)))
@@ -927,22 +941,24 @@ mst <- function(ivlike, data, subset, components, propensity,
 #'     regression is restricted to.
 #' @return A list containing the point estimate for the IV regression,
 #'     and the expectation of each monomoial term in the MTR.
-gensset.mst <- function(sset, sest, pmodobj, pm0, pm1, ncomponents,
-                        scount,  subset_index) {
+gensset.mst <- function(sset, sest, splinesobj, pmodobj, pm0, pm1,
+                        ncomponents, scount, subset_index) {
 
     for (j in 1:ncomponents) {
         message(paste0("    Moment ", scount, "..."))
-        gs0 <- gengamma.mst(pm0,
-                            pmodobj,
-                            1,
-                            sest$sw0[, j],
-                            subset_index)
+        gs0 <- gengamma.mst(monomials = pm0,
+                            splines = splinesobj[[1]],
+                            lb = pmodobj,
+                            ub = 1,
+                            multiplier = sest$sw0[, j],
+                            subset = subset_index)
 
-        gs1 <- gengamma.mst(pm1,
-                            0,
-                            pmodobj,
-                            sest$sw1[, j],
-                            subset_index)
+        gs1 <- gengamma.mst(monomials = pm1,
+                            splines = splinesobj[[2]],
+                            lb = 0,
+                            ub = pmodobj,
+                            multiplier = sest$sw1[, j],
+                            subset = subset_index)
 
         ## generate components of constraints
         sset[[paste0("s", scount)]] <- list(beta = sest$beta[j],

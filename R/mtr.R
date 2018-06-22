@@ -229,7 +229,7 @@ polyparse.mst <- function(formula, data, uname = u) {
 #'     Z] (i.e. only the integral with respect to u is performed).
 #'
 #' @export 
-gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
+gengamma.mst <- function(monomials, splines, lb, ub, multiplier = 1,
                          subset = NULL, means = TRUE) {
 
     ## FIX: You need to allow for a spline components here.

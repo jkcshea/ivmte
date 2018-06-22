@@ -66,10 +66,14 @@ audit.mst <- function(data, uname, m0, m1,
                       m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                       m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
                       sset, gstar0, gstar1) {
-
+   
     call  <- match.call()
     audit <- TRUE
 
+    print("m0, m1 respectively")
+    print(m0)
+    print(m1)
+    
     ## Obtain name of unobservable variable
     if(hasArg(uname)) {
         if(! suppressWarnings(try(class(uname), silent = TRUE) == "character")){
@@ -88,9 +92,9 @@ audit.mst <- function(data, uname, m0, m1,
     uvec    <- seq(0, 1, length.out = audit.Nu)
     xvars   <- unique(c(all.vars(m0), all.vars(m1)))
     xvars   <- xvars[xvars != uname]
-    otherx  <- xvars[xvars != monov]
+    otherx  <- xvars[xvars != monov]    
     support <- unique(data[, xvars])
-
+    
     ## check if support is vector or matrix; it can be a vector if
     ## there is only one X term
     if (is.null(dim(support))) {
