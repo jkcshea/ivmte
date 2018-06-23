@@ -17,19 +17,24 @@
 #' entire support of the covariates, or until some a maximum number of
 #' iterations is reached.
 #'
-#' @param data \code{data.frame} used to estimate the treatment effects.
+#' @param data \code{data.frame} used to estimate the treatment
+#'     effects.
 #' @param uname variable name for unobservale used in declaring MTRs.
 #' @param m0 one-sided formula for marginal treatment response
 #'     function for control group.
 #' @param m1 one-sided formula for marginal treatment response
 #'     function for treated group.
-#' @param audit.Nu number of evenly-spread points of the unobservable u to
-#'     use to form the grid in the audit procedure.
-#' @param audit.Nx number of `evenly' spread points of the covariates to
-#'     use to form the grid in the audit procedure.
-#' @param audit.add number of points to add to the grid in each
-#'     iteration of the audit procedure.
+#' @param audit.Nu number of evenly-spread points of the unobservable
+#'     u to use to form the grid in the audit procedure.
+#' @param audit.Nx number of `evenly' spread points of the covariates
+#'     to use to form the grid in the audit procedure.
+#' @param audit.add.x number of points to add to the grid for
+#'     covariates in each iteration of the audit procedure.
+#' @param audit.add.u number of points to add to the grid for the
+#'     unobservables in each iteration of the audit procedure.
 #' @param audit.max maximum number of iterations in the audit
+#'     procedure.
+#' @param audit.tol tolerance for determining when to end the audit
 #'     procedure.
 #' @param m1.ub numeric value for upper bound on MTR for treated
 #'     group.
@@ -61,18 +66,31 @@
 #'     solving the LP problem.
 #'
 #' @export
-audit.mst <- function(data, uname, m0, m1,
-                      audit.Nu = 10, audit.Nx = 10, audit.add = 2, audit.max = 5,
+audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
+                      audit.Nu = 10, audit.Nx = 10,
+                      audit.add.x = 2, audit.add.u = 2, audit.max = 5,
+                      audit.tol = 1e-08, 
                       m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                       m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
                       sset, gstar0, gstar1) {
    
     call  <- match.call()
     audit <- TRUE
+  
+    ## print("m0, m1 respectively: they are already splineless")
+    ## print(m0)
+    ## print(m1)
 
-    print("m0, m1 respectively")
-    print(m0)
-    print(m1)
+    ## noSplineTerms0 <- attr(terms(m0), "term.labels")
+    ## noSplineTerms1 <- attr(terms(m1), "term.labels")
+    
+    ## print(unique(vars_mtr))
+    ## print(terms_mtr)
+
+    ## print(noSplineTerms0)
+    ## print(noSplineTerms1)
+
+    ## stop("Audit testing going on...")
     
     ## Obtain name of unobservable variable
     if(hasArg(uname)) {
@@ -105,12 +123,6 @@ audit.mst <- function(data, uname, m0, m1,
     ## deal with case in which there are no covariates.
     if (length(xvars) == 0) {
         noX <- TRUE
-        grid <- data.frame(uvec)
-        colnames(grid) <- uname
-        grid_index <- rownames(grid)
-        grid_resid <- c()
-        gridobj <- list(grid = grid,
-                        map  = replicate(audit.Nu, 1))
     } else {
         noX <- FALSE
 
@@ -134,18 +146,30 @@ audit.mst <- function(data, uname, m0, m1,
         grid_resid <- full_index[!(full_index %in% grid_index)]
     }
     ## Begin performing the audit
+    minobseqobj <- Inf    
     audit_count <- 1
     while (audit_count <= audit.max & audit == TRUE) {
         cat("Audit count:", audit_count, "\n")
-        if (length(grid_resid) == 0) {
-            audit <- FALSE
-            message("Full support now included as grid.")
-        }
-        ## generate the first iteration of the grid
         if (!noX) {
-            gridobj <- gengrid.mst(grid_index, support, uvec, uname)
+            if (length(grid_resid) == 0) {
+                message("Full support now included as grid.")
+            }
         }
-
+     
+        ## generate the first iteration of the grid
+        if (noX) {
+            grid <- data.frame(uvec)
+            colnames(grid) <- uname
+            grid_index <- rownames(grid)
+            gridobj <- list(grid = grid,
+                            map  = replicate(length(uvec), 1))
+        } else {
+            gridobj <- gengrid.mst(grid_index,
+                                   support,
+                                   uvec,
+                                   uname)
+        }
+        
         A0 <- design.mst(formula = m0, data = gridobj$grid)$X
         A0 <- A0[, names(gstar0)]
 
@@ -203,112 +227,135 @@ audit.mst <- function(data, uname, m0, m1,
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs)
         minobseq  <- obseqmin.mst(sset, lpobj)
+
         message(paste("Minimum observational equivalence deviation:",
-            round(minobseq$obj, 6), "\n"))
+                      round(minobseq$obj, 6), "\n"))
 
-        ## Now perform the audit (which can only happen if there
-        ## remain observations in your empirical support that have not
-        ## yet been included in the grid)
-        if (length(grid_resid) > 0) {
-            negatepos <- which(lpobj$mbs == ">=")
-            solutionvec <- c(minobseq$g0, minobseq$g1)
+        if (abs(minobseq$obj - minobseqobj) < audit.tol) {
+            audit <- FALSE
+            message("Audit ending: tolerance level reached.\n")
+        } else {
+            minobseqobj <- minobseq$obj
+        }
+       
+        negatepos <- which(lpobj$mbs == ">=")
+        solutionvec <- c(minobseq$g0, minobseq$g1)
 
+        ## Generate a new grid for the audit
+        a_uvec <- runif(audit.add.u)
+        
+        if (!noX) {
             resid_support <- support[grid_resid, ]
-            if(is.null(dim(resid_support))) {
+            if (is.null(dim(resid_support))) {
                 resid_support <- as.matrix(resid_support)
             }
-
+            
             ## Generate alternate grid from residual indexes
-            audit.add <- min(audit.add, length(grid_resid))
-            if (audit.add == length(grid_resid)) {
+            audit.add.x <- min(audit.add.x, length(grid_resid))
+            if (audit.add.x == length(grid_resid)) {
                 newgrid_index <- grid_resid
             } else {
                 newgrid_index <- sample(grid_resid,
-                                        audit.add,
+                                        audit.add.x,
                                         replace = FALSE,
                                         prob = replicate(nrow(resid_support),
                                         (1/nrow(resid_support))))
             }
-            a_gridobj <- gengrid.mst(newgrid_index, support, uvec, uname)
-            a_grid    <- a_gridobj$grid
-            a_map     <- a_gridobj$map
 
-            a_A0 <- design.mst(formula = m0, data = a_gridobj$grid)$X
-            a_A1 <- design.mst(formula = m1, data = a_gridobj$grid)$X
+            a_gridobj <- gengrid.mst(newgrid_index,
+                                     support,
+                                     a_uvec,
+                                     uname)
+        } else {
+            a_grid <- data.frame(a_uvec)
+            colnames(a_grid) <- uname
+            newgrid_index <- rownames(a_grid)
+            a_gridobj <- list(grid = a_grid,
+                              map  = replicate(audit.add.u, 1))
 
-            ## Now generate the constraint matrices for the audit grid
+        }
+               
+        a_A0 <- design.mst(formula = m0, data = a_gridobj$grid)$X
+        a_A1 <- design.mst(formula = m1, data = a_gridobj$grid)$X
 
-            if (hasArg(m0.lb) | hasArg(m0.ub) |
-                hasArg(m1.lb) | hasArg(m1.lb) |
-                hasArg(mte.lb) | hasArg(mte.ub)) {
+        ## Now generate the constraint matrices for the audit grid
 
-                boundlist  <- c("m0.lb", "m0.ub",
-                                "m1.lb", "m1.ub",
-                                "mte.lb", "mte.ub")
+        if (hasArg(m0.lb) | hasArg(m0.ub) |
+            hasArg(m1.lb) | hasArg(m1.lb) |
+            hasArg(mte.lb) | hasArg(mte.ub)) {
 
-                boundAcall <- modcall(call,
-                                      newcall = genboundA.mst,
-                                      keepargs = boundlist,
-                                      newargs = c(A0 = quote(a_A0),
-                                                  A1 = quote(a_A1),
-                                                  sset = quote(sset),
-                                                  gridobj = quote(a_gridobj)))
-                a_bdA <- eval(boundAcall)
-            } else {
-                a_bdA <-  NULL
-            }
+            boundlist  <- c("m0.lb", "m0.ub",
+                            "m1.lb", "m1.ub",
+                            "mte.lb", "mte.ub")
 
-            ## Prepare to generate matrices for monotonicity constraints
-            if (hasArg(m0.inc)  | hasArg(m0.dec) |
-                hasArg(m1.inc)  | hasArg(m1.dec) |
-                hasArg(mte.inc) | hasArg(mte.dec)) {
+            boundAcall <- modcall(call,
+                                  newcall = genboundA.mst,
+                                  keepargs = boundlist,
+                                  newargs = c(A0 = quote(a_A0),
+                                              A1 = quote(a_A1),
+                                              sset = quote(sset),
+                                              gridobj = quote(a_gridobj)))
+            a_bdA <- eval(boundAcall)
+        } else {
+            a_bdA <-  NULL
+        }
 
-                monolist  <- c("m0.dec", "m0.inc",
-                               "m1.dec", "m1.inc",
-                               "mte.dec", "mte.inc")
-                monoAcall <- modcall(call,
-                                     newcall = fullgenmonoA.mst,
-                                     keepargs = monolist,
-                                     newargs = list(A0 = quote(a_A0),
-                                                    A1 = quote(a_A1),
-                                                    sset = quote(sset),
-                                                    gridobj = quote(a_gridobj),
-                                                    monov = quote(monov),
-                                                    gstar0 = quote(gstar0),
-                                                    gstar1 = quote(gstar1)))
-                a_monoA <- eval(monoAcall)
-            } else {
-                a_monoA <-  NULL
-            }
+        ## Prepare to generate matrices for monotonicity constraints
+        if (hasArg(m0.inc)  | hasArg(m0.dec) |
+            hasArg(m1.inc)  | hasArg(m1.dec) |
+            hasArg(mte.inc) | hasArg(mte.dec)) {
 
-            a_mbobj <- genfullmbA(a_bdA, a_monoA)
-            a_mbA <- a_mbobj$mbA[, (2 * sn + 1) : ncol(a_mbobj$mbA)]
-            
-            negatepos <- which(a_mbobj$mbs == ">=")
+            monolist  <- c("m0.dec", "m0.inc",
+                           "m1.dec", "m1.inc",
+                           "mte.dec", "mte.inc")
+            monoAcall <- modcall(call,
+                                 newcall = fullgenmonoA.mst,
+                                 keepargs = monolist,
+                                 newargs = list(A0 = quote(a_A0),
+                                                A1 = quote(a_A1),
+                                                sset = quote(sset),
+                                                gridobj = quote(a_gridobj),
+                                                monov = quote(monov),
+                                                gstar0 = quote(gstar0),
+                                                gstar1 = quote(gstar1)))
+            a_monoA <- eval(monoAcall)
+        } else {
+            a_monoA <-  NULL
+        }
 
-            a_mbA[negatepos, ] <- -a_mbA[negatepos, ]
-            a_mbrhs <- a_mbobj$mbrhs
-            a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
+        a_mbobj <- genfullmbA(a_bdA, a_monoA)
+        a_mbA <- a_mbobj$mbA[, (2 * sn + 1) : ncol(a_mbobj$mbA)]
+        
+        negatepos <- which(a_mbobj$mbs == ">=")
 
-            ## Test for violations
-            violatevec <- mapply(">", (a_mbA %*% solutionvec), a_mbrhs)
-            violate <- as.logical(sum(violatevec))
-
-            if (violate) {
-                ## if there are violations, include the points that violate
-                ## the conditions, and update grid resid.
-                cat("Expanding audit grid...\n")
-                violate_pos <- which(violatevec == TRUE)
-                violate_index <- unique(a_mbobj$mbmap[violate_pos])
-                grid_index <- c(grid_index, violate_index)
+        a_mbA[negatepos, ] <- -a_mbA[negatepos, ]
+        a_mbrhs <- a_mbobj$mbrhs
+        a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
+        
+        ## Test for violations
+        violatevec <- mapply(">", (a_mbA %*% solutionvec), a_mbrhs)
+        violate <- as.logical(sum(violatevec))
+        
+        if (violate) {
+            ## if there are violations, include the points that violate
+            ## the conditions, and update grid resid.
+            cat("Expanding audit grid...\n")
+            violate_pos <- which(violatevec == TRUE)
+            violate_index <- unique(a_mbobj$mbmap[violate_pos])
+            grid_index <- c(grid_index, violate_index)
+            if (!noX) {
                 grid_resid <- grid_resid[!grid_resid %in% violate_index]
-                audit_count <- audit_count + 1
-            } else {
-                audit <- FALSE
             }
+            uvec <- sort(c(uvec, unique(c(a_mbobj$mbumap[violate_pos, ]))))
+            audit_count <- audit_count + 1
+        } else {
+            audit <- FALSE
         }
     }
+
     ## return all the matrices you need to solve the LP
     return(list(lpobj    = lpobj,
-                minobseq = minobseq))
+            minobseq = minobseq))
 }
+
+

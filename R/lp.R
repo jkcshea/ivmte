@@ -20,6 +20,8 @@
 #' @export
 lpsetup.mst <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL) {
     
+    ## FIX: Need to account for splines?
+
     ## determine lengths
     sn  <- length(sset)
     gn0 <- length(sset$s1$g0)
@@ -77,6 +79,8 @@ lpsetup.mst <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL) {
 #'
 #' @export
 obseqmin.mst <- function(sset, lpobj) {
+
+    ## FIX: Need to account for splines?
     
     ## define model
     model <- list()
@@ -128,6 +132,8 @@ obseqmin.mst <- function(sset, lpobj) {
 #' @export
 bound.mst <- function(g0, g1, sset, lpobj, threshold) {
    
+    ## FIX: Need to account for splines?
+
     ## define model
     model <- list()
     model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1)

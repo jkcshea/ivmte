@@ -63,21 +63,25 @@
 #'     condition on when defining the LATE.
 #' @param eval.X numeric vector of the values at which we condition
 #'     variables in \code{late.X} on when estimating the LATE.
-#' @param genlate.lb lower bound value of unobservable u for estimating
-#'     generalized LATE.
-#' @param genlate.ub upper bound value of unobservable u for estimating
-#'     generalized LATE.
+#' @param genlate.lb lower bound value of unobservable u for
+#'     estimating generalized LATE.
+#' @param genlate.ub upper bound value of unobservable u for
+#'     estimating generalized LATE.
 #' @param threshold threshold for violation of observational
 #'     equivalence.
-#' @param audit.Nu number of evenly spread points in the interval [0, 1] of
-#'     the unobservable u used to form the grid in the audit
+#' @param audit.Nu number of evenly spread points in the interval [0,
+#'     1] of the unobservable u used to form the grid in the audit
 #'     procedure.
-#' @param audit.Nx number of evenly spread points of the covariates to use
-#'     to form the grid in the audit procedure.
-#' @param audit.add number of points to add to the grid in each
-#'     iteration of the audit procedure.
+#' @param audit.Nx number of evenly spread points of the covariates to
+#'     use to form the grid in the audit procedure.
+#' @param audit.add.x number of points to add to the grid for
+#'     covariates in each iteration of the audit procedure.
+#' @param audit.add.u number of points to add to the grid for
+#'     the unobservables in each iteration of the audit procedure.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
+#' @param audit.tol tolerance for determining when to end the audit
+#'     procedure. 
 #' @param m1.ub numeric value for upper bound on MTR for treated
 #'     group.
 #' @param m0.ub numeric value for upper bound on MTR for control
@@ -144,8 +148,10 @@
 mst <- function(ivlike, data, subset, components, propensity,
                 link, treat, m0, m1, uname = u, target, late.Z,
                 late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
-                threshold = 1e-08, audit.Nu = 10, audit.Nx = 10, audit.add = 2,
-                audit.max = 5, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
+                threshold = 1e-08, audit.Nu = 10, audit.Nx = 10,
+                audit.add.x = 2, audit.add.u = 2, 
+                audit.max = 5, audit.tol = 1e-08,
+                m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
                 mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
                 mte.inc) {
 
@@ -352,9 +358,23 @@ mst <- function(ivlike, data, subset, components, propensity,
     if (!((audit.Nx %% 1 == 0) & audit.Nx >= 0)) {
         stop("audit.Nx must be an integer greater than or equal to 0.")
     }
-    if (!((audit.add %% 1 == 0) & audit.add > 0)) {
-        stop("audit.add must be an integer greater than or equal to 1.")
+    
+    if (!((audit.add.x %% 1 == 0) & audit.add.x > 0)) {
+        stop("audit.add.x must be an integer greater than or equal to 1.")
     }
+    
+    if (hasArg(m0.dec) | hasArg(m0.inc) |
+        hasArg(m1.dec) | hasArg(m1.inc) |
+        hasArg(mte.dec) | hasArg(mte.inc)) {
+        if (!((audit.add.u %% 1 == 0) & audit.add.u > 0) | audit.add.u < 2) {
+            stop("audit.add.u must be an integer greater than or equal to 2.")
+        }
+    } else {
+        if (!((audit.add.u %% 1 == 0) & audit.add.u > 0)) {
+            stop("audit.add.u must be an integer greater than or equal to 1.")
+        }
+    }
+    
     if (!((audit.max %% 1 == 0) & audit.max > 0)) {
         stop("audit.max must be an integer greater than or equal to 1.")
     }
@@ -853,17 +873,17 @@ mst <- function(ivlike, data, subset, components, propensity,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
-
-    
-    stop("Generates g sets")
-    
+  
+   
     ##---------------------------
     ## 5. Define constraint matrices using the audit
     ##---------------------------
 
 
-    ## FIX: this section no longer seems necessary: you will always
-    ## perform the audit.
+    ## FIX: for the next ~10 lines, you must keep only the audit
+    ## switch, ``audit = TRUE''. This switch is used to determine when
+    ## the audit procedure ends. The rest is no longer seems
+    ## necessary: you will always perform the audit.
     
     ## Switch to determine whether we want to loop
     audit <- FALSE
@@ -884,7 +904,8 @@ mst <- function(ivlike, data, subset, components, propensity,
     } else {
         message("\nPerforming audit procedure...\n")
         audit.args <- c("uname", "audit.Nu", "audit.Nx",
-                        "audit.add", "audit.max", "m1.ub", "m0.ub",
+                        "audit.add.x", "audit.add.u", "audit.max", "audit.tol",
+                        "m1.ub", "m0.ub",
                         "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
                         "m0.inc", "m1.dec", "m1.inc", "mte.dec",
                         "mte.inc")
@@ -894,6 +915,8 @@ mst <- function(ivlike, data, subset, components, propensity,
                             newargs = list(data = quote(cdata),
                                            m0   = quote(m0),
                                            m1   = quote(m1),
+                                           vars_mtr = quote(vars_mtr),
+                                           terms_mtr = quote(terms_mtr),
                                            sset = quote(sset),
                                            gstar0 = quote(gstar0),
                                            gstar1 = quote(gstar1)))
