@@ -225,7 +225,7 @@ polyparse.mst <- function(formula, data, uname = u) {
 #'     Z] (i.e. only the integral with respect to u is performed).
 #'
 #' @export 
-gengamma.mst <- function(monomials, splines, lb, ub, multiplier = 1,
+gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
                          subset = NULL, means = TRUE) {
 
     ## FIX: get rid of the splines argument, unnecessary.
@@ -429,7 +429,7 @@ uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 
 
 genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1, subset) {
-
+  
     ## FIX: you have not yet accounted for the weights!
     
     splines <- splines$splineslist
@@ -440,7 +440,7 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1, subset) {
         if (!hasArg(subset)) {
             subset <- replicate(nrow(data), TRUE)
         }
-        
+       
         if (length(lb) == 1) lb <- replicate(nrow(data[subset, ]), lb)
         if (length(ub) == 1) ub <- replicate(nrow(data[subset, ]), ub)
         

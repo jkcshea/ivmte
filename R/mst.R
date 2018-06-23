@@ -737,10 +737,8 @@ mst <- function(ivlike, data, subset, components, propensity,
     pm1 <- eval(as.call(m1call))
 
     ## Estimate gamma-star
-    gstar0 <- gengamma.mst(pm0, splinesobj[[1]], w0$lb, w0$ub, w0$mp)
-    gstar1 <- gengamma.mst(pm1, splinesobj[[2]], w1$lb, w1$ub, w1$mp)
-
-    ## FIX: Get rid of teh spline arguments in gengamma.mst--they are not needed.
+    gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
+    gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
 
     gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                         data = cdata,
@@ -754,9 +752,8 @@ mst <- function(ivlike, data, subset, components, propensity,
                                         ub = w1$ub,
                                         multiplier = w1$mp)
 
-    print(gstarSpline0)
-    print(gstarSpline1)
-    stop()
+    gstar0 <- c(gstar0, gstarSpline0)
+    gstar1 <- c(gstar1, gstarSpline1)
 
     ##---------------------------
     ## 4. Generate moments/gamma terms for IV-like estimands
@@ -792,7 +789,8 @@ mst <- function(ivlike, data, subset, components, propensity,
 
         ## Generate moments (gammas) corresponding to IV-like
         ## estimands
-        setobj <- gensset.mst(sset = sset,
+        setobj <- gensset.mst(data = cdata,
+                              sset = sset,
                               sest = sest,
                               splinesobj = splinesobj, 
                               pmodobj = pmodel$phat[subset_index],
@@ -835,7 +833,8 @@ mst <- function(ivlike, data, subset, components, propensity,
             subset_index <- rownames(sdata)
             ncomponents <- length(sest$betas)
             pmodobj <- pmodel$phat[subset_index]
-            setobj <- gensset.mst(sset = sset,
+            setobj <- gensset.mst(data = cdata,
+                                  sset = sset,
                                   sest = sest,
                                   splinesobj = splinesobj, 
                                   pmodobj = pmodobj,
@@ -854,11 +853,18 @@ mst <- function(ivlike, data, subset, components, propensity,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
+
+    
+    stop("Generates g sets")
     
     ##---------------------------
     ## 5. Define constraint matrices using the audit
     ##---------------------------
-  
+
+
+    ## FIX: this section no longer seems necessary: you will always
+    ## perform the audit.
+    
     ## Switch to determine whether we want to loop
     audit <- FALSE
     if(hasArg(m0.ub)  | hasArg(m0.lb)  |
@@ -962,29 +968,42 @@ mst <- function(ivlike, data, subset, components, propensity,
 #'     regression is restricted to.
 #' @return A list containing the point estimate for the IV regression,
 #'     and the expectation of each monomoial term in the MTR.
-gensset.mst <- function(sset, sest, splinesobj, pmodobj, pm0, pm1,
+gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         ncomponents, scount, subset_index) {
 
     for (j in 1:ncomponents) {
         message(paste0("    Moment ", scount, "..."))
         gs0 <- gengamma.mst(monomials = pm0,
-                            splines = splinesobj[[1]]$splineslist,
                             lb = pmodobj,
                             ub = 1,
                             multiplier = sest$sw0[, j],
                             subset = subset_index)
 
         gs1 <- gengamma.mst(monomials = pm1,
-                            splines = splinesobj[[2]]$splineslist,
                             lb = 0,
                             ub = pmodobj,
                             multiplier = sest$sw1[, j],
                             subset = subset_index)
+        
+        gsSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
+                                         data = data,
+                                         lb = pmodobj,
+                                         ub = 1,
+                                         multiplier = sest$sw0[, j],
+                                         subset = subset_index)
+        
+        gsSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
+                                         data = data,
+                                         lb = 0,
+                                         ub = pmodobj,
+                                         multiplier = sest$sw1[, j],
+                                         subset = subset_index)
+
 
         ## generate components of constraints
         sset[[paste0("s", scount)]] <- list(beta = sest$beta[j],
-                                            g0 = gs0,
-                                            g1 = gs1)
+                                            g0 = c(gs0, gsSpline0),
+                                            g1 = c(gs1, gsSpline1))
 
         ## update counter (note scount is not referring
         ## to the list of IV regressions, but the components
