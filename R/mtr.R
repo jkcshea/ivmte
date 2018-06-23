@@ -227,6 +227,8 @@ polyparse.mst <- function(formula, data, uname = u) {
 #' @export 
 gengamma.mst <- function(monomials, splines, lb, ub, multiplier = 1,
                          subset = NULL, means = TRUE) {
+
+    ## FIX: get rid of the splines argument, unnecessary.
     
     ## Now deal with nonspline components
     
@@ -426,24 +428,34 @@ uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 
 
 
+genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1, subset) {
 
-gengammasplines.mst <- function(splines, data, lb, ub) {
+    ## FIX: you have not yet accounted for the weights!
+    
+    splines <- splines$splineslist
 
-    ## FIX: you need to add the subset argument back in.
-    
-    if (length(lb) == 1) lb <- replicate(nrow(data), lb)
-    if (length(ub) == 1) ub <- replicate(nrow(data), ub)
-    
-    splinesGamma <- NULL
-    if (!is.null(splines)) {
+    if (is.null(splines)) {
+        return(NULL)
+    } else {       
+        if (!hasArg(subset)) {
+            subset <- replicate(nrow(data), TRUE)
+        }
+        
+        if (length(lb) == 1) lb <- replicate(nrow(data[subset, ]), lb)
+        if (length(ub) == 1) ub <- replicate(nrow(data[subset, ]), ub)
+        
+        splinesGamma <- NULL
+        splinesNames <- NULL
+
         for (j in 1:length(splines)) {
-
+            
             ## Design matrix for covariates
             nonSplineFormula <- as.formula(paste("~",
                                                  paste(splines[[j]],
                                                        collapse = " + ")))
-            nonSplinesDmat <- design.mst(nonSplineFormula, data)$X
-
+            nonSplinesDmat <- design.mst(nonSplineFormula,
+                                         data[subset, ])$X
+         
             ## Spline integral matrices
             splinesLB <- eval(parse(text = gsub("uSpline\\(",
                                                 "uSplineInt(x = lb, ",
@@ -455,17 +467,25 @@ gengammasplines.mst <- function(splines, data, lb, ub) {
 
             ## Combine the design and integral matrices
             for (l in 1:length(splines[[j]])) {
-                splinesGamma <- cbind(splinesGamma,
-                                      sweep(splinesInt,
-                                            MARGIN = 1,
-                                            STATS = nonSplinesDmat[, l],
-                                            FUN = "*"))
+                tmpGamma <- sweep(splinesInt,
+                                  MARGIN = 1,
+                                  STATS = nonSplinesDmat[, l],
+                                  FUN = "*")
+
+                tmpGamma <- sweep(x = tmpGamma,
+                                  MARGIN = 1,
+                                  STATS = multiplier,
+                                  FUN = "*")
+                
+                splinesNames <- c(splinesNames,
+                                  paste0(paste0("uS", j, "."),
+                                         seq(1, ncol(tmpGamma)),
+                                         paste0(":", splines[[j]][l])))
+                splinesGamma <- cbind(splinesGamma, tmpGamma)
             }
         }
-        
+        splinesGamma <- colMeans(splinesGamma)
+        names(splinesGamma) <- splinesNames
+        return(splinesGamma)
     }
-
-    ## Fix: you need to find a way to label these splines.... or maybe
-    ## not.
-    return(colMeans(splinesGamma))
 }  

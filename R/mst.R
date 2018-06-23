@@ -649,6 +649,14 @@ mst <- function(ivlike, data, subset, components, propensity,
     }  
    
     ## Keep only complete cases
+
+    varError <- allvars[! allvars %in% colnames(data)]
+    if (length(varError) > 0) {
+        varError <- paste0("The following variables are not contained
+                          in the data set: ", varError, ".")
+        stop(gsub("\\s+", " ", varError), call. = FALSE)
+    }
+    
     data  <- data[(complete.cases(data[, allvars])), ]
     cdata <- data
 
@@ -675,12 +683,7 @@ mst <- function(ivlike, data, subset, components, propensity,
                                         formula = substitute(propensity)))
     }
     pmodel <- eval(pcall)
-
-    ##---------------------------
-    ## TESTING: Generate the spline components for 
-    ##---------------------------
-
-    
+   
     ##---------------------------
     ## 3. Generate target moments/gamma terms
     ##---------------------------
@@ -736,6 +739,24 @@ mst <- function(ivlike, data, subset, components, propensity,
     ## Estimate gamma-star
     gstar0 <- gengamma.mst(pm0, splinesobj[[1]], w0$lb, w0$ub, w0$mp)
     gstar1 <- gengamma.mst(pm1, splinesobj[[2]], w1$lb, w1$ub, w1$mp)
+
+    ## FIX: Get rid of teh spline arguments in gengamma.mst--they are not needed.
+
+    gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
+                                        data = cdata,
+                                        lb = w0$lb,
+                                        ub = w0$ub,
+                                        multiplier = w0$mp)
+
+    gstarSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
+                                        data = cdata,
+                                        lb = w1$lb,
+                                        ub = w1$ub,
+                                        multiplier = w1$mp)
+
+    print(gstarSpline0)
+    print(gstarSpline1)
+    stop()
 
     ##---------------------------
     ## 4. Generate moments/gamma terms for IV-like estimands
