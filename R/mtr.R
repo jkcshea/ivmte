@@ -171,10 +171,10 @@ polyparse.mst <- function(formula, data, uname = u) {
         exporder <- c(0, exporder)
         oterms   <- c("(Intercept)", oterms)
     }
-    polymat <- dmat[, oterms]
+    polymat <- as.matrix(dmat[, oterms])
     
     ## prepare monomials and their integrals
-    monomial_list <- lapply(split(polymat, seq(nrow(polymat))),
+    monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
                             genmono,
                             basis = exporder)
 
@@ -260,7 +260,7 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
 
 #' Separating splines from MTR formulas
 #'
-#' This function separates out the function call "uSpline()"
+#' This function separates out the function call "uSplines()"
 #' potentially embedded in the MTR formulas from the rest of the
 #' fomrula. The terms involving splines are treated separately from
 #' the terms that do not involve splines when creating the gamma
@@ -268,14 +268,14 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
 #' @param formula the formula that is to be parsed.
 #' @return a list containing two objects. One object is \code{formula}
 #'     but with the spline components removed. The second object is a
-#'     list. The name of each element is the "uSpline()" command, and
+#'     list. The name of each element is the "uSplines()" command, and
 #'     the elements are a vector of the names of covariates that were
-#'     interacted with the "uSpline()" command.
+#'     interacted with the "uSplines()" command.
 removeSplines <- function(formula) {
 
     fterms <- attr(terms(formula), "term.labels")
     whichspline <- sapply(fterms,
-                          function(y) grepl(x = y, pattern = "uSpline\\("))
+                          function(y) grepl(x = y, pattern = "uSplines\\("))
     if (max(whichspline) == 1) {
         ftobj <- terms(formula)
         splinepos <- which(whichspline == TRUE)
@@ -286,7 +286,7 @@ removeSplines <- function(formula) {
         splineslist <- list()
         for (splineobj in splineterms) {
             
-            splinepos <- regexpr("uSpline\\(", splineobj)
+            splinepos <- regexpr("uSplines\\(", splineobj)
             degreepos <- regexpr("degree = ", splineobj)
             knotspos  <- regexpr("knots = ", splineobj)
             knotslpos <- regexpr("knots = c\\(", splineobj)
@@ -308,7 +308,7 @@ removeSplines <- function(formula) {
                                           splinepos + 8 + firstclose,
                                           nchar(splineobj)))
 
-            if ((firstopen < firstclose) & (firstopen != - 1)) {
+            if ((firstopen < firstclose) & (secondclose != - 1)) {    
                 splinecmd <- substr(splineobj,
                                     splinepos,
                                     splinepos + 8 + firstclose + secondclose)
@@ -318,7 +318,7 @@ removeSplines <- function(formula) {
                                     splinepos + firstclose - 1)
             }
 
-            ## Separate uSpline command from terms interacting with the spline
+            ## Separate uSplines command from terms interacting with the spline
             splinecmdstr <- gsub("\\)", "\\\\)",
                                  gsub("\\(", "\\\\(", splinecmd))   
 
@@ -369,14 +369,15 @@ removeSplines <- function(formula) {
 #' list are the spline commands, and the elements themselves are the
 #' terms that interact with the splines.
 #'
-#' eval(parse(text = gsub("uSpline\\(",
-#'                        "uSplineInt(x = x, ",
+#' eval(parse(text = gsub("uSplines\\(",
+#'                        "uSplinesInt(x = x, ",
 #'                        names(splineslist)[1])))
 #'
-#' eval(parse(text = gsub("uSpline\\(",
-#'                        "uSplineInt(x = x, ",
+#' eval(parse(text = gsub("uSplines\\(",
+#'                        "uSplinesInt(x = x, ",
 #'                         names(splineslist)[2])))
-uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
+uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
+    
     splines2::ibs(x = x,
                   knots = knots,
                   degree = degree,
@@ -410,14 +411,14 @@ uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
 #' list are the spline commands, and the elements themselves are the
 #' terms that interact with the splines.
 #' 
-#' eval(parse(text = gsub("uSpline\\(",
-#'                        "uSplineBasis(x = x, ",
+#' eval(parse(text = gsub("uSplines\\(",
+#'                        "uSplinesBasis(x = x, ",
 #'                         names(splineslist)[1])))
 #'
-#' eval(parse(text = gsub("uSpline\\(",
-#'                        "uSplineBasis(x = x, ",
+#' eval(parse(text = gsub("uSplines\\(",
+#'                        "uSplinesBasis(x = x, ",
 #'                        names(splineslist)[2])))
-uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
+uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
     splines2::bSpline(x = x,
                       knots = knots,
                       degree = degree,
@@ -429,8 +430,6 @@ uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 
 
 genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1, subset) {
-  
-    ## FIX: you have not yet accounted for the weights!
     
     splines <- splines$splineslist
 
@@ -455,13 +454,13 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1, subset) {
                                                        collapse = " + ")))
             nonSplinesDmat <- design.mst(nonSplineFormula,
                                          data[subset, ])$X
-         
-            ## Spline integral matrices
-            splinesLB <- eval(parse(text = gsub("uSpline\\(",
-                                                "uSplineInt(x = lb, ",
+           
+            ## Spline integral matrices          
+            splinesLB <- eval(parse(text = gsub("uSplines\\(",
+                                                "uSplinesInt(x = lb, ",
                                                 names(splines)[j])))
-            splinesUB <- eval(parse(text = gsub("uSpline\\(",
-                                                "uSplineInt(x = ub, ",
+            splinesUB <- eval(parse(text = gsub("uSplines\\(",
+                                                "uSplinesInt(x = ub, ",
                                                 names(splines)[j])))
             splinesInt <- splinesUB - splinesLB
 
@@ -489,3 +488,34 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1, subset) {
         return(splinesGamma)
     }
 }  
+
+
+ 
+genBasisSplines.mst <- function(splines, x) {  
+
+    if (is.null(splines)) {
+        return(NULL)
+    } else {
+
+        print(splines)
+        print(x)
+        bmatList <- list()
+        
+        for (j in 1:length(splines)) {
+            splinesBasis <- NULL
+            splinesNames <- NULL
+
+            bmat <- eval(parse(text = gsub("uSplines\\(",
+                                           "uSplinesBasis(x = x, ",
+                                           names(splines[j]))))
+
+            colnames(bmat) <- paste0(paste0("uS", j, "."),
+                                     seq(1, ncol(bmat)))
+
+            bmatList[[j]] <- bmat
+        }
+        return(bmatList)
+    }
+}
+
+

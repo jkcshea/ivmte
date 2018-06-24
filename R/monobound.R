@@ -14,8 +14,9 @@ tukeydist <- function(x, data) {
         ineqvec <- mapply("<=", split(data, seq(1, nrow(data))), x)
         F <- sum(ineqvec)/length(ineqvec)
     } else {
-        ineqvec <- mapply("<=", split(data, seq(1, nrow(data))), x)
-        F <- sum(apply(ineqvec, 2, min))/length(ineqvec)
+        ineqvec <- lapply(split(data, seq(1, nrow(data))), "<=", x)
+        ineqvec <- lapply(ineqvec, min)
+        F <- Reduce("+", ineqvec) / length(ineqvec)
     }
     return(F)
 }

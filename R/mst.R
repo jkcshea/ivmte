@@ -608,8 +608,8 @@ mst <- function(ivlike, data, subset, components, propensity,
         um6 <- grep(paste0("\\s+[", deparse(substitute(uname)), "][[:punct:]]"),
                     terms_propensity)
         um7 <- grep(paste0("\\s+[", deparse(substitute(uname)), "]\\s+"),
-                    terms_propensity)
-        um8 <- grep("uSpline", terms_propensity)
+                    terms_prxopensity)
+        um8 <- grep("uSplines", terms_propensity)
         
         for (i in 1:8) {
             uterms <- c(uterms, terms_propensity[get(paste0("um", i))])
@@ -759,19 +759,20 @@ mst <- function(ivlike, data, subset, components, propensity,
     ## Estimate gamma-star
     gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
     gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
-
+  
     gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                         data = cdata,
                                         lb = w0$lb,
                                         ub = w0$ub,
                                         multiplier = w0$mp)
 
+    
     gstarSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
                                         data = cdata,
                                         lb = w1$lb,
                                         ub = w1$ub,
                                         multiplier = w1$mp)
-
+   
     gstar0 <- c(gstar0, gstarSpline0)
     gstar1 <- c(gstar1, gstarSpline1)
 
@@ -873,81 +874,59 @@ mst <- function(ivlike, data, subset, components, propensity,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
-  
-   
+    
     ##---------------------------
     ## 5. Define constraint matrices using the audit
     ##---------------------------
-
-
-    ## FIX: for the next ~10 lines, you must keep only the audit
-    ## switch, ``audit = TRUE''. This switch is used to determine when
-    ## the audit procedure ends. The rest is no longer seems
-    ## necessary: you will always perform the audit.
     
-    ## Switch to determine whether we want to loop
-    audit <- FALSE
-    if(hasArg(m0.ub)  | hasArg(m0.lb)  |
-       hasArg(m1.ub)  | hasArg(m1.lb)  |
-       hasArg(mte.ub)  | hasArg(mte.lb)  |
-       hasArg(m0.dec) | hasArg(m0.inc) |
-       hasArg(m1.dec) | hasArg(m1.inc) |
-       hasArg(mte.dec) | hasArg(mte.inc)) {
-        audit <- TRUE
-    }
-    if (!audit) {
-        ## Minimize observational equivalence
-        lpobj <- lpsetup.mst(sset)
-        minobseq  <- obseqmin.mst(sset, lpobj)
-        message(paste("Minimum observational equivalence deviation:",
-                      round(minobseq$obj, 6), "\n"))
-    } else {
-        message("\nPerforming audit procedure...\n")
-        audit.args <- c("uname", "audit.Nu", "audit.Nx",
-                        "audit.add.x", "audit.add.u", "audit.max", "audit.tol",
-                        "m1.ub", "m0.ub",
-                        "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
-                        "m0.inc", "m1.dec", "m1.inc", "mte.dec",
-                        "mte.inc")
-        audit_call <- modcall(call,
-                            newcall = audit.mst,
-                            keepargs = audit.args,
-                            newargs = list(data = quote(cdata),
-                                           m0   = quote(m0),
-                                           m1   = quote(m1),
-                                           vars_mtr = quote(vars_mtr),
-                                           terms_mtr = quote(terms_mtr),
-                                           sset = quote(sset),
-                                           gstar0 = quote(gstar0),
-                                           gstar1 = quote(gstar1)))
+    message("\nPerforming audit procedure...\n")
+    
+    audit.args <- c("uname", "audit.Nu", "audit.Nx",
+                    "audit.add.x", "audit.add.u", "audit.max", "audit.tol",
+                    "m1.ub", "m0.ub",
+                    "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
+                    "m0.inc", "m1.dec", "m1.inc", "mte.dec",
+                    "mte.inc")
+    
+    audit_call <- modcall(call,
+                          newcall = audit.mst,
+                          keepargs = audit.args,
+                          newargs = list(data = quote(cdata),
+                                         m0   = quote(m0),
+                                         m1   = quote(m1),
+                                         splinesobj = quote(splinesobj), 
+                                         vars_mtr = quote(vars_mtr),
+                                         terms_mtr = quote(terms_mtr),
+                                         sset = quote(sset),
+                                         gstar0 = quote(gstar0),
+                                         gstar1 = quote(gstar1)))
 
-        ## Impose default upper and lower bounds on m0 and m1
-        if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
-            maxy <- max(cdata[, vars_y])
-            if (!hasArg(m1.ub)) {
-                audit_call <- modcall(audit_call,
-                                      newargs = list(m1.ub = maxy))
-            }
-            if (!hasArg(m0.ub)) {
-                audit_call <- modcall(audit_call,
-                                      newargs = list(m0.ub = maxy))
-            }
+    ## Impose default upper and lower bounds on m0 and m1
+    if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
+        maxy <- max(cdata[, vars_y])
+        if (!hasArg(m1.ub)) {
+            audit_call <- modcall(audit_call,
+                                  newargs = list(m1.ub = maxy))
         }
-        if (!hasArg(m1.lb) | !hasArg(m0.lb)) {
-            miny <- min(cdata[, vars_y])
-            if (!hasArg(m1.lb)) {
-                audit_call <- modcall(audit_call,
-                                      newargs = list(m1.lb = miny))
-            }
-            if (!hasArg(m0.lb)) {
-                audit_call <- modcall(audit_call,
-                                      newargs = list(m0.lb = miny))
-            }
+        if (!hasArg(m0.ub)) {
+            audit_call <- modcall(audit_call,
+                                  newargs = list(m0.ub = maxy))
         }
-        audit <- eval(audit_call)
-        lpobj <- audit$lpobj
-        minobseq <- audit$minobseq
     }
+    if (!hasArg(m1.lb) | !hasArg(m0.lb)) {
+        miny <- min(cdata[, vars_y])
+        if (!hasArg(m1.lb)) {
+            audit_call <- modcall(audit_call,
+                                  newargs = list(m1.lb = miny))
+        }
+        if (!hasArg(m0.lb)) {
+            audit_call <- modcall(audit_call,
+                                  newargs = list(m0.lb = miny))
+        }
+    }
+    audit <- eval(audit_call)
+    lpobj <- audit$lpobj
+    minobseq <- audit$minobseq
 
 
     ##---------------------------

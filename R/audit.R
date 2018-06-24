@@ -66,7 +66,7 @@
 #'     solving the LP problem.
 #'
 #' @export
-audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
+audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                       audit.Nu = 20, audit.Nx = 50,
                       audit.add.x = 5, audit.add.u = 3, audit.max = 5,
                       audit.tol = 1e-08, 
@@ -76,21 +76,40 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
    
     call  <- match.call()
     audit <- TRUE
-  
-    ## print("m0, m1 respectively: they are already splineless")
-    ## print(m0)
-    ## print(m1)
 
-    ## noSplineTerms0 <- attr(terms(m0), "term.labels")
-    ## noSplineTerms1 <- attr(terms(m1), "term.labels")
+
+    splines <- list(splinesobj[[1]]$splineslist,
+                    splinesobj[[2]]$splineslist)
     
-    ## print(unique(vars_mtr))
-    ## print(terms_mtr)
+    print("m0, m1 respectively: they are already splineless")
+    print(m0)
+    print(m1)
 
-    ## print(noSplineTerms0)
-    ## print(noSplineTerms1)
+    noSplineTerms0 <- attr(terms(m0), "term.labels")
+    noSplineTerms1 <- attr(terms(m1), "term.labels")
+    
+    print(unique(vars_mtr))
+    print(terms_mtr)
 
-    ## stop("Audit testing going on...")
+    print(noSplineTerms0)
+    print(noSplineTerms1)
+
+    print(vars_mtr)
+
+    ## Update MTR formulas to include all terms that interact with
+    ## splines
+    for (j in terms_mtr) {
+        m0 <- update(m0, as.formula(paste("~ . +",
+                                          paste(unique(terms_mtr),
+                                                collapse = " + "))))
+        m1 <- update(m1, as.formula(paste("~ . +",
+                                          paste(unique(terms_mtr),
+                                                collapse = " + "))))
+    }
+
+    print("updated mTRS")
+    print(m0)
+    print(m1)
     
     ## Obtain name of unobservable variable
     if(hasArg(uname)) {
@@ -108,11 +127,12 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
                      ## generalize the monotonciity restrictions to
                      ## other covariates
     uvec    <- seq(0, 1, length.out = audit.Nu)
-    xvars   <- unique(c(all.vars(m0), all.vars(m1)))
+    ## xvars   <- unique(c(all.vars(m0), all.vars(m1)))
+    xvars   <- unique(vars_mtr)
     xvars   <- xvars[xvars != uname]
-    otherx  <- xvars[xvars != monov]    
+    otherx  <- xvars[xvars != monov]   
     support <- unique(data[, xvars])
-    
+
     ## check if support is vector or matrix; it can be a vector if
     ## there is only one X term
     if (is.null(dim(support))) {
@@ -135,6 +155,11 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
         support <- data.frame(quantiles[, xvars])
         if (dim(support)[2] == 1) colnames(support) <- xvars
 
+        print(head(support))
+        print(head(data[, xvars]))
+        
+
+
         ## Select first iteration of the grid
         full_index <- seq(1, nrow(support))
 
@@ -146,6 +171,7 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
         grid_resid <- full_index[!(full_index %in% grid_index)]
 
     }
+
     ## Begin performing the audit
     minobseqobj <- Inf    
     audit_count <- 1
@@ -170,12 +196,64 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
                                    uvec,
                                    uname)
         }
-        
-        A0 <- design.mst(formula = m0, data = gridobj$grid)$X
-        A0 <- A0[, names(gstar0)]
 
-        A1 <- design.mst(formula = m1, data = gridobj$grid)$X
+        if (is.null(splines[[1]]) & is.null(splines[[2]])) {
+            A0 <- design.mst(formula = m0, data = gridobj$grid)$X
+            A1 <- design.mst(formula = m1, data = gridobj$grid)$X
+        } else {
+            m0 <- update(m0, as.formula(paste("~ . +", uname)))
+            m1 <- update(m1, as.formula(paste("~ . +", uname)))
+           
+            A0 <- design.mst(formula = m0, data = gridobj$grid)$X
+            A1 <- design.mst(formula = m1, data = gridobj$grid)$X
+           
+            basisList <- list(genBasisSplines.mst(splines[[1]], uvec),
+                              genBasisSplines.mst(splines[[2]], uvec))
+
+
+            for (d in 0:1) {
+                if (!is.null(basisList[[d +1 ]])) {
+                    for (j in 1:length(splines[[d + 1]])) {
+                        for (l in 1:length(splines[[d + 1]][[j]])) {
+                            bmat <- cbind(uvec, basisList[[d + 1]][[j]])
+                            colnames(bmat)[1] <- uname
+                            iName <- splines[[d + 1]][[j]][l]
+                            if (iName != "1") {                               
+                                bmat <- merge(get(paste0("A", d))[, c(uname,
+                                                                      iName)],
+                                              bmat, by = uname)
+                                bmat[, 3:ncol(bmat)] <-
+                                    sweep(x = bmat[, 3:ncol(bmat)],
+                                          MARGIN = 1,
+                                          STATS = bmat[, iName],
+                                          FUN = "*")
+                                colnames(bmat)[3:ncol(bmat)] <-
+                                    paste0(colnames(bmat)[3:ncol(bmat)],
+                                           ":", iName)
+                                assign(paste0("A", d),
+                                       merge(get(paste0("A", d)),
+                                             bmat,
+                                             by = c(uname, iName)))
+                            } else {
+                                colnames(bmat)[2:ncol(bmat)] <-
+                                    paste0(colnames(bmat)[2:ncol(bmat)],
+                                           ":", iName)
+                                assign(paste0("A", d),
+                                       merge(get(paste0("A", d)),
+                                             bmat,
+                                             by = uname))
+                            }
+                        }
+                    }
+                }          
+            }
+        }
+       
+        A0 <- A0[, names(gstar0)]
         A1 <- A1[, names(gstar1)]
+
+        stop("Audit testing going on...")
+
 
         ## generate null objects
         bdA     <- NULL
@@ -303,7 +381,6 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
         } else {
             a_bdA <-  NULL
         }
-        ## stop("ERROR IS IN THE NEXT IF STATEMENT")
         
         ## Prepare to generate matrices for monotonicity constraints
         if (hasArg(m0.inc)  | hasArg(m0.dec) |
