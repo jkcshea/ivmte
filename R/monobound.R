@@ -397,7 +397,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     cmdorder <- paste0("order", "(", paste(colorder, collapse = ", "), ")")
     grid$.grid.index <- gridobj$map
     grid <- grid[with(grid, eval(parse(text = cmdorder))), ]
-
+    
     ## Now group the rows by the combinations of all other variables
     ## other than the variable we are imposing monotonicity on
     if (length(othercols) > 0) {
@@ -408,7 +408,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
         monogrid$.mst.monog <- 1
         monogrid$.mst.monoc <- seq(1, nrow(monogrid))
     }
-
+    
     add.audit.x <- length(unique(monogrid$.mst.monog))
     add.audit.i <- nrow(monogrid) / add.audit.x
     uvec <- monogrid[1:add.audit.i, monov]
@@ -420,7 +420,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     ## group, so just drop the row for which count == 1)
     monomap <- monogrid[monogrid$.mst.monoc > 1, ]$.grid.index
     monogrid$.grid.index <- NULL
-   
+
     ## Now we can construct the matrices for monotonicity
     arglist  <- c("sset",
                   "gstar0", "gstar1",
@@ -437,7 +437,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                                         A1 = quote(A1),
                                         monogrid = quote(monogrid)))
     monoA <- eval(monoAcall)
-    
+ 
     ## expand the map for monotonicity constraints accordingly.
     monoargs <- length(which(match(monolist, names(call), 0) > 0))
     monomap  <- rep(monomap, times = monoargs)

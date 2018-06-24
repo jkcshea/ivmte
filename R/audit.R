@@ -67,8 +67,8 @@
 #'
 #' @export
 audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
-                      audit.Nu = 10, audit.Nx = 10,
-                      audit.add.x = 2, audit.add.u = 2, audit.max = 5,
+                      audit.Nu = 20, audit.Nx = 50,
+                      audit.add.x = 5, audit.add.u = 3, audit.max = 5,
                       audit.tol = 1e-08, 
                       m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                       m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
@@ -144,6 +144,7 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
                              replace = FALSE,
                              prob = replicate(nrow(support), (1/nrow(support))))
         grid_resid <- full_index[!(full_index %in% grid_index)]
+
     }
     ## Begin performing the audit
     minobseqobj <- Inf    
@@ -245,6 +246,7 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
         a_uvec <- runif(audit.add.u)
         
         if (!noX) {
+
             resid_support <- support[grid_resid, ]
             if (is.null(dim(resid_support))) {
                 resid_support <- as.matrix(resid_support)
@@ -261,6 +263,10 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
                                         prob = replicate(nrow(resid_support),
                                         (1/nrow(resid_support))))
             }
+            
+            if (length(newgrid_index) == 0) {
+                newgrid_index <- grid_index
+            }
 
             a_gridobj <- gengrid.mst(newgrid_index,
                                      support,
@@ -272,14 +278,12 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
             newgrid_index <- rownames(a_grid)
             a_gridobj <- list(grid = a_grid,
                               map  = replicate(audit.add.u, 1))
-
         }
                
         a_A0 <- design.mst(formula = m0, data = a_gridobj$grid)$X
         a_A1 <- design.mst(formula = m1, data = a_gridobj$grid)$X
 
         ## Now generate the constraint matrices for the audit grid
-
         if (hasArg(m0.lb) | hasArg(m0.ub) |
             hasArg(m1.lb) | hasArg(m1.lb) |
             hasArg(mte.lb) | hasArg(mte.ub)) {
@@ -299,7 +303,8 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
         } else {
             a_bdA <-  NULL
         }
-
+        ## stop("ERROR IS IN THE NEXT IF STATEMENT")
+        
         ## Prepare to generate matrices for monotonicity constraints
         if (hasArg(m0.inc)  | hasArg(m0.dec) |
             hasArg(m1.inc)  | hasArg(m1.dec) |
@@ -318,6 +323,7 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
                                                 monov = quote(monov),
                                                 gstar0 = quote(gstar0),
                                                 gstar1 = quote(gstar1)))
+
             a_monoA <- eval(monoAcall)
         } else {
             a_monoA <-  NULL
@@ -331,7 +337,7 @@ audit.mst <- function(data, uname, m0, m1, vars_mtr, terms_mtr,
         a_mbA[negatepos, ] <- -a_mbA[negatepos, ]
         a_mbrhs <- a_mbobj$mbrhs
         a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
-        
+      
         ## Test for violations
         violatevec <- mapply(">", (a_mbA %*% solutionvec), a_mbrhs)
         violate <- as.logical(sum(violatevec))

@@ -50,9 +50,9 @@ matchrow <- function(data, match) {
 #'     indicating the group each row falls under. If \code{count} is
 #'     set to \code{TRUE}, then an additional column counting the rows
 #'     within each group is also included.
-groupby <- function(data, variables, groupname = ".mst.monog", countname = ".mst.monoc",
-                    count = TRUE) {
-
+groupby <- function(data, variables, groupname = ".mst.monog",
+                    countname = ".mst.monoc", count = TRUE) {
+    
     uniquevals <- unique(data[, variables])
     if (class(uniquevals) != "matrix") uniquevals <- as.matrix(uniquevals)
     keys <- seq(1, nrow(uniquevals))
