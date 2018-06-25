@@ -86,10 +86,10 @@ gengrid.mst <- function(index, xsupport, usupport, uname) {
 #'     components associated with each element in the S-set.
 #' @param gridobj a list containing the grid over which the
 #'     monotonicity and boundedness conditions are imposed on.
-#' @param m0.lb scalar, lower bound on MTR for \code{D = 0}.
-#' @param m0.ub scalar, upper bound on MTR for \code{D = 0}.
-#' @param m1.lb scalar, lower bound on MTR for \code{D = 1}.
-#' @param m1.ub scalar, upper bound on MTR for \code{D = 1}.
+#' @param m0.lb scalar, lower bound on MTR for control group.
+#' @param m0.ub scalar, upper bound on MTR for control group.
+#' @param m1.lb scalar, lower bound on MTR for treated group.
+#' @param m1.ub scalar, upper bound on MTR for treated group.
 #' @param mte.lb scalar, lower bound on MTE.
 #' @param mte.ub scalar, upper bound on MTE.
 #' @return a constraint matrix for the LP problem, the associated
@@ -212,14 +212,15 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
     return(list(A = bdA, sense = bds, rhs = bdrhs, map = map, umap = umap))
 }
 
-#' Generating the A matrix in the monotonicity constraint
+#' Taking first differences of constraint matrices
 #'
 #' This function takes in the matrix of values of the MTR evaluated
 #' over the grid generated for the audit procedure. The grid is
 #' ordered according to the covariates first, and then by the
-#' unobservables. This function takes the first difference of the
-#' unobservables within each set of values for the covariates. This is
-#' sufficient to generate the monotoncity constraint matrix.
+#' unobservables (this is done in by \code{\link{genmonoA}}). This
+#' function takes the first difference of the unobservables within
+#' each set of values for the covariates. This is sufficient to
+#' generate the monotoncity constraint matrix.
 #' @param A a design matrix that evaluates the MTRs over the grid
 #'     generated for the audit procedure.
 #' @param monogrid the grid generated for the audit procedure, sorted
@@ -231,7 +232,8 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
 #' @param ndcols number of terms in the MTR for the other experimental
 #'     group. This is used to generate a matrix that is of the correct
 #'     dimension.
-monoA <- function(A, monogrid, sn, d, ndcols) {
+#' @return a matrx representing the monotonicity restrictions.
+diffA <- function(A, monogrid, sn, d, ndcols) {
 
     A_mono <- A[rownames(monogrid),]
     A_max  <- A_mono[!as.logical(maxminmatch(monogrid,
@@ -254,17 +256,15 @@ monoA <- function(A, monogrid, sn, d, ndcols) {
     return(monoA)
 }
 
-#' Generating the monotonicity constraint matrix for the LP problem
+#' Stacking monotonicity constraint matrices and vectors
 #'
 #' This function generates the objects in the LP problem associated
-#' with the monotonicity constraints declared by the user. Amongst
-#' other arguments, the function takes in a grid of values of the
-#' MTRs, as well as the set of target Gammas, and generates a matrix
-#' corresponding to the monotonicity constraints declared by the user
-#' used in solving teh LP problem. It also generates the RHS vector
-#' associated with the monotonicity constraints, and the vector of
-#' inequalities. It is called by the wrapper function
-#' \code{fullgenmonoA.mst}.
+#' with the monotonicity constraints declared by the user. This
+#' function simply stacks the matrices corresponding to the
+#' monotonicity constraints declared by the user. It also stacks the
+#' RHS vector associated with the monotonicity constraints, and stacks
+#' the vector of inequalities. It is called by the wrapper function
+#' \code{genmonoA.mst}.
 #' @param A0 the matrix of values from evaluating the MTR for control
 #'     observations over the grid generated to perform the audit. This
 #'     matrix will be incorporated into the final constraint matrix
@@ -297,7 +297,7 @@ monoA <- function(A, monogrid, sn, d, ndcols) {
 #'     vector of inequalities, and the RHS vector in the inequality
 #'     constraint. The objects pertain only to the monotonicity
 #'     constraints declared by the user.
-genmonoA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
+stackA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
                          m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
                          mte.inc) {
 
@@ -324,20 +324,20 @@ genmonoA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
     ## corresponding to the monotonicity consraints
     ## A matrix for monotonicity of m0
     if (hasArg(m0.inc) | hasArg(m0.dec)) {
-        monoA0 <- monoA(A0, monogrid, sn, 0, length(gstar1))
+        monoA0 <- diffA(A0, monogrid, sn, 0, length(gstar1))
         mono0z <- replicate(nrow(monoA0), 0)
         colnames(monoA0) <- namesA
     }
     ## A matrix for monotonicity of m1
     if (hasArg(m1.inc) | hasArg(m1.dec)) {
-        monoA1 <- monoA(A1, monogrid, sn, 1, length(gstar0))
+        monoA1 <- diffA(A1, monogrid, sn, 1, length(gstar0))
         mono1z <- replicate(nrow(monoA1), 0)
         colnames(monoA1) <- namesA
     }
     ## A matrix for monotonicity of m1 - m0
     if (hasArg(mte.inc) | hasArg(mte.dec)) {
-        monoAte <- monoA(A1, monogrid, sn, 1, length(gstar0)) -
-            monoA(A0, monogrid, sn, 0, length(gstar1))
+        monoAte <- diffA(A1, monogrid, sn, 1, length(gstar0)) -
+            diffA(A0, monogrid, sn, 0, length(gstar1))
         monotez <- replicate(nrow(monoAte), 0)
         colnames(monoAte) <- namesA
     }
@@ -370,15 +370,16 @@ genmonoA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
     return(list(A = monoA, sense = monos, rhs = monorhs))
 }
 
-#' Wrapper to generate components of the monotonicity constraints
+#' Generate LP components of the monotonicity constraints
 #'
-#' This function generates the entire monotonicity constraint
-#' matrix. It takes in a grid of the covariates on which we define the
-#' LP contraints, and then calculates the values of the MTR and MTE
-#' over the grid. The matrices characterizing the monotonicity
-#' conditions can then be obtained by taking first differences over
-#' the grid of the error terms, within each set of values in the grid
-#' of covariate values.
+#' This function generates the matrix and vectors associated with the
+#' monotonicity constraints declared by the user. It takes in a grid
+#' of the covariates on which we define the LP contraints, and then
+#' calculates the values of the MTR and MTE over the grid. The
+#' matrices characterizing the monotonicity conditions can then be
+#' obtained by taking first differences over the grid of the
+#' unobservable term, within each set of values in the grid of
+#' covariate values.
 #' @param A0 the matrix of values from evaluating the MTR for control
 #'     observations over the grid generated to perform the audit. This
 #'     matrix will be incorporated into the final constraint matrix
@@ -412,7 +413,7 @@ genmonoA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
 #' @return constraint matrix for the LP problem. The matrix pertains
 #'     only to the monotonicity conditions on the MTR and MTE declared
 #'     by the user.
-fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
+genmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                              m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
                              mte.inc, monov) {
 
@@ -460,7 +461,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
 
     call <- match.call(expand.dots = FALSE)
     monoAcall <- modcall(call,
-                         newcall = genmonoA.mst,
+                         newcall = stackA.mst,
                          keepargs = arglist,
                          newargs = list(A0 = quote(A0),
                                         A1 = quote(A1),
@@ -481,9 +482,8 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
 
 #' Combining the boundedness and monotonicity constraint objects
 #'
-#' This function combines the objects associated with the boundedness
-#' constraints and the monotonicity constraints.
-#'
+#' This function simply combines the objects associated with the
+#' boundedness constraints and the monotonicity constraints.
 #' @param bdA list containing the constraint matrix, vector of
 #'     inequalities, and RHS vector associated with the boundedness
 #'     constraints.
@@ -492,8 +492,8 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
 #'     constraints.
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
-#'     boundedness and monotonicity constraints.
-genfullmbA <- function(bdA, monoA) {
+#'     boundedness and monotonicity constraints of an LP problem.
+combinemonobound <- function(bdA, monoA) {
     mbA    <- NULL
     mbs    <- NULL
     mbrhs  <- NULL
@@ -519,4 +519,208 @@ genfullmbA <- function(bdA, monoA) {
                 mbrhs  = mbrhs,
                 mbmap  = mbmap,
                 mbumap = mbumap))
+}
+
+#' Generating monotonicity and boundedness constraints
+#'
+#' This is a wrapper function generating the matrices and vectors
+#' associated with the monotonicity and boundedness constraints
+#' declared by the user.
+#' @param support a matrix for the support of all variables that enter
+#'     into the MTRs.
+#' @param grid_index a vector, the row numbers of \code{support} used
+#'     to generate the grid preceeding the audit.
+#' @param uvec a vector, the points in the interval [0, 1] that the
+#'     unobservable takes on.
+#' @param splines a list of lists. Each of the inner lists contains
+#'     details on the splines declared in the MTRs.
+#' @param monov name of variable for which the monotonicity conditions
+#'     applies to.
+#' @param uname name declared by user to represent the unobservable
+#'     term in the MTRs.
+#' @param m0 one-sided formula for marginal treatment response
+#'     function for the control group. The formula may differ from
+#'     what the user originally input in \code{\link{mst}}, as the
+#'     spline components should have been removed. This formula is
+#'     simply a linear combination of all covariates that enter into
+#'     the original \code{m0} declared by the user in
+#'     \code{\link{mst}}.
+#' @param m0 one-sided formula for marginal treatment response
+#'     function for the treated group. The formula may differ from
+#'     what the user originally input in \code{\link{mst}}, as the
+#'     spline components should have been removed. This formula is
+#'     simply a linear combination of all covariates that enter into
+#'     the original \code{m1} declared by the user in
+#'     \code{\link{mst}}.
+#' @param sset a list containing the point estimates and gamma
+#'     components associated with each element in the S-set.
+#' @param gstar0 set of expectations for each terms of the MTR for the
+#'     control group.
+#' @param gstar1 set of expectations for each terms of the MTR for the
+#'     control group.
+#' @param m0.lb scalar, lower bound on MTR for control group.
+#' @param m0.ub scalar, upper bound on MTR for control group.
+#' @param m1.lb scalar, lower bound on MTR for treated group.
+#' @param m1.ub scalar, upper bound on MTR for treated group.
+#' @param mte.lb scalar, lower bound on MTE.
+#' @param mte.ub scalar, upper bound on MTE.
+#' @param m0.dec boolean, indicating whether the MTR for the control
+#'     group is monotone decreasing.
+#' @param m0.inc boolean, indicating whether the MTR for the control
+#'     group is monotone increasing.
+#' @param m1.dec boolean, indicating whether the MTR for the treated
+#'     group is monotone decreasing.
+#' @param m1.inc boolean, indicating whether the MTR for the treated
+#'     group is monotone increasing.
+#' @param mte.dec boolean, indicating whether the MTE is monotone
+#'     decreasing.
+#' @param mte.inc boolean, indicating whether the MTE is monotone
+#'     increasing.
+#' @return a list containing a unified constraint matrix, unified
+#'     vector of inequalities, and unified RHS vector for the
+#'     boundedness and monotonicity constraints of an LP problem.
+genmonoboundA <- function(support, grid_index, uvec, splines, monov, 
+                          uname, m0, m1, sset, gstar0, gstar1,
+                          m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub,
+                          m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc) {
+
+    call <- match.call()
+
+    if (is.null(grid_index)) {
+        noX <- TRUE
+    } else {
+        noX <- FALSE
+    }
+
+    ## generate the first iteration of the grid
+    if (noX) {
+        grid <- data.frame(uvec)
+        colnames(grid) <- uname
+        grid_index <- rownames(grid)
+        gridobj <- list(grid = grid,
+                        map  = replicate(length(uvec), 1))
+    } else {
+        gridobj <- gengrid.mst(grid_index,
+                               support,
+                               uvec,
+                               uname)
+    }
+
+    if (is.null(splines[[1]]) & is.null(splines[[2]])) {
+        A0 <- design.mst(formula = m0, data = gridobj$grid)$X
+        A1 <- design.mst(formula = m1, data = gridobj$grid)$X
+    } else {
+        m0 <- update(m0, as.formula(paste("~ . +", uname)))
+        m1 <- update(m1, as.formula(paste("~ . +", uname)))
+        
+        A0 <- design.mst(formula = m0, data = gridobj$grid)$X
+        A1 <- design.mst(formula = m1, data = gridobj$grid)$X
+
+        A0 <- cbind(A0, .grid.order = seq(1, nrow(A0)))
+        A1 <- cbind(A1, .grid.order = seq(1, nrow(A1)))
+        
+        basisList <- list(genBasisSplines.mst(splines = splines[[1]],
+                                              x = uvec,
+                                              d = 0),
+                          genBasisSplines.mst(splines = splines[[2]],
+                                              x = uvec,
+                                              d = 1))
+        
+        for (d in 0:1) {
+            if (!is.null(basisList[[d + 1]])) {
+                for (j in 1:length(splines[[d + 1]])) {
+                    for (l in 1:length(splines[[d + 1]][[j]])) {
+                        bmat <- cbind(uvec, basisList[[d + 1]][[j]])
+                        colnames(bmat)[1] <- uname
+                        iName <- splines[[d + 1]][[j]][l]
+                        if (iName != "1") {
+                            namesA <- colnames(get(paste0("A", d)))
+                            bmat <-
+                                merge(
+                                    get(paste0("A", d))[, c(uname,
+                                                            iName,
+                                                            ".grid.order")],
+                                    bmat, by = uname)
+                            bmat[, 4:ncol(bmat)] <-
+                                sweep(x = bmat[, 4:ncol(bmat)],
+                                      MARGIN = 1,
+                                      STATS = bmat[, iName],
+                                      FUN = "*")
+                            namesB <- paste0(colnames(bmat)[4:ncol(bmat)],
+                                             ":", iName)
+                            colnames(bmat)[4:ncol(bmat)] <- namesB
+                            
+                            newA <- merge(get(paste0("A", d)),
+                                          bmat[, c(".grid.order", namesB)],
+                                          by = ".grid.order") 
+                            newA <- newA[, c(namesA, namesB)]   
+                            assign(paste0("A", d), newA)
+                        } else {
+                            namesA <- colnames(get(paste0("A", d)))
+                            namesB <- paste0(colnames(bmat)[2:ncol(bmat)],
+                                             ":", iName)
+                            colnames(bmat)[2:ncol(bmat)] <- namesB
+                            newA <- merge(get(paste0("A", d)),
+                                          bmat,
+                                          by = uname)
+                            newA <- newA[, c(namesA, namesB)]
+                            assign(paste0("A", d), newA)
+                        }
+                    }
+                }
+            }          
+        }      
+        rownames(A0) <- A0[, ".grid.order"]
+        rownames(A1) <- A1[, ".grid.order"]
+    }
+
+    A0 <- as.matrix(A0[, names(gstar0)])
+    A1 <- as.matrix(A1[, names(gstar1)])
+
+    ## generate null objects
+    bdA     <- NULL
+    monoA   <- NULL
+
+    ## generate matrices for imposing bounds on m0 and m1 and
+    ## treatment effects
+    if (hasArg(m0.lb) | hasArg(m0.ub) |
+        hasArg(m1.lb) | hasArg(m1.lb) |
+        hasArg(mte.lb) | hasArg(mte.ub)) {
+
+        boundlist  <- c("m0.lb", "m0.ub",
+                        "m1.lb", "m1.ub",
+                        "mte.lb", "mte.ub")
+        
+        boundAcall <- modcall(call,
+                              newcall = genboundA.mst,
+                              keepargs = boundlist,
+                              newargs = list(A0 = quote(A0),
+                                             A1 = quote(A1),
+                                             sset = quote(sset),
+                                             gridobj = quote(gridobj)))
+        bdA <- eval(boundAcall)
+    } 
+
+    ## Prepare to generate matrices for monotonicity constraints
+    if (hasArg(m0.inc)  | hasArg(m0.dec) |
+        hasArg(m1.inc)  | hasArg(m1.dec) |
+        hasArg(mte.inc) | hasArg(mte.dec)) {
+
+        monolist  <- c("m0.dec", "m0.inc",
+                       "m1.dec", "m1.inc",
+                       "mte.dec", "mte.inc")
+        monoAcall <- modcall(call,
+                             newcall = genmonoA.mst,
+                             keepargs = monolist,
+                             newargs = list(A0 = quote(A0),
+                                            A1 = quote(A1),
+                                            sset = quote(sset),
+                                            gridobj = quote(gridobj),
+                                            monov = quote(monov),
+                                            gstar0 = quote(gstar0),
+                                            gstar1 = quote(gstar1)))
+        monoA <- eval(monoAcall)
+    }
+    
+    return(combinemonobound(bdA, monoA))
 }

@@ -19,9 +19,11 @@
 #'
 #' @param data \code{data.frame} used to estimate the treatment
 #'     effects.
-#' @param uname variable name for unobservale used in declaring MTRs.
+#' @param uname name declared by user to represent the unobservable
+#'     term in the MTRs.
 #' @param m0 one-sided formula for marginal treatment response
-#'     function for control group.
+#'     function for control group. The unobservable term can be
+#'     entered in using splines.
 #' @param m1 one-sided formula for marginal treatment response
 #'     function for treated group.
 #' @param audit.Nu number of evenly-spread points of the unobservable
@@ -107,7 +109,6 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                      ## generalize the monotonciity restrictions to
                      ## other covariates
     uvec    <- round(seq(0, 1, length.out = audit.Nu), 8)
-    ## xvars   <- unique(c(all.vars(m0), all.vars(m1)))
     xvars   <- unique(vars_mtr)
     xvars   <- xvars[xvars != uname]
     otherx  <- xvars[xvars != monov]   
@@ -160,7 +161,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         }
 
         ## Generate all monotonicity and boundedness matrices for initial grid
-        acleanlist <- c('m0', 'm1',
+        monoboundAlist <- c('m0', 'm1',
                         'sset', 'gstar0', 'gstar1',
                         'm1.ub', 'm0.ub',
                         'm1.lb', 'm0.lb',
@@ -169,9 +170,9 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                         'm1.dec', 'm1.inc',
                         'mte.dec', 'mte.inc')
         
-        acleancall <- modcall(call,
-                              newcall = aclean,
-                              keepargs = acleanlist,
+        monoboundAcall <- modcall(call,
+                              newcall = genmonoboundA,
+                              keepargs = monoboundAlist,
                               newargs = list(uname = uname,
                                              support = support,
                                              grid_index = grid_index,
@@ -179,7 +180,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                                              splines = splines,
                                              monov = monov))
 
-        mbobj <- eval(acleancall)
+        mbobj <- eval(monoboundAcall)
 
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs)
@@ -232,9 +233,9 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         }
 
         ## Generate all monotonicity and boundedness matrices for the audit
-        acleancall <- modcall(call,
-                              newcall = aclean,
-                              keepargs = acleanlist,
+        monoboundAcall <- modcall(call,
+                              newcall = genmonoboundA,
+                              keepargs = monoboundAlist,
                               newargs = list(uname = uname,
                                              support = support,
                                              grid_index = a_grid_index,
@@ -242,7 +243,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                                              splines = splines,
                                              monov = monov))
 
-        a_mbobj <- eval(acleancall)
+        a_mbobj <- eval(monoboundAcall)
         a_mbA <- a_mbobj$mbA[, (2 * sn + 1) : ncol(a_mbobj$mbA)]
        
         negatepos <- which(a_mbobj$mbs == ">=")
@@ -267,161 +268,15 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
             audit_count <- audit_count + 1
         } else {
             audit <- FALSE
+            message(gsub("\\s+", " ",
+                         "Audit ending: no violations of monotonicity or
+                         boundedness restrictions by points chosen off of the
+                         grid defining shape restrictions for the LP
+                         problem.\n"))
+            break            
         }
     }
 
     return(list(lpobj    = lpobj,
             minobseq = minobseq))
-}
-
-
-
-
-
-
-aclean <- function(support, uvec, grid_index, splines, monov, 
-                   uname, m0, m1, splinesobj,
-                   sset, gstar0, gstar1,
-                   m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
-                   m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc) {
-
-    call <- match.call()
-
-    if (is.null(grid_index)) {
-        noX <- TRUE
-    } else {
-        noX <- FALSE
-    }
-
-    ## generate the first iteration of the grid
-    if (noX) {
-        grid <- data.frame(uvec)
-        colnames(grid) <- uname
-        grid_index <- rownames(grid)
-        gridobj <- list(grid = grid,
-                        map  = replicate(length(uvec), 1))
-    } else {
-        gridobj <- gengrid.mst(grid_index,
-                               support,
-                               uvec,
-                               uname)
-    }
-
-    if (is.null(splines[[1]]) & is.null(splines[[2]])) {
-        A0 <- design.mst(formula = m0, data = gridobj$grid)$X
-        A1 <- design.mst(formula = m1, data = gridobj$grid)$X
-    } else {
-        m0 <- update(m0, as.formula(paste("~ . +", uname)))
-        m1 <- update(m1, as.formula(paste("~ . +", uname)))
-        
-        A0 <- design.mst(formula = m0, data = gridobj$grid)$X
-        A1 <- design.mst(formula = m1, data = gridobj$grid)$X
-
-        A0 <- cbind(A0, .grid.order = seq(1, nrow(A0)))
-        A1 <- cbind(A1, .grid.order = seq(1, nrow(A1)))
-        
-        basisList <- list(genBasisSplines.mst(splines = splines[[1]],
-                                              x = uvec,
-                                              d = 0),
-                          genBasisSplines.mst(splines = splines[[2]],
-                                              x = uvec,
-                                              d = 1))
-        
-        for (d in 0:1) {
-            if (!is.null(basisList[[d + 1]])) {
-                for (j in 1:length(splines[[d + 1]])) {
-                    for (l in 1:length(splines[[d + 1]][[j]])) {
-                        bmat <- cbind(uvec, basisList[[d + 1]][[j]])
-                        colnames(bmat)[1] <- uname
-                        iName <- splines[[d + 1]][[j]][l]
-                        if (iName != "1") {
-                            namesA <- colnames(get(paste0("A", d)))
-                            bmat <-
-                                merge(
-                                    get(paste0("A", d))[, c(uname,
-                                                            iName,
-                                                            ".grid.order")],
-                                    bmat, by = uname)
-                            bmat[, 4:ncol(bmat)] <-
-                                sweep(x = bmat[, 4:ncol(bmat)],
-                                      MARGIN = 1,
-                                      STATS = bmat[, iName],
-                                      FUN = "*")
-                            namesB <- paste0(colnames(bmat)[4:ncol(bmat)],
-                                             ":", iName)
-                            colnames(bmat)[4:ncol(bmat)] <- namesB
-                            
-                            newA <- merge(get(paste0("A", d)),
-                                          bmat[, c(".grid.order", namesB)],
-                                          by = ".grid.order") 
-                            newA <- newA[, c(namesA, namesB)]   
-                            assign(paste0("A", d), newA)
-                        } else {
-                            namesA <- colnames(get(paste0("A", d)))
-                            namesB <- paste0(colnames(bmat)[2:ncol(bmat)],
-                                             ":", iName)
-                            colnames(bmat)[2:ncol(bmat)] <- namesB
-                            newA <- merge(get(paste0("A", d)),
-                                          bmat,
-                                          by = uname)
-                            newA <- newA[, c(namesA, namesB)]
-                            assign(paste0("A", d), newA)
-                        }
-                    }
-                }
-            }          
-        }      
-        rownames(A0) <- A0[, ".grid.order"]
-        rownames(A1) <- A1[, ".grid.order"]
-    }
-
-    A0 <- as.matrix(A0[, names(gstar0)])
-    A1 <- as.matrix(A1[, names(gstar1)])
-
-    ## generate null objects
-    bdA     <- NULL
-    monoA   <- NULL
-
-    ## generate matrices for imposing bounds on m0 and m1 and
-    ## treatment effects
-    if (hasArg(m0.lb) | hasArg(m0.ub) |
-        hasArg(m1.lb) | hasArg(m1.lb) |
-        hasArg(mte.lb) | hasArg(mte.ub)) {
-
-        boundlist  <- c("m0.lb", "m0.ub",
-                        "m1.lb", "m1.ub",
-                        "mte.lb", "mte.ub")
-        
-        boundAcall <- modcall(call,
-                              newcall = genboundA.mst,
-                              keepargs = boundlist,
-                              newargs = list(A0 = quote(A0),
-                                             A1 = quote(A1),
-                                             sset = quote(sset),
-                                             gridobj = quote(gridobj)))
-        bdA <- eval(boundAcall)
-    } 
-
-    ## Prepare to generate matrices for monotonicity constraints
-    if (hasArg(m0.inc)  | hasArg(m0.dec) |
-        hasArg(m1.inc)  | hasArg(m1.dec) |
-        hasArg(mte.inc) | hasArg(mte.dec)) {
-
-        monolist  <- c("m0.dec", "m0.inc",
-                       "m1.dec", "m1.inc",
-                       "mte.dec", "mte.inc")
-        monoAcall <- modcall(call,
-                             newcall = fullgenmonoA.mst,
-                             keepargs = monolist,
-                             newargs = list(A0 = quote(A0),
-                                            A1 = quote(A1),
-                                            sset = quote(sset),
-                                            gridobj = quote(gridobj),
-                                            monov = quote(monov),
-                                            gstar0 = quote(gstar0),
-                                            gstar1 = quote(gstar1)))
-        monoA <- eval(monoAcall)
-    }
-    
-    return(genfullmbA(bdA, monoA))
 }
