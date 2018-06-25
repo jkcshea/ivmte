@@ -432,7 +432,6 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     if (length(othercols) > 0) {
         monogrid <- grid[alldup(grid[, othercols]), ]
         monogrid <- groupby(monogrid, othercols)
-        print(monogrid)
     } else {
         monogrid <- grid
         monogrid$.mst.monog <- 1

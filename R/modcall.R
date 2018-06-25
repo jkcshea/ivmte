@@ -18,7 +18,8 @@
 #'         newargs = list(data = quote(cdata),
 #'         formula = propensity))
 #'
-modcall <- function(call, newcall, newargs, keepargs, dropargs) {
+modcall <- function(call, newcall, newargs, keepargs, dropargs,
+                    testing = FALSE) {
 
     if (hasArg(keepargs)) {
         call_arg <- match(keepargs, names(call), 0)

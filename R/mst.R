@@ -764,14 +764,16 @@ mst <- function(ivlike, data, subset, components, propensity,
                                         data = cdata,
                                         lb = w0$lb,
                                         ub = w0$ub,
-                                        multiplier = w0$mp)
+                                        multiplier = w0$mp,
+                                        d = 0)
 
     
     gstarSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
                                         data = cdata,
                                         lb = w1$lb,
                                         ub = w1$ub,
-                                        multiplier = w1$mp)
+                                        multiplier = w1$mp,
+                                        d = 1)
    
     gstar0 <- c(gstar0, gstarSpline0)
     gstar1 <- c(gstar1, gstarSpline1)
@@ -992,14 +994,16 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          lb = pmodobj,
                                          ub = 1,
                                          multiplier = sest$sw0[, j],
-                                         subset = subset_index)
+                                         subset = subset_index,
+                                         d = 0)
         
         gsSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
                                          data = data,
                                          lb = 0,
                                          ub = pmodobj,
                                          multiplier = sest$sw1[, j],
-                                         subset = subset_index)
+                                         subset = subset_index,
+                                         d = 1)
 
 
         ## generate components of constraints

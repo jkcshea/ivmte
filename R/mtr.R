@@ -227,10 +227,6 @@ polyparse.mst <- function(formula, data, uname = u) {
 #' @export 
 gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
                          subset = NULL, means = TRUE) {
-
-    ## FIX: get rid of the splines argument, unnecessary.
-    
-    ## Now deal with nonspline components
     
     exporder  <- monomials$exporder
     integrals <- monomials$ilist
@@ -427,9 +423,11 @@ uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 }
 
 
-
-
-genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1, subset) {
+#' Generate Gamma moments for splines
+#'
+#' Notes: include the explanation of the naming convention from below. 
+genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
+                                subset, d = NULL) {
     
     splines <- splines$splineslist
 
@@ -477,7 +475,7 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1, subset) {
                                   FUN = "*")
                 
                 splinesNames <- c(splinesNames,
-                                  paste0(paste0("uS", j, "."),
+                                  paste0(paste0("u", d, "S", j, "."),
                                          seq(1, ncol(tmpGamma)),
                                          paste0(":", splines[[j]][l])))
                 splinesGamma <- cbind(splinesGamma, tmpGamma)
@@ -489,9 +487,18 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1, subset) {
     }
 }  
 
-
- 
-genBasisSplines.mst <- function(splines, x) {  
+#' Generate basis matrix for splines
+#'
+#' Notes: does not include interaction terms. you willneed to add
+#' those interactions eparately.
+#'
+#' Notes: explain the naming convension. "udSj.#"
+#' The "u" is just "u", meaning "an unobservable term"
+#' The "d" is a placeholder for the treatment group, can be 0 or 1.
+#' The "S" is itself, meaning spline.
+#' "j" is a placeholder for the component of the spline.
+#' The period at the end is to separate this from the ineraction term. 
+genBasisSplines.mst <- function(splines, x, d = NULL) {  
 
     if (is.null(splines)) {
         return(NULL)
@@ -507,7 +514,7 @@ genBasisSplines.mst <- function(splines, x) {
                                            "uSplinesBasis(x = x, ",
                                            names(splines[j]))))
 
-            colnames(bmat) <- paste0(paste0("uS", j, "."),
+            colnames(bmat) <- paste0(paste0("u", d, "S", j, "."),
                                      seq(1, ncol(bmat)))
 
             bmatList[[j]] <- bmat
