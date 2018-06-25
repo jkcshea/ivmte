@@ -497,8 +497,6 @@ genBasisSplines.mst <- function(splines, x) {
         return(NULL)
     } else {
 
-        print(splines)
-        print(x)
         bmatList <- list()
         
         for (j in 1:length(splines)) {

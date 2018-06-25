@@ -52,6 +52,9 @@ matchrow <- function(data, match) {
 #'     within each group is also included.
 groupby <- function(data, variables, groupname = ".mst.monog",
                     countname = ".mst.monoc", count = TRUE) {
+
+    print(data)
+    print(variables)
     
     uniquevals <- unique(data[, variables])
     if (class(uniquevals) != "matrix") uniquevals <- as.matrix(uniquevals)

@@ -77,24 +77,8 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
     call  <- match.call()
     audit <- TRUE
 
-
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
-    
-    print("m0, m1 respectively: they are already splineless")
-    print(m0)
-    print(m1)
-
-    noSplineTerms0 <- attr(terms(m0), "term.labels")
-    noSplineTerms1 <- attr(terms(m1), "term.labels")
-    
-    print(unique(vars_mtr))
-    print(terms_mtr)
-
-    print(noSplineTerms0)
-    print(noSplineTerms1)
-
-    print(vars_mtr)
 
     ## Update MTR formulas to include all terms that interact with
     ## splines
@@ -106,10 +90,6 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                                           paste(unique(terms_mtr),
                                                 collapse = " + "))))
     }
-
-    print("updated mTRS")
-    print(m0)
-    print(m1)
     
     ## Obtain name of unobservable variable
     if(hasArg(uname)) {
@@ -155,11 +135,6 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         support <- data.frame(quantiles[, xvars])
         if (dim(support)[2] == 1) colnames(support) <- xvars
 
-        print(head(support))
-        print(head(data[, xvars]))
-        
-
-
         ## Select first iteration of the grid
         full_index <- seq(1, nrow(support))
 
@@ -185,8 +160,8 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
      
         ## generate the first iteration of the grid
         if (noX) {
-            grid <- data.frame(uvec)
-            colnames(grid) <- uname
+            grid <- data.frame(uvec, seq(1, length(uvec)))
+            colnames(grid) <- c(uname, ".grid.order")
             grid_index <- rownames(grid)
             gridobj <- list(grid = grid,
                             map  = replicate(length(uvec), 1))
@@ -206,11 +181,13 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
            
             A0 <- design.mst(formula = m0, data = gridobj$grid)$X
             A1 <- design.mst(formula = m1, data = gridobj$grid)$X
-           
+
+            A0 <- cbind(A0, .grid.order = seq(1, nrow(A0)))
+            A1 <- cbind(A1, .grid.order = seq(1, nrow(A1)))
+            
             basisList <- list(genBasisSplines.mst(splines[[1]], uvec),
                               genBasisSplines.mst(splines[[2]], uvec))
-
-
+            
             for (d in 0:1) {
                 if (!is.null(basisList[[d +1 ]])) {
                     for (j in 1:length(splines[[d + 1]])) {
@@ -218,42 +195,49 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                             bmat <- cbind(uvec, basisList[[d + 1]][[j]])
                             colnames(bmat)[1] <- uname
                             iName <- splines[[d + 1]][[j]][l]
-                            if (iName != "1") {                               
-                                bmat <- merge(get(paste0("A", d))[, c(uname,
-                                                                      iName)],
-                                              bmat, by = uname)
-                                bmat[, 3:ncol(bmat)] <-
-                                    sweep(x = bmat[, 3:ncol(bmat)],
+                            if (iName != "1") {
+                                namesA <- colnames(get(paste0("A", d)))
+                                bmat <-
+                                    merge(
+                                        get(paste0("A", d))[, c(uname,
+                                                                iName,
+                                                                ".grid.order")],
+                                        bmat, by = uname)
+                                bmat[, 4:ncol(bmat)] <-
+                                    sweep(x = bmat[, 4:ncol(bmat)],
                                           MARGIN = 1,
                                           STATS = bmat[, iName],
                                           FUN = "*")
-                                colnames(bmat)[3:ncol(bmat)] <-
-                                    paste0(colnames(bmat)[3:ncol(bmat)],
-                                           ":", iName)
-                                assign(paste0("A", d),
-                                       merge(get(paste0("A", d)),
-                                             bmat,
-                                             by = c(uname, iName)))
+                                namesB <- paste0(colnames(bmat)[4:ncol(bmat)],
+                                                 ":", iName)
+                                colnames(bmat)[4:ncol(bmat)] <- namesB
+                                newA <- merge(get(paste0("A", d)),
+                                              bmat[, c(".grid.order", namesB)],
+                                              by = ".grid.order") 
+                                newA <- newA[, c(namesA, namesB)]
+                                assign(paste0("A", d), newA)
                             } else {
-                                colnames(bmat)[2:ncol(bmat)] <-
-                                    paste0(colnames(bmat)[2:ncol(bmat)],
-                                           ":", iName)
-                                assign(paste0("A", d),
-                                       merge(get(paste0("A", d)),
-                                             bmat,
-                                             by = uname))
+                                namesA <- colnames(get(paste0("A", d)))
+                                namesB <- paste0(colnames(bmat)[2:ncol(bmat)],
+                                                 ":", iName)
+                                colnames(bmat)[2:ncol(bmat)] <- namesB
+                                newA <- merge(get(paste0("A", d)),
+                                              bmat,
+                                              by = uname)
+                                newA <- newA[, c(namesA, namesB)]
+                                assign(paste0("A", d), newA)
                             }
                         }
                     }
                 }          
             }
         }
-       
+
+        rownames(A0) <- A0[, ".grid.order"]
+        rownames(A1) <- A1[, ".grid.order"]
+
         A0 <- A0[, names(gstar0)]
         A1 <- A1[, names(gstar1)]
-
-        stop("Audit testing going on...")
-
 
         ## generate null objects
         bdA     <- NULL
@@ -268,7 +252,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
             boundlist  <- c("m0.lb", "m0.ub",
                             "m1.lb", "m1.ub",
                             "mte.lb", "mte.ub")
-
+            
             boundAcall <- modcall(call,
                                   newcall = genboundA.mst,
                                   keepargs = boundlist,
@@ -277,7 +261,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                                                  sset = quote(sset),
                                                  gridobj = quote(gridobj)))
             bdA <- eval(boundAcall)
-        }
+        } 
 
         ## Prepare to generate matrices for monotonicity constraints
         if (hasArg(m0.inc)  | hasArg(m0.dec) |
@@ -303,6 +287,13 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         ## Now generate the full boundedness/monotonicity matrices and vector
         mbobj <- genfullmbA(bdA, monoA)
 
+        print(mbobj)
+
+        print("this is monoA")
+        print(monoA)       
+        
+        stop("Audit testing going on...")
+        
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs)
         minobseq  <- obseqmin.mst(sset, lpobj)

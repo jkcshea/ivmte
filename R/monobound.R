@@ -54,13 +54,16 @@ gengrid.mst <- function(index, xsupport, usupport, uname) {
     ## generate a record for which rows correspond to which
     ## index---this will be useful for the audit.
     supportrep <- do.call("rbind",
-                          replicate(length(usupport), subsupport, simplify = FALSE))
+                          replicate(length(usupport),
+                                    subsupport,
+                                    simplify = FALSE))
     uvecrep <- rep(usupport, each = length(index))
-    grid <- cbind(supportrep, uvecrep)
+    grid <- cbind(supportrep, uvecrep, seq(1, length(uvecrep)))
+    rownames(grid) <- grid$.grid.order
     map <- grid$.grid.index
 
     grid$.grid.index <- NULL
-    colnames(grid) <- c(colnames(xsupport), uname)
+    colnames(grid) <- c(colnames(xsupport), uname, ".grid.order")
 
     return(list(grid = grid,
                 map = map))
@@ -95,10 +98,16 @@ gengrid.mst <- function(index, xsupport, usupport, uname) {
 #'     constraints declared by the user.
 genboundA.mst <- function(A0, A1, sset, gridobj,
                           m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub) {
-
+   
     sn <- length(sset)
     grid <- gridobj$grid
     gridmap <- gridobj$map
+
+    namesA0 <- colnames(A0)
+    namesA1 <- colnames(A1)
+    namesA  <- c(seq(1, 2 * sn),
+                 namesA0,
+                 namesA1)
 
     ## Generate place holders for the matrices representing monotonicity
     lbdA0  <- NULL
@@ -128,7 +137,9 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
 
         bdA0 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                       A0,
-                      matrix(0, nrow = nrow(A1),   ncol = ncol(A1)))
+                      matrix(0, nrow = nrow(A1), ncol = ncol(A1)))
+        colnames(bdA0) <- namesA
+
         if (is.numeric(try(m0.ub, silent = TRUE))) {
             ubdA0 <- bdA0
             m0ub  <- replicate(nrow(A0), m0.ub)
@@ -144,11 +155,14 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
             umap <- c(umap, grid[, ncol(grid)])
         }
     }
+    
     ## Generate matrices for imposing bounds on m1
     if (hasArg(m1.ub) | hasArg(m1.lb)) {
         bdA1 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                       matrix(0, nrow = nrow(A0),   ncol = ncol(A0)),
                       A1)
+        colnames(bdA1) <- namesA
+        
         if (is.numeric(try(m1.ub, silent = TRUE))) {
             ubdA1 <- bdA1
             m1ub  <- replicate(nrow(A1), m1.ub)
@@ -168,6 +182,8 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
     if(hasArg(mte.lb) | hasArg(mte.ub)) {
         bdAte <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                        -A0, A1)
+        colnames(bdAte) <- namesA
+        
         if (is.numeric(try(mte.ub, silent = TRUE))) {
             ubdAte <- bdAte
             teub  <- replicate(nrow(A1), mte.ub)
@@ -183,14 +199,16 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
             umap <- c(umap, grid[, ncol(grid)])
         }
     }
-
-    ## Combine matrices and return
+    
+    ## Combine matrices and return  
     bdA <- rbind(lbdA0,  lbdA1,  lbdAte,
                  ubdA0,  ubdA1,  ubdAte)
     bds   <- c(m0lbs, m1lbs, telbs,
                m0ubs, m1ubs, teubs)
     bdrhs <- c(m0lb,  m1lb,  telb,
                m0ub,  m1ub,  teub)
+
+
     return(list(A = bdA, sense = bds, rhs = bdrhs, map = map, umap = umap))
 }
 
@@ -284,6 +302,12 @@ genmonoA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
                          mte.inc) {
 
     sn <- length(sset)
+    
+    namesA0 <- colnames(A0)
+    namesA1 <- colnames(A1)
+    namesA  <- c(seq(1, 2 * sn),
+                 namesA0,
+                 namesA1)
 
     ## Generate place holders for the matriecs representing monotonicity
     monoA0  <- NULL
@@ -302,17 +326,20 @@ genmonoA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
     if (hasArg(m0.inc) | hasArg(m0.dec)) {
         monoA0 <- monoA(A0, monogrid, sn, 0, length(gstar1))
         mono0z <- replicate(nrow(monoA0), 0)
+        colnames(monoA0) <- namesA
     }
     ## A matrix for monotonicity of m1
     if (hasArg(m1.inc) | hasArg(m1.dec)) {
         monoA1 <- monoA(A1, monogrid, sn, 1, length(gstar0))
         mono1z <- replicate(nrow(monoA1), 0)
+        colnames(monoA1) <- namesA
     }
     ## A matrix for monotonicity of m1 - m0
     if (hasArg(mte.inc) | hasArg(mte.dec)) {
         monoAte <- monoA(A1, monogrid, sn, 1, length(gstar0)) -
             monoA(A0, monogrid, sn, 0, length(gstar1))
         monotez <- replicate(nrow(monoAte), 0)
+        colnames(monoAte) <- namesA
     }
 
     ## Now generate the model sense vectors
@@ -393,7 +420,8 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     ## below (this is one way to construct the constraint matrices
     ## for monotonicity)
     grid <- gridobj$grid
-    othercols <- colnames(grid)[colnames(grid) != monov]
+    othercols <- colnames(grid)[(colnames(grid) != monov) &
+                                (colnames(grid) != ".grid.order")]
     colorder  <- c(othercols, monov)
     cmdorder <- paste0("order", "(", paste(colorder, collapse = ", "), ")")
     grid$.grid.index <- gridobj$map
@@ -404,6 +432,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     if (length(othercols) > 0) {
         monogrid <- grid[alldup(grid[, othercols]), ]
         monogrid <- groupby(monogrid, othercols)
+        print(monogrid)
     } else {
         monogrid <- grid
         monogrid$.mst.monog <- 1
@@ -429,7 +458,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                   "m1.inc", "mte.dec", "mte.inc")
     monolist <- c("m0.dec", "m0.inc", "m1.dec",
                   "m1.inc", "mte.dec", "mte.inc")
-
+   
     call <- match.call(expand.dots = FALSE)
     monoAcall <- modcall(call,
                          newcall = genmonoA.mst,
