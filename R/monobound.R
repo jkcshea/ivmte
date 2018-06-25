@@ -98,7 +98,7 @@ gengrid.mst <- function(index, xsupport, usupport, uname) {
 #'     constraints declared by the user.
 genboundA.mst <- function(A0, A1, sset, gridobj,
                           m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub) {
-   
+
     sn <- length(sset)
     grid <- gridobj$grid
     gridmap <- gridobj$map
@@ -131,7 +131,7 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
 
     map   <- NULL
     umap <- NULL
-    
+
     ## Generate matrices for imposing bounds on m0
     if (hasArg(m0.ub) | hasArg(m0.lb)) {
 
@@ -155,14 +155,14 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
             umap <- c(umap, grid[, ncol(grid)])
         }
     }
-    
+
     ## Generate matrices for imposing bounds on m1
     if (hasArg(m1.ub) | hasArg(m1.lb)) {
         bdA1 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                       matrix(0, nrow = nrow(A0),   ncol = ncol(A0)),
                       A1)
         colnames(bdA1) <- namesA
-        
+
         if (is.numeric(try(m1.ub, silent = TRUE))) {
             ubdA1 <- bdA1
             m1ub  <- replicate(nrow(A1), m1.ub)
@@ -183,7 +183,7 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
         bdAte <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                        -A0, A1)
         colnames(bdAte) <- namesA
-        
+
         if (is.numeric(try(mte.ub, silent = TRUE))) {
             ubdAte <- bdAte
             teub  <- replicate(nrow(A1), mte.ub)
@@ -199,8 +199,8 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
             umap <- c(umap, grid[, ncol(grid)])
         }
     }
-    
-    ## Combine matrices and return  
+
+    ## Combine matrices and return
     bdA <- rbind(lbdA0,  lbdA1,  lbdAte,
                  ubdA0,  ubdA1,  ubdAte)
     bds   <- c(m0lbs, m1lbs, telbs,
@@ -244,7 +244,7 @@ monoA <- function(A, monogrid, sn, d, ndcols) {
                                              max)), ]
     mono   <- A_max - A_min
     if (is.null(dim(mono))) mono <- t(as.matrix(mono))
-   
+
     if (d == 0) monoA <- cbind(matrix(0, nrow = nrow(mono), ncol = 2 * sn),
                                mono,
                                matrix(0, nrow = nrow(mono), ncol = ndcols))
@@ -302,7 +302,7 @@ genmonoA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
                          mte.inc) {
 
     sn <- length(sset)
-    
+
     namesA0 <- colnames(A0)
     namesA1 <- colnames(A1)
     namesA  <- c(seq(1, 2 * sn),
@@ -426,7 +426,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     cmdorder <- paste0("order", "(", paste(colorder, collapse = ", "), ")")
     grid$.grid.index <- gridobj$map
     grid <- grid[with(grid, eval(parse(text = cmdorder))), ]
-    
+
     ## Now group the rows by the combinations of all other variables
     ## other than the variable we are imposing monotonicity on
     if (length(othercols) > 0) {
@@ -437,14 +437,14 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
         monogrid$.mst.monog <- 1
         monogrid$.mst.monoc <- seq(1, nrow(monogrid))
     }
-    
+
     add.audit.x <- length(unique(monogrid$.mst.monog))
     add.audit.i <- nrow(monogrid) / add.audit.x
     uvec <- monogrid[1:add.audit.i, monov]
 
     umap <- cbind(uvec[-length(uvec)], uvec[-1])
     umap <- do.call("rbind", rep(list(umap), add.audit.x))
-    
+
     ## obtain the map (simply need to drop one row from every
     ## group, so just drop the row for which count == 1)
     monomap <- monogrid[monogrid$.mst.monoc > 1, ]$.grid.index
@@ -457,7 +457,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                   "m1.inc", "mte.dec", "mte.inc")
     monolist <- c("m0.dec", "m0.inc", "m1.dec",
                   "m1.inc", "mte.dec", "mte.inc")
-   
+
     call <- match.call(expand.dots = FALSE)
     monoAcall <- modcall(call,
                          newcall = genmonoA.mst,
@@ -466,7 +466,7 @@ fullgenmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                                         A1 = quote(A1),
                                         monogrid = quote(monogrid)))
     monoA <- eval(monoAcall)
- 
+
     ## expand the map for monotonicity constraints accordingly.
     monoargs <- length(which(match(monolist, names(call), 0) > 0))
     monomap  <- rep(monomap, times = monoargs)
@@ -507,7 +507,7 @@ genfullmbA <- function(bdA, monoA) {
         mbumap <- rbind(mbumap, cbind(bdA$umap, bdA$umap))
     }
     if (!is.null(monoA)) {
-        
+
         mbA    <- rbind(mbA, monoA$A)
         mbs    <- c(mbs, monoA$sense)
         mbrhs  <- c(mbrhs, monoA$rhs)

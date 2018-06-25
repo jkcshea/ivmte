@@ -47,7 +47,7 @@ lpsetup.mst <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL) {
                      colnames(A)[(2 * sn + 1) : ncol(A)])
    
     ## Add in additional constraints if included    
-    A     <- as.matrix(rbind(A, mbA))
+    A     <- rbind(A, mbA)
     sense <- c(sense, mbs)
     rhs   <- c(rhs, mbrhs)
 

@@ -378,7 +378,7 @@ uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
                   knots = knots,
                   degree = degree,
                   intercept = intercept,
-                  Boundary.knots = c(0, 1))
+                  Boundary.knots = c(-1e-16, 1+1e16))
 }
 
 #' Spline basis function
@@ -419,7 +419,7 @@ uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
                       knots = knots,
                       degree = degree,
                       intercept = intercept,
-                      Boundary.knots = c(0, 1))
+                      Boundary.knots = c(-1e-16, 1+1e16))
 }
 
 
