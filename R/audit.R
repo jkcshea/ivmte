@@ -189,15 +189,28 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
 
         message(paste("Minimum observational equivalence deviation:",
                       round(minobseq$obj, 6), "\n"))
-
-        if (abs(minobseq$obj - minobseqobj) < audit.tol) {
-            audit <- FALSE
-            message(gsub("\\s+", " ",
-                         "Audit ending: tolerance level for reduction in
-                         deviation of observational equivalence reached.\n"))
-            break            
-        } else {
+        
+        if (minobseqobj == 0) {
+            if (minobseq$obj == 0) {
+                audit <- FALSE
+                message(gsub("\\s+", " ",
+                             "Audit ending: tolerance level for reduction in
+                             deviation of observational equivalence
+                             reached.\n"))
+                break            
+            }
+        } else if (minobseqobj == Inf) {
             minobseqobj <- minobseq$obj
+        } else {
+            if (abs(minobseq$obj - minobseqobj)/minobseqobj < audit.tol) {
+                audit <- FALSE
+                message(gsub("\\s+", " ",
+                             "Audit ending: tolerance level for reduction in
+                         deviation of observational equivalence reached.\n"))
+                break            
+            } else {
+                minobseqobj <- minobseq$obj
+            }
         }
        
         solutionvec <- c(minobseq$g0, minobseq$g1)
