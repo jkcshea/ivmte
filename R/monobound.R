@@ -96,7 +96,7 @@ gengrid.mst <- function(index, xsupport, usupport, uname) {
 #'     vector of inequalities, and the RHS vector in the inequality
 #'     constraint. The objects pertain only to the boundedness
 #'     constraints declared by the user.
-genboundA.mst <- function(A0, A1, sset, gridobj,
+genboundA.mst <- function(A0, A1, sset, gridobj, uname,
                           m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub) {
 
     sn <- length(sset)
@@ -145,14 +145,14 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
             m0ub  <- replicate(nrow(A0), m0.ub)
             m0ubs <- replicate(nrow(A0), "<=")
             map <- c(map, gridmap)
-            umap <- c(umap, grid[, ncol(grid)])
+            umap <- c(umap, grid[, uname])
         }
         if (is.numeric(try(m0.lb, silent = TRUE))) {
             lbdA0 <- bdA0
             m0lb  <- replicate(nrow(A0), m0.lb)
             m0lbs <- replicate(nrow(A0), ">=")
             map <- c(map, gridmap)
-            umap <- c(umap, grid[, ncol(grid)])
+            umap <- c(umap, grid[, uname])
         }
     }
 
@@ -168,14 +168,14 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
             m1ub  <- replicate(nrow(A1), m1.ub)
             m1ubs <- replicate(nrow(A1), "<=")
             map <- c(map, gridmap)
-            umap <- c(umap, grid[, ncol(grid)])
+            umap <- c(umap, grid[, uname])
         }
         if (is.numeric(try(m1.lb, silent = TRUE))) {
             lbdA1 <- bdA1
             m1lb  <- replicate(nrow(A1), m1.lb)
             m1lbs <- replicate(nrow(A1), ">=")
             map <- c(map, gridmap)
-            umap <- c(umap, grid[, ncol(grid)])
+            umap <- c(umap, grid[, uname])
         }
     }
     ## Generate matrices for imposing bounds on m1 - m0
@@ -189,14 +189,14 @@ genboundA.mst <- function(A0, A1, sset, gridobj,
             teub  <- replicate(nrow(A1), mte.ub)
             teubs <- replicate(nrow(A1), "<=")
             map <- c(map, gridmap)
-            umap <- c(umap, grid[, ncol(grid)])
+            umap <- c(umap, grid[, uname])
         }
         if (is.numeric(try(mte.lb, silent = TRUE))) {
             lbdAte <- bdAte
             telb  <- replicate(nrow(A1), mte.lb)
             telbs <- replicate(nrow(A1), ">=")
             map <- c(map, gridmap)
-            umap <- c(umap, grid[, ncol(grid)])
+            umap <- c(umap, grid[, uname])
         }
     }
 
@@ -687,7 +687,8 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         hasArg(m1.lb) | hasArg(m1.lb) |
         hasArg(mte.lb) | hasArg(mte.ub)) {
 
-        boundlist  <- c("m0.lb", "m0.ub",
+        boundlist  <- c("uname", 
+                        "m0.lb", "m0.ub",
                         "m1.lb", "m1.ub",
                         "mte.lb", "mte.ub")
         

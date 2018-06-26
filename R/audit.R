@@ -182,6 +182,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
 
         mbobj <- eval(monoboundAcall)
 
+        
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs)
 
@@ -267,18 +268,27 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         ## Test for violations
         violatevec <- mapply(">", (a_mbA %*% solutionvec), a_mbrhs)
         violate <- as.logical(sum(violatevec))
-
         
         if (violate) {
-            cat("Expanding audit grid...\n")
             violate_pos <- which(violatevec == TRUE)
             violate_index <- unique(a_mbobj$mbmap[violate_pos])
             grid_index <- c(grid_index, violate_index)
             if (!noX) {
                 grid_resid <- grid_resid[!grid_resid %in% violate_index]
             }
+
             uvec <- sort(unique(c(uvec, c(a_mbobj$mbumap[violate_pos, ]))))
             audit_count <- audit_count + 1
+
+            if (audit_count <= audit.max) {
+                message("Expanding audit grid...\n")
+            } else {
+                audit <- FALSE
+                message(gsub("\\s+", " ",
+                             paste0("Audit ending: maximum number of audits
+                             (audit.max = ", audit.max, ") reached.\n")))
+                break
+            }
         } else {
             audit <- FALSE
             message(gsub("\\s+", " ",
@@ -289,7 +299,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
             break            
         }
     }
-
+   
     return(list(lpobj    = lpobj,
             minobseq = minobseq))
 }

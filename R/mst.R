@@ -148,7 +148,7 @@
 mst <- function(ivlike, data, subset, components, propensity,
                 link, treat, m0, m1, uname = u, target, late.Z,
                 late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
-                threshold = 1e-08, audit.Nu = 10, audit.Nx = 10,
+                threshold = 1e-08, audit.Nu = 20, audit.Nx = 20,
                 audit.add.x = 2, audit.add.u = 3, 
                 audit.max = 5, audit.tol = 1e-08,
                 m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
