@@ -160,7 +160,8 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
     }
 
     ## Begin performing the audit
-    minobseqobj <- Inf
+    ## minobseqobj <- Inf
+    prevbound <- c(-Inf, Inf)
     existsolution <- FALSE
     audit_count <- 1
     while (audit_count <= audit.max & audit == TRUE) {
@@ -201,33 +202,6 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         message(paste("Minimum observational equivalence deviation:",
                       round(minobseq$obj, 6), "\n"))
         
-        if (minobseqobj == 0) {
-            if (minobseq$obj == 0) {
-                if (existsolution) {
-                    audit <- FALSE
-                    stop("AUDIT ENDED BECAUSE TOLERANCE LEVEL FOR AUDIT REACHED. DO YOU REALLY WANT TO END THE AUDIT BECAUSE OF THIS?")
-                    message(gsub("\\s+", " ",
-                                 "Audit ending: tolerance level for reduction in
-                                 deviation of observational equivalence
-                                 reached.\n"))
-                    break            
-                }
-            }
-        } else if (minobseqobj == Inf) {
-            minobseqobj <- minobseq$obj
-        } else {
-            if (abs(minobseq$obj - minobseqobj)/minobseqobj < audit.tol) {
-                audit <- FALSE
-                stop("AUDIT ENDED BECAUSE TOLERANCE LEVEL FOR AUDIT REACHED. DO YOU REALLY WANT TO END THE AUDIT BECAUSE OF THIS?")
-                message(gsub("\\s+", " ",
-                             "Audit ending: tolerance level for reduction in
-                             deviation of observational equivalence reached.\n"))
-                break            
-            } else {
-                minobseqobj <- minobseq$obj
-            }
-        }
-
         ## Obtain bounds
         message("Obtaining bounds...\n")
         lpresult  <- bound.mst(gstar0,
@@ -240,9 +214,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
 
         optstatus <- c(lpresult$minresult$status, lpresult$maxresult$status)
-        optstatus <- min(optstatus == c("OPTIMAL", "OPTIMAL"))
-      
-        ## solutionvec <- c(minobseq$g0, minobseq$g1)
+        optstatus <- min(optstatus == c("OPTIMAL", "OPTIMAL"))          
         
         ## Generate a new grid for the audit
         a_uvec <- round(runif(audit.add.u), 8)
@@ -299,9 +271,24 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                           \n")))
             }
         } else {
-            existsolution <- TRUE
+            if (existsolution == FALSE) {
+                existsolution <- TRUE
+                prevbound <- c(lpresult$min, lpresult$max)
+            } else {
+                if (((abs(lpresult$min - prevbound[1]) / prevbound[1]) <
+                     threshold) &
+                    ((abs(lpresult$max - prevbound[2]) / prevbound[2]) <
+                     threshold)) {
+                    message(gsub("\\s+", " ",
+                                 "Audit ending: change in bounds falls
+                                 below tolerance level.\n"))
+                    break                    
+                } else {
+                    prevbound <- c(lpresult$min, lpresult$max)
+                }
+            }
         }
-       
+
         ## Generate all monotonicity and boundedness matrices for the audit
         monoboundAcall <- modcall(call,
                               newcall = genmonoboundA,
@@ -322,9 +309,6 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
        
         ## Test for violations
-        ## violatevec <- mapply(">", (a_mbA %*% solutionvec), a_mbrhs)
-        ## violate <- as.logical(sum(violatevec))
-
         violatevecMin <- mapply(">", (a_mbA %*% solVecMin), a_mbrhs)
         violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)
 
