@@ -78,6 +78,13 @@ get_xz <- function(fm, inst = FALSE, terms = FALSE) {
             z <- attr(terms(formula(fm, rhs = 2)), "term.labels")
         }        
     }
+    if ((length(fm)[2] > 2) | (length(fm)[1] > 1)) {
+        stop(gsub("\\s+", " ",
+                  paste0("The following IV-like specification is not
+                  properly specified: ", deparse(fm), ".")),
+             call. = FALSE)
+    }
+    
     if (inst == FALSE) {
         return(x)
     } else {

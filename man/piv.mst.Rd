@@ -19,6 +19,9 @@ in the second stage).}
 that we want to include in the S-set of IV-like estimands.}
 
 \item{weights}{vector of weights.}
+
+\item{formula}{the regression formula. This is required only so
+that informative error messages can be returned to the user.}
 }
 \value{
 vector of select coefficient estimates.
@@ -28,5 +31,5 @@ This function performs TSLS to obtain the estimates for the IV-like
 estimands.
 }
 \examples{
-piv.mst(Y, X, Z, c(d, x1, x2))
+piv.mst(y ~ x, Y, X, Z, c(d, x1, x2))
 }

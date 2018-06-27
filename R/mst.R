@@ -799,7 +799,7 @@ mst <- function(ivlike, data, subset, components, propensity,
 
         ## Obtain coefficient estimates and S-weights
         scall <- modcall(call,
-                       newcall = sweights.mst,
+                       newcall = ivlike.mst,
                        keepargs = c("subset"),
                        newargs = list(formula = ivlike,
                                       treat = quote(treat),
@@ -850,7 +850,7 @@ mst <- function(ivlike, data, subset, components, propensity,
             ## Obtain coefficient estimates and S-weights
             ## corresponding to the IV-like estimands
             sdata <- data[eval(substitute(ssubset), data), ]
-            sest  <- sweights.mst(formula = sformula,
+            sest  <- ivlike.mst(formula = sformula,
                                   data = sdata,
                                   component = scomponent,
                                   treat = treat,

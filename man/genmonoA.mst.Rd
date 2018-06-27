@@ -2,26 +2,26 @@
 % Please edit documentation in R/monobound.R
 \name{genmonoA.mst}
 \alias{genmonoA.mst}
-\title{Generating the monotonicity constraint matrix for the LP problem}
+\title{Generate LP components of the monotonicity constraints}
 \usage{
-genmonoA.mst(A0, A1, sset, monogrid, gstar0, gstar1, m0.dec, m0.inc, m1.dec,
-  m1.inc, mte.dec, mte.inc)
+genmonoA.mst(A0, A1, sset, gridobj, gstar0, gstar1, m0.dec, m0.inc, m1.dec,
+  m1.inc, mte.dec, mte.inc, monov)
 }
 \arguments{
 \item{A0}{the matrix of values from evaluating the MTR for control
 observations over the grid generated to perform the audit. This
 matrix will be incorporated into the final constraint matrix
-for the bounds.}
+for the monotonicity conditions.}
 
 \item{A1}{the matrix of values from evaluating the MTR for control
 observations over the grid generated to perform the audit. This
 matrix will be incorporated into the final constraint matrix
-for the bounds.}
+for the monotonicity conditions.}
 
 \item{sset}{a list containing the point estimates and gamma
 components associated with each element in the S-set.}
 
-\item{monogrid}{a list containing the grid over which the
+\item{gridobj}{a list containing the grid over which the
 monotonicity and boundedness conditions are imposed on.}
 
 \item{gstar0}{set of expectations for each terms of the MTR for the
@@ -30,38 +30,39 @@ control group.}
 \item{gstar1}{set of expectations for each terms of the MTR for the
 control group.}
 
-\item{m0.dec}{boolean, set to TRUE if MTR for \code{D = 0} should
-be monotone decreasing in the unobservable.}
+\item{m0.dec}{boolean, indicating whether the MTR for the control
+group is monotone decreasing.}
 
-\item{m0.inc}{boolean, set to TRUE if MTR for \code{D = 0} should
-be monotone increasing in the unobservable.}
+\item{m0.inc}{boolean, indicating whether the MTR for the control
+group is monotone increasing.}
 
-\item{m1.dec}{boolean, set to TRUE if MTR for \code{D = 1} should
-be monotone decreasing in the unobservable.}
+\item{m1.dec}{boolean, indicating whether the MTR for the treated
+group is monotone decreasing.}
 
-\item{m1.inc}{boolean, set to TRUE if MTR for \code{D = 1} should
-be monotone increasing in the unobservable.}
+\item{m1.inc}{boolean, indicating whether the MTR for the treated
+group is monotone increasing.}
 
-\item{mte.dec}{boolean, set to TRUE if MTE should be monotone
-decreasing in the unobservable.}
+\item{mte.dec}{boolean, indicating whether the MTE is monotone
+decreasing.}
 
-\item{mte.inc}{boolean, set to TRUE if MTE should be monotone
-decreasing in the unobservable.}
+\item{mte.inc}{boolean, indicating whether the MTE is monotone
+increasing.}
+
+\item{monov}{name of variable for which the monotonicity conditions
+applies to.}
 }
 \value{
-a constraint matrix for the LP problem, the associated
-    vector of inequalities, and the RHS vector in the inequality
-    constraint. The objects pertain only to the monotonicity
-    constraints declared by the user.
+constraint matrix for the LP problem. The matrix pertains
+    only to the monotonicity conditions on the MTR and MTE declared
+    by the user.
 }
 \description{
-This function generates the objects in the LP problem associated
-with the monotonicity constraints declared by the user. Amongst
-other arguments, the function takes in a grid of values of the
-MTRs, as well as the set of target Gammas, and generates a matrix
-corresponding to the monotonicity constraints declared by the user
-used in solving teh LP problem. It also generates the RHS vector
-associated with the monotonicity constraints, and the vector of
-inequalities. It is called by the wrapper function
-\code{fullgenmonoA.mst}.
+This function generates the matrix and vectors associated with the
+monotonicity constraints declared by the user. It takes in a grid
+of the covariates on which we define the LP contraints, and then
+calculates the values of the MTR and MTE over the grid. The
+matrices characterizing the monotonicity conditions can then be
+obtained by taking first differences over the grid of the
+unobservable term, within each set of values in the grid of
+covariate values.
 }

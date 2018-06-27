@@ -4,7 +4,7 @@
 \alias{modcall}
 \title{Auxiliary function: modifying calls}
 \usage{
-modcall(call, newcall, newargs, keepargs, dropargs)
+modcall(call, newcall, newargs, keepargs, dropargs, testing = FALSE)
 }
 \arguments{
 \item{call}{Call object to be modified.}

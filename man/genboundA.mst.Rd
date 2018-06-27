@@ -4,7 +4,8 @@
 \alias{genboundA.mst}
 \title{Generating the LP constraint matrix for bounds}
 \usage{
-genboundA.mst(A0, A1, sset, gridobj, m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub)
+genboundA.mst(A0, A1, sset, gridobj, uname, m0.lb, m0.ub, m1.lb, m1.ub, mte.lb,
+  mte.ub)
 }
 \arguments{
 \item{A0}{the matrix of values from evaluating the MTR for control
@@ -23,13 +24,13 @@ components associated with each element in the S-set.}
 \item{gridobj}{a list containing the grid over which the
 monotonicity and boundedness conditions are imposed on.}
 
-\item{m0.lb}{scalar, lower bound on MTR for \code{D = 0}.}
+\item{m0.lb}{scalar, lower bound on MTR for control group.}
 
-\item{m0.ub}{scalar, upper bound on MTR for \code{D = 0}.}
+\item{m0.ub}{scalar, upper bound on MTR for control group.}
 
-\item{m1.lb}{scalar, lower bound on MTR for \code{D = 1}.}
+\item{m1.lb}{scalar, lower bound on MTR for treated group.}
 
-\item{m1.ub}{scalar, upper bound on MTR for \code{D = 1}.}
+\item{m1.ub}{scalar, upper bound on MTR for treated group.}
 
 \item{mte.lb}{scalar, lower bound on MTE.}
 

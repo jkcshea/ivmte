@@ -4,32 +4,43 @@
 \alias{audit.mst}
 \title{Audit procedure}
 \usage{
-audit.mst(data, uname, m0, m1, u.n = 10, X.n = 10, add.audit = 2,
-  max.audits = 5, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-  m1.dec, m1.inc, mte.dec, mte.inc, sset, gstar0, gstar1)
+audit.mst(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr, grid.Nu = 20,
+  grid.Nx = 50, audit.Nx = 5, audit.Nu = 3, audit.max = 5,
+  audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec,
+  m0.inc, m1.dec, m1.inc, mte.dec, mte.inc, sset, gstar0, gstar1, obseq.tol)
 }
 \arguments{
-\item{data}{\code{data.frame} used to estimate the treatment effects.}
+\item{data}{\code{data.frame} used to estimate the treatment
+effects.}
 
-\item{uname}{variable name for unobservale used in declaring MTRs.}
+\item{uname}{name declared by user to represent the unobservable
+term in the MTRs.}
 
 \item{m0}{one-sided formula for marginal treatment response
-function for control group.}
+function for control group. The unobservable term can be
+entered in using splines.}
 
 \item{m1}{one-sided formula for marginal treatment response
 function for treated group.}
 
-\item{u.n}{number of evenly-spread points of the unobservable u to
-use to form the grid in the audit procedure.}
+\item{grid.Nu}{number of evenly spread points in the interval [0,
+1] of the unobservable u used to form the grid for imposing
+shape restrictions on the MTRs.}
 
-\item{X.n}{number of `evenly' spread points of the covariates to
-use to form the grid in the audit procedure.}
+\item{grid.Nx}{number of evenly spread points of the covariates to
+use to form the grid for imposing shape restrictions on the
+MTRs.}
 
-\item{add.audit}{number of points to add to the grid in each
-iteration of the audit procedure.}
+\item{audit.Nx}{number of points on the covariates space to audit
+in each iteration of the audit procedure.}
 
-\item{max.audits}{maximum number of iterations in the audit
+\item{audit.max}{maximum number of iterations in the audit
 procedure.}
+
+\item{audit.tol}{tolerance for determining when to end the audit
+procedure. Namely, if the percentage change in the upper and
+lower bounds both fall below \code{audit.tol} between
+iterations of the audit, the audit precodure ends.}
 
 \item{m1.ub}{numeric value for upper bound on MTR for treated
 group.}
@@ -66,6 +77,26 @@ weakly monotone decreasing.}
 
 \item{mte.inc}{logical, equal to TRUE if we want the MTE to be
 weakly monotone decreasing.}
+
+\item{sset}{a list containing the point estimates and gamma
+components associated with each element in the S-set.}
+
+\item{gstar0}{set of expectations for each terms of the MTR for the
+control group.}
+
+\item{gstar1}{set of expectations for each terms of the MTR for the
+control group.}
+
+\item{obseq.tol}{tolerance level for how much more the solution is
+permitted to violate observational equivalence of the IV-like
+estimands. The threshold multiplies the violation of the
+observational equivalence, i.e. a threshold of 0 corresponds to
+the assumption that the model is correctly specified, and that
+there is no violation of observational equivalence.}
+
+\item{audit.Nx}{number of points in the interval [0, 1],
+corresponding to the normalized value of the unobservable term,
+to audit in each iteration of the audit procedure.}
 }
 \value{
 a list. Included in the list is the minimum violation of

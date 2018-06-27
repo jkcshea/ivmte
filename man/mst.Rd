@@ -4,14 +4,14 @@
 \alias{mst}
 \title{Estimation procedure from Mogstad, Torgovitsky (2017)}
 \usage{
-mst(formula, data, subset, components = NULL, propensity, link, treat, m0, m1,
-  uname = u, target, late.Z, late.from, late.to, late.X, eval.X, wald.lb,
-  wald.ub, threshold = 1e-08, u.n = 10, X.n = 10, add.audit = 2,
-  max.audits = 5, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-  m1.dec, m1.inc, mte.dec, mte.inc)
+mst(ivlike, data, subset, components, propensity, link, treat, m0, m1,
+  uname = u, target, late.Z, late.from, late.to, late.X, eval.X, genlate.lb,
+  genlate.ub, obseq.tol = 1, grid.Nu = 20, grid.Nx = 20, audit.Nx = 2,
+  audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
+  m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc)
 }
 \arguments{
-\item{formula}{formula or vector of formulas used to specify the
+\item{ivlike}{formula or vector of formulas used to specify the
 regressions for the IV-like estimands.}
 
 \item{data}{\code{data.frame} used to estimate the treatment
@@ -23,8 +23,9 @@ correpsonding to each IV-like estimand. See
 
 \item{components}{a list of vectors of the terms/components from
 the regressions specifications we want to include in the set of
-IV-like estimands.  See \code{\link[mst]{list.mst}} on how to
-input the argument.}
+IV-like estimands. To select the intercept term, include in the
+vector of variable names, `intercept'. See
+\code{\link[mst]{list.mst}} on how to input the argument.}
 
 \item{propensity}{formula or variable name corresponding to
 propensity to take up treatment. If a formula is declared, then
@@ -64,26 +65,33 @@ condition on when defining the LATE.}
 \item{eval.X}{numeric vector of the values at which we condition
 variables in \code{late.X} on when estimating the LATE.}
 
-\item{wald.lb}{lower bound value of unobservable u for estimating
-generalized LATE.}
+\item{genlate.lb}{lower bound value of unobservable u for
+estimating generalized LATE.}
 
-\item{wald.ub}{upper bound value of unobservable u for estimating
-generalized LATE.}
+\item{genlate.ub}{upper bound value of unobservable u for
+estimating generalized LATE.}
 
-\item{threshold}{threshold for violation of observational
-equivalence.}
+\item{obseq.tol}{threshold for violation of observational
+equivalence. The threshold enters in multiplicatively. Thus, a
+value of 0 corresponds to no violation of observational
+equivalence, and the assumption that the model is correctly
+specified.}
 
-\item{u.n}{number of evenly spread points in the interval [0, 1] of
-the unobservable u used to form the grid in the audit
+\item{grid.Nu}{number of evenly spread points in the interval [0,
+1] of the unobservable u used to form the grid for imposing
+shape restrictions on the MTRs.}
+
+\item{grid.Nx}{number of evenly spread points of the covariates to
+use to form the grid for imposing shape restrictions on the
+MTRs.}
+
+\item{audit.Nx}{number of points on the covariates space to audit
+in each iteration of the audit procedure.}
+
+\item{audit.max}{maximum number of iterations in the audit
 procedure.}
 
-\item{X.n}{number of evenly spread points of the covariates to use
-to form the grid in the audit procedure.}
-
-\item{add.audit}{number of points to add to the grid in each
-iteration of the audit procedure.}
-
-\item{max.audits}{maximum number of iterations in the audit
+\item{audit.tol}{tolerance for determining when to end the audit
 procedure.}
 
 \item{m1.ub}{numeric value for upper bound on MTR for treated
@@ -121,6 +129,10 @@ weakly monotone decreasing.}
 
 \item{mte.inc}{logical, equal to TRUE if we want the MTE to be
 weakly monotone decreasing.}
+
+\item{audit.Nx}{number of points in the interval [0, 1],
+corresponding to the normalized value of the unobservable term,
+to audit in each iteration of the audit procedure.}
 }
 \value{
 Returns a list of results from throughout the estimation
@@ -157,15 +169,16 @@ or not the constraints hold. The user can specify how stringent
 this audit procedure is using the function arguments.
 }
 \examples{
-formulas <- c(ey ~ d | z,
-              ey ~ d | factor(z),
-              ey ~ d,
-              ey ~ d | factor(z))
+ivlikespecs <- c(ey ~ d | z,
+               ey ~ d | factor(z),
+               ey ~ d,
+               ey ~ d | factor(z))
 jvec <- lists.mst(d, d, d, d)
 svec <- lists.mst(, , , z \%in\% c(2, 4))
 
-mst(formula = tform, data = dtm,
-    components = jvec, 
+mst(ivlike = ivlikespecs,
+    data = dtm,
+    components = jvec,
     propensity = pz,
     subset = svec,
     m0 = ~  u + u^2,
@@ -176,7 +189,7 @@ mst(formula = tform, data = dtm,
     m1.dec = TRUE)
 
 
-mst(formula = y ~ d + x1 + x2 | x1 + x2 + z1 + z2, dt,
+mst(ivlike = y ~ d + x1 + x2 | x1 + x2 + z1 + z2, dt,
     components = d,
     propensity = d ~ z1 + z2 + x1 + x2,
     link = "logit",

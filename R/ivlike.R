@@ -2,7 +2,9 @@
 #'
 #' This function performs TSLS to obtain the estimates for the IV-like
 #' estimands.
-#' 
+#'
+#' @param formula the regression formula. This is required only so
+#'     that informative error messages can be returned to the user.
 #' @param Y the vector of outcomes.
 #' @param X the matrix of covariates (includes endogenous and
 #'     exogenous covariates).
@@ -14,12 +16,16 @@
 #' @return vector of select coefficient estimates.
 #'
 #' @examples
-#' piv.mst(Y, X, Z, c(d, x1, x2))
+#' piv.mst(y ~ x, Y, X, Z, c(d, x1, x2))
 piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
     ## FIX: account for weights
 
     ## project regressors x on image of instruments z
-    if (ncol(Z) < ncol(X)) warning("More regressors than instruments")
+    if (ncol(Z) < ncol(X)) {
+        stop(gsub("\\s+", " ",
+                  paste0("More regressors than instruments in the following
+                  IV-like specification: ", formula, ".")))
+    }
     fstage <- if(is.null(weights)) lm.fit(Z, X) else lm.wfit(Z, X, weights)
     Xhat   <- as.matrix(fstage$fitted.values)
     colnames(Xhat) <- colnames(X)
@@ -52,7 +58,7 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #'     estimates of the IV-like estimands.
 #'
 #' @examples
-#' sweights.mst(y ~ d + x1 | z,
+#' ivlike.mst(y ~ d + x1 | z,
 #'              data = data,
 #'              subset = x1 < 3,
 #'              components = c(d, x1),
@@ -60,7 +66,7 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #'              list = FALSE)
 #'
 #' @export 
-sweights.mst <- function(formula, data, subset, components = NULL, treat,
+ivlike.mst <- function(formula, data, subset, components = NULL, treat,
                          list = FALSE) {
     
     formula <- Formula::as.Formula(formula)
@@ -113,19 +119,22 @@ sweights.mst <- function(formula, data, subset, components = NULL, treat,
         bhat <- piv.mst(mf$Y, mf$X, mf$X, lmcomponents)
         sweight <- olsj.mst(mf$X, components, treat)
     } else {
-        ## IV
         if (length(formula)[2] == 2 &
             dim(mf$X)[2] == dim(mf$Z)[2]) {
             bhat <- piv.mst(mf$Y, mf$X, mf$Z, lmcomponents)
             sweight <- ivj.mst(mf$X, mf$Z, components, treat)
-        }
-        
-        ## TSLS
-        if (length(formula)[2] == 2 & dim(mf$X)[2] < dim(mf$Z)[2]) {
+        } else if (length(formula)[2] == 2 & dim(mf$X)[2] < dim(mf$Z)[2]) {
             bhat <- piv.mst(mf$Y, mf$X, mf$Z, lmcomponents)
             sweight <- tsls.mst(mf$X, mf$Z, components, treat)
+        } else if (length(formula)[2] == 2 & dim(mf$X)[2] > dim(mf$Z)[2]) {
+            stop(gsub("\\s+", " ",
+                      paste0("More regressors than instruments in the following
+                      IV-like specification: ", deparse(formula), ".")))
+        } else {
+            stop(gsub("\\s+", " ",
+                      paste0("The following IV-like specification is not
+                      properly specified: ", deparse(formula), ".")))
         }
     }
-
     return(list(sw0 = sweight$s0, sw1 = sweight$s1, betas = bhat))
 }

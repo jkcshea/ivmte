@@ -4,7 +4,8 @@
 \alias{gensset.mst}
 \title{Generating LP moments for IV-like estimands}
 \usage{
-gensset.mst(sset, sest, pmodobj, pm0, pm1, ncomponents, scount, subset_index)
+gensset.mst(data, sset, sest, splinesobj, pmodobj, pm0, pm1, ncomponents,
+  scount, subset_index)
 }
 \arguments{
 \item{sset}{A list, which is modified and returned as the output.}
