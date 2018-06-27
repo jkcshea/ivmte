@@ -67,8 +67,11 @@
 #'     estimating generalized LATE.
 #' @param genlate.ub upper bound value of unobservable u for
 #'     estimating generalized LATE.
-#' @param threshold threshold for violation of observational
-#'     equivalence.
+#' @param obseq.tol threshold for violation of observational
+#'     equivalence. The threshold enters in multiplicatively. Thus, a
+#'     value of 0 corresponds to no violation of observational
+#'     equivalence, and the assumption that the model is correctly
+#'     specified.
 #' @param audit.Nu number of evenly spread points in the interval [0,
 #'     1] of the unobservable u used to form the grid in the audit
 #'     procedure.
@@ -76,12 +79,12 @@
 #'     use to form the grid in the audit procedure.
 #' @param audit.add.x number of points to add to the grid for
 #'     covariates in each iteration of the audit procedure.
-#' @param audit.add.u number of points to add to the grid for
-#'     the unobservables in each iteration of the audit procedure.
+#' @param audit.add.u number of points to add to the grid for the
+#'     unobservables in each iteration of the audit procedure.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
-#'     procedure. 
+#'     procedure.
 #' @param m1.ub numeric value for upper bound on MTR for treated
 #'     group.
 #' @param m0.ub numeric value for upper bound on MTR for control
@@ -148,7 +151,7 @@
 mst <- function(ivlike, data, subset, components, propensity,
                 link, treat, m0, m1, uname = u, target, late.Z,
                 late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
-                threshold = 1e-08, audit.Nu = 20, audit.Nx = 20,
+                obseq.tol = 1, audit.Nu = 20, audit.Nx = 20,
                 audit.add.x = 2, audit.add.u = 3, 
                 audit.max = 5, audit.tol = 1e-08,
                 m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
@@ -349,8 +352,8 @@ mst <- function(ivlike, data, subset, components, propensity,
                       'logit', or 'probit'."))
         }
     }
-    if (!(is.numeric(threshold) & threshold >= 0)) {
-        stop("Cannot set threshold below 0.")
+    if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
+        stop("Cannot set obseq.tol below 0.")
     }
     if (!((audit.Nu %% 1 == 0) & audit.Nu >= 2)) {
         stop("audit.Nu must be an integer greater than or equal to 2.")
@@ -880,15 +883,17 @@ mst <- function(ivlike, data, subset, components, propensity,
     ##---------------------------
     ## 5. Define constraint matrices using the audit
     ##---------------------------
-    
-    message("\nPerforming audit procedure...\n")
+
+    if (obseq.tol > 0) {
+        message("\nPerforming audit procedure...\n")
+    }
     
     audit.args <- c("uname", "audit.Nu", "audit.Nx",
                     "audit.add.x", "audit.add.u", "audit.max", "audit.tol",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
-                    "mte.inc", "threshold")
+                    "mte.inc", "obseq.tol")
     
     audit_call <- modcall(call,
                           newcall = audit.mst,

@@ -119,7 +119,7 @@ obseqmin.mst <- function(sset, lpobj) {
 #' @param sset a list containing the point estimates and gamma
 #'     components associated with each element in the S-set.
 #' @param lpobj A list of matrices and vectors defining an LP problem.
-#' @param threshold tolerance level for how much more the solution is
+#' @param obseq.tol tolerance level for how much more the solution is
 #'     permitted to violate observational equivalence of the IV-like
 #'     estimands.
 #' @param noisy boolean, set to \code{TRUE} if optimization results
@@ -131,12 +131,12 @@ obseqmin.mst <- function(sset, lpobj) {
 #'     problem that the optimizer solved.
 #' 
 #' @export
-bound.mst <- function(g0, g1, sset, lpobj, threshold, noisy = FALSE) {
+bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, noisy = FALSE) {
    
     ## define model
     model <- list()
     model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1)
-    model$rhs <- c(threshold, lpobj$rhs)
+    model$rhs <- c(obseq.tol, lpobj$rhs)
     model$sense <- c("<=", lpobj$sense)
     model$ub    <- lpobj$ub
     model$lb    <- lpobj$lb

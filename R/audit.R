@@ -37,7 +37,9 @@
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
-#'     procedure.
+#'     procedure. Namely, if the percentage change in the upper and
+#'     lower bounds both fall below \code{audit.tol} between
+#'     iterations of the audit, the audit precodure ends.
 #' @param m1.ub numeric value for upper bound on MTR for treated
 #'     group.
 #' @param m0.ub numeric value for upper bound on MTR for control
@@ -68,9 +70,12 @@
 #'     control group.
 #' @param sset a list containing the point estimates and gamma
 #'     components associated with each element in the S-set.
-#' @param threshold tolerance level for how much more the solution is
+#' @param obseq.tol tolerance level for how much more the solution is
 #'     permitted to violate observational equivalence of the IV-like
-#'     estimands.
+#'     estimands. The threshold multiplies the violation of the
+#'     observational equivalence, i.e. a threshold of 0 corresponds to
+#'     the assumption that the model is correctly specified, and that
+#'     there is no violation of observational equivalence.
 #' @return a list. Included in the list is the minimum violation of
 #'     observational equivalence of the set of IV-like estimands, as
 #'     well as the list of matrices and vectors associated with
@@ -83,10 +88,9 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                       audit.tol = 1e-08, 
                       m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                       m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
-                      sset, gstar0, gstar1, threshold) {
+                      sset, gstar0, gstar1, obseq.tol) {
    
     call  <- match.call()
-    audit <- TRUE
 
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
@@ -104,7 +108,8 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
     
     ## Obtain name of unobservable variable
     if(hasArg(uname)) {
-        if(! suppressWarnings(try(class(uname), silent = TRUE) == "character")){
+        if (!suppressWarnings(try(class(uname), silent = TRUE) ==
+                              "character")) {
             uname <- deparse(substitute(uname))
         }
     } else {
@@ -160,27 +165,30 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
     }
 
     ## Begin performing the audit
-    ## minobseqobj <- Inf
     prevbound <- c(-Inf, Inf)
     existsolution <- FALSE
     audit_count <- 1
-    while (audit_count <= audit.max & audit == TRUE) {
-        cat("Audit count:", audit_count, "\n")
-        if (!noX) {
-            if (length(grid_resid) == 0) {
-                message("Full support now included as grid.")
+    while (audit_count <= audit.max) {
+        if (obseq.tol > 0 ) {
+            cat("Audit count:", audit_count, "\n")
+            if (!noX) {
+                if (length(grid_resid) == 0) {
+                    message("Full support now included as grid.")
+                }
             }
+        } else {
+            message("\nSkipping audit procedure: obseq.tol set to 0. \n")
         }
 
         ## Generate all monotonicity and boundedness matrices for initial grid
         monoboundAlist <- c('m0', 'm1',
-                        'sset', 'gstar0', 'gstar1',
-                        'm1.ub', 'm0.ub',
-                        'm1.lb', 'm0.lb',
-                        'mte.ub', 'mte.lb',
-                        'm0.dec', 'm0.inc',
-                        'm1.dec', 'm1.inc',
-                        'mte.dec', 'mte.inc')
+                            'sset', 'gstar0', 'gstar1',
+                            'm1.ub', 'm0.ub',
+                            'm1.lb', 'm0.lb',
+                            'mte.ub', 'mte.lb',
+                            'm0.dec', 'm0.inc',
+                            'm1.dec', 'm1.inc',
+                            'mte.dec', 'mte.inc')
         
         monoboundAcall <- modcall(call,
                               newcall = genmonoboundA,
@@ -196,11 +204,12 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs)
-
         minobseq  <- obseqmin.mst(sset, lpobj)
-
-        message(paste("Minimum observational equivalence deviation:",
-                      round(minobseq$obj, 6), "\n"))
+            
+        if (obseq.tol > 0) {
+            message(paste("Minimum observational equivalence deviation:",
+                          round(minobseq$obj, 6), "\n"))
+        }
         
         ## Obtain bounds
         message("Obtaining bounds...\n")
@@ -208,13 +217,29 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                                gstar1,
                                sset,
                                lpobj,
-                               minobseq$obj * (1 +  threshold))
-
+                               minobseq$obj * obseq.tol)
+       
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
 
         optstatus <- c(lpresult$minresult$status, lpresult$maxresult$status)
         optstatus <- min(optstatus == c("OPTIMAL", "OPTIMAL"))          
+
+        if (obseq.tol == 0) {
+            if (optstatus == 0) {
+                message(gsub("\\s+", " ",
+                             "Unable to obtain bounds. Try setting obseq.tol
+                             to be greater than 0 to allow for violation of
+                             observational equivalence, or expanding the grid
+                             size for imposing the shape restrictions
+                             (audit.Nx, audit.Nu). \n"))
+            }           
+            warning(gsub("\\s+", " ",
+                         "Setting obseq.tol to 0 allows for no violation of
+                         observational equivalence. This assumes the model is
+                         correctly specified."))
+            break
+        }
         
         ## Generate a new grid for the audit
         a_uvec <- round(runif(audit.add.u), 8)
@@ -276,9 +301,9 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                 prevbound <- c(lpresult$min, lpresult$max)
             } else {
                 if (((abs(lpresult$min - prevbound[1]) / prevbound[1]) <
-                     threshold) &
+                     audit.tol) &
                     ((abs(lpresult$max - prevbound[2]) / prevbound[2]) <
-                     threshold)) {
+                     audit.tol)) {
                     message(gsub("\\s+", " ",
                                  "Audit ending: change in bounds falls
                                  below tolerance level.\n"))
@@ -329,14 +354,12 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
             if (audit_count <= audit.max) {
                 message("Expanding audit grid...\n")
             } else {
-                audit <- FALSE
                 message(gsub("\\s+", " ",
                              paste0("Audit ending: maximum number of audits
                              (audit.max = ", audit.max, ") reached.\n")))
                 break
             }
         } else {
-            audit <- FALSE
             message(gsub("\\s+", " ",
                          "Audit ending: no violations of monotonicity or
                          boundedness restrictions by points chosen off of the
