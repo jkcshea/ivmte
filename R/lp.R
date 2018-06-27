@@ -80,8 +80,6 @@ lpsetup.mst <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL) {
 #'
 #' @export
 obseqmin.mst <- function(sset, lpobj) {
-
-    ## FIX: Need to account for splines?
     
     ## define model
     model <- list()
@@ -124,6 +122,8 @@ obseqmin.mst <- function(sset, lpobj) {
 #' @param threshold tolerance level for how much more the solution is
 #'     permitted to violate observational equivalence of the IV-like
 #'     estimands.
+#' @param noisy boolean, set to \code{TRUE} if optimization results
+#'     should be displayed. 
 #' @return a list containing the bounds on the treatment effect; the
 #'     coefficients on each term in the MTR associated with the upper
 #'     and lower bounds, for both counterfactuals; the optimization
@@ -131,10 +131,8 @@ obseqmin.mst <- function(sset, lpobj) {
 #'     problem that the optimizer solved.
 #' 
 #' @export
-bound.mst <- function(g0, g1, sset, lpobj, threshold) {
+bound.mst <- function(g0, g1, sset, lpobj, threshold, noisy = FALSE) {
    
-    ## FIX: Need to account for splines?
-
     ## define model
     model <- list()
     model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1)
@@ -163,10 +161,12 @@ bound.mst <- function(g0, g1, sset, lpobj, threshold) {
     maxg1 <- maxresult$x[(2 * lpobj$sn + lpobj$gn0 + 1) : (2 * lpobj$sn + lpobj$gn0 + lpobj$gn1)]
     names(maxg0) <- names(sset$gstar$g0)
     names(maxg1) <- names(sset$gstar$g1)
-    
-    cat("Min status:", minresult$status, "\n")
-    cat("Max status:", maxresult$status, "\n")
-    cat("Bound: (", min, ",", max, ")\n")
+
+    if (noisy) {
+        cat("Min status:", minresult$status, "\n")
+        cat("Max status:", maxresult$status, "\n")
+        cat("Bound: (", min, ",", max, ")\n")
+    }
     
     return(list(max = max,
                 maxg0 = maxg0,

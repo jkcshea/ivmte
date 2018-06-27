@@ -888,7 +888,7 @@ mst <- function(ivlike, data, subset, components, propensity,
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
-                    "mte.inc")
+                    "mte.inc", "threshold")
     
     audit_call <- modcall(call,
                           newcall = audit.mst,
@@ -926,29 +926,22 @@ mst <- function(ivlike, data, subset, components, propensity,
                                   newargs = list(m0.lb = miny))
         }
     }
-    audit <- eval(audit_call)
-    lpobj <- audit$lpobj
-    minobseq <- audit$minobseq
-
 
     ##---------------------------
     ## 6. Obtain the bounds
     ##---------------------------
-
-    message("Obtaining bounds...\n")
-    lpresult  <- bound.mst(gstar0,
-                           gstar1,
-                           sset,
-                           lpobj,
-                           minobseq$obj * (1 +  threshold))
-
+      
+    audit <- eval(audit_call)
+    cat("Bound: (", audit$min, ",", audit$max, ")\n")
+    
+    
     ## include additional output material
     return(list(sset  = sset,
                 gstar = list(g0 = gstar0,
                              g1 = gstar1),
                 propensity = pmodel,
-                bound = c(lpresult$min, lpresult$max),
-                lp    = lpresult))
+                bound = c(audit$min, audit$max),
+                lpresult =  audit$lpresult))
 }
 
 
