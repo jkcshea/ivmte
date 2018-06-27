@@ -72,15 +72,17 @@
 #'     value of 0 corresponds to no violation of observational
 #'     equivalence, and the assumption that the model is correctly
 #'     specified.
-#' @param audit.Nu number of evenly spread points in the interval [0,
-#'     1] of the unobservable u used to form the grid in the audit
-#'     procedure.
-#' @param audit.Nx number of evenly spread points of the covariates to
-#'     use to form the grid in the audit procedure.
-#' @param audit.add.x number of points to add to the grid for
-#'     covariates in each iteration of the audit procedure.
-#' @param audit.add.u number of points to add to the grid for the
-#'     unobservables in each iteration of the audit procedure.
+#' @param grid.Nu number of evenly spread points in the interval [0,
+#'     1] of the unobservable u used to form the grid for imposing
+#'     shape restrictions on the MTRs.
+#' @param grid.Nx number of evenly spread points of the covariates to
+#'     use to form the grid for imposing shape restrictions on the
+#'     MTRs.
+#' @param audit.Nx number of points on the covariates space to audit
+#'     in each iteration of the audit procedure.
+#' @param audit.Nx number of points in the interval [0, 1],
+#'     corresponding to the normalized value of the unobservable term,
+#'     to audit in each iteration of the audit procedure.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
@@ -151,8 +153,8 @@
 mst <- function(ivlike, data, subset, components, propensity,
                 link, treat, m0, m1, uname = u, target, late.Z,
                 late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
-                obseq.tol = 1, audit.Nu = 20, audit.Nx = 20,
-                audit.add.x = 2, audit.add.u = 3, 
+                obseq.tol = 1, grid.Nu = 20, grid.Nx = 20,
+                audit.Nx = 2, audit.Nu = 3, 
                 audit.max = 5, audit.tol = 1e-08,
                 m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
                 mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
@@ -355,26 +357,26 @@ mst <- function(ivlike, data, subset, components, propensity,
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
         stop("Cannot set obseq.tol below 0.")
     }
-    if (!((audit.Nu %% 1 == 0) & audit.Nu >= 2)) {
-        stop("audit.Nu must be an integer greater than or equal to 2.")
+    if (!((grid.Nu %% 1 == 0) & grid.Nu >= 2)) {
+        stop("grid.Nu must be an integer greater than or equal to 2.")
     }
-    if (!((audit.Nx %% 1 == 0) & audit.Nx >= 0)) {
-        stop("audit.Nx must be an integer greater than or equal to 0.")
+    if (!((grid.Nx %% 1 == 0) & grid.Nx >= 0)) {
+        stop("grid.Nx must be an integer greater than or equal to 0.")
     }
     
-    if (!((audit.add.x %% 1 == 0) & audit.add.x > 0)) {
-        stop("audit.add.x must be an integer greater than or equal to 1.")
+    if (!((audit.Nx %% 1 == 0) & audit.Nx > 0)) {
+        stop("audit.Nx must be an integer greater than or equal to 1.")
     }
     
     if (hasArg(m0.dec) | hasArg(m0.inc) |
         hasArg(m1.dec) | hasArg(m1.inc) |
         hasArg(mte.dec) | hasArg(mte.inc)) {
-        if (!((audit.add.u %% 1 == 0) & audit.add.u > 0) | audit.add.u < 2) {
-            stop("audit.add.u must be an integer greater than or equal to 2.")
+        if (!((audit.Nu %% 1 == 0) & audit.Nu > 0) | audit.Nu < 2) {
+            stop("audit.Nu must be an integer greater than or equal to 2.")
         }
     } else {
-        if (!((audit.add.u %% 1 == 0) & audit.add.u > 0)) {
-            stop("audit.add.u must be an integer greater than or equal to 1.")
+        if (!((audit.Nu %% 1 == 0) & audit.Nu > 0)) {
+            stop("audit.Nu must be an integer greater than or equal to 1.")
         }
     }
     
@@ -888,8 +890,8 @@ mst <- function(ivlike, data, subset, components, propensity,
         message("\nPerforming audit procedure...\n")
     }
     
-    audit.args <- c("uname", "audit.Nu", "audit.Nx",
-                    "audit.add.x", "audit.add.u", "audit.max", "audit.tol",
+    audit.args <- c("uname", "grid.Nu", "grid.Nx",
+                    "audit.Nx", "audit.Nu", "audit.max", "audit.tol",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",

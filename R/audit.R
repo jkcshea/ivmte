@@ -26,14 +26,17 @@
 #'     entered in using splines.
 #' @param m1 one-sided formula for marginal treatment response
 #'     function for treated group.
-#' @param audit.Nu number of evenly-spread points of the unobservable
-#'     u to use to form the grid in the audit procedure.
-#' @param audit.Nx number of `evenly' spread points of the covariates
-#'     to use to form the grid in the audit procedure.
-#' @param audit.add.x number of points to add to the grid for
-#'     covariates in each iteration of the audit procedure.
-#' @param audit.add.u number of points to add to the grid for the
-#'     unobservables in each iteration of the audit procedure.
+#' @param grid.Nu number of evenly spread points in the interval [0,
+#'     1] of the unobservable u used to form the grid for imposing
+#'     shape restrictions on the MTRs.
+#' @param grid.Nx number of evenly spread points of the covariates to
+#'     use to form the grid for imposing shape restrictions on the
+#'     MTRs.
+#' @param audit.Nx number of points on the covariates space to audit
+#'     in each iteration of the audit procedure.
+#' @param audit.Nx number of points in the interval [0, 1],
+#'     corresponding to the normalized value of the unobservable term,
+#'     to audit in each iteration of the audit procedure.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
@@ -83,8 +86,8 @@
 #'
 #' @export
 audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
-                      audit.Nu = 20, audit.Nx = 50,
-                      audit.add.x = 5, audit.add.u = 3, audit.max = 5,
+                      grid.Nu = 20, grid.Nx = 50,
+                      audit.Nx = 5, audit.Nu = 3, audit.max = 5,
                       audit.tol = 1e-08, 
                       m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                       m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
@@ -122,7 +125,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                      ## variable. I use this in case I want to
                      ## generalize the monotonciity restrictions to
                      ## other covariates
-    uvec    <- round(seq(0, 1, length.out = audit.Nu), 8)
+    uvec    <- round(seq(0, 1, length.out = grid.Nu), 8)
     xvars   <- unique(vars_mtr)
     
     xvars   <- xvars[xvars != uname]
@@ -155,9 +158,9 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         ## Select first iteration of the grid
         full_index <- seq(1, nrow(support))
 
-        audit.Nx <- min(audit.Nx, nrow(support))
+        grid.Nx <- min(grid.Nx, nrow(support))
         grid_index <- sample(full_index,
-                             audit.Nx,
+                             grid.Nx,
                              replace = FALSE,
                              prob = replicate(nrow(support), (1/nrow(support))))
         grid_resid <- full_index[!(full_index %in% grid_index)]
@@ -232,7 +235,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                              to be greater than 0 to allow for violation of
                              observational equivalence, or expanding the grid
                              size for imposing the shape restrictions
-                             (audit.Nx, audit.Nu). \n"))
+                             (grid.Nx, grid.Nu). \n"))
             }           
             warning(gsub("\\s+", " ",
                          "Setting obseq.tol to 0 allows for no violation of
@@ -242,7 +245,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         }
         
         ## Generate a new grid for the audit
-        a_uvec <- round(runif(audit.add.u), 8)
+        a_uvec <- round(runif(audit.Nu), 8)
         
         if (noX) {
             a_grid <- data.frame(a_uvec)
@@ -255,12 +258,12 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
             }
             
             ## Generate alternate grid from residual indexes
-            audit.add.x <- min(audit.add.x, length(grid_resid))
-            if (audit.add.x == length(grid_resid)) {
+            audit.Nx <- min(audit.Nx, length(grid_resid))
+            if (audit.Nx == length(grid_resid)) {
                 a_grid_index <- grid_resid
             } else {
                 a_grid_index <- sample(grid_resid,
-                                        audit.add.x,
+                                        audit.Nx,
                                         replace = FALSE,
                                         prob = replicate(nrow(resid_support),
                                         (1/nrow(resid_support))))
@@ -291,9 +294,9 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                           audits (audit.max = ", audit.max, ") reached, but
                           bounds extend to +/- infinity. Either increase the
                           number of audits allowed (audit.max), the size of
-                          the initial grid (audit.Nx, audit.Nu), or the
-                          expansion of the grid (audit.add.x, audit.add.u).
-                          \n")))
+                          the initial grid (grid.Nx, grid.Nu), or the
+                          expansion of the grid in the audit procedure
+                          (audit.Nx, audit.Nu). \n")))
             }
         } else {
             if (existsolution == FALSE) {
