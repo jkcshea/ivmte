@@ -226,7 +226,7 @@ mst <- function(ivlike, data, subset, components, propensity,
         ## subsetting is used
         if (hasArg(subset)) {
             if (!class(subset) == "list") subset <- list(subset)
-            if(length(subset) > length_formula) {
+            if(length(subset) < length_formula) {
                 warning(gsub("\\s+", " ",
                              "List of subset conditions not the same length
                               of list IV-like specifications: more
@@ -236,7 +236,7 @@ mst <- function(ivlike, data, subset, components, propensity,
                         call. = FALSE)
                 subset[length(subset) + 1 : length(ivlike)] <- ""
             }
-            if(length(subset) < length_formula) {
+            if(length(subset) > length_formula) {
                 warning(gsub("\\s+", " ",
                              "List of subset conditions not the same length
                               of list IV-like specifications: more subset
