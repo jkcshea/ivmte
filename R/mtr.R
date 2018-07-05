@@ -41,14 +41,40 @@ vecextract <- function(vector, position, truncation = 0) {
 #'     order to generate the correct polynomial and monomials.
 #' @return A list of monomials, in the form of the \code{polynom}
 #'     package.
-genmono <- function(vector, basis, zero = FALSE) {
+genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
     if (!zero) basis <- basis + 1
     monolist  <- mapply(genej, pos = basis, length = basis)
     polyinput <- mapply("*", monolist, vector)
-    poly <- lapply(polyinput, polynom::polynomial)    
+    if (as.function == FALSE) {
+        poly <- lapply(polyinput, polynom::polynomial)
+    } else {
+        poly <- lapply(polyinput,
+                       function(x) as.function(polynom::polynomial(x)))
+    }
     return(poly)
 }
 
+#' Generating polynomial functions
+#' 
+#' This function takes in a first vector of coefficients, and a second
+#' vector declaring which univariate polynomial basis corresponds to
+#' each element of the first vector. Then it generates a polynomial
+#' function.
+#' @param vector vector of polynomial coefficients.
+#' @param basis vector of exponents corresponding to each element of
+#'     \code{vector}.
+#' @param zero logical, if \code{FALSE} then \code{vector} does not
+#'     include an element for the constant term. The vector
+#'     \code{basis} will need to be adjusted to account for this in
+#'     order to generate the correct polynomial and monomials.
+#' @return A function in the form of the \code{polynom}
+#'     package.
+genpoly <- function(vector, basis, zero = FALSE) {
+    if (!zero) basis <- basis + 1
+    polyvec <- replicate(max(basis), 0)
+    polyvec[basis] <- vector
+    return(as.function(polynom::polynomial(polyvec)))
+}
 
 #' Evaluating polynomials
 #' 
@@ -91,7 +117,7 @@ polylisteval <- function(polynomials, points) {
 #'     original monomials in the MTR; and a vector for the names of
 #'     each variable entering into the MTR (note \code{x^2 + x} has
 #'     only one term, \code{x}).
-polyparse.mst <- function(formula, data, uname = u) {
+polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
     
     ## update formula parsing
     formula <- Formula::as.Formula(formula)
@@ -174,25 +200,40 @@ polyparse.mst <- function(formula, data, uname = u) {
     polymat <- as.matrix(dmat[, oterms])
     
     ## prepare monomials and their integrals
-    monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                            genmono,
+    polynomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
+                            genpoly,
                             basis = exporder)
 
-    integral_list <- lapply(monomial_list,
-                            lapply,
-                            polynom::integral)
+    if (as.function == FALSE) {
+        monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
+                                genmono,
+                                basis = exporder)
+        
+        integral_list <- lapply(monomial_list,
+                                lapply,
+                                polynom::integral)
+        
+        names(integral_list) <- rownames(data)
+    } else {
+        monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
+                                genmono,
+                                basis = exporder,
+                                as.function = TRUE)
+        
+        integral_list <- NULL
+    }
 
     names(monomial_list) <- rownames(data)
-    names(integral_list) <- rownames(data)
     
-    return(list(mlist = monomial_list,
+    return(list(plist = polynomial_list,
+                mlist = monomial_list,
                 ilist = integral_list,
                 exporder = exporder,
                 terms = oterms))  
 
     ## Note: to implement numerical integration, you should be able to
     ## take these polynomials you have parsed, multiply them by the
-    ## IV-like specifications, and then apply numerical integration.
+    ## weights, and then apply numerical integration.
 }
 
 #' Estimating expectations of terms in the MTR (gamma objects)
@@ -231,7 +272,7 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     exporder  <- monomials$exporder
     integrals <- monomials$ilist
     
-    if(!is.null(subset)) integrals <- integrals[subset]
+    if (!is.null(subset)) integrals <- integrals[subset]
     nmono     <- length(exporder)
 
     ## Determine bounds of integrals (i.e. include weights)
@@ -240,7 +281,7 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     
     ub <- split(replicate(nmono, ub), seq(length(ub)))
     lb <- split(replicate(nmono, lb), seq(length(lb)))
-   
+    
     monoeval <- t(mapply(polylisteval, integrals, ub)) -
         t(mapply(polylisteval, integrals, lb))
     
@@ -272,46 +313,53 @@ removeSplines <- function(formula) {
     fterms <- attr(terms(formula), "term.labels")
     whichspline <- sapply(fterms,
                           function(y) grepl(x = y, pattern = "uSplines\\("))
+    
     if (max(whichspline) == 1) {
         ftobj <- terms(formula)
-        splinepos <- which(whichspline == TRUE)
-        nosplines <- drop.terms(ftobj, splinepos)
-        nosplines <- Formula::as.Formula(nosplines)
-        
+        splinespos <- which(whichspline == TRUE)
+
+        if (length(splinespos) == length(fterms)) {
+            nosplines <- NULL
+        } else {
+            nosplines <- drop.terms(ftobj, splinespos)
+            nosplines <- Formula::as.Formula(nosplines)           
+        }
+               
         splineterms <- fterms[whichspline]
         splineslist <- list()
+        
         for (splineobj in splineterms) {
             
-            splinepos <- regexpr("uSplines\\(", splineobj)
-            degreepos <- regexpr("degree = ", splineobj)
-            knotspos  <- regexpr("knots = ", splineobj)
-            knotslpos <- regexpr("knots = c\\(", splineobj)
-            interpos  <- regexpr("intercept = ", splineobj)
+            splinespos <- regexpr("uSplines\\(", splineobj)
+            degreepos  <- regexpr("degree = ", splineobj)
+            knotspos   <- regexpr("knots = ", splineobj)
+            knotslpos  <- regexpr("knots = c\\(", splineobj)
+            interpos   <- regexpr("intercept = ", splineobj)
 
-            substr(splineobj, splinepos, nchar(splineobj))
+            substr(splineobj, splinespos, nchar(splineobj))
 
             ## Check if vectors or sequences are declared to adjust parsing
             firstopen  <- regexpr("\\(",
                                   substr(splineobj,
-                                         splinepos + 8,
+                                         splinespos + 8,
                                          nchar(splineobj)))
             firstclose <- regexpr("\\)",
                                   substr(splineobj,
-                                         splinepos,
+                                         splinespos,
                                          nchar(splineobj)))
             secondclose <- regexpr("\\)",
                                    substr(splineobj,
-                                          splinepos + 8 + firstclose,
+                                          splinespos + 8 + firstclose,
                                           nchar(splineobj)))
 
             if ((firstopen < firstclose) & (secondclose != - 1)) {    
                 splinecmd <- substr(splineobj,
-                                    splinepos,
-                                    splinepos + 8 + firstclose + secondclose)
+                                    splinespos,
+                                    splinespos + 8 + firstclose + secondclose)
             } else {
                 splinecmd <- substr(splineobj,
-                                    splinepos,
-                                    splinepos + firstclose - 1)
+                                    splinespos,
+                                    splinespos + firstclose - 1)
             }
 
             ## Separate uSplines command from terms interacting with the spline
@@ -574,4 +622,102 @@ genBasisSplines.mst <- function(splines, x, d = NULL) {
     }
 }
 
+#' Defining single splines basis functions, with interactions
+#'
+#' This function returns a numerically integrable function
+#' corresponding to a single splines basis function.
+#' @param splineslist a list of splines commands and names of
+#'     variables that interact with the splines. This is generated
+#'     using the command \link{removeSplines}.
+#' @param j the index for the spline for which to generate the basis
+#'     functions.
+#' @param l the index for the basis.
+#' @param v a constant that multiplies the spline basis.
+#' @return a vectorized function corresponding to a single splines
+#'     basis function that can be numerically integrated.
+defSplinesBasis <- function(splineslist, j, l, v) {
+    fun <- function(u) {
+        v * genBasisSplines.mst(splineslist, u)[[j]][, l]
+    }
+    return(fun)
+}
+
+#' Definining list of splines basis functions, with interactions
+#'
+#' This functions generates functions for each splines basis, and
+#' returns it as a list.
+#' @param splineslist
+#' @param j the index for the spline for which to generate the basis
+#'     functions.
+#' @param v a constant that multiplies the spline basis.
+#' @return a list of vectorized functions corresponding to a single
+#'     splines basis functions that can be numerically integrated.
+defSplines <- function(splineslist, j, v) {
+    basisLength <- length(genBasisSplines.mst(splineslist, 0)[[j]])
+
+    funList <- sapply(X = seq(1, basisLength),
+                      FUN = defSplinesBasis,
+                      splineslist = splineslist,
+                      j = j,
+                      v = v)
+    return(funList)    
+}
+
+#' Auxiliary funtion: multiply functions together
+#'
+#' This function simply takes in two different functions with the same
+#' arguments, and takes the product of them.
+#' @param FUN1 the first function to be multiplied.
+#' @param FUN2 the second function to be multiplied.
+#' @return a function that is the product of FUN1 and FUN2.
+funMultiply <- function(FUN1, FUN2) {
+    newFun <- function(u) {
+        FUN1(u) * FUN2(u)
+    }
+}
+
+#' Auxiliary funtion: multiply a list of functions by a single function
+#'
+#' This function multiplies each element of a list of functions by a
+#' single function.
+#' @param list the list of functions to be multiplied.
+#' @param multiplier the function that is to multiply each element in
+#'     the list.
+#' @return a list of functions.
+listMultiply <- function(list, multiplier) {
+    lapply(X = list,
+           FUN = funMultiply,
+           FUN2 = multiplier)
+}
+
+#' Auxiliary funtion: integrate a list of functions
+#'
+#' This function integrates each element of a list of functions using
+#' numerical quadrature.
+#' @param list the list of functions to be multiplied.
+#' @return a list of scalars.
+listIntegrate <- function(list) {
+    lapply(X = list,
+           FUN = integrate,
+           lower = 0,
+           upper = 1)
+}
+
+#' Auxiliary function: mean of a list of numerically integrated
+#' functions
+#'
+#' This function takes in a list of lists of scalars. It then
+#' calculates the averages across the correpsonding elements across
+#' the lists.
+#' @param integratedList the list of scalars to be avereaged over. The
+#'     format of each element is assumed to be that of the output from
+#'     R's built-in command \code{integrate}.
+#' @param component the elements of the inner list for which one
+#'     wishes to obtain the average of.
+#' @return a scalar. 
+listMean <- function(integratedList, component) {
+    n <- length(integratedList)
+    mean(unlist(lapply(seq(1, n),
+                       function(x) integratedList[[x]][[component]]$value)))
+}
 

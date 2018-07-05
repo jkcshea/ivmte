@@ -54,6 +54,10 @@
 #' @param target target parameter to be estimated. Currently function
 #'     allows for ATE ("ate"), ATT ("att"), ATU ("atu"), LATE
 #'     ("late"), and generalized LATE ("genlate").
+#' @param target.weight0 user-defined weight function for the control
+#'     group defining the target paramter.
+#' @param target.weight1 user-defined weight function for the treated
+#'     group defining the target paramter.
 #' @param late.Z vector of variable names used to define the LATE.
 #' @param late.from baseline set of values of Z used to define the
 #'     LATE.
@@ -150,15 +154,14 @@
 #'     to= c(1,2))
 #'
 #' @export
-mst <- function(ivlike, data, subset, components, propensity,
-                link, treat, m0, m1, uname = u, target, late.Z,
-                late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
-                obseq.tol = 1, grid.Nu = 20, grid.Nx = 20,
-                audit.Nx = 2, audit.Nu = 3, 
-                audit.max = 5, audit.tol = 1e-08,
-                m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
-                mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
-                mte.inc) {
+mst <- function(ivlike, data, subset, components, propensity, link,
+                treat, m0, m1, uname = u, target, target.weight0,
+                target.weight1, late.Z, late.from, late.to, late.X,
+                eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
+                grid.Nu = 20, grid.Nx = 20, audit.Nx = 2,
+                audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
+                m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
+                m1.dec, m1.inc, mte.dec, mte.inc) {
 
     ## Match call arguments
     call     <- match.call(expand.dots = FALSE)
@@ -168,9 +171,9 @@ mst <- function(ivlike, data, subset, components, propensity,
     ##---------------------------
     ## 0.a Check format of `formula', `subset', and `component' inputs
     ##---------------------------
-    
+
     if (class_list(ivlike)) {
-        
+
         ## Convert formula, components, and subset inputs into lists
         length_formula <- length(ivlike)
 
@@ -199,7 +202,7 @@ mst <- function(ivlike, data, subset, components, propensity,
                          constructing each S-set."),
                     call. = FALSE)
         }
-        
+
         if (length_formula > length_components & length_components > 0) {
             warning(gsub("\\s+", " ",
                          "List of components not the same length of list of
@@ -210,7 +213,7 @@ mst <- function(ivlike, data, subset, components, propensity,
                     call. = FALSE)
             components[(length(components) + 1) : length(ivlike)] <- ""
         }
-        
+
         if (length_formula < length_components) {
             warning(gsub("\\s+", " ",
                          "List of components not the same length of list of
@@ -250,7 +253,7 @@ mst <- function(ivlike, data, subset, components, propensity,
             ## if no subset input, then we construct it
             subset <- as.list(replicate(length_formula, ""))
         }
-       
+
     } else {
         specCompWarn <- FALSE
         if (hasArg(components)) {
@@ -267,7 +270,7 @@ mst <- function(ivlike, data, subset, components, propensity,
                     call. = FALSE)
         }
     }
-    
+
     ##---------------------------
     ## 0.b Check monotonicity conditions
     ##---------------------------
@@ -306,47 +309,63 @@ mst <- function(ivlike, data, subset, components, propensity,
         }
     }
 
-    if (! target %in% c("ate", "att", "atu", "late", "genlate")) {
-        stop(gsub("\\s+", " ",
-                  "Specified target parameter is not recognized.
+    if (hasArg(target)) {
+        if (! target %in% c("ate", "att", "atu", "late", "genlate")) {
+            stop(gsub("\\s+", " ",
+                      "Specified target parameter is not recognized.
                    Choose from 'ate', 'att', 'atu', 'late', or 'genlate'."))
-    }
-
-
-    if (target == "late") {
-        if (!(hasArg(late.Z) & hasArg(late.to) & hasArg(late.from))) {
-            stop(gsub("\\s+", " ",
-                      "Target paramter of 'late' requires arguments
-                      'late.Z', 'late.to', and 'late.from'."))
         }
+        if (target == "late") {
+            if (!(hasArg(late.Z) & hasArg(late.to) & hasArg(late.from))) {
+                stop(gsub("\\s+", " ",
+                          "Target paramter of 'late' requires arguments
+                      'late.Z', 'late.to', and 'late.from'."))
+            }
 
-        if((hasArg(late.X) & !hasArg(eval.X)) |
-           !hasArg(late.X) & hasArg(eval.X)) {
-            stop(gsub("\\s+", " ",
-                      "If the target parameter is 'late', then either both
+            if((hasArg(late.X) & !hasArg(eval.X)) |
+               !hasArg(late.X) & hasArg(eval.X)) {
+                stop(gsub("\\s+", " ",
+                          "If the target parameter is 'late', then either both
                       late.X and eval.X are specified, or neither are
                       specified."))
+            }
         }
-    }
-    if (target == "genlate") {
-        if (genlate.lb < 0 | genlate.ub > 1) {
+        if (target == "genlate") {
+            if (genlate.lb < 0 | genlate.ub > 1) {
+                stop(gsub("\\s+", " ",
+                          "'genlate.lb' and 'genlate.ub' must be between 0
+                          and 1."))
+            }
+            if (genlate.lb >= genlate.ub) {
+                stop("'genlate.lb' must be less than 'genlate.ub'.")
+            }
+        }
+        if (target != "genlate" &
+            (hasArg("genlate.lb") | hasArg("genlate.ub"))) {
+            warning(gsub("\\s+", " ",
+                         "Unless target parameter is 'genlate', 'genlate.lb' and
+                         'genlate.ub' arguments will not be used."))
+        }
+        if (target != "late" & (hasArg("eval.X") | hasArg("late.X"))) {
+            warning(gsub("\\s+", " ",
+                         "Unless target parameter is 'late', 'eval.X' and
+                         'late.X' arguments will not be used."))
+        }
+        if ((hasArg(target.weight0) | hasArg(target.weight1))) {
             stop(gsub("\\s+", " ",
-                      "'genlate.lb' and 'genlate.ub' must be between 0 and 1."))
+                      "A preset target weight is chosen, and a custom target
+                      weight is provided. Please provide an input for 'target'
+                      only, or for 'target.weight0' and 'target.weight1'."))
         }
-        if (genlate.lb >= genlate.ub) {
-            stop("'genlate.lb' must be less than 'genlate.ub'.")
+    } else {
+        if (!(hasArg(target.weight0) & hasArg(target.weight1))) {
+            stop(gsub("\\s+", " ",
+                      "Only one target weight function is provided. If a custom
+                      target weight is to be used, inputs for both
+                      target.weight0 and target.weight1 must be provided."))
         }
     }
-    if (target != "genlate" & (hasArg("genlate.lb") | hasArg("genlate.ub"))) {
-        warning(gsub("\\s+", " ",
-                     "Unless target parameter is 'genlate', 'genlate.lb' and
-                     'genlate.ub' arguments will not be used."))
-    }
-    if (target != "late" & (hasArg("eval.X") | hasArg("late.X"))) {
-        warning(gsub("\\s+", " ",
-                     "Unless target parameter is 'late', 'eval.X' and 'late.X'
-                     arguments will not be used."))
-    }
+   
     if (hasArg(link)) {
         if (! link %in% c("linear", "logit", "probit")) {
             stop(gsub("\\s+", " ",
@@ -363,11 +382,11 @@ mst <- function(ivlike, data, subset, components, propensity,
     if (!((grid.Nx %% 1 == 0) & grid.Nx >= 0)) {
         stop("grid.Nx must be an integer greater than or equal to 0.")
     }
-    
+
     if (!((audit.Nx %% 1 == 0) & audit.Nx > 0)) {
         stop("audit.Nx must be an integer greater than or equal to 1.")
     }
-    
+
     if (hasArg(m0.dec) | hasArg(m0.inc) |
         hasArg(m1.dec) | hasArg(m1.inc) |
         hasArg(mte.dec) | hasArg(mte.inc)) {
@@ -379,7 +398,7 @@ mst <- function(ivlike, data, subset, components, propensity,
             stop("audit.Nu must be an integer greater than or equal to 1.")
         }
     }
-    
+
     if (!((audit.max %% 1 == 0) & audit.max > 0)) {
         stop("audit.max must be an integer greater than or equal to 1.")
     }
@@ -392,7 +411,7 @@ mst <- function(ivlike, data, subset, components, propensity,
     ## keep track of the variables that interact with the
     ## splines. This should not be hard since the list you generate
     ## includes the variables that interact with the spline.
-    
+
     ## Restrict data used for all parts of procedure to be the same.
     ## Collect list of all terms used in formula
 
@@ -401,19 +420,19 @@ mst <- function(ivlike, data, subset, components, propensity,
     vars_formulas_z <- c()
     vars_subsets    <- c()
     vars_mtr        <- c()
+    vars_weights    <- c()
     vars_propensity <- c()
 
     terms_formulas_x <- c()
     terms_formulas_z <- c()
     terms_mtr        <- c()
-    
+
     if (class_formula(ivlike)) {
         vars_formulas_x <- get_xz(ivlike)
         vars_formulas_z <- get_xz(ivlike, inst = TRUE)
         vars_y <- all.vars(ivlike)[1]
         terms_formulas <- attr(terms(Formula::as.Formula(ivlike)),
                                "term.labels")
-        
     } else if (class_list(ivlike)) {
         if(!min(unlist(lapply(ivlike, class_formula)))) {
             stop(gsub("\\s+", " ",
@@ -426,20 +445,20 @@ mst <- function(ivlike, data, subset, components, propensity,
             vars_formulas_z <- unlist(lapply(ivlike,
                                              get_xz,
                                              inst = TRUE))
-            
+
             vars_y <- unique(unlist(lapply(ivlike,
                                            function(x) all.vars(x)[[1]])))
-            
+
             terms_formulas_x <- lapply(ivlike,
                                        get_xz,
                                        inst = FALSE,
                                        terms = TRUE)
-            
+
             terms_formulas_z <- lapply(ivlike,
                                        get_xz,
                                        inst = TRUE,
                                        terms = TRUE)
-        
+
             if (length(vars_y) > 1) {
                 stop(gsub("\\s+", " ",
                           "Multiple response variables specified in list of
@@ -489,7 +508,7 @@ mst <- function(ivlike, data, subset, components, propensity,
 
         m0 <- splinesobj[[1]]$formula
         m1 <- splinesobj[[2]]$formula
-        
+
         vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
                       all.vars(splinesobj[[2]]$formula))
 
@@ -503,7 +522,7 @@ mst <- function(ivlike, data, subset, components, propensity,
             vars_mtr <- c(vars_mtr, all.vars(sf0))
             terms_mtr <- c(terms_mtr, attr(terms(sf0), "term.labels"))
         }
-      
+
         if (!is.null(splinesobj[[2]]$splineslist)) {
             sf1 <- as.formula(paste("~",
                                     paste(unlist(splinesobj[[2]]$splineslist),
@@ -511,12 +530,23 @@ mst <- function(ivlike, data, subset, components, propensity,
             vars_mtr <- c(vars_mtr, all.vars(sf1))
             terms_mtr <- c(terms_mtr, attr(terms(sf1), "term.labels"))
         }
-        
+
     } else {
         stop("m0 and m1 must be one-sided formulas.")
     }
 
-    
+    ## Collect list of variables used in custom weights (if defined)
+    if (!hasArg(target)) {
+
+        wArgList0 <- formalArgs(target.weight0)
+        vars_weights <- c(vars_weights, 
+                          wArgList0[wArgList0 != deparse(substitute(uname))])
+
+        wArgList1 <- formalArgs(target.weight1)
+        vars_weights <- c(vars_weights, 
+                          wArgList1[wArgList1 != deparse(substitute(uname))])
+    }
+
     ## Collect list of all terms used in propensity formula
 
     if (hasArg(propensity)) {
@@ -535,7 +565,7 @@ mst <- function(ivlike, data, subset, components, propensity,
                             call. = FALSE)
                 }
             }
-            
+
         } else {
 
             if (! deparse(substitute(propensity)) %in% colnames(data)) {
@@ -598,7 +628,7 @@ mst <- function(ivlike, data, subset, components, propensity,
 
         ## Remove all u terms
         uterms <- c()
-        
+
         um1 <- which(terms_propensity == deparse(substitute(uname)))
         um2 <- grep(paste0("^[", deparse(substitute(uname)), "][[:punct:]]"),
                     terms_propensity)
@@ -615,7 +645,7 @@ mst <- function(ivlike, data, subset, components, propensity,
         um7 <- grep(paste0("\\s+[", deparse(substitute(uname)), "]\\s+"),
                     terms_prxopensity)
         um8 <- grep("uSplines", terms_propensity)
-        
+
         for (i in 1:8) {
             uterms <- c(uterms, terms_propensity[get(paste0("um", i))])
         }
@@ -641,17 +671,18 @@ mst <- function(ivlike, data, subset, components, propensity,
                         vars_formulas_z,
                         vars_subsets,
                         vars_mtr,
+                        vars_weights, 
                         vars_propensity))
     allvars <- allvars[allvars != deparse(substitute(uname))]
-    
+
     newpropensity <- unique(c(vars_formulas_x,
                               vars_formulas_z,
                               vars_mtr))
-    
+
     newpropensity <- newpropensity[(newpropensity !=
                                     deparse(substitute(uname))) &
                                    (newpropensity != treat)]
-    
+
     comp_filler <- lapply(terms_formulas_x,
                           function(x) as.character(unstring(x)))
 
@@ -671,26 +702,28 @@ mst <- function(ivlike, data, subset, components, propensity,
     } else {
         components <- comp_filler
 
-    }  
-   
+    }
+
     ## Keep only complete cases
 
     varError <- allvars[! allvars %in% colnames(data)]
     if (length(varError) > 0) {
         varError <- paste0("The following variables are not contained
-                          in the data set: ", varError, ".")
+                          in the data set: ",
+                          paste(varError, collapse = ", "),
+                          ".")
         stop(gsub("\\s+", " ", varError), call. = FALSE)
     }
-    
+
     data  <- data[(complete.cases(data[, allvars])), ]
     cdata <- data
-
+   
     ##---------------------------
     ## 2. Obtain propensity scores
     ##---------------------------
 
     message("Obtaining propensity scores...\n")
-    
+
     ## Estimate propensity scores
     if (class_formula(propensity)) {
         pcall <- modcall(call,
@@ -708,44 +741,13 @@ mst <- function(ivlike, data, subset, components, propensity,
                                         formula = substitute(propensity)))
     }
     pmodel <- eval(pcall)
-   
+
     ##---------------------------
     ## 3. Generate target moments/gamma terms
     ##---------------------------
 
     message("Generating target moments...\n")
     
-    ## Generate target S- weights
-    if (target == "ate") {
-        w1 <- wate1.mst(data)
-        w0 <- w1
-        w0$mp <- -1 * w0$mp
-    } else if (target == "att") {
-        w1 <- watt1.mst(data, mean(data[[treat]]), pmodel$phat)
-        w0 <- w1
-        w0$mp <- -1 * w0$mp
-    } else if (target == "atu") {
-        w1 <- watu1.mst(data, 1- mean(data[[treat]]), pmodel$phat)
-        w0 <- w1
-        w0$mp <- -1 * w0$mp
-    } else if (target == "late") {
-        if (!hasArg(late.X)) {
-            late.X <- NULL
-            eval.X <- NULL
-        }
-        w1 <- wlate1.mst(data, late.from, late.to, substitute(late.Z),
-                         pmodel$model, substitute(late.X), eval.X)
-        w0 <- w1
-        w0$mp <- -1 * w0$mp
-    } else if (target == "genlate") {
-        w1 <- wgenlate1.mst(data, genlate.lb, genlate.ub)
-        w0 <- w1
-        w0$mp <- -1 * w0$mp
-    } else {
-        stop("Unrecognized target parameter (or custom weights not ready)")
-    }
-
-    ## Integrate m0 and m1 functions
     m0call <- modcall(call,
                       newcall = polyparse.mst,
                       keepargs = c("uname"),
@@ -757,37 +759,214 @@ mst <- function(ivlike, data, subset, components, propensity,
                       keepargs = c("uname"),
                       newargs = list(formula = m1,
                                      data = quote(cdata)))
-
-    pm0 <- eval(as.call(m0call))
-    pm1 <- eval(as.call(m1call))
-
-    ## Estimate gamma-star
-    gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
-    gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
-  
-    gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
-                                        data = cdata,
-                                        lb = w0$lb,
-                                        ub = w0$ub,
-                                        multiplier = w0$mp,
-                                        d = 0)
-
     
-    gstarSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
-                                        data = cdata,
-                                        lb = w1$lb,
-                                        ub = w1$ub,
-                                        multiplier = w1$mp,
-                                        d = 1)
-   
+    ## Generate target weights
+    if (hasArg(target)) {
+        if (target == "ate") {
+            w1 <- wate1.mst(data)
+            w0 <- w1
+            w0$mp <- -1 * w0$mp
+        } else if (target == "att") {
+            w1 <- watt1.mst(data, mean(data[[treat]]), pmodel$phat)
+            w0 <- w1
+            w0$mp <- -1 * w0$mp
+        } else if (target == "atu") {
+            w1 <- watu1.mst(data, 1- mean(data[[treat]]), pmodel$phat)
+            w0 <- w1
+            w0$mp <- -1 * w0$mp
+        } else if (target == "late") {
+            if (!hasArg(late.X)) {
+                late.X <- NULL
+                eval.X <- NULL
+            }
+            w1 <- wlate1.mst(data, late.from, late.to, substitute(late.Z),
+                             pmodel$model, substitute(late.X), eval.X)
+            w0 <- w1
+            w0$mp <- -1 * w0$mp
+        } else if (target == "genlate") {
+            w1 <- wgenlate1.mst(data, genlate.lb, genlate.ub)
+            w0 <- w1
+            w0$mp <- -1 * w0$mp
+        } else {
+            stop("Unrecognized target parameter.")
+        }
+
+        ## Integrate m0 and m1 functions
+        pm0 <- eval(as.call(m0call))
+        pm1 <- eval(as.call(m1call))
+
+        ## Estimate gamma-star
+        gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)   
+        gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
+
+        gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
+                                            data = cdata,
+                                            lb = w0$lb,
+                                            ub = w0$ub,
+                                            multiplier = w0$mp,
+                                            d = 0)
+
+
+        gstarSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
+                                            data = cdata,
+                                            lb = w1$lb,
+                                            ub = w1$ub,
+                                            multiplier = w1$mp,
+                                            d = 1)        
+    } else {
+
+        ## Generate list of custom weights
+        custom0 <- lapply(split(cdata, seq(1, nrow(cdata))),
+                          genWeight,
+                          uname = deparse(substitute(uname)),
+                          fun = target.weight0,
+                          fun.name = deparse(substitute(target.weight0)))
+
+        custom1 <- lapply(split(cdata, seq(1, nrow(cdata))),
+                          genWeight,
+                          uname = deparse(substitute(uname)),
+                          fun = target.weight1,
+                          fun.name = deparse(substitute(target.weight1)))
+
+        ## Generate the non-spline functions to be integrated
+        mf0call <- modcall(call,
+                          newcall = polyparse.mst,
+                          keepargs = c("uname"),
+                          newargs = list(formula = m0,
+                                         data = quote(cdata),
+                                         as.function = TRUE))
+        
+        mf1call <- modcall(call,
+                          newcall = polyparse.mst,
+                          keepargs = c("uname"),
+                          newargs = list(formula = m1,
+                                         data = quote(cdata),
+                                         as.function = TRUE))
+        
+        pm0 <- eval(as.call(m0call))
+        pm1 <- eval(as.call(m1call))
+
+        pmf0 <- eval(as.call(mf0call))
+        pmf1 <- eval(as.call(mf1call))
+
+        ## Integrate the non-spline functions
+        message("    Performing numerical integration...")
+        
+        for (d in 0:1) {
+            monoWeighted   <- mapply(FUN = listMultiply,
+                                     get(paste0("pmf", d))$mlist,
+                                     get(paste0("custom", d)),
+                                     SIMPLIFY = FALSE)
+
+            monoIntegrated <- lapply(X = monoWeighted,
+                                     FUN = listIntegrate)
+            
+            monoK <- length(monoIntegrated[[1]])
+            
+            assign(paste0("gstar", d), sapply(X = seq(1, monoK),
+                                           FUN = listMean,
+                                           integratedList = monoIntegrated))
+        }
+
+        names(gstar0) <- pmf0$terms
+        names(gstar1) <- pmf1$terms
+        
+        ## Generate the spline functions to be integrated. Indexing
+        ## takes teh following structure:
+        ## splinesFunctions[[j]][[v]][[i]][[l]]
+        ## j: splines index
+        ## v: interaction index
+        ## i: obervation index
+        ## l: basis component index
+        splinesFunctions0 <- list()
+        splinesFunctions1 <- list()
+
+        for (d in 0:1) {
+            splineslist <- splinesobj[[d + 1]]$splineslist
+            if (length(splineslist) > 0) {
+                for (j in 1:length(splineslist)) {
+                    dmatFormula <- paste("~ ", paste(splineslist[[j]],
+                                                     collapse = " + "))
+
+                    dmat <- design.mst(dmatFormula, cdata)$X
+
+                    tmp <- lapply(X = seq(1, length(splineslist[[j]])),
+                                  FUN = function(x)
+                                      lapply(X = dmat[, x],
+                                             FUN = defSplines,
+                                             splineslist = splineslist,
+                                             j = j))
+
+                    if (d == 0) {
+                        splinesFunctions0[[j]] <-
+                            lapply(X = seq(1, length(splineslist[[j]])),
+                                   FUN = function(x)
+                                       lapply(X = dmat[, x],
+                                              FUN = defSplines,
+                                              splineslist = splineslist,
+                                              j = j))
+                    } else {
+                        splinesFunctions1[[j]] <-
+                            lapply(X = seq(1, length(splineslist[[j]])),
+                                   FUN = function(x)
+                                       lapply(X = dmat[, x],
+                                              FUN = defSplines,
+                                              splineslist = splineslist,
+                                              j = j))
+                    }
+                }
+            } else {
+                if (d == 0) splinesFunctions0 <- NULL
+                if (d == 1) splinesFunctions1 <- NULL
+            }
+        }
+
+        ## Integrate spline components
+        gstarSpline0 <- NULL
+        gstarSpline1 <- NULL
+        for (d in 0:1) {
+            gnames <- c()
+            if (d == 0) splinesFunctions <- splinesFunctions0
+            if (d == 1) splinesFunctions <- splinesFunctions1
+            if (!is.null(splinesFunctions)) {
+                for (j in 1:length(splinesFunctions)) {
+                    basisLength <- length(splinesFunctions[[j]][[1]][[1]])
+                    interLength <- length(splinesFunctions[[j]])
+                    for (v in 1:interLength) {
+                        tmpIntegrals <-
+                            lapply(seq(1, nrow(cdata)),
+                                   function(x) listIntegrate(
+                                               splinesFunctions[[j]][[v]][[x]]))                   
+                        tmpOutput <-
+                            sapply(seq(1, basisLength), 
+                                   function(l)
+                                       mean(sapply(seq(1, nrow(cdata)),
+                                                 function(x)
+                                                 tmpIntegrals[[x]][[l]]$value)))
+                        gnames <-
+                            c(gnames, 
+                              paste0(paste0("u", d, "S", j, ".",
+                                     seq(1, basisLength)),
+                                    paste0(":",
+                                    splinesobj[[d + 1]]$splineslist[[j]][[v]])))
+                        if (d == 0) gstarSpline0 <- c(gstarSpline0, tmpOutput)
+                        if (d == 1) gstarSpline1 <- c(gstarSpline1, tmpOutput)          
+                    }
+                }
+                if (d == 0) names(gstarSpline0) <- gnames
+                if (d == 1) names(gstarSpline1) <- gnames
+            }
+        }       
+    }
+
     gstar0 <- c(gstar0, gstarSpline0)
-    gstar1 <- c(gstar1, gstarSpline1)
+    gstar1 <- c(gstar1, gstarSpline1)   
 
     ##---------------------------
     ## 4. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
 
-    message("Generating IV-like moments...")
+    message("Generating IV-like moments...") 
     
     sset  <- list() ## Contains all IV-like estimates and their
                     ## coresponding moments/gammas
@@ -820,7 +999,7 @@ mst <- function(ivlike, data, subset, components, propensity,
         setobj <- gensset.mst(data = cdata,
                               sset = sset,
                               sest = sest,
-                              splinesobj = splinesobj, 
+                              splinesobj = splinesobj,
                               pmodobj = pmodel$phat[subset_index],
                               pm0 = pm0,
                               pm1 = pm1,
@@ -840,7 +1019,7 @@ mst <- function(ivlike, data, subset, components, propensity,
 
             sformula   <- ivlike[[i]]
             scomponent <- components[[i]]
-           
+
             if (subset[[i]] == "") {
                 ssubset <- replicate(nrow(data), TRUE)
             } else {
@@ -864,14 +1043,14 @@ mst <- function(ivlike, data, subset, components, propensity,
             setobj <- gensset.mst(data = cdata,
                                   sset = sset,
                                   sest = sest,
-                                  splinesobj = splinesobj, 
+                                  splinesobj = splinesobj,
                                   pmodobj = pmodobj,
                                   pm0 = pm0,
                                   pm1 = pm1,
                                   ncomponents = ncomponents,
                                   scount = scount,
                                   subset_index = subset_index)
-            
+
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
@@ -881,7 +1060,7 @@ mst <- function(ivlike, data, subset, components, propensity,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
-    
+
     ##---------------------------
     ## 5. Define constraint matrices using the audit
     ##---------------------------
@@ -889,21 +1068,21 @@ mst <- function(ivlike, data, subset, components, propensity,
     if (obseq.tol > 0) {
         message("\nPerforming audit procedure...\n")
     }
-    
+
     audit.args <- c("uname", "grid.Nu", "grid.Nx",
                     "audit.Nx", "audit.Nu", "audit.max", "audit.tol",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
                     "mte.inc", "obseq.tol")
-    
+
     audit_call <- modcall(call,
                           newcall = audit.mst,
                           keepargs = audit.args,
                           newargs = list(data = quote(cdata),
                                          m0   = quote(m0),
                                          m1   = quote(m1),
-                                         splinesobj = quote(splinesobj), 
+                                         splinesobj = quote(splinesobj),
                                          vars_mtr = quote(vars_mtr),
                                          terms_mtr = quote(terms_mtr),
                                          sset = quote(sset),
@@ -937,18 +1116,20 @@ mst <- function(ivlike, data, subset, components, propensity,
     ##---------------------------
     ## 6. Obtain the bounds
     ##---------------------------
-      
+
     audit <- eval(audit_call)
     cat("Bound: (", audit$min, ",", audit$max, ")\n")
-    
-    
+
+
     ## include additional output material
     return(list(sset  = sset,
                 gstar = list(g0 = gstar0,
                              g1 = gstar1),
                 propensity = pmodel,
                 bound = c(audit$min, audit$max),
-                lpresult =  audit$lpresult))
+                lpresult =  audit$lpresult,
+                poly0 = pm0,
+                poly1 = pm1))
 }
 
 
@@ -988,7 +1169,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                             ub = pmodobj,
                             multiplier = sest$sw1[, j],
                             subset = subset_index)
-        
+
         gsSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                          data = data,
                                          lb = pmodobj,
@@ -996,7 +1177,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          multiplier = sest$sw0[, j],
                                          subset = subset_index,
                                          d = 0)
-        
+
         gsSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
                                          data = data,
                                          lb = 0,

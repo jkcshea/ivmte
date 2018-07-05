@@ -186,3 +186,34 @@ wgenlate1.mst <- function(data, ulb, uub) {
                 ub = replicate(nrow(data), uub),
                 mp = 1 / (uub - ulb)))
 }   
+
+#' Generating list of target weight functions
+#'
+#' This function takes in the user-defined target weight functions and
+#' the data set, and generates the weight functions for each
+#' observation.
+#' @param fun custom weight function defined by the user. Arguments of
+#'     the weight function must only be names of variables entering
+#'     into the function.
+#' @param uname the name assigned to the unobserved variable entering
+#'     into the MTR.
+#' @param data a vector containing the values of the variables
+#'     defining the 'fun', excluding the value of the unobservable.
+#' @return The weight function 'fun', where all arguments other than
+#'     that of the unobserved variable are fixed according to the
+#'     vector 'data'.
+genWeight <- function(fun, fun.name,  uname, data) {
+    wArgList <- formalArgs(fun)
+    wArgListOth <- wArgList[wArgList != uname]
+    wArgListInput <- paste(paste(wArgListOth, "=", data[, wArgListOth]),
+                           collapse = ", ")
+   
+    new_call <- paste0(fun.name, "(", uname, " = u, ", wArgListInput, ")")
+
+    outFunction <- function(u) {
+        eval(parse(text = new_call))
+    }
+    return(outFunction)
+}
+
+
