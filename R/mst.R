@@ -167,7 +167,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     call     <- match.call(expand.dots = FALSE)
 
     ## FIX: at some point, you may want to include "weights"
-
+    
     ##---------------------------
     ## 0.a Check format of `formula', `subset', and `component' inputs
     ##---------------------------
@@ -512,8 +512,14 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
                       all.vars(splinesobj[[2]]$formula))
 
-        terms_mtr <- c(attr(terms(splinesobj[[1]]$formula), "term.labels"),
-                       attr(terms(splinesobj[[2]]$formula), "term.labels"))
+        if (!is.null(splinesobj[[1]]$formula)) {
+            terms_mtr <- c(terms_mtr, attr(terms(splinesobj[[1]]$formula),
+                                           "term.labels"))
+        }
+        if (!is.null(splinesobj[[2]]$formula)) {
+            terms_mtr <- c(terms_mtr, attr(terms(splinesobj[[2]]$formula),
+                                           "term.labels"))
+        }
 
         if (!is.null(splinesobj[[1]]$splineslist)) {
             sf0 <- as.formula(paste("~",
@@ -586,14 +592,16 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 warning(gsub("\\s+", " ",
                              "First independent variable of IV-like
                              specification regression is selected as the
-                             treatment variable."))
+                             treatment variable."),
+                        call. = FALSE)
                 treat <- all.vars(ivlike)[2]
                 vars_propensity <- c(vars_propensity,
                                       treat)
             } else if (is.list(ivlike)) {
                 warning(gsub("\\s+", " ",
                              "First independent variable of first IV regression
-                             is selected as the treatment variable."))
+                             is selected as the treatment variable."),
+                        call. = FALSE)
                 treat <- all.vars(ivlike[[1]])[2]
                 vars_propensity <- c(vars_propensity,
                                       treat)
@@ -748,17 +756,25 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
     message("Generating target moments...\n")
     
-    m0call <- modcall(call,
-                      newcall = polyparse.mst,
-                      keepargs = c("uname"),
-                      newargs = list(formula = m0,
-                                     data = quote(cdata)))
+    if (!is.null(m0)) {
+        m0call <- modcall(call,
+                          newcall = polyparse.mst,
+                          keepargs = c("uname"),
+                          newargs = list(formula = m0,
+                                         data = quote(cdata)))
+    } else {
+        m0call <- NULL
+    }
 
-    m1call <- modcall(call,
-                      newcall = polyparse.mst,
-                      keepargs = c("uname"),
-                      newargs = list(formula = m1,
-                                     data = quote(cdata)))
+    if (!is.null(m1)) {
+        m1call <- modcall(call,
+                          newcall = polyparse.mst,
+                          keepargs = c("uname"),
+                          newargs = list(formula = m1,
+                                         data = quote(cdata)))   
+    } else {
+        m1call <- NULL
+    } 
     
     ## Generate target weights
     if (hasArg(target)) {
@@ -792,12 +808,19 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         }
 
         ## Integrate m0 and m1 functions
-        pm0 <- eval(as.call(m0call))
-        pm1 <- eval(as.call(m1call))
-
-        ## Estimate gamma-star
-        gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)   
-        gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
+        if (!is.null(m0)) {
+            pm0 <- eval(as.call(m0call))
+            gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)   
+        } else {
+            gstar0 <- NULL
+        }
+        
+        if (!is.null(m1)) {
+            pm1 <- eval(as.call(m1call))
+            gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
+        } else {
+            gstar1 <- NULL
+        }
 
         gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                             data = cdata,
@@ -805,7 +828,6 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                             ub = w0$ub,
                                             multiplier = w0$mp,
                                             d = 0)
-
 
         gstarSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
                                             data = cdata,
@@ -842,17 +864,35 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                           newargs = list(formula = m1,
                                          data = quote(cdata),
                                          as.function = TRUE))
-        
-        pm0 <- eval(as.call(m0call))
-        pm1 <- eval(as.call(m1call))
 
-        pmf0 <- eval(as.call(mf0call))
-        pmf1 <- eval(as.call(mf1call))
+        dlist <- NULL
+        if (!is.null(m0)) {
+            pm0  <- eval(as.call(m0call))  ## To be used for the S-set
+            pmf0 <- eval(as.call(mf0call)) ## To be used for target paramters
+            dlist <- c(dlist, 0)
+        } else {
+            gstar0 <- NULL
+            pm0 <- NULL
+        }
+
+        if (!is.null(m1)) {
+            pm1  <- eval(as.call(m1call))
+            pmf1 <- eval(as.call(mf1call))
+            dlist <- c(dlist, 1)
+        } else {
+            gstar1 <- NULL
+            pm1 <- NULL
+        }
 
         ## Integrate the non-spline functions
         message("    Performing numerical integration...")
         
-        for (d in 0:1) {
+        for (d in dlist) {
+            if (d == 0) messageGroup <- "for control group..."
+            if (d == 1) messageGroup <- "for treated group..."
+            message(paste("\n        Integrating non-splines terms",
+                          messageGroup))
+            
             monoWeighted   <- mapply(FUN = listMultiply,
                                      get(paste0("pmf", d))$mlist,
                                      get(paste0("custom", d)),
@@ -868,11 +908,12 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                            integratedList = monoIntegrated))
         }
 
-        names(gstar0) <- pmf0$terms
-        names(gstar1) <- pmf1$terms
+        if (!is.null(m0)) names(gstar0) <- pmf0$terms
+        if (!is.null(m1)) names(gstar1) <- pmf1$terms
         
-        ## Generate the spline functions to be integrated. Indexing
-        ## takes teh following structure:
+        ## Generate the spline functions to be integrated.
+        
+        ## Indexing takes the following structure:
         ## splinesFunctions[[j]][[v]][[i]][[l]]
         ## j: splines index
         ## v: interaction index
@@ -929,7 +970,11 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             if (d == 0) splinesFunctions <- splinesFunctions0
             if (d == 1) splinesFunctions <- splinesFunctions1
             if (!is.null(splinesFunctions)) {
-                for (j in 1:length(splinesFunctions)) {
+                if (d == 0) messageGroup <- "for control group..."
+                if (d == 1) messageGroup <- "for treated group..."
+                message(paste("\n        Integrating splines", messageGroup))
+                
+                for (j in 1:length(splinesFunctions)) {                    
                     basisLength <- length(splinesFunctions[[j]][[1]][[1]])
                     interLength <- length(splinesFunctions[[j]])
                     for (v in 1:interLength) {
@@ -961,12 +1006,12 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
     gstar0 <- c(gstar0, gstarSpline0)
     gstar1 <- c(gstar1, gstarSpline1)   
-
+    
     ##---------------------------
     ## 4. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
 
-    message("Generating IV-like moments...") 
+    message("\nGenerating IV-like moments...") 
     
     sset  <- list() ## Contains all IV-like estimates and their
                     ## coresponding moments/gammas
@@ -1061,6 +1106,10 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                   formulas."))
     }
 
+    print("sset")
+    print(sset)
+    stop("END TEST")
+    
     ##---------------------------
     ## 5. Define constraint matrices using the audit
     ##---------------------------
@@ -1155,20 +1204,29 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 #'     and the expectation of each monomoial term in the MTR.
 gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         ncomponents, scount, subset_index) {
-
+    
     for (j in 1:ncomponents) {
         message(paste0("    Moment ", scount, "..."))
-        gs0 <- gengamma.mst(monomials = pm0,
-                            lb = pmodobj,
-                            ub = 1,
-                            multiplier = sest$sw0[, j],
-                            subset = subset_index)
 
-        gs1 <- gengamma.mst(monomials = pm1,
-                            lb = 0,
-                            ub = pmodobj,
-                            multiplier = sest$sw1[, j],
-                            subset = subset_index)
+        if (!is.null(pm0)) {
+            gs0 <- gengamma.mst(monomials = pm0,
+                                lb = pmodobj,
+                                ub = 1,
+                                multiplier = sest$sw0[, j],
+                                subset = subset_index)
+        } else {
+            gs0 <- NULL
+        }
+        
+        if (!is.null(pm1)) {
+            gs1 <- gengamma.mst(monomials = pm1,
+                                lb = 0,
+                                ub = pmodobj,
+                                multiplier = sest$sw1[, j],
+                                subset = subset_index)
+        } else {
+            gs1 <- NULL
+        }
 
         gsSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                          data = data,
@@ -1186,7 +1244,6 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          subset = subset_index,
                                          d = 1)
 
-
         ## generate components of constraints
         sset[[paste0("s", scount)]] <- list(beta = sest$beta[j],
                                             g0 = c(gs0, gsSpline0),
@@ -1197,6 +1254,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         ## from the IV regressions)
         scount <- scount + 1
     }
+    
     return(list(sset = sset, scount = scount))
 }
 

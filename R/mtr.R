@@ -118,7 +118,7 @@ polylisteval <- function(polynomials, points) {
 #'     each variable entering into the MTR (note \code{x^2 + x} has
 #'     only one term, \code{x}).
 polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
-    
+   
     ## update formula parsing
     formula <- Formula::as.Formula(formula)
     uname   <- deparse(substitute(uname))
@@ -271,9 +271,11 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     
     exporder  <- monomials$exporder
     integrals <- monomials$ilist
+
+    ## print(integrals)
     
     if (!is.null(subset)) integrals <- integrals[subset]
-    nmono     <- length(exporder)
+    nmono <- length(exporder)
 
     ## Determine bounds of integrals (i.e. include weights)
     if (length(ub) == 1) ub <- replicate(length(integrals), ub)
@@ -284,14 +286,24 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     
     monoeval <- t(mapply(polylisteval, integrals, ub)) -
         t(mapply(polylisteval, integrals, lb))
-    
-    if (means) {
-        gstar <- colMeans(monoeval * multiplier)
-        names(gstar) <- monomials$terms
 
+    ## The object monoeval is supposed to have as many rows as the
+    ## number of observations used for estimation. However, if the
+    ## provided MTR objects include only one term, R transposes the
+    ## matrix. So below I undo that transpose if the number of terms
+    ## is 1.
+    preGamma <- monoeval * multiplier
+    termsN <- length(integrals[[1]])
+    if (termsN == 1) preGamma <- t(preGamma)
+
+    if (means) {
+        ## gstar <- colMeans(monoeval * multiplier)
+        gstar <- colMeans(preGamma)
+        names(gstar) <- monomials$terms
         return(gstar)
     } else {
-        return(monoeval * multiplier)
+        ## return(monoeval * multiplier)
+        return(preGamma)
     }
 }
 
@@ -311,6 +323,8 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
 removeSplines <- function(formula) {
 
     fterms <- attr(terms(formula), "term.labels")
+    finter <- attr(terms(formula), "intercept")
+
     whichspline <- sapply(fterms,
                           function(y) grepl(x = y, pattern = "uSplines\\("))
     
@@ -319,7 +333,9 @@ removeSplines <- function(formula) {
         splinespos <- which(whichspline == TRUE)
 
         if (length(splinespos) == length(fterms)) {
-            nosplines <- NULL
+            ## nosplines <- NULL
+            if (finter == 0) nosplines <- NULL
+            if (finter == 1) nosplines <- ~ 1
         } else {
             nosplines <- drop.terms(ftobj, splinespos)
             nosplines <- Formula::as.Formula(nosplines)           

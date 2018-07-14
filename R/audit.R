@@ -101,12 +101,24 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
     ## Update MTR formulas to include all terms that interact with
     ## splines
     for (j in terms_mtr) {
-        m0 <- update(m0, as.formula(paste("~ . +",
-                                          paste(unique(terms_mtr),
-                                                collapse = " + "))))
-        m1 <- update(m1, as.formula(paste("~ . +",
-                                          paste(unique(terms_mtr),
-                                                collapse = " + "))))
+        if (!is.null(m0)) {
+            m0 <- update(m0, as.formula(paste("~ . +",
+                                              paste(unique(terms_mtr),
+                                                    collapse = " + "))))
+        } else {
+            m0 <- as.formula(paste("~",
+                                   paste(unique(terms_mtr),
+                                         collapse = " + ")))
+        }
+        if (!is.null(m1)) {        
+            m1 <- update(m1, as.formula(paste("~ . +",
+                                              paste(unique(terms_mtr),
+                                                    collapse = " + "))))
+        } else {
+            m1 <- as.formula(paste("~",
+                                   paste(unique(terms_mtr),
+                                         collapse = " + ")))
+        }
     }
     
     ## Obtain name of unobservable variable
