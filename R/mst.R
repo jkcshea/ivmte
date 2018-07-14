@@ -167,7 +167,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     call     <- match.call(expand.dots = FALSE)
 
     ## FIX: at some point, you may want to include "weights"
-    
+
     ##---------------------------
     ## 0.a Check format of `formula', `subset', and `component' inputs
     ##---------------------------
@@ -365,7 +365,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                       target.weight0 and target.weight1 must be provided."))
         }
     }
-   
+
     if (hasArg(link)) {
         if (! link %in% c("linear", "logit", "probit")) {
             stop(gsub("\\s+", " ",
@@ -545,11 +545,11 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     if (!hasArg(target)) {
 
         wArgList0 <- formalArgs(target.weight0)
-        vars_weights <- c(vars_weights, 
+        vars_weights <- c(vars_weights,
                           wArgList0[wArgList0 != deparse(substitute(uname))])
 
         wArgList1 <- formalArgs(target.weight1)
-        vars_weights <- c(vars_weights, 
+        vars_weights <- c(vars_weights,
                           wArgList1[wArgList1 != deparse(substitute(uname))])
     }
 
@@ -679,7 +679,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                         vars_formulas_z,
                         vars_subsets,
                         vars_mtr,
-                        vars_weights, 
+                        vars_weights,
                         vars_propensity))
     allvars <- allvars[allvars != deparse(substitute(uname))]
 
@@ -725,7 +725,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
     data  <- data[(complete.cases(data[, allvars])), ]
     cdata <- data
-   
+
     ##---------------------------
     ## 2. Obtain propensity scores
     ##---------------------------
@@ -755,7 +755,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     ##---------------------------
 
     message("Generating target moments...\n")
-    
+
     if (!is.null(m0)) {
         m0call <- modcall(call,
                           newcall = polyparse.mst,
@@ -771,11 +771,11 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                           newcall = polyparse.mst,
                           keepargs = c("uname"),
                           newargs = list(formula = m1,
-                                         data = quote(cdata)))   
+                                         data = quote(cdata)))
     } else {
         m1call <- NULL
-    } 
-    
+    }
+
     ## Generate target weights
     if (hasArg(target)) {
         if (target == "ate") {
@@ -810,16 +810,18 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
             pm0 <- eval(as.call(m0call))
-            gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)   
+            gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
         } else {
             gstar0 <- NULL
+            pm0 <- NULL
         }
-        
+
         if (!is.null(m1)) {
             pm1 <- eval(as.call(m1call))
             gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
         } else {
             gstar1 <- NULL
+            pm1 <- NULL
         }
 
         gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
@@ -834,7 +836,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                             lb = w1$lb,
                                             ub = w1$ub,
                                             multiplier = w1$mp,
-                                            d = 1)        
+                                            d = 1)
     } else {
 
         ## Generate list of custom weights
@@ -857,7 +859,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                           newargs = list(formula = m0,
                                          data = quote(cdata),
                                          as.function = TRUE))
-        
+
         mf1call <- modcall(call,
                           newcall = polyparse.mst,
                           keepargs = c("uname"),
@@ -886,13 +888,13 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
         ## Integrate the non-spline functions
         message("    Performing numerical integration...")
-        
+
         for (d in dlist) {
             if (d == 0) messageGroup <- "for control group..."
             if (d == 1) messageGroup <- "for treated group..."
             message(paste("\n        Integrating non-splines terms",
                           messageGroup))
-            
+
             monoWeighted   <- mapply(FUN = listMultiply,
                                      get(paste0("pmf", d))$mlist,
                                      get(paste0("custom", d)),
@@ -900,9 +902,9 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
             monoIntegrated <- lapply(X = monoWeighted,
                                      FUN = listIntegrate)
-            
+
             monoK <- length(monoIntegrated[[1]])
-            
+
             assign(paste0("gstar", d), sapply(X = seq(1, monoK),
                                            FUN = listMean,
                                            integratedList = monoIntegrated))
@@ -910,9 +912,9 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
         if (!is.null(m0)) names(gstar0) <- pmf0$terms
         if (!is.null(m1)) names(gstar1) <- pmf1$terms
-        
+
         ## Generate the spline functions to be integrated.
-        
+
         ## Indexing takes the following structure:
         ## splinesFunctions[[j]][[v]][[i]][[l]]
         ## j: splines index
@@ -973,46 +975,47 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 if (d == 0) messageGroup <- "for control group..."
                 if (d == 1) messageGroup <- "for treated group..."
                 message(paste("\n        Integrating splines", messageGroup))
-                
-                for (j in 1:length(splinesFunctions)) {                    
+
+                for (j in 1:length(splinesFunctions)) {
                     basisLength <- length(splinesFunctions[[j]][[1]][[1]])
                     interLength <- length(splinesFunctions[[j]])
                     for (v in 1:interLength) {
                         tmpIntegrals <-
                             lapply(seq(1, nrow(cdata)),
                                    function(x) listIntegrate(
-                                               splinesFunctions[[j]][[v]][[x]]))                   
+                                               splinesFunctions[[j]][[v]][[x]]))
                         tmpOutput <-
-                            sapply(seq(1, basisLength), 
+                            sapply(seq(1, basisLength),
                                    function(l)
                                        mean(sapply(seq(1, nrow(cdata)),
                                                  function(x)
                                                  tmpIntegrals[[x]][[l]]$value)))
                         gnames <-
-                            c(gnames, 
+                            c(gnames,
                               paste0(paste0("u", d, "S", j, ".",
                                      seq(1, basisLength)),
                                     paste0(":",
                                     splinesobj[[d + 1]]$splineslist[[j]][[v]])))
                         if (d == 0) gstarSpline0 <- c(gstarSpline0, tmpOutput)
-                        if (d == 1) gstarSpline1 <- c(gstarSpline1, tmpOutput)          
+                        if (d == 1) gstarSpline1 <- c(gstarSpline1, tmpOutput)
                     }
                 }
                 if (d == 0) names(gstarSpline0) <- gnames
                 if (d == 1) names(gstarSpline1) <- gnames
             }
-        }       
+        }
+        message("")
     }
 
     gstar0 <- c(gstar0, gstarSpline0)
-    gstar1 <- c(gstar1, gstarSpline1)   
-    
+    gstar1 <- c(gstar1, gstarSpline1)
+
     ##---------------------------
     ## 4. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
 
-    message("\nGenerating IV-like moments...") 
-    
+    message("Generating IV-like moments...")
+
     sset  <- list() ## Contains all IV-like estimates and their
                     ## coresponding moments/gammas
     scount <- 1     ## counter for S-set constraints
@@ -1106,10 +1109,6 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                   formulas."))
     }
 
-    print("sset")
-    print(sset)
-    stop("END TEST")
-    
     ##---------------------------
     ## 5. Define constraint matrices using the audit
     ##---------------------------
@@ -1204,7 +1203,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 #'     and the expectation of each monomoial term in the MTR.
 gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         ncomponents, scount, subset_index) {
-    
+
     for (j in 1:ncomponents) {
         message(paste0("    Moment ", scount, "..."))
 
@@ -1217,7 +1216,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         } else {
             gs0 <- NULL
         }
-        
+
         if (!is.null(pm1)) {
             gs1 <- gengamma.mst(monomials = pm1,
                                 lb = 0,
@@ -1254,7 +1253,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         ## from the IV regressions)
         scount <- scount + 1
     }
-    
+
     return(list(sset = sset, scount = scount))
 }
 
