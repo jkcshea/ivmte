@@ -60,7 +60,7 @@ class_list <- function(obj) {
 #'     are to be extracted. Otherwise, the covariate names are
 #'     extracted.
 get_xz <- function(fm, inst = FALSE, terms = FALSE) {
-    fm <- Formula::as.Formula(fm)
+    fm <- Formula::as.Formula(fm)    
     if (length(fm)[2] == 1) {
         if (terms == FALSE) {
             x <- all.vars(fm)[-1]
@@ -84,7 +84,9 @@ get_xz <- function(fm, inst = FALSE, terms = FALSE) {
                   properly specified: ", deparse(fm), ".")),
              call. = FALSE)
     }
-    
+    if (attr(terms(fm), "intercept")) {
+        x <- c("intercept", x)
+    }
     if (inst == FALSE) {
         return(x)
     } else {

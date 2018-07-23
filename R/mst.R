@@ -115,6 +115,8 @@
 #'     weakly monotone decreasing.
 #' @param mte.inc logical, equal to TRUE if we want the MTE to be
 #'     weakly monotone decreasing.
+#' @param lpsolver name of the linear programming package in R used to
+#'     obtain the bounds on the treatment effect.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -161,15 +163,53 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 grid.Nu = 20, grid.Nx = 20, audit.Nx = 2,
                 audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
                 m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                m1.dec, m1.inc, mte.dec, mte.inc) {
+                m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL) {
 
     ## Match call arguments
-    call     <- match.call(expand.dots = FALSE)
+    call <- match.call(expand.dots = FALSE)
 
     ## FIX: at some point, you may want to include "weights"
 
     ##---------------------------
-    ## 0.a Check format of `formula', `subset', and `component' inputs
+    ## 0.a Check linear programming dependencies
+    ##---------------------------
+    
+    if (is.null(lpsolver)) {
+        if (requireNamespace("gurobi", quietly = TRUE)) {
+            lpsolver <- "gurobi"
+        } else if (requireNamespace("Rcplex", quietly = TRUE)) {
+            lpsolver <- "Rcplex"
+        } else if (requireNamespace("cplexAPI", quietly = TRUE)) {
+            lpsolver <- "cplexAPI"
+        } else if (requireNamespace("lpSolve", quietly = TRUE)) {
+            lpsolver <- "lpSolve"
+        } else {
+            stop(gsub("\\s+", " ",
+                      "Please install one of the following packages required for
+                      estimation:
+                      gurobi (version 7.5-1 or later);
+                      Rcplex (version 0.3.3 or later);
+                      cplexAPI (version 1.3.3 or later);
+                      lpSolve (version 5.6.13 or later)."))
+        }
+    } else {
+        if (! lpsolver %in% c("gurobi",
+                              "Rcplex",
+                              "cplexAPI",
+                              "lpSolve")) {
+            stop(gsub("\\s+", " ",
+                      paste0("Estimator is incompatible with linear progrmaming
+                             package '", lpsolver, "'. Please install one of the
+                             following linear programming packages instead:
+                             gurobi (version 7.5-1 or later);
+                             Rcplex (version 0.3.3 or later);
+                             cplexAPI (version 1.3.3 or later);
+                             lpSolve (version 5.6.13 or later).")))
+        }
+    }
+    
+    ##---------------------------
+    ## 0.b Check format of `formula', `subset', and `component' inputs
     ##---------------------------
 
     if (class_list(ivlike)) {
@@ -272,7 +312,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     }
 
     ##---------------------------
-    ## 0.b Check monotonicity conditions
+    ## 0.c Check monotonicity conditions
     ##---------------------------
 
     if (hasArg(m0.inc) & hasArg(m0.dec)) {
@@ -300,7 +340,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     }
 
     ##---------------------------
-    ## 0.c Check numeric arguments and case completion
+    ## 0.d Check numeric arguments and case completion
     ##---------------------------
 
     if (hasArg(treat)) {
@@ -651,7 +691,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         um6 <- grep(paste0("\\s+[", deparse(substitute(uname)), "][[:punct:]]"),
                     terms_propensity)
         um7 <- grep(paste0("\\s+[", deparse(substitute(uname)), "]\\s+"),
-                    terms_prxopensity)
+                    terms_propensity)
         um8 <- grep("uSplines", terms_propensity)
 
         for (i in 1:8) {
@@ -709,12 +749,12 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         components[compMissing] <- comp_filler[compMissing]
     } else {
         components <- comp_filler
-
     }
 
     ## Keep only complete cases
 
-    varError <- allvars[! allvars %in% colnames(data)]
+    varError <- allvars[! allvars[allvars != "intercept"] %in%
+                        colnames(data)]
     if (length(varError) > 0) {
         varError <- paste0("The following variables are not contained
                           in the data set: ",
@@ -723,7 +763,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         stop(gsub("\\s+", " ", varError), call. = FALSE)
     }
 
-    data  <- data[(complete.cases(data[, allvars])), ]
+    data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
     cdata <- data
 
     ##---------------------------
@@ -1135,7 +1175,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                          terms_mtr = quote(terms_mtr),
                                          sset = quote(sset),
                                          gstar0 = quote(gstar0),
-                                         gstar1 = quote(gstar1)))
+                                         gstar1 = quote(gstar1),
+                                         lpsolver = quote(lpsolver)))
 
     ## Impose default upper and lower bounds on m0 and m1
     if (!hasArg(m1.ub) | !hasArg(m0.ub)) {

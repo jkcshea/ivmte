@@ -79,6 +79,8 @@
 #'     observational equivalence, i.e. a threshold of 0 corresponds to
 #'     the assumption that the model is correctly specified, and that
 #'     there is no violation of observational equivalence.
+#' @param lpsolver name of the linear programming package in R used to
+#'     obtain the bounds on the treatment effect.
 #' @return a list. Included in the list is the minimum violation of
 #'     observational equivalence of the set of IV-like estimands, as
 #'     well as the list of matrices and vectors associated with
@@ -91,8 +93,8 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                       audit.tol = 1e-08, 
                       m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                       m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
-                      sset, gstar0, gstar1, obseq.tol) {
-   
+                      sset, gstar0, gstar1, obseq.tol, lpsolver) {
+
     call  <- match.call()
 
     splines <- list(splinesobj[[1]]$splineslist,
@@ -188,7 +190,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
             cat("Audit count:", audit_count, "\n")
             if (!noX) {
                 if (length(grid_resid) == 0) {
-                    message("Full support now included as grid.")
+                    message("Full support of covariates now included as grid.")
                 }
             }
         } else {
@@ -214,13 +216,13 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                                              uvec = uvec,
                                              splines = splines,
                                              monov = monov))
-
+        
         mbobj <- eval(monoboundAcall)
         
         ## Minimize violation of observational equivalence
-        lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs)
-        minobseq  <- obseqmin.mst(sset, lpobj)
-            
+        lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
+        minobseq  <- obseqmin.mst(sset, lpobj, lpsolver)
+        
         if (obseq.tol > 0) {
             message(paste("Minimum observational equivalence deviation:",
                           round(minobseq$obj, 6), "\n"))
@@ -228,18 +230,19 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         
         ## Obtain bounds
         message("Obtaining bounds...\n")
-        lpresult  <- bound.mst(gstar0,
-                               gstar1,
-                               sset,
-                               lpobj,
-                               minobseq$obj * obseq.tol)
-       
+        lpresult  <- bound.mst(g0 = gstar0,
+                               g1 = gstar1,
+                               sset = sset,
+                               lpobj = lpobj,
+                               obseq.tol = minobseq$obj * obseq.tol,
+                               lpsolver = lpsolver)
+        
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
 
-        optstatus <- c(lpresult$minresult$status, lpresult$maxresult$status)
-        optstatus <- min(optstatus == c("OPTIMAL", "OPTIMAL"))          
-
+        optstatus <- min(c(lpresult$minstatus,
+                           lpresult$maxstatus))
+        
         if (obseq.tol == 0) {
             if (optstatus == 0) {
                 message(gsub("\\s+", " ",
@@ -278,7 +281,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                                         audit.Nx,
                                         replace = FALSE,
                                         prob = replicate(nrow(resid_support),
-                                        (1/nrow(resid_support))))
+                                        (1 / nrow(resid_support))))
             }
             
             if (length(a_grid_index) == 0) {
