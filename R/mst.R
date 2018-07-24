@@ -196,7 +196,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         if (! lpsolver %in% c("gurobi",
                               "Rcplex",
                               "cplexAPI",
-                              "lpSolve")) {
+                              "lpSolve",
+                              "lpSolveAPI")) {
             stop(gsub("\\s+", " ",
                       paste0("Estimator is incompatible with linear progrmaming
                              package '", lpsolver, "'. Please install one of the
