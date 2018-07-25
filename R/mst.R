@@ -1,7 +1,7 @@
 #' Estimation procedure from Mogstad, Torgovitsky (2017)
 #'
 #' This function estimates bounds on treatment effect parameters,
-#' following the procedure described in Mogstad, Torgotvitsky
+#' following the procedure described in Mogstad, Torgovitsky
 #' (2017). Of the target parameters, the user can choose from the ATE,
 #' ATT, ATU, LATE, and generalized LATE. The user is required to
 #' provide a polynomial expression for the marginal treatment
@@ -30,7 +30,7 @@
 #' @param data \code{data.frame} used to estimate the treatment
 #'     effects.
 #' @param subset single subset condition or list of subset conditions
-#'     correpsonding to each IV-like estimand. See
+#'     corresponding to each IV-like estimand. See
 #'     \code{\link[mst]{list.mst}} on how to input the argument.
 #' @param components a list of vectors of the terms/components from
 #'     the regressions specifications we want to include in the set of
@@ -50,14 +50,15 @@
 #'     function for control group.
 #' @param m1 one-sided formula for marginal treatment response
 #'     function for treated group.
-#' @param uname variable name for unobservale used in declaring MTRs.
+#' @param uname variable name for unobservable used in declaring MTRs.
 #' @param target target parameter to be estimated. Currently function
-#'     allows for ATE ("ate"), ATT ("att"), ATU ("atu"), LATE
-#'     ("late"), and generalized LATE ("genlate").
+#'     allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
+#'     ("\code{atu}"), LATE ("\code{late}"), and generalized LATE
+#'     ("\code{genlate}").
 #' @param target.weight0 user-defined weight function for the control
-#'     group defining the target paramter.
+#'     group defining the target parameter.
 #' @param target.weight1 user-defined weight function for the treated
-#'     group defining the target paramter.
+#'     group defining the target parameter.
 #' @param late.Z vector of variable names used to define the LATE.
 #' @param late.from baseline set of values of Z used to define the
 #'     LATE.
@@ -173,7 +174,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     ##---------------------------
     ## 0.a Check linear programming dependencies
     ##---------------------------
-    
+
     if (is.null(lpsolver)) {
         if (requireNamespace("gurobi", quietly = TRUE)) {
             lpsolver <- "gurobi"
@@ -199,7 +200,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                               "lpSolve",
                               "lpSolveAPI")) {
             stop(gsub("\\s+", " ",
-                      paste0("Estimator is incompatible with linear progrmaming
+                      paste0("Estimator is incompatible with linear programming
                              package '", lpsolver, "'. Please install one of the
                              following linear programming packages instead:
                              gurobi (version 7.5-1 or later);
@@ -208,7 +209,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                              lpSolve (version 5.6.13 or later).")))
         }
     }
-    
+
     ##---------------------------
     ## 0.b Check format of `formula', `subset', and `component' inputs
     ##---------------------------
@@ -248,7 +249,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             warning(gsub("\\s+", " ",
                          "List of components not the same length of list of
                          IV-like specifications: more specifications than
-                         component vectors. Specifications without coresponding
+                         component vectors. Specifications without corresponding
                          component vectors will include all covariates when
                          constructing the S-set."),
                     call. = FALSE)
@@ -259,7 +260,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             warning(gsub("\\s+", " ",
                          "List of components not the same length of list of
                          IV-like specifications: more component vectors than
-                         specifications. Component vectors without coresponding
+                         specifications. Component vectors without corresponding
                          specifications will be dropped."),
                     call. = FALSE)
             components <- components[1 : length(ivlike)]
@@ -354,21 +355,21 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         if (! target %in% c("ate", "att", "atu", "late", "genlate")) {
             stop(gsub("\\s+", " ",
                       "Specified target parameter is not recognized.
-                   Choose from 'ate', 'att', 'atu', 'late', or 'genlate'."))
+                      Choose from 'ate', 'att', 'atu', 'late', or 'genlate'."))
         }
         if (target == "late") {
             if (!(hasArg(late.Z) & hasArg(late.to) & hasArg(late.from))) {
                 stop(gsub("\\s+", " ",
                           "Target paramter of 'late' requires arguments
-                      'late.Z', 'late.to', and 'late.from'."))
+                          'late.Z', 'late.to', and 'late.from'."))
             }
 
             if((hasArg(late.X) & !hasArg(eval.X)) |
                !hasArg(late.X) & hasArg(eval.X)) {
                 stop(gsub("\\s+", " ",
                           "If the target parameter is 'late', then either both
-                      late.X and eval.X are specified, or neither are
-                      specified."))
+                          late.X and eval.X are specified, or neither are
+                          specified."))
             }
         }
         if (target == "genlate") {
@@ -447,11 +448,6 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     ##---------------------------
     ## 1. Restrict data to complete observations
     ##---------------------------
-
-    ## FIX: you need to remove the spline terms, but you also need to
-    ## keep track of the variables that interact with the
-    ## splines. This should not be hard since the list you generate
-    ## includes the variables that interact with the spline.
 
     ## Restrict data used for all parts of procedure to be the same.
     ## Collect list of all terms used in formula
@@ -583,6 +579,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     }
 
     ## Collect list of variables used in custom weights (if defined)
+
     if (!hasArg(target)) {
 
         wArgList0 <- formalArgs(target.weight0)
@@ -617,7 +614,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
             if (! deparse(substitute(propensity)) %in% colnames(data)) {
                 stop(gsub("\\s+", " ",
-                          "Propensity score argument is interpretted as a
+                          "Propensity score argument is interpreted as a
                           variable name, but is not found in the data set."))
             }
 
@@ -742,7 +739,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         compMissing <- as.logical(compMissing1 + compMissing2)
         if (sum(compMissing) > 0 & specCompWarn) {
             warning(gsub("\\s+", " ",
-                         "Specifications without coresponding
+                         "Specifications without corresponding
                          component vectors will include all covariates when
                          constructing the S-set."),
                     call. = FALSE)
@@ -960,7 +957,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         ## splinesFunctions[[j]][[v]][[i]][[l]]
         ## j: splines index
         ## v: interaction index
-        ## i: obervation index
+        ## i: observation index
         ## l: basis component index
         splinesFunctions0 <- list()
         splinesFunctions1 <- list()
@@ -1058,7 +1055,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     message("Generating IV-like moments...")
 
     sset  <- list() ## Contains all IV-like estimates and their
-                    ## coresponding moments/gammas
+                    ## corresponding moments/gammas
     scount <- 1     ## counter for S-set constraints
 
     ## Construct `sset' object when a single IV-like specification is
@@ -1210,7 +1207,6 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     audit <- eval(audit_call)
     cat("Bound: (", audit$min, ",", audit$max, ")\n")
 
-
     ## include additional output material
     return(list(sset  = sset,
                 gstar = list(g0 = gstar0,
@@ -1228,7 +1224,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 #' This function takes in the IV estimate and its IV-like
 #' specification, and generates a list containing the corresponding
 #' point estimate, and the corresponding moments (gammas) that will
-#' enter into the contraint matrix of the LP problem.
+#' enter into the constraint matrix of the LP problem.
 #'
 #' @param sset A list, which is modified and returned as the output.
 #' @param sest A list containing the point estimates and S-weights
@@ -1242,7 +1238,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 #' @param subset_index An index for the subset of the data the IV
 #'     regression is restricted to.
 #' @return A list containing the point estimate for the IV regression,
-#'     and the expectation of each monomoial term in the MTR.
+#'     and the expectation of each monomial term in the MTR.
 gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         ncomponents, scount, subset_index) {
 

@@ -1,8 +1,8 @@
-#' Generating deisgn matrices
+#' Generating design matrices
 #'
 #' This function generates the design matrix given an IV
 #' specification.
-#' 
+#'
 #' @param formula Formula with which to generate the design matrix.
 #' @param data \code{data.frame} with which to generate the design
 #'     matrix.
@@ -19,33 +19,31 @@
 #' @export
 design.mst <- function(formula, data, subset) {
 
-    ## FIX: allow for the splines input. 
-    
-    ## Set up model.frame() call  
+    ## Set up model.frame() call
     if (missing(data)) data <- environment(formula)
     mf <- match.call()
-    m  <- match(c("formula", "data", "subset", "na.action", "weights", "offset"), 
+    m  <- match(c("formula", "data", "subset", "na.action", "weights", "offset"),
                 names(mf), 0)
     mf <- mf[c(1, m)]
     mf$drop.unused.levels <- TRUE
-    
+
     ## Convert formula to Formula
     formula <- Formula::as.Formula(formula)
     onesided <- FALSE
     if (length(formula)[1] == 0L) onesided <- TRUE
-    
+
     ## call model.frame()
     mf$formula <- formula
     mf[[1]] <- as.name("model.frame")
     mf <- eval(mf, parent.frame())
-    
+
     ## extract response, terms, model matrices
     if (onesided == FALSE) Y <- model.response(mf, "numeric")
     if (onesided == TRUE)  Y <- NULL
     mt  <- terms(formula, data = data)
     mtX <- terms(formula, data = data, rhs = 1)
     X   <- model.matrix(mtX, mf)
-    
+
     if(length(formula)[2] < 2L) {
         mtZ <- NULL
         Z   <- NULL

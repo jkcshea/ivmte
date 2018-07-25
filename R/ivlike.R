@@ -29,7 +29,7 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
     fstage <- if(is.null(weights)) lm.fit(Z, X) else lm.wfit(Z, X, weights)
     Xhat   <- as.matrix(fstage$fitted.values)
     colnames(Xhat) <- colnames(X)
-  
+
     ## main regression
     if(is.null(weights)) {
         fit <- lm.fit(Xhat, Y)
@@ -53,7 +53,7 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #' @param treat name of treatment indicator variable.
 #' @param list logical, set to TRUE if this function is being used to
 #'     loop over a list of formulas.
-#' @return Returns a list containining the matrices of IV-like
+#' @return Returns a list containing the matrices of IV-like
 #'     specifications for \code{D = 0} and \code{D = 1}; and the
 #'     estimates of the IV-like estimands.
 #'
@@ -65,10 +65,10 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #'              treat = d,
 #'              list = FALSE)
 #'
-#' @export 
+#' @export
 ivlike.mst <- function(formula, data, subset, components = NULL, treat,
                          list = FALSE) {
-    
+
     formula <- Formula::as.Formula(formula)
 
     call     <- match.call(expand.dots = FALSE)
@@ -82,11 +82,11 @@ ivlike.mst <- function(formula, data, subset, components = NULL, treat,
                            keepargs = c("formula", "subset"),
                            newargs = list(data = quote(data))))
     }
-    
+
     instrumented <- !is.null(mf$Z)
 
     ## select components
-    if (list == TRUE) {      
+    if (list == TRUE) {
         if (!is.character(components)) {
             components <- deparse(components)
         }
@@ -97,7 +97,7 @@ ivlike.mst <- function(formula, data, subset, components = NULL, treat,
                             ")")
 
     }
-    
+
     if (components == "NULL") {
         components <- treat
     } else {
@@ -112,7 +112,7 @@ ivlike.mst <- function(formula, data, subset, components = NULL, treat,
             lmcomponents <- components
         }
     }
-    
+
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
         ## OLS

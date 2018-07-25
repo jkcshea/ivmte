@@ -50,7 +50,7 @@ class_formula <- function(obj) {
 class_list <- function(obj) {
     suppressWarnings(try(class(obj), silent = TRUE) == "list")
 }
-    
+
 #' Auxiliary function: extract X and Z covariates from a formula
 #'
 #' Auxiliary function that takes in a formula, and extracts the
@@ -60,7 +60,7 @@ class_list <- function(obj) {
 #'     are to be extracted. Otherwise, the covariate names are
 #'     extracted.
 get_xz <- function(fm, inst = FALSE, terms = FALSE) {
-    fm <- Formula::as.Formula(fm)    
+    fm <- Formula::as.Formula(fm)
     if (length(fm)[2] == 1) {
         if (terms == FALSE) {
             x <- all.vars(fm)[-1]
@@ -76,7 +76,7 @@ get_xz <- function(fm, inst = FALSE, terms = FALSE) {
         } else {
             x <- attr(terms(formula(fm, rhs = 1)), "term.labels")
             z <- attr(terms(formula(fm, rhs = 2)), "term.labels")
-        }        
+        }
     }
     if ((length(fm)[2] > 2) | (length(fm)[1] > 1)) {
         stop(gsub("\\s+", " ",

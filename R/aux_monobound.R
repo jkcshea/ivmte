@@ -1,5 +1,5 @@
 #' Auxiliary function: determine duplicates
-#' 
+#'
 #' Auxiliary function that takes in a data set, and then determines
 #' all the rows that are duplicates. It tags both the original row as
 #' well as the duplicates.
@@ -14,7 +14,7 @@ alldup <- function (data) {
 #'
 #' For a given vector \code{match}, this function returns a binary
 #' indicator for each row in \code{data}, telling you whether or not
-#' that row matches the entires in the vector \code{match}. Note this
+#' that row matches the entries in the vector \code{match}. Note this
 #' assumes that \code{data} and \code{match} have the same column
 #' order.
 #' @param data \code{data.frame} whose rows will be compared against a
@@ -28,7 +28,7 @@ alldup <- function (data) {
 matchrow <- function(data, match) {
     if(class(data) != "matrix") data <- as.matrix(data)
     matches <- lapply(split(data, seq(1, nrow(data))), "==", match)
-    return(as.integer(unlist(lapply(matches, sum)) == length(match)))    
+    return(as.integer(unlist(lapply(matches, sum)) == length(match)))
 }
 
 #' Auxiliary function: grouping rows in data
@@ -52,7 +52,7 @@ matchrow <- function(data, match) {
 #'     within each group is also included.
 groupby <- function(data, variables, groupname = ".mst.monog",
                     countname = ".mst.monoc", count = TRUE) {
-    
+
     uniquevals <- unique(data[, variables])
     if (class(uniquevals) != "matrix") uniquevals <- as.matrix(uniquevals)
     keys <- seq(1, nrow(uniquevals))
@@ -65,7 +65,6 @@ groupby <- function(data, variables, groupname = ".mst.monog",
     }
     return(data)
 }
-
 
 #' Auxiliary function: finding the max/min within a group in a data set
 #'
@@ -91,7 +90,7 @@ groupby <- function(data, variables, groupname = ".mst.monog",
 #'     corresponding row in \code{data} is the max/min within its
 #'     group.
 maxminmatch <- function(data, count = ".mst.monoc", group = ".mst.monog", type) {
-    typevals <- aggregate(as.formula(paste(count, "~", group)), data, type)    
+    typevals <- aggregate(as.formula(paste(count, "~", group)), data, type)
     keys <- seq(1, nrow(typevals))
     typevals <- split(typevals, keys)
     return(Reduce("+", lapply(typevals, matchrow, data = data[, c(group, count)])))

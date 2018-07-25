@@ -1,7 +1,7 @@
 #' Auxiliary function: generating basis vectors
-#' 
+#'
 #' Auxiliary function to generate standard basis vectors.
-#' @param pos The position of teh non-zero entry/dimension the basis
+#' @param pos The position of the non-zero entry/dimension the basis
 #'     vector corresponds to
 #' @param length Number of dimensions in total/length of vector.
 #' @return Vector containing 1 in a single position, and 0 elsewhere.
@@ -12,9 +12,9 @@ genej <- function(pos, length) {
 }
 
 #' Auxiliary function: extracting columns by component names
-#' 
+#'
 #' Auxiliary function to extract columns from a matrix based on column
-#' mames.
+#' names.
 #' @param M The matrix to extract from.
 #' @param components The vector of variable names.
 extractcols <- function(M, components) {
@@ -29,7 +29,7 @@ extractcols <- function(M, components) {
 }
 
 #' OLS weights
-#' 
+#'
 #' Function generating the S-weights for OLS estimand, with controls.
 #' @param X Matrix of covariates, including the treatment indicator.
 #' @param components Vector of variable names of which user wants the
@@ -51,11 +51,11 @@ olsj.mst <- function(X, components, treat) {
     wvec0 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X0)
     wvec0 <- extractcols(t(wvec0), cpos)
     colnames(wvec0)  <- components
-    
+
     wvec1 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X1)
     wvec1 <- extractcols(t(wvec1), cpos)
     colnames(wvec1)  <- components
-    
+
     return(list(s0 = wvec0, s1 = wvec1))
 }
 
@@ -72,10 +72,10 @@ olsj.mst <- function(X, components, treat) {
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
 wald.mst <- function(D, Z) {
-    
+
     D <- D[, colnames(D) != "(Intercept)"]
     Z <- Z[, colnames(Z) != "(Intercept)"]
-    
+
     wdt  <- cbind(D, Z)
     pz   <- mean(Z)
     ed0  <- mean(wdt[wdt[, 2] == 0, 1])
@@ -86,7 +86,7 @@ wald.mst <- function(D, Z) {
 }
 
 #' IV weights
-#' 
+#'
 #' Function generating the S-weights for OLS estimand, with controls.
 #' @param X Matrix of covariates, including the treatment indicator.
 #' @param Z Matrix of instruments.
@@ -96,7 +96,7 @@ wald.mst <- function(D, Z) {
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
 ivj.mst <- function(X, Z, components, treat) {
-    
+
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
@@ -114,7 +114,7 @@ ivj.mst <- function(X, Z, components, treat) {
         emessage <- gsub("\\s+", " ", emessage)
         stop(emessage)
     }
-    
+
     ## construct weights
     ezx  <- (1 / nrow(X)) * t(Z) %*% X
     wvec <- solve(ezx) %*% t(Z)
@@ -124,7 +124,7 @@ ivj.mst <- function(X, Z, components, treat) {
 }
 
 #' TSLS weights, with controls
-#' 
+#'
 #' Function generating the S-weights for TSLS estimand, with controls.
 #' @param X Matrix of covariates, including the treatment indicator.
 #' @param Z Matrix of instruments.

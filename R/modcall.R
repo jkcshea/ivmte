@@ -7,9 +7,9 @@
 #' @param keepargs List, arguments in original call to keep, with the
 #'     rest being dropped.
 #' @param dropargs List, arguments in original call to drop, with the
-#'     rest beingkept.
+#'     rest being kept.
 #' @return New call object.
-#' 
+#'
 #' @examples
 #' modcall(call,
 #'         newcall = propensity.mst,
@@ -25,7 +25,7 @@ modcall <- function(call, newcall, newargs, keepargs, dropargs,
         call_arg <- match(keepargs, names(call), 0)
         call <- call[c(1, call_arg)]
     }
-    
+
     lcall <- as.list(call)
     if (hasArg(newcall)) {
         lcall[[1]] <- substitute(newcall)

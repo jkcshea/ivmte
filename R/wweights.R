@@ -54,7 +54,7 @@ wate1.mst <- function(data) {
 #'
 #' Function generates the target weight for the ATT.
 #' @param data \code{data.frame} on which the estimation is performed.
-#' @param expd1 Scalar, the probability that treatment is recieved.
+#' @param expd1 Scalar, the probability that treatment is received.
 #' @param propensity Vector of propensity to take up treatment.
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
@@ -99,7 +99,7 @@ watu1.mst <- function(data, expd0, propensity) {
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
 wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
-  
+
     ## Determine the type of model we are working with (data.frame
     ## vs. glm)
     modclass <- class(model)[1]
@@ -117,23 +117,23 @@ wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
     if (modclass ==  "lm") {
         bfrom <- predict.lm(model, data)
     }
-        
+
     if (modclass == "glm") {
         bfrom <- predict.glm(model, data,
                              type = "response")
     }
-    
+
     data[, strinst]  <- t(replicate(nrow(data), to))
     if (modclass ==  "lm") {
         bto   <- predict.lm(model, data)
     }
-        
+
     if (modclass == "glm") {
         bto   <- predict.glm(model, data,
                            type = "response")
     }
-    
-    ## Predict propensty scores using data.frame model
+
+    ## Predict propensity scores using data.frame model
     if (modclass == "data.frame") {
         cond_from <- mapply(function(a, b) paste(a, "==", b), strinst, from)
         cond_from <- paste(cond_from, collapse = " & ")
@@ -155,7 +155,7 @@ wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
 
     lb <- min(bfrom, bto)
     ub <- max(bfrom, bto)
-    
+
     ## Ensure the bounds are within 0 and 1
     if (lb < 0) {
         lb <- 0
@@ -165,7 +165,7 @@ wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
         ub <- 1
         warning("Propensity scores above 1 set to 1.", immediate. = TRUE)
     }
-    
+
     return(list(lb = replicate(nrow(data), lb),
                 ub = replicate(nrow(data), ub),
                 mp =  1 / (ub - lb)))
@@ -185,7 +185,7 @@ wgenlate1.mst <- function(data, ulb, uub) {
     return(list(lb = replicate(nrow(data), ulb),
                 ub = replicate(nrow(data), uub),
                 mp = 1 / (uub - ulb)))
-}   
+}
 
 #' Generating list of target weight functions
 #'
@@ -207,7 +207,7 @@ genWeight <- function(fun, fun.name,  uname, data) {
     wArgListOth <- wArgList[wArgList != uname]
     wArgListInput <- paste(paste(wArgListOth, "=", data[, wArgListOth]),
                            collapse = ", ")
-   
+
     new_call <- paste0(fun.name, "(", uname, " = u, ", wArgListInput, ")")
 
     outFunction <- function(u) {
