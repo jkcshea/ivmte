@@ -16,6 +16,8 @@
 #'     the constraints in the LP problem.
 #' @param mbrhs Vector of constants used to define the constraints in
 #'     the LP problem.
+#' @param lpsolver string, name of the package used to solve the LP
+#'     problem.
 #' @return A list of matrices and vectors necessary to define an LP
 #'     problem for Gurobi.
 #'
@@ -90,6 +92,8 @@ lpsetup.mst <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL, lpsolver) {
 #' @param sset A list of IV-like estimates and the corresponding gamma
 #'     terms.
 #' @param lpobj A list of matrices and vectors defining an LP problem.
+#' @param lpsolver string, name of the package used to solve the LP
+#'     problem.
 #' @return A list including the minimum violation of observational
 #'     equivalence, the solution to the LP problem, and the status of
 #'     the solution.
@@ -199,6 +203,8 @@ obseqmin.mst <- function(sset, lpobj, lpsolver) {
 #'     estimands.
 #' @param noisy boolean, set to \code{TRUE} if optimization results
 #'     should be displayed.
+#' @param lpsolver string, name of the package used to solve the LP
+#'     problem.
 #' @return a list containing the bounds on the treatment effect; the
 #'     coefficients on each term in the MTR associated with the upper
 #'     and lower bounds, for both counterfactuals; the optimization
@@ -381,7 +387,6 @@ bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
                 model = model))
 }
 
-
 #' Running cplexAPI LP solver
 #'
 #' This function solves the LP problem using the cplexAPI package. The
@@ -460,8 +465,8 @@ runCplexAPI <- function(lpobj, lpdir) {
 #' adapts the object to solve the LP problem.
 #' @param lpobj list of matrices and vectors defining the linear
 #'     programming problem.
-#' @param lpdir input either 'max' or 'min' which sets the LP problem
-#'     as a maximization or minimization problem.
+#' @param modelsense input either 'max' or 'min' which sets the LP
+#'     problem as a maximization or minimization problem.
 #' @return a list of the output from \code{lpSolveAPI}. This includes
 #'     the optimization status, the objective value, the solution
 #'     vector.

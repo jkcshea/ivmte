@@ -13,7 +13,7 @@ lists.mst(...)
 list.
 }
 \description{
-This function allows the user to declare a list of subseting
+This function allows the user to declare a list of subsetting
 conditions and variable names in non-character form. This is used
 to ensure clean entry of arguments into the function.
 }

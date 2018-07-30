@@ -19,6 +19,7 @@ Auxiliary function that converts a vector of strings into an
 expression containing variable names.
 }
 \examples{
-\\code{> unstring(c("a", "b"))}
-\\code{expression(c(a, b))}.
+\dontrun{
+unstring(c("a", "b"))
+}
 }

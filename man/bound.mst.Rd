@@ -4,7 +4,7 @@
 \alias{bound.mst}
 \title{Obtaining TE bounds}
 \usage{
-bound.mst(g0, g1, sset, lpobj, obseq.tol, noisy = FALSE)
+bound.mst(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE)
 }
 \arguments{
 \item{g0}{set of expectations for each terms of the MTR for the
@@ -21,6 +21,9 @@ components associated with each element in the S-set.}
 \item{obseq.tol}{tolerance level for how much more the solution is
 permitted to violate observational equivalence of the IV-like
 estimands.}
+
+\item{lpsolver}{string, name of the package used to solve the LP
+problem.}
 
 \item{noisy}{boolean, set to \code{TRUE} if optimization results
 should be displayed.}

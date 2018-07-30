@@ -59,6 +59,9 @@ class_list <- function(obj) {
 #' @param inst boolean expression, set to TRUE if the instrument names
 #'     are to be extracted. Otherwise, the covariate names are
 #'     extracted.
+#' @param terms boolean expression, set to TRUE if the terms in the
+#'     formula \code{fm} should be returned instead of the variable
+#'     names.
 get_xz <- function(fm, inst = FALSE, terms = FALSE) {
     fm <- Formula::as.Formula(fm)
     if (length(fm)[2] == 1) {

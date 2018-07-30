@@ -32,18 +32,17 @@
 #'     set to be used as the propensity score, then a
 #'     \code{data.frame} containing the propensity score for each
 #'     value of the covariates in the probability model is returned.
-#'
+#' 
 #' @examples
-#' Declaring a probability model.
-#' propensity.mst(formula = d ~ x1 + x2 + z1 + z2,
-#'                data = data,
-#'                link = "logit")
+#' ## Declaring a probability model.
+#' propensity.mst(formula = d ~ z,
+#'                data = dtm,
+#'                link = "linear")
 #'
-#' Declaring a variable to be used instead
-#' propensity.mst(formula = p,
-#'                data = data,
-#'                late.Z = c(z1, z2),
-#'                late.X = c(x1, x2))
+#' ## Declaring a variable to be used instead
+#' propensity.mst(formula = pz,
+#'                data = dtm,
+#'                link = "linear")
 #'
 #' @export
 propensity.mst <- function(formula, data, link = "linear", late.Z,

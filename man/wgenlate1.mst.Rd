@@ -9,9 +9,9 @@ wgenlate1.mst(data, ulb, uub)
 \arguments{
 \item{data}{\code{data.frame} on which the estimation is performed.}
 
-\item{ulb}{Numeric, upper bound of interval}
+\item{ulb}{Numeric, lower bound of interval.}
 
-\item{ulb}{Numeric, lower bound of interval}
+\item{uub}{Numeric, upper bound of interval.}
 }
 \value{
 The bounds of integration over unobservable \code{u}, as

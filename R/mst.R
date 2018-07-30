@@ -31,12 +31,12 @@
 #'     effects.
 #' @param subset single subset condition or list of subset conditions
 #'     corresponding to each IV-like estimand. See
-#'     \code{\link[mst]{list.mst}} on how to input the argument.
+#'     \code{\link{lists.mst}} on how to input the argument.
 #' @param components a list of vectors of the terms/components from
 #'     the regressions specifications we want to include in the set of
 #'     IV-like estimands. To select the intercept term, include in the
 #'     vector of variable names, `intercept'. See
-#'     \code{\link[mst]{list.mst}} on how to input the argument.
+#'     \code{\link{lists.mst}} on how to input the argument.
 #' @param propensity formula or variable name corresponding to
 #'     propensity to take up treatment. If a formula is declared, then
 #'     the function estimates propensity score according to the
@@ -85,7 +85,7 @@
 #'     MTRs.
 #' @param audit.Nx number of points on the covariates space to audit
 #'     in each iteration of the audit procedure.
-#' @param audit.Nx number of points in the interval [0, 1],
+#' @param audit.Nu number of points in the interval [0, 1],
 #'     corresponding to the normalized value of the unobservable term,
 #'     to audit in each iteration of the audit procedure.
 #' @param audit.max maximum number of iterations in the audit
@@ -123,39 +123,27 @@
 #'     score model; bounds on the treatment effect; the estimated
 #'     expectations of each term in the MTRs; the components and
 #'     results of the LP problem.
-#'
+#' 
 #' @examples
 #' ivlikespecs <- c(ey ~ d | z,
-#'                ey ~ d | factor(z),
-#'                ey ~ d,
-#'                ey ~ d | factor(z))
+#'                  ey ~ d | factor(z),
+#'                  ey ~ d,
+#'                  ey ~ d | factor(z))
 #' jvec <- lists.mst(d, d, d, d)
 #' svec <- lists.mst(, , , z %in% c(2, 4))
-#'
+#' 
 #' mst(ivlike = ivlikespecs,
 #'     data = dtm,
 #'     components = jvec,
 #'     propensity = pz,
 #'     subset = svec,
-#'     m0 = ~  u + u^2,
-#'     m1 = ~  u + u^2,
+#'     m0 = ~  u + u ^ 2,
+#'     m1 = ~  u + u ^ 2,
 #'     uname = u,
 #'     target = "att",
 #'     m0.dec = TRUE,
 #'     m1.dec = TRUE)
-#'
-#'
-#' mst(ivlike = y ~ d + x1 + x2 | x1 + x2 + z1 + z2, dt,
-#'     components = d,
-#'     propensity = d ~ z1 + z2 + x1 + x2,
-#'     link = "logit",
-#'     m0 = ~ x1 + x2,
-#'     m1 = ~ x1  ,
-#'     target = "late",
-#'     Z = c(z1, z2),
-#'     from = c(0,1),
-#'     to= c(1,2))
-#'
+#' 
 #' @export
 mst <- function(ivlike, data, subset, components, propensity, link,
                 treat, m0, m1, uname = u, target, target.weight0,
@@ -1117,7 +1105,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             sdata <- data[eval(substitute(ssubset), data), ]
             sest  <- ivlike.mst(formula = sformula,
                                   data = sdata,
-                                  component = scomponent,
+                                  components = scomponent,
                                   treat = treat,
                                   list = TRUE)
 
@@ -1226,9 +1214,14 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 #' point estimate, and the corresponding moments (gammas) that will
 #' enter into the constraint matrix of the LP problem.
 #'
+#' @param data \code{data.frame} used to estimate the treatment
+#'     effects.
 #' @param sset A list, which is modified and returned as the output.
 #' @param sest A list containing the point estimates and S-weights
 #'     corresponding to a particular IV-like estimand.
+#' @param splinesobj list of spline components in the MTRs for treated
+#'     and control groups. Spline terms are extracted using
+#'     \code{\link{removeSplines}}.
 #' @param pmodobj A vector of propensity scores.
 #' @param pm0 A list of the monomials in the MTR for d = 0.
 #' @param pm1 A list of the monomials in the MTR for d = 1.

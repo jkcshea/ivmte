@@ -5,10 +5,11 @@
 \title{Estimation procedure from Mogstad, Torgovitsky (2017)}
 \usage{
 mst(ivlike, data, subset, components, propensity, link, treat, m0, m1,
-  uname = u, target, late.Z, late.from, late.to, late.X, eval.X, genlate.lb,
-  genlate.ub, obseq.tol = 1, grid.Nu = 20, grid.Nx = 20, audit.Nx = 2,
-  audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
-  m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc)
+  uname = u, target, target.weight0, target.weight1, late.Z, late.from,
+  late.to, late.X, eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
+  grid.Nu = 20, grid.Nx = 20, audit.Nx = 2, audit.Nu = 3,
+  audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
+  mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL)
 }
 \arguments{
 \item{ivlike}{formula or vector of formulas used to specify the
@@ -18,14 +19,14 @@ regressions for the IV-like estimands.}
 effects.}
 
 \item{subset}{single subset condition or list of subset conditions
-correpsonding to each IV-like estimand. See
-\code{\link[mst]{list.mst}} on how to input the argument.}
+corresponding to each IV-like estimand. See
+\code{\link{lists.mst}} on how to input the argument.}
 
 \item{components}{a list of vectors of the terms/components from
 the regressions specifications we want to include in the set of
 IV-like estimands. To select the intercept term, include in the
 vector of variable names, `intercept'. See
-\code{\link[mst]{list.mst}} on how to input the argument.}
+\code{\link{lists.mst}} on how to input the argument.}
 
 \item{propensity}{formula or variable name corresponding to
 propensity to take up treatment. If a formula is declared, then
@@ -45,11 +46,18 @@ function for control group.}
 \item{m1}{one-sided formula for marginal treatment response
 function for treated group.}
 
-\item{uname}{variable name for unobservale used in declaring MTRs.}
+\item{uname}{variable name for unobservable used in declaring MTRs.}
 
 \item{target}{target parameter to be estimated. Currently function
-allows for ATE ("ate"), ATT ("att"), ATU ("atu"), LATE
-("late"), and generalized LATE ("genlate").}
+allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
+("\code{atu}"), LATE ("\code{late}"), and generalized LATE
+("\code{genlate}").}
+
+\item{target.weight0}{user-defined weight function for the control
+group defining the target parameter.}
+
+\item{target.weight1}{user-defined weight function for the treated
+group defining the target parameter.}
 
 \item{late.Z}{vector of variable names used to define the LATE.}
 
@@ -87,6 +95,10 @@ MTRs.}
 
 \item{audit.Nx}{number of points on the covariates space to audit
 in each iteration of the audit procedure.}
+
+\item{audit.Nu}{number of points in the interval [0, 1],
+corresponding to the normalized value of the unobservable term,
+to audit in each iteration of the audit procedure.}
 
 \item{audit.max}{maximum number of iterations in the audit
 procedure.}
@@ -130,9 +142,8 @@ weakly monotone decreasing.}
 \item{mte.inc}{logical, equal to TRUE if we want the MTE to be
 weakly monotone decreasing.}
 
-\item{audit.Nx}{number of points in the interval [0, 1],
-corresponding to the normalized value of the unobservable term,
-to audit in each iteration of the audit procedure.}
+\item{lpsolver}{name of the linear programming package in R used to
+obtain the bounds on the treatment effect.}
 }
 \value{
 Returns a list of results from throughout the estimation
@@ -143,7 +154,7 @@ Returns a list of results from throughout the estimation
 }
 \description{
 This function estimates bounds on treatment effect parameters,
-following the procedure described in Mogstad, Torgotvitsky
+following the procedure described in Mogstad, Torgovitsky
 (2017). Of the target parameters, the user can choose from the ATE,
 ATT, ATU, LATE, and generalized LATE. The user is required to
 provide a polynomial expression for the marginal treatment
@@ -170,9 +181,9 @@ this audit procedure is using the function arguments.
 }
 \examples{
 ivlikespecs <- c(ey ~ d | z,
-               ey ~ d | factor(z),
-               ey ~ d,
-               ey ~ d | factor(z))
+                 ey ~ d | factor(z),
+                 ey ~ d,
+                 ey ~ d | factor(z))
 jvec <- lists.mst(d, d, d, d)
 svec <- lists.mst(, , , z \%in\% c(2, 4))
 
@@ -181,23 +192,11 @@ mst(ivlike = ivlikespecs,
     components = jvec,
     propensity = pz,
     subset = svec,
-    m0 = ~  u + u^2,
-    m1 = ~  u + u^2,
+    m0 = ~  u + u ^ 2,
+    m1 = ~  u + u ^ 2,
     uname = u,
     target = "att",
     m0.dec = TRUE,
     m1.dec = TRUE)
-
-
-mst(ivlike = y ~ d + x1 + x2 | x1 + x2 + z1 + z2, dt,
-    components = d,
-    propensity = d ~ z1 + z2 + x1 + x2,
-    link = "logit",
-    m0 = ~ x1 + x2,
-    m1 = ~ x1  ,
-    target = "late",
-    Z = c(z1, z2),
-    from = c(0,1),
-    to= c(1,2))
 
 }

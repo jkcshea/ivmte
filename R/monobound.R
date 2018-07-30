@@ -86,6 +86,8 @@ gengrid.mst <- function(index, xsupport, usupport, uname) {
 #'     components associated with each element in the S-set.
 #' @param gridobj a list containing the grid over which the
 #'     monotonicity and boundedness conditions are imposed on.
+#' @param uname name declared by user to represent the unobservable
+#'     term.
 #' @param m0.lb scalar, lower bound on MTR for control group.
 #' @param m0.ub scalar, upper bound on MTR for control group.
 #' @param m1.lb scalar, lower bound on MTR for treated group.
@@ -217,7 +219,7 @@ genboundA.mst <- function(A0, A1, sset, gridobj, uname,
 #' This function takes in the matrix of values of the MTR evaluated
 #' over the grid generated for the audit procedure. The grid is
 #' ordered according to the covariates first, and then by the
-#' unobservables (this is done in by \code{\link{genmonoA}}). This
+#' unobservables (this is done in by \code{\link{genmonoA.mst}}). This
 #' function takes the first difference of the unobservables within
 #' each set of values for the covariates. This is sufficient to
 #' generate the monotonicity constraint matrix.
@@ -545,7 +547,7 @@ combinemonobound <- function(bdA, monoA) {
 #'     simply a linear combination of all covariates that enter into
 #'     the original \code{m0} declared by the user in
 #'     \code{\link{mst}}.
-#' @param m0 one-sided formula for marginal treatment response
+#' @param m1 one-sided formula for marginal treatment response
 #'     function for the treated group. The formula may differ from
 #'     what the user originally input in \code{\link{mst}}, as the
 #'     spline components should have been removed. This formula is

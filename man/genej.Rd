@@ -7,7 +7,7 @@
 genej(pos, length)
 }
 \arguments{
-\item{pos}{The position of teh non-zero entry/dimension the basis
+\item{pos}{The position of the non-zero entry/dimension the basis
 vector corresponds to}
 
 \item{length}{Number of dimensions in total/length of vector.}

@@ -49,7 +49,7 @@ design.mst <- function(formula, data, subset) {
         Z   <- NULL
     } else {
         mtZ <- delete.response(terms(formula, data = data, rhs = 2))
-        Z   <- model.matrix(mtZ, mf, contrasts)
+        Z   <- model.matrix(mtZ, mf)
     }
 
     return(list(Y = Y, X = X, Z = Z))

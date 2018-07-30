@@ -23,7 +23,7 @@ integration. Each element corresponds to an observation.}
 \item{multiplier}{a vector of the weights that enter into the
 interal. Each element corresponds to an observation.}
 
-\item{subset}{Subset condtion used to select observations with
+\item{subset}{Subset condition used to select observations with
 which to estimate gamma.}
 
 \item{means}{logical, if TRUE then function returns the terms of
@@ -36,7 +36,7 @@ If \code{means = TRUE}, then the function returns a vector
     of the additive terms in Gamma (i.e. the expectation is over D,
     X, Z, and u). If \code{means = FALSE}, then the function
     returns a matrix, where each row corresponds to an observation,
-    and each column corresponds to an addiive term in E[md | D, X,
+    and each column corresponds to an additive term in E[md | D, X,
     Z] (i.e. only the integral with respect to u is performed).
 }
 \description{

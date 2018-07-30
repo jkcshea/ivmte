@@ -9,7 +9,7 @@ watt1.mst(data, expd1, propensity)
 \arguments{
 \item{data}{\code{data.frame} on which the estimation is performed.}
 
-\item{expd1}{Scalar, the probability that treatment is recieved.}
+\item{expd1}{Scalar, the probability that treatment is received.}
 
 \item{propensity}{Vector of propensity to take up treatment.}
 }

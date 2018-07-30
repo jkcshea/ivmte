@@ -25,10 +25,10 @@ Auxiliary function that converts an expression of variable names
 into a vector of strings.
 }
 \examples{
-\\code{> a <- 4}
-\\code{> b <- 4}
-\\code{> restring(c(a, b), substitute = TRUE)}
-\\code{"a" "b"}
-#' \\code{> restring(c(a, b), substitute = TRUE)}
-\\code{"4" "5"}
+\dontrun{
+a <- 4
+b <- 5
+restring(c(a, b), substitute = TRUE)
+restring(c(a, b), substitute = FALSE)
+}
 }

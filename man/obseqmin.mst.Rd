@@ -4,13 +4,16 @@
 \alias{obseqmin.mst}
 \title{Minimizing violation of observational equivalence}
 \usage{
-obseqmin.mst(sset, lpobj)
+obseqmin.mst(sset, lpobj, lpsolver)
 }
 \arguments{
 \item{sset}{A list of IV-like estimates and the corresponding gamma
 terms.}
 
 \item{lpobj}{A list of matrices and vectors defining an LP problem.}
+
+\item{lpsolver}{string, name of the package used to solve the LP
+problem.}
 }
 \value{
 A list including the minimum violation of observational

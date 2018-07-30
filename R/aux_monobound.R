@@ -89,9 +89,13 @@ groupby <- function(data, variables, groupname = ".mst.monog",
 #' @return A binary vector indicating whether or not each
 #'     corresponding row in \code{data} is the max/min within its
 #'     group.
-maxminmatch <- function(data, count = ".mst.monoc", group = ".mst.monog", type) {
+maxminmatch <- function(data,
+                        count = ".mst.monoc",
+                        group = ".mst.monog", type) {
     typevals <- aggregate(as.formula(paste(count, "~", group)), data, type)
     keys <- seq(1, nrow(typevals))
     typevals <- split(typevals, keys)
-    return(Reduce("+", lapply(typevals, matchrow, data = data[, c(group, count)])))
+    return(Reduce("+", lapply(typevals,
+                              matchrow,
+                              data = data[, c(group, count)])))
 }

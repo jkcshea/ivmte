@@ -24,6 +24,9 @@ components associated with each element in the S-set.}
 \item{gridobj}{a list containing the grid over which the
 monotonicity and boundedness conditions are imposed on.}
 
+\item{uname}{name declared by user to represent the unobservable
+term.}
+
 \item{m0.lb}{scalar, lower bound on MTR for control group.}
 
 \item{m0.ub}{scalar, upper bound on MTR for control group.}

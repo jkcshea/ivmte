@@ -4,7 +4,7 @@
 \alias{genmono}
 \title{Generating monomials}
 \usage{
-genmono(vector, basis, zero = FALSE)
+genmono(vector, basis, zero = FALSE, as.function = FALSE)
 }
 \arguments{
 \item{vector}{vector of polynomial coefficients.}
@@ -16,6 +16,10 @@ genmono(vector, basis, zero = FALSE)
 include an element for the constant term. The vector
 \code{basis} will need to be adjusted to account for this in
 order to generate the correct polynomial and monomials.}
+
+\item{as.function}{boolean, if \code{FALSE} then polynomials are
+returned; if \code{TRUE} then a function corresponding to the
+polynomial is returned.}
 }
 \value{
 A list of monomials, in the form of the \code{polynom}

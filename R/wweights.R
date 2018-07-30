@@ -5,8 +5,9 @@
 #'     strings.
 #'
 #' @examples
-#' \code{> unstring(c("a", "b"))}
-#' \code{expression(c(a, b))}.
+#' \dontrun{
+#' unstring(c("a", "b"))
+#' }
 unstring <- function(vector) {
     vector <- parse(text = paste0("c(", paste(vector, collapse = ", "), ")"))
     return(vector)
@@ -24,12 +25,12 @@ unstring <- function(vector) {
 #' @return A vector of variable names (strings).
 #'
 #' @examples
-#' \code{> a <- 4}
-#' \code{> b <- 4}
-#' \code{> restring(c(a, b), substitute = TRUE)}
-#' \code{"a" "b"}
-#' #' \code{> restring(c(a, b), substitute = TRUE)}
-#' \code{"4" "5"}
+#' \dontrun{
+#' a <- 4
+#' b <- 5
+#' restring(c(a, b), substitute = TRUE)
+#' restring(c(a, b), substitute = FALSE)
+#' }
 restring <- function(vector, substitute = TRUE) {
     if (substitute == TRUE)  vector <- deparse(substitute(vector))
     if (substitute == FALSE) vector <- deparse(vector)
@@ -69,7 +70,7 @@ watt1.mst <- function(data, expd1, propensity) {
 #'
 #' Function generates the target weight for the ATT.
 #' @param data \code{data.frame} on which the estimation is performed.
-#' @param expd1 Scalar, the probability that treatment is not
+#' @param expd0 Scalar, the probability that treatment is not
 #'     recieved.
 #' @param propensity Vector of propensity to take up treatment.
 #' @return The bounds of integration over unobservable \code{u}, as
@@ -177,8 +178,8 @@ wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
 #' where the user can specify the interval of propensity scores
 #' defining the compliers.
 #' @param data \code{data.frame} on which the estimation is performed.
-#' @param ulb Numeric, upper bound of interval
-#' @param ulb Numeric, lower bound of interval
+#' @param ulb Numeric, lower bound of interval.
+#' @param uub Numeric, upper bound of interval.
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
 wgenlate1.mst <- function(data, ulb, uub) {
@@ -195,6 +196,7 @@ wgenlate1.mst <- function(data, ulb, uub) {
 #' @param fun custom weight function defined by the user. Arguments of
 #'     the weight function must only be names of variables entering
 #'     into the function.
+#' @param fun.name string, name of function.
 #' @param uname the name assigned to the unobserved variable entering
 #'     into the MTR.
 #' @param data a vector containing the values of the variables
@@ -202,7 +204,7 @@ wgenlate1.mst <- function(data, ulb, uub) {
 #' @return The weight function 'fun', where all arguments other than
 #'     that of the unobserved variable are fixed according to the
 #'     vector 'data'.
-genWeight <- function(fun, fun.name,  uname, data) {
+genWeight <- function(fun, fun.name, uname, data) {
     wArgList <- formalArgs(fun)
     wArgListOth <- wArgList[wArgList != uname]
     wArgListInput <- paste(paste(wArgListOth, "=", data[, wArgListOth]),

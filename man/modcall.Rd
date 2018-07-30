@@ -4,7 +4,7 @@
 \alias{modcall}
 \title{Auxiliary function: modifying calls}
 \usage{
-modcall(call, newcall, newargs, keepargs, dropargs, testing = FALSE)
+modcall(call, newcall, newargs, keepargs, dropargs)
 }
 \arguments{
 \item{call}{Call object to be modified.}
@@ -17,20 +17,11 @@ modcall(call, newcall, newargs, keepargs, dropargs, testing = FALSE)
 rest being dropped.}
 
 \item{dropargs}{List, arguments in original call to drop, with the
-rest beingkept.}
+rest being kept.}
 }
 \value{
 New call object.
 }
 \description{
 This function can be used to modify calls in several ways.
-}
-\examples{
-modcall(call,
-        newcall = propensity.mst,
-        keepargs = c("link", "late.Z", "late.X"),
-        dropargs = "propensity.mst",
-        newargs = list(data = quote(cdata),
-        formula = propensity))
-
 }

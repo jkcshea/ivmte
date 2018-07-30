@@ -28,7 +28,7 @@ a list containing the grid used in the audit; a vector
 \description{
 This function takes in a matrix summarizing the support of the
 covariates, as well as an evenly spaced set of points summarizing
-the support of the unobservable variable. A cartesian product of
+the support of the unobservable variable. A Cartesian product of
 the subset of the support of the covariates and the points in the
 support of the unobservable generates the grid that is used for the
 audit procedure.

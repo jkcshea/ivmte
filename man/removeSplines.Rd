@@ -12,14 +12,14 @@ removeSplines(formula)
 \value{
 a list containing two objects. One object is \code{formula}
     but with the spline components removed. The second object is a
-    list. The name of each element is the "uSplines()" command, and
-    the elements are a vector of the names of covariates that were
-    interacted with the "uSplines()" command.
+    list. The name of each element is the \code{uSplines()}
+    command, and the elements are a vector of the names of
+    covariates that were interacted with the \code{uSplines()} command.
 }
 \description{
-This function separates out the function call "uSplines()"
+This function separates out the function call \code{uSplines()}
 potentially embedded in the MTR formulas from the rest of the
-fomrula. The terms involving splines are treated separately from
+formula. The terms involving splines are treated separately from
 the terms that do not involve splines when creating the gamma
 moments.
 }

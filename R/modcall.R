@@ -9,17 +9,7 @@
 #' @param dropargs List, arguments in original call to drop, with the
 #'     rest being kept.
 #' @return New call object.
-#'
-#' @examples
-#' modcall(call,
-#'         newcall = propensity.mst,
-#'         keepargs = c("link", "late.Z", "late.X"),
-#'         dropargs = "propensity.mst",
-#'         newargs = list(data = quote(cdata),
-#'         formula = propensity))
-#'
-modcall <- function(call, newcall, newargs, keepargs, dropargs,
-                    testing = FALSE) {
+modcall <- function(call, newcall, newargs, keepargs, dropargs) {
 
     if (hasArg(keepargs)) {
         call_arg <- match(keepargs, names(call), 0)

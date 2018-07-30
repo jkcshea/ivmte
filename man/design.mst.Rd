@@ -2,7 +2,7 @@
 % Please edit documentation in R/design.R
 \name{design.mst}
 \alias{design.mst}
-\title{Generating deisgn matrices}
+\title{Generating design matrices}
 \usage{
 design.mst(formula, data, subset)
 }

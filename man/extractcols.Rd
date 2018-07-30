@@ -13,5 +13,5 @@ extractcols(M, components)
 }
 \description{
 Auxiliary function to extract columns from a matrix based on column
-mames.
+names.
 }

@@ -22,7 +22,7 @@ want to include in the set of IV-like estimands.}
 loop over a list of formulas.}
 }
 \value{
-Returns a list containining the matrices of IV-like
+Returns a list containing the matrices of IV-like
     specifications for \code{D = 0} and \code{D = 1}; and the
     estimates of the IV-like estimands.
 }
@@ -31,11 +31,9 @@ This function estimates the IV-like estimands, as well as generates
 the IV-like specifications.
 }
 \examples{
-ivlike.mst(y ~ d + x1 | z,
-             data = data,
-             subset = x1 < 3,
-             components = c(d, x1),
-             treat = d,
-             list = FALSE)
-
+ivlike.mst(ey ~ d | z,
+           data = dtm,
+           components = lists.mst(d),
+           treat = d,
+           list = FALSE)
 }

@@ -4,7 +4,7 @@
 \alias{lpsetup.mst}
 \title{Constructing LP problem}
 \usage{
-lpsetup.mst(sset, mbA = NULL, mbs = NULL, mbrhs = NULL)
+lpsetup.mst(sset, mbA = NULL, mbs = NULL, mbrhs = NULL, lpsolver)
 }
 \arguments{
 \item{sset}{List of IV-like estimates and the corresponding gamma
@@ -17,6 +17,9 @@ the constraints in the LP problem.}
 
 \item{mbrhs}{Vector of constants used to define the constraints in
 the LP problem.}
+
+\item{lpsolver}{string, name of the package used to solve the LP
+problem.}
 }
 \value{
 A list of matrices and vectors necessary to define an LP
@@ -24,10 +27,12 @@ A list of matrices and vectors necessary to define an LP
 }
 \description{
 This function takes in the IV estimates from the set of IV
-regressions decalred by the user, as well as their corresponding
+regressions declared by the user, as well as their corresponding
 moments of the terms in the MTR. These are then used to construct
 the components that make up the LP problem. Additional constraint
 matrix is added using \code{mbA} (\code{mb} stands for
 "monotonicity/boundedness"); extra model sense is added using
-\code{mbs}; extra RHS values added using \code{mbrhs}).
+\code{mbs}; extra RHS values added using \code{mbrhs}). Depending
+on the linear programming solver used, this function will return
+different output specific to the solver.
 }

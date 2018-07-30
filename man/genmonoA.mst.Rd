@@ -59,7 +59,7 @@ constraint matrix for the LP problem. The matrix pertains
 \description{
 This function generates the matrix and vectors associated with the
 monotonicity constraints declared by the user. It takes in a grid
-of the covariates on which we define the LP contraints, and then
+of the covariates on which we define the LP constraints, and then
 calculates the values of the MTR and MTE over the grid. The
 matrices characterizing the monotonicity conditions can then be
 obtained by taking first differences over the grid of the

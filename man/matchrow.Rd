@@ -22,7 +22,7 @@ binary vector, each element indicating whether the
 \description{
 For a given vector \code{match}, this function returns a binary
 indicator for each row in \code{data}, telling you whether or not
-that row matches the entires in the vector \code{match}. Note this
+that row matches the entries in the vector \code{match}. Note this
 assumes that \code{data} and \code{match} have the same column
 order.
 }

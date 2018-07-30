@@ -26,6 +26,13 @@
 #'     entered in using splines.
 #' @param m1 one-sided formula for marginal treatment response
 #'     function for treated group.
+#' @param splinesobj list of spline components in the MTRs for treated
+#'     and control groups. Spline terms are extracted using
+#'     \code{\link{removeSplines}}.
+#' @param vars_mtr all variables entering into the MTRs for treated
+#'     and control groups.
+#' @param terms_mtr all terms entering into the MTRs for treated and
+#'     control groups.
 #' @param grid.Nu number of evenly spread points in the interval [0,
 #'     1] of the unobservable u used to form the grid for imposing
 #'     shape restrictions on the MTRs.
@@ -34,7 +41,7 @@
 #'     MTRs.
 #' @param audit.Nx number of points on the covariates space to audit
 #'     in each iteration of the audit procedure.
-#' @param audit.Nx number of points in the interval [0, 1],
+#' @param audit.Nu number of points in the interval [0, 1],
 #'     corresponding to the normalized value of the unobservable term,
 #'     to audit in each iteration of the audit procedure.
 #' @param audit.max maximum number of iterations in the audit
@@ -93,7 +100,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                       audit.tol = 1e-08,
                       m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                       m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
-                      sset, gstar0, gstar1, obseq.tol, lpsolver) {
+                      sset, gstar0, gstar1, obseq.tol = 1, lpsolver) {
 
     call  <- match.call()
 
@@ -181,6 +188,13 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
 
     }
 
+    ## print("This is m0")
+    ## print(m0)
+    ## print("This is m1")
+    ## print(m1)
+
+    ## stop("end of test")
+    
     ## Begin performing the audit
     prevbound <- c(-Inf, Inf)
     existsolution <- FALSE

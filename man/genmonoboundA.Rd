@@ -13,7 +13,7 @@ genmonoboundA(support, grid_index, uvec, splines, monov, uname, m0, m1, sset,
 into the MTRs.}
 
 \item{grid_index}{a vector, the row numbers of \code{support} used
-to generate the grid preceeding the audit.}
+to generate the grid preceding the audit.}
 
 \item{uvec}{a vector, the points in the interval [0, 1] that the
 unobservable takes on.}
@@ -33,6 +33,14 @@ what the user originally input in \code{\link{mst}}, as the
 spline components should have been removed. This formula is
 simply a linear combination of all covariates that enter into
 the original \code{m0} declared by the user in
+\code{\link{mst}}.}
+
+\item{m1}{one-sided formula for marginal treatment response
+function for the treated group. The formula may differ from
+what the user originally input in \code{\link{mst}}, as the
+spline components should have been removed. This formula is
+simply a linear combination of all covariates that enter into
+the original \code{m1} declared by the user in
 \code{\link{mst}}.}
 
 \item{sset}{a list containing the point estimates and gamma
@@ -73,14 +81,6 @@ decreasing.}
 
 \item{mte.inc}{boolean, indicating whether the MTE is monotone
 increasing.}
-
-\item{m0}{one-sided formula for marginal treatment response
-function for the treated group. The formula may differ from
-what the user originally input in \code{\link{mst}}, as the
-spline components should have been removed. This formula is
-simply a linear combination of all covariates that enter into
-the original \code{m1} declared by the user in
-\code{\link{mst}}.}
 }
 \value{
 a list containing a unified constraint matrix, unified

@@ -4,16 +4,20 @@
 \alias{polyparse.mst}
 \title{Parsing marginal treatment response formulas}
 \usage{
-polyparse.mst(formula, data, uname = u)
+polyparse.mst(formula, data, uname = u, as.function = FALSE)
 }
 \arguments{
 \item{formula}{the MTR.}
 
-\item{data}{\code{data.frame} for which we obtain E[md | D, X, Z] for each
-observation.}
+\item{data}{\code{data.frame} for which we obtain E[md | D, X, Z]
+for each observation.}
 
 \item{uname}{variable name for unobservable used in declaring the
 MTR.}
+
+\item{as.function}{boolean, if \code{FALSE} then a list of the
+polynomial terms are returned; if \code{TRUE} then a list of
+functions corresponding to the polynomials are returned.}
 }
 \value{
 A list (of lists) of monomials corresponding to the
@@ -25,8 +29,8 @@ A list (of lists) of monomials corresponding to the
 }
 \description{
 This function takes in an MTR formula, and then parses the formula
-such that it becomes a polynomial in the unobservable u. It then
-breaks these polynomials into monomials, and then integrates each
-of them with respect to u. Each integral corresponds to E[md | D,
-X, Z].
+such that it becomes a polynomial in the unobservable \code{u}. It
+then breaks these polynomials into monomials, and then integrates
+each of them with respect to \code{u}. Each integral corresponds to
+E[md | D, X, Z].
 }

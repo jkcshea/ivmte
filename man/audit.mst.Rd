@@ -7,7 +7,8 @@
 audit.mst(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr, grid.Nu = 20,
   grid.Nx = 50, audit.Nx = 5, audit.Nu = 3, audit.max = 5,
   audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec,
-  m0.inc, m1.dec, m1.inc, mte.dec, mte.inc, sset, gstar0, gstar1, obseq.tol)
+  m0.inc, m1.dec, m1.inc, mte.dec, mte.inc, sset, gstar0, gstar1,
+  obseq.tol = 1, lpsolver)
 }
 \arguments{
 \item{data}{\code{data.frame} used to estimate the treatment
@@ -23,6 +24,16 @@ entered in using splines.}
 \item{m1}{one-sided formula for marginal treatment response
 function for treated group.}
 
+\item{splinesobj}{list of spline components in the MTRs for treated
+and control groups. Spline terms are extracted using
+\code{\link{removeSplines}}.}
+
+\item{vars_mtr}{all variables entering into the MTRs for treated
+and control groups.}
+
+\item{terms_mtr}{all terms entering into the MTRs for treated and
+control groups.}
+
 \item{grid.Nu}{number of evenly spread points in the interval [0,
 1] of the unobservable u used to form the grid for imposing
 shape restrictions on the MTRs.}
@@ -34,13 +45,17 @@ MTRs.}
 \item{audit.Nx}{number of points on the covariates space to audit
 in each iteration of the audit procedure.}
 
+\item{audit.Nu}{number of points in the interval [0, 1],
+corresponding to the normalized value of the unobservable term,
+to audit in each iteration of the audit procedure.}
+
 \item{audit.max}{maximum number of iterations in the audit
 procedure.}
 
 \item{audit.tol}{tolerance for determining when to end the audit
 procedure. Namely, if the percentage change in the upper and
 lower bounds both fall below \code{audit.tol} between
-iterations of the audit, the audit precodure ends.}
+iterations of the audit, the audit procedure ends.}
 
 \item{m1.ub}{numeric value for upper bound on MTR for treated
 group.}
@@ -94,9 +109,8 @@ observational equivalence, i.e. a threshold of 0 corresponds to
 the assumption that the model is correctly specified, and that
 there is no violation of observational equivalence.}
 
-\item{audit.Nx}{number of points in the interval [0, 1],
-corresponding to the normalized value of the unobservable term,
-to audit in each iteration of the audit procedure.}
+\item{lpsolver}{name of the linear programming package in R used to
+obtain the bounds on the treatment effect.}
 }
 \value{
 a list. Included in the list is the minimum violation of
@@ -107,17 +121,17 @@ a list. Included in the list is the minimum violation of
 \description{
 This is the wrapper for running the entire audit procedure. This
 function sets up the LP problem of minimizing the violation of
-observational equivalance for the set of IV-like estimands, while
+observational equivalence for the set of IV-like estimands, while
 satisfying boundedness and monotonicity constraints declared by the
 user. Rather than enforce boundedness and monotonicity hold across
 the entire support of covariates and unobservables, this procedure
 enforces the conditions over a subset of points in a grid. This
-grid coresponds to the set of values the covariates can take, and a
+grid corresponds to the set of values the covariates can take, and a
 subset of values of the unobservable term. The size of this grid is
 specified by the user in the function arguments. The procedure then
 goes on to check whether the constraints are satisfied at points
 off the grid. Any point where either the boundedness or
-monotonicity constriants are violated are incoporated into the
+monotonicity constraints are violated are incorporated into the
 grid, and the process is repeated until the grid incorporates the
 entire support of the covariates, or until some a maximum number of
 iterations is reached.

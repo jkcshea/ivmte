@@ -3,8 +3,6 @@
 #' This function performs TSLS to obtain the estimates for the IV-like
 #' estimands.
 #'
-#' @param formula the regression formula. This is required only so
-#'     that informative error messages can be returned to the user.
 #' @param Y the vector of outcomes.
 #' @param X the matrix of covariates (includes endogenous and
 #'     exogenous covariates).
@@ -14,9 +12,6 @@
 #'     that we want to include in the S-set of IV-like estimands.
 #' @param weights vector of weights.
 #' @return vector of select coefficient estimates.
-#'
-#' @examples
-#' piv.mst(y ~ x, Y, X, Z, c(d, x1, x2))
 piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
     ## FIX: account for weights
 
@@ -58,20 +53,18 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #'     estimates of the IV-like estimands.
 #'
 #' @examples
-#' ivlike.mst(y ~ d + x1 | z,
-#'              data = data,
-#'              subset = x1 < 3,
-#'              components = c(d, x1),
-#'              treat = d,
-#'              list = FALSE)
-#'
+#' ivlike.mst(ey ~ d | z,
+#'            data = dtm,
+#'            components = lists.mst(d),
+#'            treat = d,
+#'            list = FALSE)
 #' @export
 ivlike.mst <- function(formula, data, subset, components = NULL, treat,
                          list = FALSE) {
 
     formula <- Formula::as.Formula(formula)
 
-    call     <- match.call(expand.dots = FALSE)
+    call <- match.call(expand.dots = FALSE)
 
     ## obtain design matrices
     if (list == TRUE) {

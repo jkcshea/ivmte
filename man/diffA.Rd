@@ -24,14 +24,14 @@ group. This is used to generate a matrix that is of the correct
 dimension.}
 }
 \value{
-a matrx representing the monotonicity restrictions.
+a matrix representing the monotonicity restrictions.
 }
 \description{
 This function takes in the matrix of values of the MTR evaluated
 over the grid generated for the audit procedure. The grid is
 ordered according to the covariates first, and then by the
-unobservables (this is done in by \code{\link{genmonoA}}). This
+unobservables (this is done in by \code{\link{genmonoA.mst}}). This
 function takes the first difference of the unobservables within
 each set of values for the covariates. This is sufficient to
-generate the monotoncity constraint matrix.
+generate the monotonicity constraint matrix.
 }

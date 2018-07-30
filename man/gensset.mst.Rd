@@ -8,10 +8,17 @@ gensset.mst(data, sset, sest, splinesobj, pmodobj, pm0, pm1, ncomponents,
   scount, subset_index)
 }
 \arguments{
+\item{data}{\code{data.frame} used to estimate the treatment
+effects.}
+
 \item{sset}{A list, which is modified and returned as the output.}
 
 \item{sest}{A list containing the point estimates and S-weights
 corresponding to a particular IV-like estimand.}
+
+\item{splinesobj}{list of spline components in the MTRs for treated
+and control groups. Spline terms are extracted using
+\code{\link{removeSplines}}.}
 
 \item{pmodobj}{A vector of propensity scores.}
 
@@ -29,11 +36,11 @@ regression is restricted to.}
 }
 \value{
 A list containing the point estimate for the IV regression,
-    and the expectation of each monomoial term in the MTR.
+    and the expectation of each monomial term in the MTR.
 }
 \description{
 This function takes in the IV estimate and its IV-like
 specification, and generates a list containing the corresponding
 point estimate, and the corresponding moments (gammas) that will
-enter into the contraint matrix of the LP problem.
+enter into the constraint matrix of the LP problem.
 }

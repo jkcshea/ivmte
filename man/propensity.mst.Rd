@@ -12,7 +12,7 @@ variable in data set containing propensity scores.}
 
 \item{data}{\code{data.frame} with which to estimate the model.}
 
-\item{link}{Link function with which to estimate propbability
+\item{link}{Link function with which to estimate probability
 model. Can be chosen from "linear", "logit", or "probit".}
 
 \item{late.Z}{A vector of variable names of excluded
@@ -20,7 +20,7 @@ variables. This is required when the target parameter is the
 LATE.}
 
 \item{late.X}{A vector of variable names of non-excluded
-variables. This is required when the target paramter is the
+variables. This is required when the target parameter is the
 LATE, and the estimation procedure will condition on these
 variables.}
 }
@@ -28,8 +28,8 @@ variables.}
 A vector of propensity scores for each observation, as well
     as a `model'. If the user inputs a formula characterizing the
     model for taking up treatment, then the \code{lm}/\code{glm}
-    object is returned. If the user declares a variable in the
-    dataset to be used as the propensity score, then a
+    object is returned. If the user declares a variable in the data
+    set to be used as the propensity score, then a
     \code{data.frame} containing the propensity score for each
     value of the covariates in the probability model is returned.
 }
@@ -42,21 +42,20 @@ excluded variables. This was incorporated to account for the LATE
 being a target parameter. Specifically, if the argument
 \code{formula} is the name of a variable in \code{data}, but the
 target parameter is not the LATE, then no propensity model is
-returned. If the target parameter is the LATe, then then the
+returned. If the target parameter is the LATE, then then the
 propensity model is simply the empirical distribution of propensity
 scores in the data conditioned on the set of covariates declared in
 \code{late.X} and \code{late.Z}.
 }
 \examples{
-Declaring a probability model.
-propensity.mst(formula = d ~ x1 + x2 + z1 + z2,
-               data = data,
-               link = "logit")
+## Declaring a probability model.
+propensity.mst(formula = d ~ z,
+               data = dtm,
+               link = "linear")
 
-Declaring a variable to be used instead
-propensity.mst(formula = p,
-               data = data,
-               late.Z = c(z1, z2),
-               late.X = c(x1, x2)) 
+## Declaring a variable to be used instead
+propensity.mst(formula = pz,
+               data = dtm,
+               link = "linear")
 
 }

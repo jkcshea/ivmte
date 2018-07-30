@@ -12,6 +12,10 @@ get_xz(fm, inst = FALSE, terms = FALSE)
 \item{inst}{boolean expression, set to TRUE if the instrument names
 are to be extracted. Otherwise, the covariate names are
 extracted.}
+
+\item{terms}{boolean expression, set to TRUE if the terms in the
+formula \code{fm} should be returned instead of the variable
+names.}
 }
 \description{
 Auxiliary function that takes in a formula, and extracts the

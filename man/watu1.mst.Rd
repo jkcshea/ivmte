@@ -9,10 +9,10 @@ watu1.mst(data, expd0, propensity)
 \arguments{
 \item{data}{\code{data.frame} on which the estimation is performed.}
 
-\item{propensity}{Vector of propensity to take up treatment.}
-
-\item{expd1}{Scalar, the probability that treatment is not
+\item{expd0}{Scalar, the probability that treatment is not
 recieved.}
+
+\item{propensity}{Vector of propensity to take up treatment.}
 }
 \value{
 The bounds of integration over unobservable \code{u}, as
