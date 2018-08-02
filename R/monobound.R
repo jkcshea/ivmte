@@ -587,7 +587,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                           m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc) {
 
     call <- match.call()
-
+  
     if (is.null(grid_index)) {
         noX <- TRUE
     } else {
@@ -628,13 +628,17 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                               x = uvec,
                                               d = 1))
 
+        ## Generate interaction with the splines.
+        ## Indexing in the loops takes the following structure:
+        ## j: splines index
+        ## v: interaction index
         for (d in 0:1) {
             if (!is.null(basisList[[d + 1]])) {
                 for (j in 1:length(splines[[d + 1]])) {
-                    for (l in 1:length(splines[[d + 1]][[j]])) {
+                    for (v in 1:length(splines[[d + 1]][[j]])) {
                         bmat <- cbind(uvec, basisList[[d + 1]][[j]])
                         colnames(bmat)[1] <- uname
-                        iName <- splines[[d + 1]][[j]][l]
+                        iName <- splines[[d + 1]][[j]][v]
                         if (iName != "1") {
                             namesA <- colnames(get(paste0("A", d)))
                             bmat <-
@@ -676,6 +680,8 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         rownames(A1) <- A1[, ".grid.order"]
     }
 
+    ## keep only the columns that are in the MTRs (A0 and A1 matrices
+    ## potentially include extraneous columns)
     A0 <- as.matrix(A0[, names(gstar0)])
     A1 <- as.matrix(A1[, names(gstar1)])
 
@@ -725,5 +731,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         monoA <- eval(monoAcall)
     }
 
-    return(combinemonobound(bdA, monoA))
+    output <- combinemonobound(bdA, monoA)
+    output$gridobj <- gridobj
+    return(output)
 }

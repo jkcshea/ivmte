@@ -31,8 +31,10 @@
 #'     \code{\link{removeSplines}}.
 #' @param vars_mtr all variables entering into the MTRs for treated
 #'     and control groups.
-#' @param terms_mtr all terms entering into the MTRs for treated and
-#'     control groups.
+#' @param terms_mtr0 all terms entering into the MTRs for control
+#'     group.
+#' @param terms_mtr1 all terms entering into the MTRs for treated
+#'     group.
 #' @param grid.Nu number of evenly spread points in the interval [0,
 #'     1] of the unobservable u used to form the grid for imposing
 #'     shape restrictions on the MTRs.
@@ -94,7 +96,8 @@
 #'     solving the LP problem.
 #'
 #' @export
-audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
+audit.mst <- function(data, uname, m0, m1, splinesobj,
+                      vars_mtr, terms_mtr0, terms_mtr1,
                       grid.Nu = 20, grid.Nx = 50,
                       audit.Nx = 5, audit.Nu = 3, audit.max = 5,
                       audit.tol = 1e-08,
@@ -108,26 +111,28 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                     splinesobj[[2]]$splineslist)
 
     ## Update MTR formulas to include all terms that interact with
-    ## splines
-    for (j in terms_mtr) {
-        if (!is.null(m0)) {
-            m0 <- update(m0, as.formula(paste("~ . +",
-                                              paste(unique(terms_mtr),
-                                                    collapse = " + "))))
-        } else {
-            m0 <- as.formula(paste("~",
-                                   paste(unique(terms_mtr),
-                                         collapse = " + ")))
-        }
-        if (!is.null(m1)) {
-            m1 <- update(m1, as.formula(paste("~ . +",
-                                              paste(unique(terms_mtr),
-                                                    collapse = " + "))))
-        } else {
-            m1 <- as.formula(paste("~",
-                                   paste(unique(terms_mtr),
-                                         collapse = " + ")))
-        }
+    ## splines. This is required for generating the matrices to impose
+    ## monotoncity and bounds. The terms that interact wtih the
+    ## splines, but do not enter into the MTRs on their own, will be
+    ## removed in the function genmonoboundA. 
+    if (!is.null(m0)) {
+        m0 <- update(m0, as.formula(paste("~ . +",
+                                          paste(unique(terms_mtr0),
+                                                collapse = " + "))))
+    } else {
+        m0 <- as.formula(paste("~",
+                               paste(unique(terms_mtr0),
+                                     collapse = " + ")))
+    }
+
+    if (!is.null(m1)) {
+        m1 <- update(m1, as.formula(paste("~ . +",
+                                          paste(unique(terms_mtr1),
+                                                collapse = " + "))))
+    } else {
+        m1 <- as.formula(paste("~",
+                               paste(unique(terms_mtr1),
+                                     collapse = " + ")))
     }
 
     ## Obtain name of unobservable variable
@@ -187,14 +192,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
         grid_resid <- full_index[!(full_index %in% grid_index)]
 
     }
-
-    ## print("This is m0")
-    ## print(m0)
-    ## print("This is m1")
-    ## print(m1)
-
-    ## stop("end of test")
-    
+  
     ## Begin performing the audit
     prevbound <- c(-Inf, Inf)
     existsolution <- FALSE
@@ -235,6 +233,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
 
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
+
         minobseq  <- obseqmin.mst(sset, lpobj, lpsolver)
 
         if (obseq.tol > 0) {
@@ -408,5 +407,6 @@ audit.mst <- function(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr,
                 solutionMin = solVecMin,
                 solutionMax = solVecMax,
                 lpresult = lpresult,
-                minobseq = minobseq))
+                minobseq = minobseq$obj,
+                gridobj = mbobj$gridobj))
 }

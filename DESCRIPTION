@@ -19,7 +19,8 @@ Suggests:
 	lpSolve (>= 5.6.13),
 	lpSolveAPI (>= 3.4.4),
 	splines2 (>= 3.4.4),
-	testthat
+	testthat (>= 2.0.0),
+	data.table (>= 1.11.2)	
 License: GPL-2 | GPL-3
 Encoding: UTF-8
 LazyData: true

@@ -21,12 +21,12 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
                   paste0("More regressors than instruments in the following
                   IV-like specification: ", formula, ".")))
     }
-    fstage <- if(is.null(weights)) lm.fit(Z, X) else lm.wfit(Z, X, weights)
+    fstage <- if (is.null(weights)) lm.fit(Z, X) else lm.wfit(Z, X, weights)
     Xhat   <- as.matrix(fstage$fitted.values)
     colnames(Xhat) <- colnames(X)
 
     ## main regression
-    if(is.null(weights)) {
+    if (is.null(weights)) {
         fit <- lm.fit(Xhat, Y)
     } else {
         fit <- lm.wfit(Xhat, Y, weights)
@@ -63,7 +63,7 @@ ivlike.mst <- function(formula, data, subset, components = NULL, treat,
                          list = FALSE) {
 
     formula <- Formula::as.Formula(formula)
-
+   
     call <- match.call(expand.dots = FALSE)
 
     ## obtain design matrices
@@ -108,7 +108,6 @@ ivlike.mst <- function(formula, data, subset, components = NULL, treat,
 
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
-        ## OLS
         bhat <- piv.mst(mf$Y, mf$X, mf$X, lmcomponents)
         sweight <- olsj.mst(mf$X, components, treat)
     } else {

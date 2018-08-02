@@ -450,7 +450,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
     terms_formulas_x <- c()
     terms_formulas_z <- c()
-    terms_mtr        <- c()
+    terms_mtr0       <- c()
+    terms_mtr1       <- c()
 
     if (class_formula(ivlike)) {
         vars_formulas_x <- get_xz(ivlike)
@@ -538,28 +539,28 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                       all.vars(splinesobj[[2]]$formula))
 
         if (!is.null(splinesobj[[1]]$formula)) {
-            terms_mtr <- c(terms_mtr, attr(terms(splinesobj[[1]]$formula),
-                                           "term.labels"))
+            terms_mtr0 <- attr(terms(splinesobj[[1]]$formula),
+                               "term.labels")
         }
         if (!is.null(splinesobj[[2]]$formula)) {
-            terms_mtr <- c(terms_mtr, attr(terms(splinesobj[[2]]$formula),
-                                           "term.labels"))
+            terms_mtr1 <- attr(terms(splinesobj[[2]]$formula),
+                               "term.labels")
         }
 
         if (!is.null(splinesobj[[1]]$splineslist)) {
             sf0 <- as.formula(paste("~",
                                     paste(unlist(splinesobj[[1]]$splineslist),
                                           collapse = " + ")))
-            vars_mtr <- c(vars_mtr, all.vars(sf0))
-            terms_mtr <- c(terms_mtr, attr(terms(sf0), "term.labels"))
+            vars_mtr   <- c(vars_mtr, all.vars(sf0))
+            terms_mtr0 <- c(terms_mtr0, attr(terms(sf0), "term.labels"))
         }
 
         if (!is.null(splinesobj[[2]]$splineslist)) {
             sf1 <- as.formula(paste("~",
                                     paste(unlist(splinesobj[[2]]$splineslist),
                                           collapse = " + ")))
-            vars_mtr <- c(vars_mtr, all.vars(sf1))
-            terms_mtr <- c(terms_mtr, attr(terms(sf1), "term.labels"))
+            vars_mtr   <- c(vars_mtr, all.vars(sf1))
+            terms_mtr1 <- c(terms_mtr1, attr(terms(sf1), "term.labels"))
         }
 
     } else {
@@ -658,7 +659,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         ## Construct propensity formula
         terms_propensity <- c(unlist(terms_formulas_x),
                               unlist(terms_formulas_z),
-                              unlist(terms_mtr))
+                              unlist(terms_mtr0),
+                              unlist(terms_mtr1))
 
         ## Remove all u terms
         uterms <- c()
@@ -940,7 +942,6 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         if (!is.null(m1)) names(gstar1) <- pmf1$terms
 
         ## Generate the spline functions to be integrated.
-
         ## Indexing takes the following structure:
         ## splinesFunctions[[j]][[v]][[i]][[l]]
         ## j: splines index
@@ -1158,7 +1159,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                          m1   = quote(m1),
                                          splinesobj = quote(splinesobj),
                                          vars_mtr = quote(vars_mtr),
-                                         terms_mtr = quote(terms_mtr),
+                                         terms_mtr0 = quote(terms_mtr0),
+                                         terms_mtr1 = quote(terms_mtr1),
                                          sset = quote(sset),
                                          gstar0 = quote(gstar0),
                                          gstar1 = quote(gstar1),
@@ -1203,7 +1205,9 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 bound = c(audit$min, audit$max),
                 lpresult =  audit$lpresult,
                 poly0 = pm0,
-                poly1 = pm1))
+                poly1 = pm1,
+                auditgrid = audit$gridobj,
+                minobseq = audit$minobseq))
 }
 
 
