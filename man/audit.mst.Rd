@@ -4,11 +4,11 @@
 \alias{audit.mst}
 \title{Audit procedure}
 \usage{
-audit.mst(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr, grid.Nu = 20,
-  grid.Nx = 50, audit.Nx = 5, audit.Nu = 3, audit.max = 5,
-  audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec,
-  m0.inc, m1.dec, m1.inc, mte.dec, mte.inc, sset, gstar0, gstar1,
-  obseq.tol = 1, lpsolver)
+audit.mst(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr0, terms_mtr1,
+  grid.Nu = 20, grid.Nx = 50, audit.Nx = 5, audit.Nu = 3,
+  audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
+  mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc, sset, gstar0,
+  gstar1, obseq.tol = 1, lpsolver)
 }
 \arguments{
 \item{data}{\code{data.frame} used to estimate the treatment
@@ -31,8 +31,11 @@ and control groups. Spline terms are extracted using
 \item{vars_mtr}{all variables entering into the MTRs for treated
 and control groups.}
 
-\item{terms_mtr}{all terms entering into the MTRs for treated and
-control groups.}
+\item{terms_mtr0}{all terms entering into the MTRs for control
+group.}
+
+\item{terms_mtr1}{all terms entering into the MTRs for treated
+group.}
 
 \item{grid.Nu}{number of evenly spread points in the interval [0,
 1] of the unobservable u used to form the grid for imposing

@@ -496,11 +496,17 @@ grid <- Reduce("rbind",
                              n = 3,
                              simplify = FALSE),
                       Reduce, f = "rbind"))
-grid <- data.frame(cbind(grid, rep(c(0, 0.5, 1), times = 2)))
+
+grid <- cbind(grid, rep(c(0, 0.5, 1), times = 2))
+rownames(grid) <- NULL
+grid <- data.frame(grid)
 
 colnames(grid) <- c("x1", "x2", "u")
 
-grid <- grid[order(grid[, 3]), ] ## Match the ordering of the function
+grid <- grid[order(grid[, 3]), ] ## Match the grid ordering of the
+                                 ## function, that way we can check
+                                 ## the matrices defining the LP
+                                 ## problem matches perfectly.
 
 mono0 <- model.matrix(~ x1 + I(x2 * u) + I(x2 * u^2),
                       data = grid)
