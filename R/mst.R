@@ -793,7 +793,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     } else {
         m0call <- NULL
     }
-
+  
     if (!is.null(m1)) {
         m1call <- modcall(call,
                           newcall = polyparse.mst,

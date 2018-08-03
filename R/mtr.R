@@ -45,11 +45,16 @@ vecextract <- function(vector, position, truncation = 0) {
 #' @return A list of monomials, in the form of the \code{polynom}
 #'     package.
 genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
+    
     if (!zero) basis <- basis + 1
     monolist  <- mapply(genej, pos = basis, length = basis)
     polyinput <- mapply("*", monolist, vector)
     if (as.function == FALSE) {
-        poly <- lapply(polyinput, polynom::polynomial)
+        if (is.list(polyinput)) {
+            poly <- lapply(polyinput, polynom::polynomial)
+        } else {
+            poly <- polynom::polynomial(polyinput)
+        }
     } else {
         poly <- lapply(polyinput,
                        function(x) as.function(polynom::polynomial(x)))
@@ -93,12 +98,16 @@ genpoly <- function(vector, basis, zero = FALSE) {
 #'     specified in \code{points}.
 polylisteval <- function(polynomials, points) {
 
-    if (length(polynomials) != length(points)) {
-        stop(gsub("\\s+", " ",
-                  "List of polynomials to evaluate, and list of points to
+    if (is.list(polynomials)) {
+        if (length(polynomials) != length(points)) {
+            stop(gsub("\\s+", " ",
+                      "List of polynomials to evaluate, and list of points to
                   evaluate each polynomial, are not equal."))
+        }
+        output <- mapply(predict, polynomials, points)
+    } else {
+        output <- predict(polynomials, points)
     }
-    output <- mapply(predict, polynomials, points)
     return(output)
 }
 
@@ -178,7 +187,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
     if(!is.null(exptab)) {
         colnames(exptab) <- c("term", "degree")
     }
-
+    
     ## Determine which terms do not involve u
     nonuterms    <- unlist(oterms[!seq(1, length(oterms)) %in% exptab[, 1]])
     nonutermspos <- which(oterms %in% nonuterms)
@@ -188,7 +197,8 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
         exptab0  <- NULL
     }
     exptab <- rbind(exptab0, exptab)
-    exptab <- exptab[order(exptab[,1]),]
+    exptab <- exptab[order(exptab[, 1]), ]
+ 
     if (is.matrix(exptab)) {
         exporder <- exptab[, 2]
         colnames(exptab) <- c("term", "degree")
@@ -197,7 +207,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
         names(exptab) <- c("term", "degree")
     }
     names(exporder) <- NULL
-
+    
     ## generate matrix with monomial coefficients
     if ("(Intercept)" %in% colnames(dmat)) {
         exporder <- c(0, exporder)
@@ -207,17 +217,22 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
 
     ## prepare monomials and their integrals
     polynomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                            genpoly,
-                            basis = exporder)
+                              genpoly,
+                              basis = exporder)
 
     if (as.function == FALSE) {
         monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
                                 genmono,
                                 basis = exporder)
 
-        integral_list <- lapply(monomial_list,
-                                lapply,
-                                polynom::integral)
+        if (length(exporder) > 1) {
+            integral_list <- lapply(monomial_list,
+                                    lapply,
+                                    polynom::integral)
+        } else {
+            integral_list <- lapply(monomial_list,
+                                    polynom::integral)
+        }
 
         names(integral_list) <- rownames(data)
     } else {
@@ -236,10 +251,6 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
                 ilist = integral_list,
                 exporder = exporder,
                 terms = oterms))
-
-    ## Note: to implement numerical integration, you should be able to
-    ## take these polynomials you have parsed, multiply them by the
-    ## weights, and then apply numerical integration.
 }
 
 #' Estimating expectations of terms in the MTR (gamma objects)
@@ -279,17 +290,45 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     integrals <- monomials$ilist
 
     if (!is.null(subset)) integrals <- integrals[subset]
+    ## ORIGINAL----------------
     nmono <- length(exporder)
+    ## TESTING-----------------
+    ## print (head(monomials$ilist))
+    ## nmono <- length(monomials$ilist[[1]])
+    ## nmono <- length(exporder)
+    ## print("pre")
+    ## print(head(integrals))
+    ## if (nmono == 1 ) {
+    ##     if (exporder > 0) {
+    ##         integrals <- lapply(X = integrals,
+    ##                             FUN = function(x) list(x[[exporder + 1]]))
+    ##     }
+    ## }
+    ## print("post")
+    ## print(head(integrals))
+    ## print("exporder")
+    ## print(exporder)
+    ## print(nmono)
+    ## stop("end of test")
+    ## END TESTING--------------
 
     ## Determine bounds of integrals (i.e. include weights)
     if (length(ub) == 1) ub <- replicate(length(integrals), ub)
     if (length(lb) == 1) lb <- replicate(length(integrals), lb)
-
+    
     ub <- split(replicate(nmono, ub), seq(length(ub)))
     lb <- split(replicate(nmono, lb), seq(length(lb)))
-
-    monoeval <- t(mapply(polylisteval, integrals, ub)) -
-        t(mapply(polylisteval, integrals, lb))
+  
+    ## ORIGINAL ----------------
+    ## monoeval <- t(mapply(polylisteval, integrals, ub)) -
+    ##     t(mapply(polylisteval, integrals, lb))
+    ## TESTING ----------------
+    if (nmono > 1) {
+        monoeval <- t(mapply(polylisteval, integrals, ub)) -
+            t(mapply(polylisteval, integrals, lb))
+    } else {
+        monoeval <- polylisteval(integrals, ub) - polylisteval(integrals, lb)
+    }
 
     ## The object monoeval is supposed to have as many rows as the
     ## number of observations used for estimation. However, if the
@@ -299,10 +338,15 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     preGamma <- monoeval * multiplier
     termsN <- length(integrals[[1]])
     if (termsN == 1) preGamma <- t(preGamma)
-
+    
     if (means) {
-        gstar <- colMeans(preGamma)
+        if (is.matrix(preGamma)) {
+            gstar <- colMeans(preGamma)
+        } else {
+            gstar <- mean(preGamma)
+        }
         names(gstar) <- monomials$terms
+        
         return(gstar)
     } else {
         return(preGamma)
@@ -322,6 +366,20 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
 #'     list. The name of each element is the \code{uSplines()}
 #'     command, and the elements are a vector of the names of
 #'     covariates that were interacted with the \code{uSplines()} command.
+#'
+#' @examples
+#' \dontrun{
+#' Below is an example of how to declare a spline component.
+#' m0 = ~ x1 + x1 : uSplines(degree = 2,
+#'                           knots = c(0.2, 0.4)) +
+#'             x2 : uSplines(degree = 2,
+#'                           knots = c(0.2, 0.4)) +
+#'             x1 : x2 : uSplines(degree = 2,
+#'                                knots = c(0.2, 0.4)) +
+#'             uSplines(degree = 3,
+#'                      knots = c(0.2, 0.4),
+#'                      intercept = FALSE)
+#' }
 removeSplines <- function(formula) {
 
     fterms <- attr(terms(formula), "term.labels")

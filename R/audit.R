@@ -218,7 +218,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                             'm0.dec', 'm0.inc',
                             'm1.dec', 'm1.inc',
                             'mte.dec', 'mte.inc')
-
+        
         monoboundAcall <- modcall(call,
                               newcall = genmonoboundA,
                               keepargs = monoboundAlist,
@@ -228,9 +228,8 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                                              uvec = uvec,
                                              splines = splines,
                                              monov = monov))
-
         mbobj <- eval(monoboundAcall)
-
+       
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
 

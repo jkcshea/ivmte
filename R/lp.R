@@ -449,8 +449,17 @@ runCplexAPI <- function(lpobj, lpdir) {
     cplexAPI::delProbCPLEX(env, prob)
     cplexAPI::closeEnvCPLEX(env)
 
-    if (solution$lpstat == 1) status <- 1
-    if (solution$lpstat != 1) status <- 0
+    if (typeof(solution) == "S4") {
+        if (attr(solution, "class") == "cplexError") {
+            status <- 0
+            solution <- list()
+            solution$objval <- NA
+            solution$x <- NA
+        }
+    }  else {
+        if (solution$lpstat == 1) status <- 1
+        if (solution$lpstat != 1) status <- 0
+    }
 
     return(list(objval = solution$objval,
                 optx   = solution$x,

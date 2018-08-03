@@ -140,6 +140,7 @@ genboundA.mst <- function(A0, A1, sset, gridobj, uname,
         bdA0 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                       A0,
                       matrix(0, nrow = nrow(A1), ncol = ncol(A1)))
+        
         colnames(bdA0) <- namesA
 
         if (is.numeric(try(m0.ub, silent = TRUE))) {
@@ -237,7 +238,8 @@ genboundA.mst <- function(A0, A1, sset, gridobj, uname,
 #' @return a matrix representing the monotonicity restrictions.
 diffA <- function(A, monogrid, sn, d, ndcols) {
 
-    A_mono <- A[rownames(monogrid),]
+    A_mono <- as.matrix(A[rownames(monogrid),])
+
     A_max  <- A_mono[!as.logical(maxminmatch(monogrid,
                                              ".mst.monoc",
                                              ".mst.monog",
@@ -246,7 +248,8 @@ diffA <- function(A, monogrid, sn, d, ndcols) {
                                              ".mst.monoc",
                                              ".mst.monog",
                                              max)), ]
-    mono   <- A_max - A_min
+    mono   <- as.matrix(A_max - A_min)
+
     if (is.null(dim(mono))) mono <- t(as.matrix(mono))
 
     if (d == 0) monoA <- cbind(matrix(0, nrow = nrow(mono), ncol = 2 * sn),
@@ -610,7 +613,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
 
     if (is.null(splines[[1]]) & is.null(splines[[2]])) {
         A0 <- design.mst(formula = m0, data = gridobj$grid)$X
-        A1 <- design.mst(formula = m1, data = gridobj$grid)$X
+        A1 <- design.mst(formula = m1, data = gridobj$grid)$X     
     } else {
         m0 <- update(m0, as.formula(paste("~ . +", uname)))
         m1 <- update(m1, as.formula(paste("~ . +", uname)))
@@ -684,7 +687,9 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     ## potentially include extraneous columns)
     A0 <- as.matrix(A0[, names(gstar0)])
     A1 <- as.matrix(A1[, names(gstar1)])
-
+    colnames(A0) <- names(gstar0)
+    colnames(A1) <- names(gstar1)
+    
     ## generate null objects
     bdA     <- NULL
     monoA   <- NULL
@@ -730,7 +735,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                             gstar1 = quote(gstar1)))
         monoA <- eval(monoAcall)
     }
-
     output <- combinemonobound(bdA, monoA)
     output$gridobj <- gridobj
     return(output)
