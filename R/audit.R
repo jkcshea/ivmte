@@ -114,7 +114,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
     ## splines. This is required for generating the matrices to impose
     ## monotoncity and bounds. The terms that interact wtih the
     ## splines, but do not enter into the MTRs on their own, will be
-    ## removed in the function genmonoboundA. 
+    ## removed in the function genmonoboundA.
     if (!is.null(m0)) {
         m0 <- update(m0, as.formula(paste("~ . +",
                                           paste(unique(terms_mtr0),
@@ -192,7 +192,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
         grid_resid <- full_index[!(full_index %in% grid_index)]
 
     }
-  
+
     ## Begin performing the audit
     prevbound <- c(-Inf, Inf)
     existsolution <- FALSE
@@ -218,7 +218,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                             'm0.dec', 'm0.inc',
                             'm1.dec', 'm1.inc',
                             'mte.dec', 'mte.inc')
-        
+
         monoboundAcall <- modcall(call,
                               newcall = genmonoboundA,
                               keepargs = monoboundAlist,
@@ -229,7 +229,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                                              splines = splines,
                                              monov = monov))
         mbobj <- eval(monoboundAcall)
-       
+
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
 

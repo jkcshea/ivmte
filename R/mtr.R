@@ -45,7 +45,7 @@ vecextract <- function(vector, position, truncation = 0) {
 #' @return A list of monomials, in the form of the \code{polynom}
 #'     package.
 genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
-    
+
     if (!zero) basis <- basis + 1
 
     monolist  <- mapply(genej, pos = basis, length = basis, SIMPLIFY = FALSE)
@@ -53,11 +53,6 @@ genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
 
     if (as.function == FALSE) {
         poly <- lapply(polyinput, polynom::polynomial)
-        ## if (is.list(polyinput)) {
-        ##     poly <- lapply(polyinput, polynom::polynomial)
-        ## } else {
-        ##     poly <- polynom::polynomial(polyinput)
-        ## }
     } else {
         poly <- lapply(polyinput,
                        function(x) as.function(polynom::polynomial(x)))
@@ -99,7 +94,7 @@ genpoly <- function(vector, basis, zero = FALSE) {
 #' @return A matrix of values, corresponding to the polynomials
 #'     specified in \code{polynomials} evaluated at the points
 #'     specified in \code{points}.
-polylisteval <- function(polynomials, points) {  
+polylisteval <- function(polynomials, points) {
     if (is.list(polynomials)) {
         if (length(polynomials) != length(points)) {
             stop(gsub("\\s+", " ",
@@ -139,7 +134,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
     ## update formula parsing
     formula <- Formula::as.Formula(formula)
     uname   <- deparse(substitute(uname))
-    
+
     ## Include redundant variable u, so monomials in m0, m1
     ## specifications correspond polynomial coefficients on u
     ## monomials
@@ -189,7 +184,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
     if(!is.null(exptab)) {
         colnames(exptab) <- c("term", "degree")
     }
-    
+
     ## Determine which terms do not involve u
     nonuterms    <- unlist(oterms[!seq(1, length(oterms)) %in% exptab[, 1]])
     nonutermspos <- which(oterms %in% nonuterms)
@@ -201,7 +196,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
     }
     exptab <- rbind(exptab0, exptab)
     exptab <- exptab[order(exptab[, 1]), ]
- 
+
     if (is.matrix(exptab)) {
         exporder <- exptab[, 2]
         colnames(exptab) <- c("term", "degree")
@@ -210,7 +205,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
         names(exptab) <- c("term", "degree")
     }
     names(exporder) <- NULL
-  
+
     ## generate matrix with monomial coefficients
     if ("(Intercept)" %in% colnames(dmat)) {
         exporder <- c(0, exporder)
@@ -231,22 +226,6 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
         integral_list <- lapply(monomial_list,
                                 lapply,
                                 polynom::integral)
-        ## if (length(exporder) > 1) {
-        ##     print("made it here 5a")
-        ##     print("monomial list")
-        ##     print(head(monomial_list))
-        ##     integral_list <- lapply(monomial_list,
-        ##                             lapply,
-        ##                             polynom::integral)
-        ##      print("made it here 6a") 
-        ## } else {
-        ##     print("made it here 5b")
-        ##     print("monomial list")
-        ##     print(head(monomial_list))
-        ##     integral_list <- lapply(monomial_list,
-        ##                             polynom::integral)
-        ##       print("made it here 6b") 
-        ## }
         names(integral_list) <- rownames(data)
     } else {
         monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
@@ -303,47 +282,19 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     integrals <- monomials$ilist
 
     if (!is.null(subset)) integrals <- integrals[subset]
-    ## ORIGINAL----------------
+
     nmono <- length(exporder)
-    ## TESTING-----------------
-    ## print (head(monomials$ilist))
-    ## nmono <- length(monomials$ilist[[1]])
-    ## nmono <- length(exporder)
-    ## print("pre")
-    ## print(head(integrals))
-    ## if (nmono == 1 ) {
-    ##     if (exporder > 0) {
-    ##         integrals <- lapply(X = integrals,
-    ##                             FUN = function(x) list(x[[exporder + 1]]))
-    ##     }
-    ## }
-    ## print("post")
-    ## print(head(integrals))
-    ## print("exporder")
-    ## print(exporder)
-    ## print(nmono)
-    ## stop("end of test")
-    ## END TESTING--------------
 
     ## Determine bounds of integrals (i.e. include weights)
     if (length(ub) == 1) ub <- replicate(length(integrals), ub)
     if (length(lb) == 1) lb <- replicate(length(integrals), lb)
-    
+
     ub <- split(replicate(nmono, ub), seq(length(ub)))
     lb <- split(replicate(nmono, lb), seq(length(lb)))
 
-    ## ORIGINAL ----------------
     monoeval <- t(mapply(polylisteval, integrals, ub)) -
         t(mapply(polylisteval, integrals, lb))
-    ## TESTING ----------------
-    ## if (nmono > 1) {
-    ##     monoeval <- t(mapply(polylisteval, integrals, ub)) -
-    ##         t(mapply(polylisteval, integrals, lb))
-    ## } else {
-    ##     monoeval <- polylisteval(integrals, ub) - polylisteval(integrals, lb)
-    ## }
-    ## END TESTING ----------------
-    
+
     ## The object monoeval is supposed to have as many rows as the
     ## number of observations used for estimation. However, if the
     ## provided MTR objects include only one term, R transposes the
@@ -352,7 +303,7 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     preGamma <- monoeval * multiplier
     termsN <- length(integrals[[1]])
     if (termsN == 1) preGamma <- t(preGamma)
-    
+
     if (means) {
         if (is.matrix(preGamma)) {
             gstar <- colMeans(preGamma)
@@ -360,7 +311,7 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
             gstar <- mean(preGamma)
         }
         names(gstar) <- monomials$terms
-        
+
         return(gstar)
     } else {
         return(preGamma)
@@ -407,7 +358,6 @@ removeSplines <- function(formula) {
         splinespos <- which(whichspline == TRUE)
 
         if (length(splinespos) == length(fterms)) {
-            ## nosplines <- NULL
             if (finter == 0) nosplines <- NULL
             if (finter == 1) nosplines <- ~ 1
         } else {

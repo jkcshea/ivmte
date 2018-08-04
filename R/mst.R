@@ -123,7 +123,7 @@
 #'     score model; bounds on the treatment effect; the estimated
 #'     expectations of each term in the MTRs; the components and
 #'     results of the LP problem.
-#' 
+#'
 #' @examples
 #' ivlikespecs <- c(ey ~ d | z,
 #'                  ey ~ d | factor(z),
@@ -131,7 +131,7 @@
 #'                  ey ~ d | factor(z))
 #' jvec <- lists.mst(d, d, d, d)
 #' svec <- lists.mst(, , , z %in% c(2, 4))
-#' 
+#'
 #' mst(ivlike = ivlikespecs,
 #'     data = dtm,
 #'     components = jvec,
@@ -143,7 +143,7 @@
 #'     target = "att",
 #'     m0.dec = TRUE,
 #'     m1.dec = TRUE)
-#' 
+#'
 #' @export
 mst <- function(ivlike, data, subset, components, propensity, link,
                 treat, m0, m1, uname = u, target, target.weight0,
@@ -793,7 +793,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     } else {
         m0call <- NULL
     }
-  
+
     if (!is.null(m1)) {
         m1call <- modcall(call,
                           newcall = polyparse.mst,
