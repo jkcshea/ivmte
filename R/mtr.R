@@ -47,14 +47,17 @@ vecextract <- function(vector, position, truncation = 0) {
 genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
     
     if (!zero) basis <- basis + 1
-    monolist  <- mapply(genej, pos = basis, length = basis)
-    polyinput <- mapply("*", monolist, vector)
+
+    monolist  <- mapply(genej, pos = basis, length = basis, SIMPLIFY = FALSE)
+    polyinput <- mapply("*", monolist, vector, SIMPLIFY = FALSE)
+
     if (as.function == FALSE) {
-        if (is.list(polyinput)) {
-            poly <- lapply(polyinput, polynom::polynomial)
-        } else {
-            poly <- polynom::polynomial(polyinput)
-        }
+        poly <- lapply(polyinput, polynom::polynomial)
+        ## if (is.list(polyinput)) {
+        ##     poly <- lapply(polyinput, polynom::polynomial)
+        ## } else {
+        ##     poly <- polynom::polynomial(polyinput)
+        ## }
     } else {
         poly <- lapply(polyinput,
                        function(x) as.function(polynom::polynomial(x)))
@@ -96,8 +99,7 @@ genpoly <- function(vector, basis, zero = FALSE) {
 #' @return A matrix of values, corresponding to the polynomials
 #'     specified in \code{polynomials} evaluated at the points
 #'     specified in \code{points}.
-polylisteval <- function(polynomials, points) {
-
+polylisteval <- function(polynomials, points) {  
     if (is.list(polynomials)) {
         if (length(polynomials) != length(points)) {
             stop(gsub("\\s+", " ",
@@ -137,7 +139,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
     ## update formula parsing
     formula <- Formula::as.Formula(formula)
     uname   <- deparse(substitute(uname))
-
+    
     ## Include redundant variable u, so monomials in m0, m1
     ## specifications correspond polynomial coefficients on u
     ## monomials
@@ -191,6 +193,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
     ## Determine which terms do not involve u
     nonuterms    <- unlist(oterms[!seq(1, length(oterms)) %in% exptab[, 1]])
     nonutermspos <- which(oterms %in% nonuterms)
+
     if (length(nonuterms) > 0) {
         exptab0 <- cbind(nonutermspos, replicate(length(nonutermspos), 0))
     } else {
@@ -207,7 +210,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
         names(exptab) <- c("term", "degree")
     }
     names(exporder) <- NULL
-    
+  
     ## generate matrix with monomial coefficients
     if ("(Intercept)" %in% colnames(dmat)) {
         exporder <- c(0, exporder)
@@ -225,15 +228,25 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
                                 genmono,
                                 basis = exporder)
 
-        if (length(exporder) > 1) {
-            integral_list <- lapply(monomial_list,
-                                    lapply,
-                                    polynom::integral)
-        } else {
-            integral_list <- lapply(monomial_list,
-                                    polynom::integral)
-        }
-
+        integral_list <- lapply(monomial_list,
+                                lapply,
+                                polynom::integral)
+        ## if (length(exporder) > 1) {
+        ##     print("made it here 5a")
+        ##     print("monomial list")
+        ##     print(head(monomial_list))
+        ##     integral_list <- lapply(monomial_list,
+        ##                             lapply,
+        ##                             polynom::integral)
+        ##      print("made it here 6a") 
+        ## } else {
+        ##     print("made it here 5b")
+        ##     print("monomial list")
+        ##     print(head(monomial_list))
+        ##     integral_list <- lapply(monomial_list,
+        ##                             polynom::integral)
+        ##       print("made it here 6b") 
+        ## }
         names(integral_list) <- rownames(data)
     } else {
         monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
@@ -318,18 +331,19 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     
     ub <- split(replicate(nmono, ub), seq(length(ub)))
     lb <- split(replicate(nmono, lb), seq(length(lb)))
-  
-    ## ORIGINAL ----------------
-    ## monoeval <- t(mapply(polylisteval, integrals, ub)) -
-    ##     t(mapply(polylisteval, integrals, lb))
-    ## TESTING ----------------
-    if (nmono > 1) {
-        monoeval <- t(mapply(polylisteval, integrals, ub)) -
-            t(mapply(polylisteval, integrals, lb))
-    } else {
-        monoeval <- polylisteval(integrals, ub) - polylisteval(integrals, lb)
-    }
 
+    ## ORIGINAL ----------------
+    monoeval <- t(mapply(polylisteval, integrals, ub)) -
+        t(mapply(polylisteval, integrals, lb))
+    ## TESTING ----------------
+    ## if (nmono > 1) {
+    ##     monoeval <- t(mapply(polylisteval, integrals, ub)) -
+    ##         t(mapply(polylisteval, integrals, lb))
+    ## } else {
+    ##     monoeval <- polylisteval(integrals, ub) - polylisteval(integrals, lb)
+    ## }
+    ## END TESTING ----------------
+    
     ## The object monoeval is supposed to have as many rows as the
     ## number of observations used for estimation. However, if the
     ## provided MTR objects include only one term, R transposes the

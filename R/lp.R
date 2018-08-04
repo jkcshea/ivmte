@@ -509,11 +509,11 @@ runLpSolveAPI <- function(lpobj, modelsense) {
                            lower = lpobj$lb,
                            upper = lpobj$ub)
 
-    solved <- solve(lpmodel)
+    solved <- lpSolveAPI::solve.lpExtPtr(lpmodel)
     if (solved == 0) status <- 1
     if (solved != 0) status <- 0
-
-    return(list(objval = get.objective(lpmodel),
-                optx   = get.variables(lpmodel),
+  
+    return(list(objval = lpSolveAPI::get.objective(lpmodel),
+                optx   = lpSolveAPI::get.variables(lpmodel),
                 status = status))
 }

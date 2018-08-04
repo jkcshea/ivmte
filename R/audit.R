@@ -235,6 +235,15 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
 
         minobseq  <- obseqmin.mst(sset, lpobj, lpsolver)
 
+        if (!is.numeric(minobseq$obj) | is.na(minobseq$obj) |
+            (lpsolver == "lpSolve" & minobseq$status == 0) |
+            (lpsolver == "lpSolveAPI" & minobseq$status == 0)) {
+            stop(gsub("\\s+", " ",
+                      "No feasible solution to minimizing violation of
+                      observational equivalence. The model may be mispecified.
+                      Consider altering the specifications for the MTRs.\n"))
+        }
+
         if (obseq.tol > 0) {
             message(paste("Minimum observational equivalence deviation:",
                           round(minobseq$obj, 6), "\n"))
