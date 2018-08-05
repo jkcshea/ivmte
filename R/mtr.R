@@ -291,19 +291,25 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
 
     ub <- split(replicate(nmono, ub), seq(length(ub)))
     lb <- split(replicate(nmono, lb), seq(length(lb)))
-
+   
     monoeval <- t(mapply(polylisteval, integrals, ub)) -
         t(mapply(polylisteval, integrals, lb))
 
+    termsN <- length(integrals[[1]])
+    if (termsN == 1) monoeval <- t(monoeval)
+ 
     ## The object monoeval is supposed to have as many rows as the
     ## number of observations used for estimation. However, if the
     ## provided MTR objects include only one term, R transposes the
     ## matrix. So below I undo that transpose if the number of terms
     ## is 1.
-    preGamma <- monoeval * multiplier
-    termsN <- length(integrals[[1]])
-    if (termsN == 1) preGamma <- t(preGamma)
-
+   
+    ## preGamma <- monoeval * multiplier ## ORIGINAL
+    preGamma <- sweep(monoeval,
+                      MARGIN = 1,
+                      STATS = multiplier,
+                      FUN = "*")
+    
     if (means) {
         if (is.matrix(preGamma)) {
             gstar <- colMeans(preGamma)
@@ -463,12 +469,13 @@ removeSplines <- function(formula) {
 #'                         names(splineslist)[2])))
 #' }
 uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
-
+    
     splines2::ibs(x = x,
                   knots = knots,
                   degree = degree,
                   intercept = intercept,
-                  Boundary.knots = c(-1e-16, 1+1e16))
+                  ## Boundary.knots = c(-1e-16, 1+1e16)
+                  Boundary.knots = c(0, 1))
 }
 
 #' Spline basis function
@@ -572,9 +579,15 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
         for (j in 1:length(splines)) {
 
             ## Design matrix for covariates
-            nonSplineFormula <- as.formula(paste("~",
-                                                 paste(splines[[j]],
-                                                       collapse = " + ")))
+            if ("1" %in% splines[[j]]) {
+                nonSplineFormula <- as.formula(paste("~",
+                                                     paste(splines[[j]],
+                                                           collapse = " + ")))
+            } else {
+                nonSplineFormula <- as.formula(paste("~ 0 + ",
+                                                     paste(splines[[j]],
+                                                           collapse = " + ")))
+            }
             nonSplinesDmat <- design.mst(nonSplineFormula,
                                          data[subset, ])$X
 
@@ -582,13 +595,15 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
             splinesLB <- eval(parse(text = gsub("uSplines\\(",
                                                 "uSplinesInt(x = lb, ",
                                                 names(splines)[j])))
+            
             splinesUB <- eval(parse(text = gsub("uSplines\\(",
                                                 "uSplinesInt(x = ub, ",
                                                 names(splines)[j])))
-            splinesInt <- splinesUB - splinesLB
+            splinesInt <- splinesUB - splinesLB           
 
             ## Combine the design and integral matrices
             for (l in 1:length(splines[[j]])) {
+
                 tmpGamma <- sweep(splinesInt,
                                   MARGIN = 1,
                                   STATS = nonSplinesDmat[, l],
@@ -605,7 +620,7 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
                                          paste0(":", splines[[j]][l])))
                 splinesGamma <- cbind(splinesGamma, tmpGamma)
             }
-        }
+        }        
         splinesGamma <- colMeans(splinesGamma)
         names(splinesGamma) <- splinesNames
         return(splinesGamma)

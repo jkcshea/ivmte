@@ -1010,7 +1010,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                         tmpIntegrals <-
                             lapply(seq(1, nrow(cdata)),
                                    function(x) listIntegrate(
-                                               splinesFunctions[[j]][[v]][[x]]))
+                                       splinesFunctions[[j]][[v]][[x]]))
+                        
                         tmpOutput <-
                             sapply(seq(1, basisLength),
                                    function(l)
@@ -1033,7 +1034,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         }
         message("")
     }
-
+  
     gstar0 <- c(gstar0, gstarSpline0)
     gstar1 <- c(gstar1, gstarSpline1)
 
@@ -1241,7 +1242,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 
     for (j in 1:ncomponents) {
         message(paste0("    Moment ", scount, "..."))
-
+        
         if (!is.null(pm0)) {
             gs0 <- gengamma.mst(monomials = pm0,
                                 lb = pmodobj,
