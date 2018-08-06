@@ -375,14 +375,15 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
         ## Test for violations
         violatevecMin <- mapply(">", (a_mbA %*% solVecMin), a_mbrhs)
         violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)
-
+        
         violatevec <- violatevecMin + violatevecMax
         violate <- as.logical(sum(violatevec))
 
         if (violate) {
+            
             violate_pos <- which(violatevec == TRUE)
             violate_index <- unique(a_mbobj$mbmap[violate_pos])
-            grid_index <- c(grid_index, violate_index)
+            grid_index <- unique(c(grid_index, violate_index))
             if (!noX) {
                 grid_resid <- grid_resid[!grid_resid %in% violate_index]
             }

@@ -211,8 +211,11 @@ genboundA.mst <- function(A0, A1, sset, gridobj, uname,
     bdrhs <- c(m0lb,  m1lb,  telb,
                m0ub,  m1ub,  teub)
 
-
-    return(list(A = bdA, sense = bds, rhs = bdrhs, map = map, umap = umap))
+    return(list(A = bdA,
+                sense = bds,
+                rhs = bdrhs,
+                map = map,
+                umap = umap))
 }
 
 #' Taking first differences of constraint matrices
@@ -432,7 +435,7 @@ genmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     cmdorder <- paste0("order", "(", paste(colorder, collapse = ", "), ")")
     grid$.grid.index <- gridobj$map
     grid <- grid[with(grid, eval(parse(text = cmdorder))), ]
-
+    
     ## Now group the rows by the combinations of all other variables
     ## other than the variable we are imposing monotonicity on
     if (length(othercols) > 0) {
@@ -447,7 +450,7 @@ genmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     add.audit.x <- length(unique(monogrid$.mst.monog))
     add.audit.i <- nrow(monogrid) / add.audit.x
     uvec <- monogrid[1:add.audit.i, monov]
-
+    
     umap <- cbind(uvec[-length(uvec)], uvec[-1])
     umap <- do.call("rbind", rep(list(umap), add.audit.x))
 
@@ -630,6 +633,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                           genBasisSplines.mst(splines = splines[[2]],
                                               x = uvec,
                                               d = 1))
+        print(basisList)
 
         ## Generate interaction with the splines.
         ## Indexing in the loops takes the following structure:
