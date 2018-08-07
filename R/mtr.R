@@ -291,7 +291,7 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
 
     ub <- split(replicate(nmono, ub), seq(length(ub)))
     lb <- split(replicate(nmono, lb), seq(length(lb)))
-   
+ 
     monoeval <- t(mapply(polylisteval, integrals, ub)) -
         t(mapply(polylisteval, integrals, lb))
 
@@ -302,14 +302,13 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
     ## number of observations used for estimation. However, if the
     ## provided MTR objects include only one term, R transposes the
     ## matrix. So below I undo that transpose if the number of terms
-    ## is 1.
-   
-    ## preGamma <- monoeval * multiplier ## ORIGINAL
+    ## is 1. 
+
     preGamma <- sweep(monoeval,
                       MARGIN = 1,
                       STATS = multiplier,
                       FUN = "*")
-    
+
     if (means) {
         if (is.matrix(preGamma)) {
             gstar <- colMeans(preGamma)
@@ -517,7 +516,6 @@ uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
                       knots = knots,
                       degree = degree,
                       intercept = intercept,
-                      ## Boundary.knots = c(-1e-16, 1+1e16)
                       Boundary.knots = c(0, 1))
 }
 
@@ -543,7 +541,7 @@ uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 #' @param ub vector of upper bounds for the interval of
 #'     integration. Each element corresponds to an observation.
 #' @param multiplier a vector of the weights that enter into the
-#'     interal. Each element corresponds to an observation.
+#'     integral. Each element corresponds to an observation.
 #' @param subset Subset condition used to select observations with
 #'     which to estimate gamma.
 #' @param d either 0 or 1, indicating the treatment status.
@@ -735,6 +733,7 @@ funMultiply <- function(FUN1, FUN2) {
     newFun <- function(u) {
         FUN1(u) * FUN2(u)
     }
+    return(newFun)
 }
 
 #' Auxiliary function: multiply a list of functions by a single function
@@ -777,7 +776,7 @@ listIntegrate <- function(list) {
 #'     wishes to obtain the average of.
 #' @return a scalar.
 listMean <- function(integratedList, component) {
-    n <- length(integratedList)
+    n <- length(integratedList)    
     mean(unlist(lapply(seq(1, n),
                        function(x) integratedList[[x]][[component]]$value)))
 }

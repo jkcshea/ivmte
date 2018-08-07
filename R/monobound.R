@@ -140,7 +140,7 @@ genboundA.mst <- function(A0, A1, sset, gridobj, uname,
         bdA0 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                       A0,
                       matrix(0, nrow = nrow(A1), ncol = ncol(A1)))
-        
+
         colnames(bdA0) <- namesA
 
         if (is.numeric(try(m0.ub, silent = TRUE))) {
@@ -435,7 +435,7 @@ genmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     cmdorder <- paste0("order", "(", paste(colorder, collapse = ", "), ")")
     grid$.grid.index <- gridobj$map
     grid <- grid[with(grid, eval(parse(text = cmdorder))), ]
-    
+
     ## Now group the rows by the combinations of all other variables
     ## other than the variable we are imposing monotonicity on
     if (length(othercols) > 0) {
@@ -450,7 +450,7 @@ genmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     add.audit.x <- length(unique(monogrid$.mst.monog))
     add.audit.i <- nrow(monogrid) / add.audit.x
     uvec <- monogrid[1:add.audit.i, monov]
-    
+
     umap <- cbind(uvec[-length(uvec)], uvec[-1])
     umap <- do.call("rbind", rep(list(umap), add.audit.x))
 
@@ -593,7 +593,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                           m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc) {
 
     call <- match.call()
-  
+
     if (is.null(grid_index)) {
         noX <- TRUE
     } else {
@@ -616,7 +616,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
 
     if (is.null(splines[[1]]) & is.null(splines[[2]])) {
         A0 <- design.mst(formula = m0, data = gridobj$grid)$X
-        A1 <- design.mst(formula = m1, data = gridobj$grid)$X     
+        A1 <- design.mst(formula = m1, data = gridobj$grid)$X
     } else {
         m0 <- update(m0, as.formula(paste("~ . +", uname)))
         m1 <- update(m1, as.formula(paste("~ . +", uname)))
@@ -633,7 +633,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                           genBasisSplines.mst(splines = splines[[2]],
                                               x = uvec,
                                               d = 1))
-        print(basisList)
 
         ## Generate interaction with the splines.
         ## Indexing in the loops takes the following structure:
@@ -693,7 +692,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     A1 <- as.matrix(A1[, names(gstar1)])
     colnames(A0) <- names(gstar0)
     colnames(A1) <- names(gstar1)
-    
+
     ## generate null objects
     bdA     <- NULL
     monoA   <- NULL

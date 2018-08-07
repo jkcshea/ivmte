@@ -851,7 +851,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             gstar1 <- NULL
             pm1 <- NULL
         }
-
+       
         gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                             data = cdata,
                                             lb = w0$lb,
@@ -922,25 +922,25 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             if (d == 1) messageGroup <- "for treated group..."
             message(paste("\n        Integrating non-splines terms",
                           messageGroup))
-
+            
             monoWeighted   <- mapply(FUN = listMultiply,
-                                     get(paste0("pmf", d))$mlist,
-                                     get(paste0("custom", d)),
+                                     list = get(paste0("pmf", d))$mlist,
+                                     multiplier = get(paste0("custom", d)),
                                      SIMPLIFY = FALSE)
-
+            
             monoIntegrated <- lapply(X = monoWeighted,
                                      FUN = listIntegrate)
-
+            
             monoK <- length(monoIntegrated[[1]])
 
             assign(paste0("gstar", d), sapply(X = seq(1, monoK),
-                                           FUN = listMean,
-                                           integratedList = monoIntegrated))
+                                              FUN = listMean,
+                                              integratedList = monoIntegrated))
         }
 
         if (!is.null(m0)) names(gstar0) <- pmf0$terms
         if (!is.null(m1)) names(gstar1) <- pmf1$terms
-
+      
         ## Generate the spline functions to be integrated.
         ## Indexing takes the following structure:
         ## splinesFunctions[[j]][[v]][[i]][[l]]
@@ -955,9 +955,15 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             splineslist <- splinesobj[[d + 1]]$splineslist
             if (length(splineslist) > 0) {
                 for (j in 1:length(splineslist)) {
-                    dmatFormula <- paste("~ ", paste(splineslist[[j]],
-                                                     collapse = " + "))
 
+                    ## Construct design matrix for interaction terms
+                    if ("1" %in% splineslist[[j]]) {
+                        dmatFormula <- paste("~ ", paste(splineslist[[j]],
+                                                         collapse = " + "))
+                    } else {
+                        dmatFormula <- paste("~ 0 + ", paste(splineslist[[j]],
+                                                             collapse = " + "))
+                    }
                     dmat <- design.mst(dmatFormula, cdata)$X
 
                     tmp <- lapply(X = seq(1, length(splineslist[[j]])),
@@ -967,30 +973,52 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                              splineslist = splineslist,
                                              j = j))
 
-                    if (d == 0) {
-                        splinesFunctions0[[j]] <-
-                            lapply(X = seq(1, length(splineslist[[j]])),
-                                   FUN = function(x)
-                                       lapply(X = dmat[, x],
-                                              FUN = defSplines,
-                                              splineslist = splineslist,
-                                              j = j))
-                    } else {
-                        splinesFunctions1[[j]] <-
-                            lapply(X = seq(1, length(splineslist[[j]])),
-                                   FUN = function(x)
-                                       lapply(X = dmat[, x],
-                                              FUN = defSplines,
-                                              splineslist = splineslist,
-                                              j = j))
+                    ## Now apply weights
+                    ## TESTING -------------------
+                    for (v in 1:length(splineslist[[j]])) {
+                        tmp[[v]] <- mapply(FUN = listMultiply,
+                                           list = tmp[[v]],
+                                           multiplier = get(paste0("custom", d)),
+                                           SIMPLIFY = FALSE)
                     }
+                    ## END TESTING ---------------
+                    
+                    ## Apply interaction terms
+                    ## ORIGINAL-------------------
+                    ## if (d == 0) {
+                    ##     splinesFunctions0[[j]] <-
+                    ##         lapply(X = seq(1, length(splineslist[[j]])),
+                    ##                FUN = function(x)
+                    ##                    lapply(X = dmat[, x],
+                    ##                           FUN = defSplines,
+                    ##                           splineslist = splineslist,
+                    ##                           j = j))
+                    ## } else {
+                    ##     splinesFunctions1[[j]] <-
+                    ##         lapply(X = seq(1, length(splineslist[[j]])),
+                    ##                FUN = function(x)
+                    ##                    lapply(X = dmat[, x],
+                    ##                           FUN = defSplines,
+                    ##                           splineslist = splineslist,
+                    ##                           j = j))
+                    ## }
+                    ## TESTING-------------------
+                    ##
+                    ## The interactions were already applied when the
+                    ## tmp object was defined.
+                    if (d == 0) {
+                        splinesFunctions0[[j]] <- tmp
+                    } else {
+                        splinesFunctions1[[j]] <- tmp
+                    }
+                    ## END TESTING---------------
                 }
             } else {
                 if (d == 0) splinesFunctions0 <- NULL
                 if (d == 1) splinesFunctions1 <- NULL
             }
-        }
-
+        } 
+        
         ## Integrate spline components
         gstarSpline0 <- NULL
         gstarSpline1 <- NULL

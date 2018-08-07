@@ -3,7 +3,7 @@ context("Test of case involving only covariates, no splines.")
 set.seed(10L)
 
 ##------------------------
-## Define functions
+## Define functions for general testing
 ##------------------------
 
 #' Integrating splines
@@ -196,6 +196,47 @@ genGamma <- function(distr, weight, zvars, u1s1, u0s1, u0s2,
     
     return(list(g0 = g0,
                 g1 = g1))
+}
+
+##------------------------
+## Additional functions for testing custom weights
+##------------------------
+
+ed <- dts$f %*% dts$p ## Probability of treatment, the denominator in
+                      ## the ATT weighting functions.
+
+#' Weight function for ATT, D = 0
+#'
+#' This function simply generates the weight given X and Z.
+#' @param u the value of the unobservable
+#' @param x the value of the covariate X
+#' @param z the value of the instrument Z
+#' @return scalar.
+weight0 <- function(u, x, z) {
+    p <- 0.5 - 0.1 * x + 0.2 * z
+    return(-as.numeric(u <= p) / ed)
+}
+
+#' Weight function for ATT, D = 1
+#'
+#' This function simply generates the weight given X and Z.
+#' @param u the value of the unobservable
+#' @param x the value of the covariate X
+#' @param z the value of the instrument Z
+#' @return scalar.
+weight1 <- function(u, x, z) {
+    p <- 0.5 - 0.1 * x + 0.2 * z
+    return(as.numeric(u <= p) / ed)
+}
+
+#' Function for I(u^2)
+#'
+#' This function is made simply to for the purpose of numerical
+#' integration.
+#' @param u value of the unobservable.
+#' @return scalar.
+u2f <- function(u) {
+    u ^ 2
 }
 
 ##------------------------
@@ -599,3 +640,75 @@ test_that("LP problem", {
     expect_equal(as.numeric(result$lpresult$model$A), as.numeric(modelF$A))
     expect_equal(dim(result$lpresult$model$A), dim(modelF$A))
 })
+
+##------------------------
+## Alternative, where ATT is declared using custom weights
+##------------------------
+
+if (exists("dtsfmini")) {
+    edw <- mean(dtsfmini$d)
+} else {
+    edw <- dts$f %*% dts$p ## Probability of treatment, the
+                           ## denominator in the ATT weighting
+                           ## functions.
+}
+
+#' Weight function for ATT, D = 0
+#'
+#' This function simply generates the weight given X and Z.
+#' @param u the value of the unobservable
+#' @param x the value of the covariate X
+#' @param z the value of the instrument Z
+#' @return scalar.
+weight0 <- function(u, x, z) {
+    p <- 0.5 - 0.1 * x + 0.2 * z
+    return(-(u <= p) / edw)
+}
+weight0 <- Vectorize(weight0)
+
+#' Weight function for ATT, D = 1
+#'
+#' This function simply generates the weight given X and Z.
+#' @param u the value of the unobservable
+#' @param x the value of the covariate X
+#' @param z the value of the instrument Z
+#' @return scalar.
+weight1 <- function(u, x, z) {
+    p <- 0.5 - 0.1 * x + 0.2 * z
+    return((u <=  p) / edw)
+}
+weight1 <- Vectorize(weight1)
+
+set.seed(10L)
+resultalt <- mst(ivlike = ivlike,
+                 data = dtsf,
+                 components = components,
+                 propensity = p,
+                 m1 = ~ x + uSplines(degree = 2,
+                                     knots = c(0.3, 0.6),
+                                     intercept = FALSE),
+                 m0 = ~ 0 + x : uSplines(degree = 0,
+                                         knots = c(0.2, 0.5, 0.8),
+                                         intercept = TRUE) +
+                     uSplines(degree = 1,
+                              knots = c(0.4),
+                              intercept = TRUE) +
+                     I(u ^ 2),
+                 uname = u,
+                 target.weight0 = weight0,
+                 target.weight1 = weight1,
+                 obseq.tol = 1.01,
+                 grid.Nu = 3,
+                 grid.Nx = 2,
+                 audit.Nx = 1,
+                 audit.Nu = 5,
+                 m1.ub = 55,
+                 m0.lb = 0,
+                 mte.inc = TRUE)
+
+## Perhaps it is better to just do the miniature case using
+## dtsfmini... and then check that the non-custom approach matches the
+## custom method, since you know the non-custom method is correct.
+test_that("Custom weights", {
+    expect_equal(resultalt$gstar, result$gstar, tolerance = 1e-05)
+}

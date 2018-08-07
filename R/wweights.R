@@ -195,12 +195,13 @@ wgenlate1.mst <- function(data, ulb, uub) {
 #' observation.
 #' @param fun custom weight function defined by the user. Arguments of
 #'     the weight function must only be names of variables entering
-#'     into the function.
+#'     into the function, and can include the unobserved variable.
 #' @param fun.name string, name of function.
 #' @param uname the name assigned to the unobserved variable entering
 #'     into the MTR.
-#' @param data a vector containing the values of the variables
-#'     defining the 'fun', excluding the value of the unobservable.
+#' @param data a named vector containing the values of the variables
+#'     defining the 'fun', excluding the value of the unobservable
+#'     (generated from applying split() to a data.frame).
 #' @return The weight function 'fun', where all arguments other than
 #'     that of the unobserved variable are fixed according to the
 #'     vector 'data'.
