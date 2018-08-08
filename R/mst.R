@@ -927,15 +927,31 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                      list = get(paste0("pmf", d))$mlist,
                                      multiplier = get(paste0("custom", d)),
                                      SIMPLIFY = FALSE)
-            
-            monoIntegrated <- lapply(X = monoWeighted,
-                                     FUN = listIntegrate)
-            
-            monoK <- length(monoIntegrated[[1]])
 
-            assign(paste0("gstar", d), sapply(X = seq(1, monoK),
-                                              FUN = listMean,
-                                              integratedList = monoIntegrated))
+            tmpFunSum <-
+                lapply(seq(1, length(monoWeighted[[1]])),
+                       function(l) {
+                           lapply(seq(1, nrow(cdata)),
+                                  function(i) {
+                                      monoWeighted[[i]][[l]]})
+                       })
+            
+            tmpFunSum <- lapply(tmpFunSum,
+                                Reduce,
+                                f = "funAdd")
+            
+            tmpOutput <- lapply(tmpFunSum,
+                                FUN = integrate,
+                                lower = 0,
+                                upper = 1)
+
+            tmpOutput <- unlist(lapply(tmpOutput,
+                                       FUN = function(x) x$value))
+
+            tmpOutput <- tmpOutput / nrow(cdata)
+
+            assign(paste0("gstar", d), tmpOutput)
+            ## End testing------------
         }
 
         if (!is.null(m0)) names(gstar0) <- pmf0$terms
@@ -966,6 +982,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                     }
                     dmat <- design.mst(dmatFormula, cdata)$X
 
+                    ## Apply interactions
                     tmp <- lapply(X = seq(1, length(splineslist[[j]])),
                                   FUN = function(x)
                                       lapply(X = dmat[, x],
@@ -973,45 +990,19 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                              splineslist = splineslist,
                                              j = j))
 
-                    ## Now apply weights
-                    ## TESTING -------------------
+                    ## Apply weights
                     for (v in 1:length(splineslist[[j]])) {
                         tmp[[v]] <- mapply(FUN = listMultiply,
                                            list = tmp[[v]],
                                            multiplier = get(paste0("custom", d)),
                                            SIMPLIFY = FALSE)
                     }
-                    ## END TESTING ---------------
                     
-                    ## Apply interaction terms
-                    ## ORIGINAL-------------------
-                    ## if (d == 0) {
-                    ##     splinesFunctions0[[j]] <-
-                    ##         lapply(X = seq(1, length(splineslist[[j]])),
-                    ##                FUN = function(x)
-                    ##                    lapply(X = dmat[, x],
-                    ##                           FUN = defSplines,
-                    ##                           splineslist = splineslist,
-                    ##                           j = j))
-                    ## } else {
-                    ##     splinesFunctions1[[j]] <-
-                    ##         lapply(X = seq(1, length(splineslist[[j]])),
-                    ##                FUN = function(x)
-                    ##                    lapply(X = dmat[, x],
-                    ##                           FUN = defSplines,
-                    ##                           splineslist = splineslist,
-                    ##                           j = j))
-                    ## }
-                    ## TESTING-------------------
-                    ##
-                    ## The interactions were already applied when the
-                    ## tmp object was defined.
                     if (d == 0) {
                         splinesFunctions0[[j]] <- tmp
                     } else {
                         splinesFunctions1[[j]] <- tmp
                     }
-                    ## END TESTING---------------
                 }
             } else {
                 if (d == 0) splinesFunctions0 <- NULL
@@ -1035,21 +1026,31 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                     basisLength <- length(splinesFunctions[[j]][[1]][[1]])
                     interLength <- length(splinesFunctions[[j]])
                     for (v in 1:interLength) {
-                        tmpIntegrals <-
-                            lapply(seq(1, nrow(cdata)),
-                                   function(x) listIntegrate(
-                                       splinesFunctions[[j]][[v]][[x]]))
                         
-                        tmpOutput <-
-                            sapply(seq(1, basisLength),
-                                   function(l)
-                                       mean(sapply(seq(1, nrow(cdata)),
-                                                 function(x)
-                                                 tmpIntegrals[[x]][[l]]$value)))
+                        tmpFunSum <-
+                            lapply(seq(1, basisLength),
+                                   function(l) {
+                                       lapply(seq(1, nrow(cdata)),
+                                       function(i) {
+                                       splinesFunctions[[j]][[v]][[i]][[l]]})
+                                   })
+                        
+                        tmpFunSum <- lapply(tmpFunSum,
+                                            Reduce,
+                                            f = "funAdd")
+                       
+                        tmpOutput <- lapply(tmpFunSum,
+                                            FUN = integrate,
+                                            lower = 0,
+                                            upper = 1)
+                        tmpOutput <- unlist(lapply(tmpOutput,
+                                                   FUN = function(x) x$value))
+                        tmpOutput <- tmpOutput / nrow(cdata)
+
                         gnames <-
                             c(gnames,
                               paste0(paste0("u", d, "S", j, ".",
-                                     seq(1, basisLength)),
+                                    seq(1, basisLength)),
                                     paste0(":",
                                     splinesobj[[d + 1]]$splineslist[[j]][[v]])))
                         if (d == 0) gstarSpline0 <- c(gstarSpline0, tmpOutput)
@@ -1062,7 +1063,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         }
         message("")
     }
-  
+   
     gstar0 <- c(gstar0, gstarSpline0)
     gstar1 <- c(gstar1, gstarSpline1)
 

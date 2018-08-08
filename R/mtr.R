@@ -736,6 +736,20 @@ funMultiply <- function(FUN1, FUN2) {
     return(newFun)
 }
 
+#' Auxiliary function: add functions together
+#'
+#' This function simply takes in two different functions with the same
+#' arguments, and takes the sum of them.
+#' @param FUN1 the first function to be summed.
+#' @param FUN2 the second function to be summed.
+#' @return a function that is the sum of FUN1 and FUN2.
+funAdd <- function(FUN1, FUN2) {
+    newFun <- function(u) {
+        FUN1(u) + FUN2(u)
+    }
+    return(newFun)
+}
+
 #' Auxiliary function: multiply a list of functions by a single function
 #'
 #' This function multiplies each element of a list of functions by a
