@@ -118,6 +118,18 @@
 #'     weakly monotone decreasing.
 #' @param lpsolver name of the linear programming package in R used to
 #'     obtain the bounds on the treatment effect.
+#' @param sample.integral boolean, set to \code{FALSE} by
+#'     default. When the user submits a custom weight, the function
+#'     will have to perform numerical integration. When
+#'     \code{sample.integral} is set to \code{FALSE}, the function
+#'     will attempt to perform a single integral for each term in the
+#'     MTRs defined in \code{m0} and $\code{m1}$. This may require the
+#'     user to assign a higher value to
+#'     \code{options(expressions=)}. If \code{sample.integral} is set
+#'     to \code{TRUE}, then the function will instead perform an
+#'     integral for each term in the MTRs, for each observation in the
+#'     sample. This is a much slower alternative, but does not require
+#'     \code{options(expressions=)} to be set.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -152,7 +164,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 grid.Nu = 20, grid.Nx = 20, audit.Nx = 2,
                 audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
                 m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL) {
+                m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL,
+                sample.integral = FALSE) {
 
     ## Match call arguments
     call <- match.call(expand.dots = FALSE)
@@ -851,7 +864,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             gstar1 <- NULL
             pm1 <- NULL
         }
-       
+
         gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                             data = cdata,
                                             lb = w0$lb,
@@ -922,41 +935,67 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             if (d == 1) messageGroup <- "for treated group..."
             message(paste("\n        Integrating non-splines terms",
                           messageGroup))
-            
+
             monoWeighted   <- mapply(FUN = listMultiply,
                                      list = get(paste0("pmf", d))$mlist,
                                      multiplier = get(paste0("custom", d)),
                                      SIMPLIFY = FALSE)
 
-            tmpFunSum <-
-                lapply(seq(1, length(monoWeighted[[1]])),
-                       function(l) {
-                           lapply(seq(1, nrow(cdata)),
-                                  function(i) {
-                                      monoWeighted[[i]][[l]]})
-                       })
-            
-            tmpFunSum <- lapply(tmpFunSum,
-                                Reduce,
-                                f = "funAdd")
-            
-            tmpOutput <- lapply(tmpFunSum,
-                                FUN = integrate,
-                                lower = 0,
-                                upper = 1)
+            if (sample.integral == FALSE) {
+                tmpFunSum <-
+                    lapply(seq(1, length(monoWeighted[[1]])),
+                           function(l) {
+                               lapply(seq(1, nrow(cdata)),
+                                      function(i) {
+                                          monoWeighted[[i]][[l]]})
+                           })
 
-            tmpOutput <- unlist(lapply(tmpOutput,
-                                       FUN = function(x) x$value))
+                tmpFunSum <- lapply(tmpFunSum,
+                                    Reduce,
+                                    f = "funAdd")
 
-            tmpOutput <- tmpOutput / nrow(cdata)
+                tmpOutput <- try(lapply(tmpFunSum,
+                                        FUN = integrate,
+                                        lower = 0,
+                                        upper = 1),
+                                 silent = TRUE)
 
-            assign(paste0("gstar", d), tmpOutput)
-            ## End testing------------
+
+                if (is.list(tmpOutput)) {
+                    uniIntegral <- TRUE
+                    tmpOutput <- unlist(lapply(tmpOutput,
+                                               FUN = function(x) x$value))
+                    tmpOutput <- tmpOutput / nrow(cdata)
+                    assign(paste0("gstar", d), tmpOutput)
+                } else {
+                    stop(gsub("\\s+", " ",
+                              "Currently 'sample.integral = FALSE', under which 
+                           the code performs a single numerical integral for
+                           each term in m0 and m1 to improve performance.
+                           Increase 'options(expressions=)'to carry out this
+                           method. Alternatively, declare
+                           'sample.integral = TRUE'. The code will instead
+                           perform numerical integration for each term in m0
+                           and m1, for every observation in the data set. 
+                           This method is slower, but will work under the
+                           default R settings."))
+                }
+            } else {
+                monoIntegrated <- lapply(X = monoWeighted,
+                                         FUN = listIntegrate)
+                
+                monoK <- length(monoIntegrated[[1]])
+
+                assign(paste0("gstar", d),
+                       sapply(X = seq(1, monoK),
+                              FUN = listMean,
+                              integratedList = monoIntegrated))
+            }
         }
 
         if (!is.null(m0)) names(gstar0) <- pmf0$terms
         if (!is.null(m1)) names(gstar1) <- pmf1$terms
-      
+
         ## Generate the spline functions to be integrated.
         ## Indexing takes the following structure:
         ## splinesFunctions[[j]][[v]][[i]][[l]]
@@ -997,7 +1036,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                            multiplier = get(paste0("custom", d)),
                                            SIMPLIFY = FALSE)
                     }
-                    
+
                     if (d == 0) {
                         splinesFunctions0[[j]] <- tmp
                     } else {
@@ -1008,8 +1047,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 if (d == 0) splinesFunctions0 <- NULL
                 if (d == 1) splinesFunctions1 <- NULL
             }
-        } 
-        
+        }
+
         ## Integrate spline components
         gstarSpline0 <- NULL
         gstarSpline1 <- NULL
@@ -1026,26 +1065,56 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                     basisLength <- length(splinesFunctions[[j]][[1]][[1]])
                     interLength <- length(splinesFunctions[[j]])
                     for (v in 1:interLength) {
-                        
-                        tmpFunSum <-
-                            lapply(seq(1, basisLength),
-                                   function(l) {
+
+                        if (sample.integral == FALSE) {
+                            tmpFunSum <-
+                                lapply(seq(1, basisLength),
+                                       function(l) {
                                        lapply(seq(1, nrow(cdata)),
                                        function(i) {
                                        splinesFunctions[[j]][[v]][[i]][[l]]})
-                                   })
-                        
-                        tmpFunSum <- lapply(tmpFunSum,
-                                            Reduce,
-                                            f = "funAdd")
-                       
-                        tmpOutput <- lapply(tmpFunSum,
-                                            FUN = integrate,
-                                            lower = 0,
-                                            upper = 1)
-                        tmpOutput <- unlist(lapply(tmpOutput,
-                                                   FUN = function(x) x$value))
-                        tmpOutput <- tmpOutput / nrow(cdata)
+                                       })
+
+                            tmpFunSum <- lapply(tmpFunSum,
+                                                Reduce,
+                                                f = "funAdd")
+
+                            tmpOutput <- try(lapply(tmpFunSum,
+                                                FUN = integrate,
+                                                lower = 0,
+                                                upper = 1),
+                                             silent = TRUE)
+
+                            if (is.list(tmpOutput)) {                                
+                                tmpOutput <- unlist(lapply(tmpOutput,
+                                                    FUN = function(x) x$value))
+                                tmpOutput <- tmpOutput / nrow(cdata)
+                            } else {
+                                stop(gsub("\\s+", " ",
+                           "Currently 'sample.integral = FALSE', under which 
+                           the code performs a single numerical integral for
+                           each term in m0 and m1 to improve performance.
+                           Increase 'options(expressions=)'to carry out this
+                           method. Alternatively, declare
+                           'sample.integral = TRUE'. The code will instead
+                           perform numerical integration for each term in m0
+                           and m1, for every observation in the data set. 
+                           This method is slower, but will work under the
+                           default R settings."))
+                            }
+                        } else {                           
+                            tmpIntegrals <-
+                                lapply(seq(1, nrow(cdata)),
+                                       function(x) listIntegrate(
+                                           splinesFunctions[[j]][[v]][[x]]))
+
+                            tmpOutput <-
+                                sapply(seq(1, basisLength),
+                                       function(l)
+                                           mean(sapply(seq(1, nrow(cdata)),
+                                                function(x)
+                                                tmpIntegrals[[x]][[l]]$value)))
+                        }
 
                         gnames <-
                             c(gnames,
@@ -1063,7 +1132,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         }
         message("")
     }
-   
+
     gstar0 <- c(gstar0, gstarSpline0)
     gstar1 <- c(gstar1, gstarSpline1)
 
@@ -1271,7 +1340,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 
     for (j in 1:ncomponents) {
         message(paste0("    Moment ", scount, "..."))
-        
+
         if (!is.null(pm0)) {
             gs0 <- gengamma.mst(monomials = pm0,
                                 lb = pmodobj,
