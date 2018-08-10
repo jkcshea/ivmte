@@ -4,10 +4,12 @@
 \alias{s.ols1.d}
 \title{IV-like weighting function, OLS specification 1}
 \usage{
-s.ols1.d(d)
+s.ols1.d(d, exx)
 }
 \arguments{
 \item{d}{0 or 1, indicating treatment or control.}
+
+\item{exx}{the matrix E[XX']}
 }
 \value{
 scalar.

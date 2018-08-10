@@ -108,16 +108,20 @@ procedure.}
 procedure.}
 
 \item{m1.ub}{numeric value for upper bound on MTR for treated
-group.}
+group. By default, this will be set to the largest value of the
+observed outcome in the estimation sample.}
 
 \item{m0.ub}{numeric value for upper bound on MTR for control
-group.}
+group. By default, this will be set to the largest value of the
+observed outcome in the estimation sample.}
 
 \item{m1.lb}{numeric value for lower bound on MTR for treated
-group.}
+group. By default, this will be set to the smallest value of
+the observed outcome in the estimation sample.}
 
 \item{m0.lb}{numeric value for lower bound on MTR for control
-group.}
+group. By default, this will be set to the smallest value of
+the observed outcome in the estimation sample.}
 
 \item{mte.ub}{numeric value for upper bound on treatment effect
 paramter of interest.}

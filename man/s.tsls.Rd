@@ -4,13 +4,17 @@
 \alias{s.tsls}
 \title{IV-like weighting function, TSLS specification}
 \usage{
-s.tsls(z, j)
+s.tsls(z, j, exz, pi)
 }
 \arguments{
 \item{z}{vector, the value of the instrument.}
 
 \item{j}{scalar, position of the component one is interested in
 constructing the IV-like weight for.}
+
+\item{exz}{the matrix E[XZ']}
+
+\item{pi}{the matrix E[XZ']E[ZZ']^{-1}}
 }
 \value{
 scalar.

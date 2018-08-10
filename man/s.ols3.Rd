@@ -4,7 +4,7 @@
 \alias{s.ols3}
 \title{IV-like weighting function, OLS specification 3}
 \usage{
-s.ols3(x, d, j)
+s.ols3(x, d, j, exx)
 }
 \arguments{
 \item{x}{vector, the value of the covariates other than the
@@ -14,6 +14,8 @@ intercept and the treatment indicator.}
 
 \item{j}{scalar, position of the component one is interested in
 constructing the IV-like weight for.}
+
+\item{exx}{the matrix E[XX']}
 }
 \value{
 scalar.

@@ -62,9 +62,7 @@ m.int <- function(ub, lb, coef){
 #' @param ub scalar, upper bound for integration.
 #' @return list, contains the vectors of the Gamma moments for control
 #'     and treated observations.
-gengamma <- function(data, s0, s1, lb, ub) {
-
-    data <- copy(data)
+genGamma <- function(data, s0, s1, lb, ub) {
 
     ## Gammas for D = 0
     if (!hasArg(lb) | !hasArg(ub)) {
@@ -118,11 +116,12 @@ gengamma <- function(data, s0, s1, lb, ub) {
 #'
 #' IV-like weighting function for OLS specification 1.
 #' @param d 0 or 1, indicating treatment or control.
+#' @param exx the matrix E[XX']
 #' @return scalar.
-s.ols1.d <- function(d) {
-    if (d == 1) return(as.numeric(t(c(0, 1)) %*% solve(ols1.exx[1:2, 1:2])
+s.ols1.d <- function(d, exx) {
+    if (d == 1) return(as.numeric(t(c(0, 1)) %*% solve(exx[1:2, 1:2])
                                   %*% c(1, 1)))
-    if (d == 0) return(as.numeric(t(c(0, 1)) %*% solve(ols1.exx[1:2, 1:2])
+    if (d == 0) return(as.numeric(t(c(0, 1)) %*% solve(exx[1:2, 1:2])
                                   %*% c(1, 0)))
 }
 
@@ -132,11 +131,12 @@ s.ols1.d <- function(d) {
 #' @param x vector, the value of the covariates other than the
 #'     intercept and the treatment indicator.
 #' @param d 0 or 1, indicating treatment or control.
+#' @param exx the matrix E[XX']
 #' @return scalar.
-s.ols2.d <- function(x, d) {
-    if (d == 1) return(as.numeric(t(c(0, 1, 0)) %*% solve(ols1.exx[1:3, 1:3])
+s.ols2.d <- function(x, d, exx) {
+    if (d == 1) return(as.numeric(t(c(0, 1, 0)) %*% solve(exx[1:3, 1:3])
                                   %*% c(1, 1, x)))
-    if (d == 0) return(as.numeric(t(c(0, 1, 0)) %*% solve(ols1.exx[1:3, 1:3])
+    if (d == 0) return(as.numeric(t(c(0, 1, 0)) %*% solve(exx[1:3, 1:3])
                                   %*% c(1, 0, x)))
 }
 
@@ -148,13 +148,14 @@ s.ols2.d <- function(x, d) {
 #' @param d 0 or 1, indicating treatment or control.
 #' @param j scalar, position of the component one is interested in
 #'     constructing the IV-like weight for.
+#' @param exx the matrix E[XX']
 #' @return scalar.
-s.ols3 <- function(x, d, j) {
+s.ols3 <- function(x, d, j, exx) {
     cvec    <- replicate(4, 0)
     cvec[j] <- 1
 
-    if (d == 1) return(as.numeric(t(cvec) %*% solve(ols2.exx) %*% c(1, 1, x)))
-    if (d == 0) return(as.numeric(t(cvec) %*% solve(ols2.exx) %*% c(1, 0, x)))
+    if (d == 1) return(as.numeric(t(cvec) %*% solve(exx) %*% c(1, 1, x)))
+    if (d == 0) return(as.numeric(t(cvec) %*% solve(exx) %*% c(1, 0, x)))
 }
 
 #' IV-like weighting function, TSLS specification
@@ -163,21 +164,31 @@ s.ols3 <- function(x, d, j) {
 #' @param z vector, the value of the instrument.
 #' @param j scalar, position of the component one is interested in
 #'     constructing the IV-like weight for.
+#' @param exz the matrix E[XZ']
+#' @param pi the matrix E[XZ']E[ZZ']^{-1}
 #' @return scalar.
-s.tsls <- function(z, j) {
+s.tsls <- function(z, j, exz, pi) {
     cvec    <- replicate(4, 0)
     cvec[j] <- 1
 
     return(as.numeric(t(cvec) %*%
-                      solve(tsls.pi %*% t(tsls.exz)) %*%
-                      tsls.pi %*% c(1, z)))
+                      solve(pi %*% t(exz)) %*%
+                      pi %*% c(1, z)))
 }
 
 #' IV-like weighting function, Wald specification
 #'
 #' IV-like weighting function for OLS specification 2.
 #' @param z vector, the value of the instrument.
+#' @param p.to P[Z = z'], where z' is value of the instrument the
+#'     agent is switching to.
+#' @param p.from P[Z = z], where z is the value of the instrument the
+#'     agent is switching from.
+#' @param e.to E[D | Z = z'], where z' is the value of the instrument
+#'     the agent is switching to.
+#' @param e.from E[D | Z = z], where z is the value of the instrument the
+#'     agent is switching from.
 #' @return scalar.
-s.wald <- function(z) {
-    return(((z == 3) / p.z2.3 - (z == 2) / p.z2.2) /  (ed.z2.3 - ed.z2.2))
+s.wald <- function(z, p.to, p.from, e.to, e.from) {
+    return(((z == 3) / p.to - (z == 2) / p.from) /  (e.to - e.from))
 }

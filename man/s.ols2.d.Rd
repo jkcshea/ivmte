@@ -4,13 +4,15 @@
 \alias{s.ols2.d}
 \title{IV-like weighting function, OLS specification 2}
 \usage{
-s.ols2.d(x, d)
+s.ols2.d(x, d, exx)
 }
 \arguments{
 \item{x}{vector, the value of the covariates other than the
 intercept and the treatment indicator.}
 
 \item{d}{0 or 1, indicating treatment or control.}
+
+\item{exx}{the matrix E[XX']}
 }
 \value{
 scalar.

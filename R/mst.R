@@ -93,13 +93,17 @@
 #' @param audit.tol tolerance for determining when to end the audit
 #'     procedure.
 #' @param m1.ub numeric value for upper bound on MTR for treated
-#'     group.
+#'     group. By default, this will be set to the largest value of the
+#'     observed outcome in the estimation sample.
 #' @param m0.ub numeric value for upper bound on MTR for control
-#'     group.
+#'     group. By default, this will be set to the largest value of the
+#'     observed outcome in the estimation sample.
 #' @param m1.lb numeric value for lower bound on MTR for treated
-#'     group.
+#'     group. By default, this will be set to the smallest value of
+#'     the observed outcome in the estimation sample.
 #' @param m0.lb numeric value for lower bound on MTR for control
-#'     group.
+#'     group. By default, this will be set to the smallest value of
+#'     the observed outcome in the estimation sample.
 #' @param mte.ub numeric value for upper bound on treatment effect
 #'     paramter of interest.
 #' @param mte.lb numeric value for lower bound on treatment effect

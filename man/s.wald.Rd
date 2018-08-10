@@ -4,10 +4,22 @@
 \alias{s.wald}
 \title{IV-like weighting function, Wald specification}
 \usage{
-s.wald(z)
+s.wald(z, p.to, p.from, e.to, e.from)
 }
 \arguments{
 \item{z}{vector, the value of the instrument.}
+
+\item{p.to}{P[Z = z'], where z' is value of the instrument the
+agent is switching to.}
+
+\item{p.from}{P[Z = z], where z is the value of the instrument the
+agent is switching from.}
+
+\item{e.to}{E[D | Z = z'], where z' is the value of the instrument
+the agent is switching to.}
+
+\item{e.from}{E[D | Z = z], where z is the value of the instrument the
+agent is switching from.}
 }
 \value{
 scalar.

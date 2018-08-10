@@ -97,7 +97,7 @@ wAtt <- function(z, d, ed) {
 #' @param ... all other arguments that enter into \code{weight},
 #'     excluding the argument \code{d} for treatment indicator.
 #' @return vector, the Gamma moments associated with \code{weight}.
-genGamma <- function(distr, weight, zvars, u1s1, u0s1, u0s2,
+genGamma.splines <- function(distr, weight, zvars, u1s1, u0s1, u0s2,
                      target = FALSE, ...) {
     if (hasArg(zvars)) {
         zmat <- as.matrix(distr[, zvars])
