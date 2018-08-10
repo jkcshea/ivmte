@@ -36,194 +36,6 @@ result <- mst(ivlike = ivlike,
               mte.dec = TRUE,
               treat = d)
 
-##-------------------------
-## Write function to implement test
-##-------------------------
-
-#' Calulating population mean
-#'
-#' Given a distribution, this function calculates the population mean
-#' for each term in a formula.
-#' @param formula formula, each term of which will have its mean
-#'     calculated.
-#' @param disribution data.table, characterizing the distribution of
-#'     the variables entering into \code{formula}.
-#' @param density string, name of the variable \code{data}
-#'     characterizing the density.
-#' @return vector, the means for each term in \code{formula}.
-popmean <- function(formula, distribution, density = "f") {
-    vmat  <- model.matrix(object = formula, data = distribution)
-    fmat  <- as.matrix(distribution[, "f"])
-    fmat  <- fmat / sum(fmat)
-    means <- t(vmat) %*% fmat
-    return(means)
-}
-
-#' Generate symmetric matrix
-#' 
-#' Function takes in a vector of values, and constructs a symmetric
-#' matrix from it. Diagonals must be included. The length of the
-#' vector must also be consistent with the number of "unique" entries
-#' in the symmetric matrix. Note that entries are filled in along the
-#' columns (i.e. equivalent to byrow = FALSE).
-#' @param values vector, the values that enter into the symmetric
-#'     matrix. Dimensions will be determined automatically.
-#' @return matrix.
-symat <- function(values) {
-    k <- length(values)
-    n <- 0.5 * (-1 + sqrt(1 + 8 * k))
-    m <- matrix(NA, n, n)
-    m[lower.tri(m, diag=TRUE)] <- values
-    m[upper.tri(m)] <- t(m)[upper.tri(m)]
-   return(m)
-}
-
-#' Function to generate integral of m0 and m1
-#'
-#' Function carries out integral for a polynomial of degree 3.
-#' @param ub scalar, upper bound of the integral.
-#' @param lb scalar, lower bound of the integral.
-#' @param coef vector, polynomial coefficients.
-#' @return scalar.
-m.int <- function(ub, lb, coef){
-  return(coef[1] * (ub - lb) +
-           (coef[2]/2) * (ub^2 - lb^2) +
-           (coef[3]/3) * (ub^3 - lb^3))
-}
-
-#' Function to generate gamma moments
-#' 
-#' This function generates the gamma moments from a population level
-#' data set.
-#' @param data data.table.
-#' @param s0 variable name (contained in the data) for the S-weight
-#'     used to generate the Gamma moments for the control group.
-#' @param s0 variable name (contained in the data) for the S-weight
-#'     used to generate the Gamma moments for the treated group.
-#' @param lb scalar, lower bound for integration.
-#' @param ub scalar, upper bound for integration.
-#' @return list, contains the vectors of the Gamma moments for control
-#'     and treated observations.
-gengamma <- function(data, s0, s1, lb, ub) {
-
-    data <- copy(data)
-
-    ## Gammas for D = 0
-    if (!hasArg(lb) | !hasArg(ub)) {
-        data[, g.0.d.0 := (1 - p) * eval(s0)]
-        data[, g.0.d.1 := (1 - p) * x1 * eval(s0)]
-        data[, g.0.d.2 := m.int(1, p, c(0, 1, 0)) * x2 * eval(s0)]
-        data[, g.0.d.3 := m.int(1, p, c(0, 0, 1)) * x2 * eval(s0)]
-    } else {
-        data[, g.0.d.0 := (ub - lb) * eval(s0)]
-        data[, g.0.d.1 := (ub - lb) * x1 * eval(s0)]
-        data[, g.0.d.2 := m.int(ub, lb, c(0, 1, 0)) * x2 * eval(s0)]
-        data[, g.0.d.3 := m.int(ub, lb, c(0, 0, 1)) * x2 * eval(s0)]
-    }
-
-    g.0.d.0 <- popmean(~ 0 + g.0.d.0, data)
-    g.0.d.1 <- popmean(~ 0 + g.0.d.1, data)
-    g.0.d.2 <- popmean(~ 0 + g.0.d.2, data)
-    g.0.d.3 <- popmean(~ 0 + g.0.d.3, data)
-
-    ## Gammas for D = 1
-    if (!hasArg(lb) | !hasArg(ub)) {
-        data[, g.1.d.0 := p * eval(s1)]
-        data[, g.1.d.1 := p * x1 * eval(s1)]
-        data[, g.1.d.2 := p * x1 * x2 * eval(s1)]
-        data[, g.1.d.3 := m.int(p, 0, c(0, 1, 0)) * eval(s1)]
-        data[, g.1.d.4 := m.int(p, 0, c(0, 1, 0)) * x1 * eval(s1)]
-        data[, g.1.d.5 := m.int(p, 0, c(0, 0, 1)) * x2 * eval(s1)]
-    } else {
-        data[, g.1.d.0 := (ub - lb) * eval(s1)]
-        data[, g.1.d.1 := (ub - lb) * x1 * eval(s1)]
-        data[, g.1.d.2 := (ub - lb) * x1 * x2 * eval(s1)]
-        data[, g.1.d.3 := m.int(ub, lb, c(0, 1, 0)) * eval(s1)]
-        data[, g.1.d.4 := m.int(ub, lb, c(0, 1, 0)) * x1 * eval(s1)]
-        data[, g.1.d.5 := m.int(ub, lb, c(0, 0, 1)) * x2 * eval(s1)]
-    }
-
-    g.1.d.0 <- popmean(~ 0 + g.1.d.0, data)
-    g.1.d.1 <- popmean(~ 0 + g.1.d.1, data)
-    g.1.d.2 <- popmean(~ 0 + g.1.d.2, data)
-    g.1.d.3 <- popmean(~ 0 + g.1.d.3, data)
-    g.1.d.4 <- popmean(~ 0 + g.1.d.4, data)
-    g.1.d.5 <- popmean(~ 0 + g.1.d.5, data)
-
-    g.0 <- c(g.0.d.0, g.0.d.1, g.0.d.2, g.0.d.3)
-    g.1 <- c(g.1.d.0, g.1.d.1, g.1.d.2, g.1.d.3, g.1.d.4, g.1.d.5)
-
-    return(list(g0 = g.0, g1 = g.1))
-}
-
-#' IV-like weighting function, OLS specification 1
-#'
-#' IV-like weighting function for OLS specification 1.
-#' @param d 0 or 1, indicating treatment or control.
-#' @return scalar.
-s.ols1.d <- function(d) {
-    if (d == 1) return(as.numeric(t(c(0, 1)) %*% solve(ols1.exx[1:2, 1:2])
-                                  %*% c(1, 1)))
-    if (d == 0) return(as.numeric(t(c(0, 1)) %*% solve(ols1.exx[1:2, 1:2])
-                                  %*% c(1, 0)))
-}
-
-#' IV-like weighting function, OLS specification 2
-#'
-#' IV-like weighting function for OLS specification 2.
-#' @param x vector, the value of the covariates other than the
-#'     intercept and the treatment indicator.
-#' @param d 0 or 1, indicating treatment or control.
-#' @return scalar.
-s.ols2.d <- function(x, d) {
-    if (d == 1) return(as.numeric(t(c(0, 1, 0)) %*% solve(ols1.exx[1:3, 1:3])
-                                  %*% c(1, 1, x)))
-    if (d == 0) return(as.numeric(t(c(0, 1, 0)) %*% solve(ols1.exx[1:3, 1:3])
-                                  %*% c(1, 0, x)))
-}
-
-#' IV-like weighting function, OLS specification 3
-#'
-#' IV-like weighting function for OLS specification 3.
-#' @param x vector, the value of the covariates other than the
-#'     intercept and the treatment indicator.
-#' @param d 0 or 1, indicating treatment or control.
-#' @param j scalar, position of the component one is interested in
-#'     constructing the IV-like weight for.
-#' @return scalar.
-s.ols3 <- function(x, d, j) {
-    cvec    <- replicate(4, 0)
-    cvec[j] <- 1
-
-    if (d == 1) return(as.numeric(t(cvec) %*% solve(ols2.exx) %*% c(1, 1, x)))
-    if (d == 0) return(as.numeric(t(cvec) %*% solve(ols2.exx) %*% c(1, 0, x)))
-}
-
-#' IV-like weighting function, TSLS specification
-#'
-#' IV-like weighting function for TSLS specification.
-#' @param z vector, the value of the instrument.
-#' @param j scalar, position of the component one is interested in
-#'     constructing the IV-like weight for.
-#' @return scalar.
-s.tsls <- function(z, j) {
-    cvec    <- replicate(4, 0)
-    cvec[j] <- 1
-
-    return(as.numeric(t(cvec) %*%
-                      solve(tsls.pi %*% t(tsls.exz)) %*%
-                      tsls.pi %*% c(1, z)))
-}
-
-#' IV-like weighting function, Wald specification
-#'
-#' IV-like weighting function for OLS specification 2.
-#' @param z vector, the value of the instrument.
-#' @return scalar.
-s.wald <- function(z) {
-    return(((z == 3) / p.z2.3 - (z == 2) / p.z2.2) /  (ed.z2.3 - ed.z2.2))
-}
-
 ##------------------------
 ## Implement test
 ##------------------------
@@ -270,7 +82,6 @@ ols2 <- (solve(ols1.exx[1:3, 1:3]) %*% ols1.exy[1:3])[2]
 ## Construct OLS estimate 3, with controls and subsetting
 ##-------------------------
 
-## mv2 <- popmean(varlist, dtc[z2 %in% c(2, 3), ])
 mv2 <- popmean(varlist, subset(dtc, dtc$z2 %in% c(2, 3)))
 m2 <- as.list(mv2)
 names(m2) <- rownames(mv2)
@@ -319,13 +130,9 @@ tsls <- (solve(tsls.pi %*% t(tsls.exz)) %*% tsls.pi %*% tsls.ezy)[2]
 ## Construct simple Wald estimate (i.e. Wald pertaining to single instrument)
 ##-------------------------
 
-## ey.z2.2 <- popmean(~ 0 + ey, dtc[z2 == 2, ])
-## ey.z2.3 <- popmean(~ 0 + ey, dtc[z2 == 3, ])
 ey.z2.2 <- popmean(~ 0 + ey, subset(dtc, dtc$z2 == 2))
 ey.z2.3 <- popmean(~ 0 + ey, subset(dtc, dtc$z2 == 3))
 
-## ed.z2.2 <- popmean(~ 0 + p, dtc[z2 == 2, ])
-## ed.z2.3 <- popmean(~ 0 + p, dtc[z2 == 3, ])
 ed.z2.2 <- popmean(~ 0 + p, subset(dtc, dtc$z2 == 2))
 ed.z2.3 <- popmean(~ 0 + p, subset(dtc, dtc$z2 == 3))
 
@@ -357,7 +164,7 @@ dtc$s.ols1.1.d <- s.ols1.d(1)
 ## m0 = ~ x1 + I(x2 * u) + I(x2 * u^2),
 ## ols1.0.d.0 means "OLS specification 2. For D = 0. For variable
 ## "d". For term 0 in md."
-g.ols1 <- gengamma(dtc, quote(s.ols1.0.d), quote(s.ols1.1.d))
+g.ols1 <- gengamma(dtc, "s.ols1.0.d", "s.ols1.1.d")
 
 ##-------------------------
 ## Construct gamma terms for OLS, with single control
@@ -367,14 +174,14 @@ g.ols1 <- gengamma(dtc, quote(s.ols1.0.d), quote(s.ols1.1.d))
 dtc$s.ols2.0.d <- sapply(dtc$x1, s.ols2.d, d = 0)
 dtc$s.ols2.1.d <- sapply(dtc$x1, s.ols2.d, d = 1)
 
-g.ols2 <- gengamma(dtc, quote(s.ols2.0.d), quote(s.ols2.1.d))
+g.ols2 <- gengamma(dtc, "s.ols2.0.d", "s.ols2.1.d")
 
 ##-------------------------
 ## Construct gamma terms for OLS, with controls and subset
 ##-------------------------
 
 ## Generate weights
-dtc.x <- split(as.matrix(dtc[, .(x1, x2)]), seq(1, nrow(dtc)))
+dtc.x <- split(as.matrix(dtc[, c("x1", "x2")]), seq(1, nrow(dtc)))
 
 dtc$s.ols3.0.d <- unlist(lapply(dtc.x, s.ols3, d = 0, j = 2))
 dtc$s.ols3.1.d <- unlist(lapply(dtc.x, s.ols3, d = 1, j = 2))
@@ -385,15 +192,15 @@ dtc$s.ols3.1.x1 <- unlist(lapply(dtc.x, s.ols3, d = 1, j = 3))
 dtc$s.ols3.0.x2 <- unlist(lapply(dtc.x, s.ols3, d = 0, j = 4))
 dtc$s.ols3.1.x2 <- unlist(lapply(dtc.x, s.ols3, d = 1, j = 4))
 
-g.ols3.d  <- gengamma(dtc[z2 %in% c(2, 3), ],
-                      quote(s.ols3.0.d),
-                      quote(s.ols3.1.d))
-g.ols3.x1 <- gengamma(dtc[z2 %in% c(2, 3), ],
-                      quote(s.ols3.0.x1),
-                      quote(s.ols3.1.x1))
-g.ols3.x2 <- gengamma(dtc[z2 %in% c(2, 3), ],
-                      quote(s.ols3.0.x2),
-                      quote(s.ols3.1.x2))
+g.ols3.d  <- gengamma(subset(dtc, dtc$z2 %in% c(2, 3)),
+                      "s.ols3.0.d",
+                      "s.ols3.1.d")
+g.ols3.x1 <- gengamma(subset(dtc, dtc$z2 %in% c(2, 3)),
+                      "s.ols3.0.x1",
+                      "s.ols3.1.x1")
+g.ols3.x2 <- gengamma(subset(dtc, dtc$z2 %in% c(2, 3)),
+                      "s.ols3.0.x2",
+                      "s.ols3.1.x2")
 
 ## NOTE: the term for the constants are approximately 0, 1e-16.
 
@@ -402,24 +209,24 @@ g.ols3.x2 <- gengamma(dtc[z2 %in% c(2, 3), ],
 ##-------------------------
 
 ## Generate weights
-dtc.z <- split(as.matrix(dtc[, .(z1, z2, x1, x2)]), seq(1, nrow(dtc)))
+dtc.z <- split(as.matrix(dtc[, c("z1", "z2", "x1", "x2")]), seq(1, nrow(dtc)))
 dtc$s.tsls.0.d <- unlist(lapply(dtc.z, s.tsls, j = 2))
 dtc$s.tsls.1.d <- unlist(lapply(dtc.z, s.tsls, j = 2))
 
-g.tsls <- gengamma(dtc, quote(s.tsls.0.d), quote(s.tsls.1.d))
+g.tsls <- gengamma(dtc, "s.tsls.0.d", "s.tsls.1.d")
 
 ##-------------------------
 ## Construct gamma terms for simple Wald (i.e. one instrument)
 ##-------------------------
 
-p.z2.2 <- sum(dtc[z2 == 2, f])
-p.z2.3 <- sum(dtc[z2 == 3, f])
+p.z2.2 <- sum(subset(dtc, dtc$z2 == 2)$f)
+p.z2.3 <- sum(subset(dtc, dtc$z2 == 3)$f)
 
 ## Generate weights
 dtc$s.wald.0.d <- sapply(dtc$z2, s.wald)
 dtc$s.wald.1.d <- sapply(dtc$z2, s.wald)
 
-g.wald <- gengamma(dtc, quote(s.wald.0.d), quote(s.wald.1.d))
+g.wald <- gengamma(dtc, "s.wald.0.d", "s.wald.1.d")
 
 ##-------------------------
 ## Construct target gammas
@@ -429,12 +236,12 @@ g.wald <- gengamma(dtc, quote(s.wald.0.d), quote(s.wald.1.d))
 wald.ub <- 0.7
 wald.lb <- 0.2
 
-dtc[, w.genlate.1 := 1 / (wald.ub - wald.lb)]
-dtc[, w.genlate.0 := - w.genlate.1]
+dtc$w.genlate.1 <- 1 / (wald.ub - wald.lb)
+dtc$w.genlate.0 <- - dtc$w.genlate.1
 
 g.star.genlate <- gengamma(dtc,
-                           quote(w.genlate.0),
-                           quote(w.genlate.1),
+                           "w.genlate.0",
+                           "w.genlate.1",
                            lb = wald.lb,
                            ub = wald.ub)
 

@@ -25,7 +25,7 @@ integration. Each element corresponds to an observation.}
 integration. Each element corresponds to an observation.}
 
 \item{multiplier}{a vector of the weights that enter into the
-interal. Each element corresponds to an observation.}
+integral. Each element corresponds to an observation.}
 
 \item{subset}{Subset condition used to select observations with
 which to estimate gamma.}

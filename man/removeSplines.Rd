@@ -23,3 +23,17 @@ formula. The terms involving splines are treated separately from
 the terms that do not involve splines when creating the gamma
 moments.
 }
+\examples{
+\dontrun{
+Below is an example of how to declare a spline component.
+m0 = ~ x1 + x1 : uSplines(degree = 2,
+                          knots = c(0.2, 0.4)) +
+            x2 : uSplines(degree = 2,
+                          knots = c(0.2, 0.4)) +
+            x1 : x2 : uSplines(degree = 2,
+                               knots = c(0.2, 0.4)) +
+            uSplines(degree = 3,
+                     knots = c(0.2, 0.4),
+                     intercept = FALSE)
+}
+}

@@ -3,243 +3,6 @@ context("Test of case involving only covariates, no splines.")
 set.seed(10L)
 
 ##------------------------
-## Define functions for general testing
-##------------------------
-
-#' Integrating splines
-#'
-#' This function simply integrates the splines.
-#' @param ub scalar, upperbound of integral.
-#' @param lb scalar, lowerbound of integral.
-#' @param knots vector, knots of the spline.
-#' @param degree scalar, degre of spline.
-#' @param intercept boolean, set to TRUE if spline basis should
-#'     include a component so that the basis sums to 1.
-#' @return vector, each component being the integral of a basis.
-splineInt <- function(ub, lb, knots, degree, intercept = FALSE) {
-    splines2::ibs(x = ub,
-                  knots = knots,
-                  degree = degree,
-                  intercept = intercept,
-                  Boundary.knots = c(0, 1)) -
-        splines2::ibs(x = lb,
-                      knots = knots,
-                      degree = degree,
-                      intercept = intercept,
-                      Boundary.knots = c(0, 1))
-}
-
-#' Calulating population mean
-#'
-#' Given a distribution, this function calculates the population mean
-#' for each term in a formula.
-#' @param formula formula, each term of which will have its mean
-#'     calculated.
-#' @param disribution data.frame, characterizing the distribution of
-#'     the variables entering into \code{formula}.
-#' @param density string, name of the variable \code{distribution}
-#'     characterizing the density.
-#' @return vector, the means for each term in \code{formula}.
-popmean <- function(formula, distribution, density = "f") {
-    vmat  <- model.matrix(object = formula, data = distribution)
-    fmat  <- as.matrix(distribution[, "f"])
-    fmat  <- fmat / sum(fmat)
-    means <- t(vmat) %*% fmat
-    return(means)
-}
-
-#' Generate symmetric matrix
-#' 
-#' Function takes in a vector of values, and constructs a symmetric
-#' matrix from it. Diagonals must be included. The length of the
-#' vector must also be consistent with the number of "unique" entries
-#' in the symmetric matrix. Note that entries are filled in along the
-#' columns (i.e. equivalent to byrow = FALSE).
-#' @param values vector, the values that enter into the symmetric
-#'     matrix. Dimensions will be determined automatically.
-#' @return matrix.
-symat <- function(values) {
-    k <- length(values)
-    n <- 0.5 * (-1 + sqrt(1 + 8 * k))
-    m <- matrix(NA, n, n)
-    m[lower.tri(m, diag=TRUE)] <- values
-    m[upper.tri(m)] <- t(m)[upper.tri(m)]
-   return(m)
-}
-
-#' IV-like weighting function, OLS specifications
-#'
-#' IV-like weighting function for OLS specifications.
-#' @param x vector, the value of the covariates other than the
-#'     intercept and the treatment indicator.
-#' @param d 0 or 1, indicating treatment or control.
-#' @param j scalar, position of the component one is interested in
-#'     constructing the IV-like weight for.
-#' @param exx matrix corresponding to E[XX'].
-#' @return scalar.
-sOls <- function(x = NULL, d, j, exx) {
-    if (!is.na(x)) {
-        cvec    <- replicate((length(x) + 2), 0)
-        cvec[j] <- 1
-        if (d == 1) return(as.numeric(t(cvec) %*% solve(exx) %*% c(1, 1, x)))
-        if (d == 0) return(as.numeric(t(cvec) %*% solve(exx) %*% c(1, 0, x)))
-    } else {
-        cvec    <- replicate(2, 0)
-        cvec[j] <- 1
-        if (d == 1) return(as.numeric(t(cvec) %*% solve(exx) %*% c(1, 1)))
-        if (d == 0) return(as.numeric(t(cvec) %*% solve(exx) %*% c(1, 0)))
-    }
-}
-
-#' IV-like weighting function, TSLS specification
-#'
-#' IV-like weighting function for TSLS specification.
-#' @param z vector, the value of the instrument.
-#' @param d 0 or 1, indicating treatment or control (redundant in this
-#'     function; included to exploit apply()).
-#' @param j scalar, position of the component one is interested in
-#'     constructing the IV-like weight for.
-#' @param exz matrix, corresponds to E[XZ'].
-#' @param pi matrix, corresponds to E[XZ']E[ZZ']^{-1}, the first stage
-#'     regression.
-#' @return scalar.
-sTsls <- function(z, d, j, exz, pi) {
-    cvec    <- replicate(nrow(exz), 0)
-    cvec[j] <- 1
-    
-    return(as.numeric(t(cvec) %*%
-                      solve(pi %*% t(exz)) %*% pi %*% c(1, z)))
-}
-
-#' Target weighting function, for ATT
-#' 
-#' Target weighting function, for the ATT.
-#' @param z vector, the value of the instrument (redundant in this
-#'     function; included to exploit apply()).
-#' @param d 0 or 1, indicating treatment or control (redundant in this
-#'     function; included to exploit apply()).
-#' @param ed scalar, unconditional probability of taking up treatment.
-#' @return scalar.
-wAtt <- function(z, d, ed) {
-    1 / ed
-}
-
-#' Generating the Gamma moments
-#'
-#' This function generates the Gamma moments for a given set of
-#' weights.
-#' @param distr data.frame, the distribution of the data.
-#' @param weight function, the S-function corresponding to a
-#'     particular IV-like estimand.
-#' @param zvars vector, string names of the covariates, other than the
-#'     intercept and treatment variable.
-#' @param u1s1 matrix, the spline basis for the treated group ("u1")
-#'     corresponding to the first (and only) spline specification
-#'     ("s1").
-#' @param u0s1 matrix, the spline basis for the control group ("u0")
-#'     corresponding to the first spline specification ("s1").
-#' @param u0s2 matrix, the spline basis for the control group ("u0")
-#'     corresponding to the second spline specification ("s2").
-#' @param ... all other arguments that enter into \code{weight},
-#'     excluding the argument \code{d} for treatment indicator.
-#' @return vector, the Gamma moments associated with \code{weight}.
-genGamma <- function(distr, weight, zvars, u1s1, u0s1, u0s2,
-                     target = FALSE, ...) {
-    if (hasArg(zvars)) {
-        zmat <- as.matrix(distr[, zvars])
-    } else {
-        zmat <- matrix(NA, nrow = nrow(distr))
-    }
-    
-    s0 <- apply(X = zmat, MARGIN = 1, FUN = weight, d = 0, ...)
-    s1 <- apply(X = zmat, MARGIN = 1, FUN = weight, d = 1, ...)
-
-    ## Construct m0 moments
-    mu0s1 <- sweep(u0s1, MARGIN = 1, STATS = distr[, "x"], FUN = "*")
-    mu0s1 <- sweep(mu0s1, MARGIN = 1, STATS = s0, FUN = "*")
-    
-    mu0s2 <- sweep(u0s2, MARGIN = 1, STATS = s0, FUN = "*")
-
-    if (target == FALSE) muu2 <- (1 / 3) * (1 - distr[, "p"] ^ 3) * s0
-    if (target == TRUE)  muu2 <- (1 / 3) * (distr[, "p"] ^ 3) * s0
-
-    g0 <- c(sum(muu2 * distr[, "f"]),
-            colSums(sweep(mu0s2,
-                          MARGIN = 1,
-                          STATS = distr[, "f"],
-                          FUN = "*")),
-            colSums(sweep(mu0s1,
-                          MARGIN = 1,
-                          STATS = distr[, "f"],
-                          FUN = "*")))
-    
-    names(g0) <- c("I(u^2)",
-                   "u0S1.1:1", "u0S1.2:1", "u0S1.3:1",
-                   "u0S2.1:x", "u0S2.2:x", "u0S2.3:x", "u0S2.4:x")
-    
-    ## Construct m1 moments
-    m1int <- s1 * distr[, "p"]
-    
-    m1x <- distr[, "x"] * s1 * distr[, "p"]
-    
-    mu1s1 <- sweep(u1s1, MARGIN = 1, STATS = s1, FUN = "*")
-  
-    g1 <- c(sum(m1int * distr[, "f"]),
-            sum(m1x * distr[, "f"]),
-            colSums(sweep(mu1s1,
-                          MARGIN = 1,
-                          STATS = distr[, "f"],
-                          FUN = "*")))
-    
-    names(g1) <- c("(Intercept)", "x",
-                   "u1S1.1:1", "u1S1.2:1", "u1S1.3:1", "u1S1.4:1")
-    
-    return(list(g0 = g0,
-                g1 = g1))
-}
-
-##------------------------
-## Additional functions for testing custom weights
-##------------------------
-
-ed <- dts$f %*% dts$p ## Probability of treatment, the denominator in
-                      ## the ATT weighting functions.
-
-#' Weight function for ATT, D = 0
-#'
-#' This function simply generates the weight given X and Z.
-#' @param u the value of the unobservable
-#' @param x the value of the covariate X
-#' @param z the value of the instrument Z
-#' @return scalar.
-weight0 <- function(u, x, z) {
-    p <- 0.5 - 0.1 * x + 0.2 * z
-    return(-as.numeric(u <= p) / ed)
-}
-
-#' Weight function for ATT, D = 1
-#'
-#' This function simply generates the weight given X and Z.
-#' @param u the value of the unobservable
-#' @param x the value of the covariate X
-#' @param z the value of the instrument Z
-#' @return scalar.
-weight1 <- function(u, x, z) {
-    p <- 0.5 - 0.1 * x + 0.2 * z
-    return(as.numeric(u <= p) / ed)
-}
-
-#' Function for I(u^2)
-#'
-#' This function is made simply to for the purpose of numerical
-#' integration.
-#' @param u value of the unobservable.
-#' @return scalar.
-u2f <- function(u) {
-    u ^ 2
-}
-
-##------------------------
 ## Run MST estimator
 ##------------------------
 
@@ -248,7 +11,6 @@ ivlike <- c(ey ~ d,
             ey ~ d + x | z + x)
 
 components <- lists.mst(c(intercept, d), d, c(d, x))
-## FIX: You should address the case where an empty list is provided.
 
 set.seed(10L)
 result <- mst(ivlike = ivlike,
@@ -276,10 +38,6 @@ result <- mst(ivlike = ivlike,
               m0.lb = 0,
               mte.inc = TRUE)
 
-## To test your custom weight, just submit a weight that matches a
-## predefined one, e.g. submit a function calculating the weight for
-## the ATT.
-
 ##-------------------------
 ## Perform tests
 ##-------------------------
@@ -291,9 +49,9 @@ dts$eyd <- dts$ey1 * dts$p
 varlist <- ~  eyd + ey + ey0 + ey1 + p + x + z +
     I(ey * p) + I(ey * x) + I(ey * z) +
     I(ey0 * p) + I(ey0 * x) + I(ey0 * z) +
-    I(ey1 * p) + I(ey1 * x) + I(ey1 * z) + 
+    I(ey1 * p) + I(ey1 * x) + I(ey1 * z) +
     I(p * p) + I(p * x) + I(p * z) +
-    I(x * p) + I(x * x) + I(x * z) +  
+    I(x * p) + I(x * x) + I(x * z) +
     I(z * p) + I(z * x) + I(z * z)
 
 mv <- popmean(varlist, dts)
@@ -324,9 +82,9 @@ ols2 <- solve(exx) %*% exy
 
 exz <- matrix(c(1, m[["p"]], m[["x"]],
                 m[["z"]], m[["I(z * p)"]], m[["I(z * x)"]],
-                m[["x"]], m[["I(x * p)"]], m[["I(x * x)"]]), 
+                m[["x"]], m[["I(x * p)"]], m[["I(x * x)"]]),
               nrow = 3)
-              
+
 ezz <- symat(c(1, m[["z"]], m[["x"]],
                m[["I(z * z)"]], m[["I(z * x)"]],
                m[["I(x * x)"]]))
@@ -388,7 +146,6 @@ u0s1 <- t(sapply(X = dts$p,
                  ub = 1,
                  degree = 0,
                  knots = c(0.2, 0.5, 0.8),
-                 
                  intercept = TRUE))
 
 u0s2 <- t(sapply(X = dts$p,
@@ -568,18 +325,18 @@ modelO$obj <- c(replicate(ncol(Aextra), 1),
                  replicate(ncol(monoA0) + ncol(monoA1), 0))
 
 modelO$rhs <- c(estimates,
-                 replicate(nrow(m0bound), 0),
-                 replicate(nrow(m1bound), miny),
-                 replicate(nrow(m0bound), maxy),
-                 replicate(nrow(m1bound), 55),
-                 replicate(nrow(mtemono), 0))
+                replicate(nrow(m0bound), 0),
+                replicate(nrow(m1bound), miny),
+                replicate(nrow(m0bound), maxy),
+                replicate(nrow(m1bound), 55),
+                replicate(nrow(mtemono), 0))
 
 modelO$sense <- c(replicate(length(estimates), "="),
-                   replicate(nrow(m0bound), ">="),
-                   replicate(nrow(m1bound), ">="),
-                   replicate(nrow(m0bound), "<="),
-                   replicate(nrow(m1bound), "<="),
-                   replicate(nrow(mtemono), ">="))
+                  replicate(nrow(m0bound), ">="),
+                  replicate(nrow(m1bound), ">="),
+                  replicate(nrow(m0bound), "<="),
+                  replicate(nrow(m1bound), "<="),
+                  replicate(nrow(mtemono), ">="))
 
 modelO$A <- rbind(cbind(Aextra, A),
                    m0bound,
@@ -598,7 +355,7 @@ modelO$modelsense <- "min"
 minobseq <- gurobi::gurobi(modelO)$objbound
 
 ##-------------------------
-## Obtain the bounds for generalized LATE
+## Obtain the bounds for the ATT
 ##-------------------------
 
 tolerance <- 1.01
@@ -623,14 +380,14 @@ modelF$lb <- c(replicate(ncol(Aextra), 0),
 
 ## Find bounds with threshold
 modelF$modelsense <- "min"
-min_genlate <- gurobi::gurobi(modelF)
+minAtt <- gurobi::gurobi(modelF)
 modelF$modelsense <- "max"
-max_genlate <- gurobi::gurobi(modelF)
+maxAtt <- gurobi::gurobi(modelF)
 
-bound <- c(min_genlate$objval, max_genlate$objval)
+bound <- c(minAtt$objval, maxAtt$objval)
 
 ##-------------------------
-## Test equivalence of Gamma moments
+## Test bounds
 ##-------------------------
 
 test_that("LP problem", {
@@ -645,13 +402,10 @@ test_that("LP problem", {
 ## Alternative, where ATT is declared using custom weights
 ##------------------------
 
-if (exists("dtsfmini")) {
-    edw <- mean(dtsfmini$d)
-} else {
-    edw <- dts$f %*% dts$p ## Probability of treatment, the
-                           ## denominator in the ATT weighting
-                           ## functions.
-}
+## For speed, use only a subsample
+subsample <- sample(seq(1, nrow(dtsf)), size = 100, replace = FALSE)
+dtsfSmall <- dtsf[subsample, ]
+edw <- mean(dtsfSmall$d)
 
 #' Weight function for ATT, D = 0
 #'
@@ -679,36 +433,70 @@ weight1 <- function(u, x, z) {
 }
 weight1 <- Vectorize(weight1)
 
+## Standard estimate using smaller sample
 set.seed(10L)
-resultalt <- mst(ivlike = ivlike,
-                 data = dtsf,
-                 components = components,
-                 propensity = p,
-                 m1 = ~ x + uSplines(degree = 2,
-                                     knots = c(0.3, 0.6),
-                                     intercept = FALSE),
-                 m0 = ~ 0 + x : uSplines(degree = 0,
-                                         knots = c(0.2, 0.5, 0.8),
-                                         intercept = TRUE) +
-                     uSplines(degree = 1,
-                              knots = c(0.4),
-                              intercept = TRUE) +
-                     I(u ^ 2),
-                 uname = u,
-                 target.weight0 = weight0,
-                 target.weight1 = weight1,
-                 obseq.tol = 1.01,
-                 grid.Nu = 3,
-                 grid.Nx = 2,
-                 audit.Nx = 1,
-                 audit.Nu = 5,
-                 m1.ub = 55,
-                 m0.lb = 0,
-                 mte.inc = TRUE)
+resultSmall <- mst(ivlike = ivlike,
+                   data = dtsfSmall,
+                   components = components,
+                   propensity = p,
+                   m1 = ~ x + uSplines(degree = 2,
+                                       knots = c(0.3, 0.6),
+                                       intercept = FALSE),
+                   m0 = ~ 0 + x : uSplines(degree = 0,
+                                           knots = c(0.2, 0.5, 0.8),
+                                           intercept = TRUE) +
+                       uSplines(degree = 1,
+                                knots = c(0.4),
+                                intercept = TRUE) +
+                       I(u ^ 2),
+                   uname = u,
+                   target = "att",
+                   obseq.tol = 1.01,
+                   grid.Nu = 3,
+                   grid.Nx = 2,
+                   audit.Nx = 1,
+                   audit.Nu = 5,
+                   m1.ub = 55,
+                   m0.lb = 0,
+                   mte.inc = TRUE)
 
-## Perhaps it is better to just do the miniature case using
-## dtsfmini... and then check that the non-custom approach matches the
-## custom method, since you know the non-custom method is correct.
+## Custom weight estimate using smaller sample
+set.seed(10L)
+resultSmallAlt <- mst(ivlike = ivlike,
+                      data = dtsfSmall,
+                      components = components,
+                      propensity = p,
+                      m1 = ~ x + uSplines(degree = 2,
+                                          knots = c(0.3, 0.6),
+                                          intercept = FALSE),
+                      m0 = ~ 0 + x : uSplines(degree = 0,
+                                              knots = c(0.2, 0.5, 0.8),
+                                              intercept = TRUE) +
+                          uSplines(degree = 1,
+                                   knots = c(0.4),
+                                   intercept = TRUE) +
+                          I(u ^ 2),
+                      uname = u,
+                      target.weight0 = weight0,
+                      target.weight1 = weight1,
+                      obseq.tol = 1.01,
+                      grid.Nu = 3,
+                      grid.Nx = 2,
+                      audit.Nx = 1,
+                      audit.Nu = 5,
+                      m1.ub = 55,
+                      m0.lb = 0,
+                      mte.inc = TRUE)
+
+## Begin testing
 test_that("Custom weights", {
-    expect_equal(resultalt$gstar, result$gstar, tolerance = 1e-05)
-}
+    expect_equal(resultSmall$gstar, resultSmallAlt$gstar, tolerance = 1e-5)
+    expect_equal(resultSmall$bound, resultSmallAlt$bound, tolerance = 1e-6)
+    expect_equal(resultSmall$lpresult$model$A,
+                 resultSmallAlt$lpresult$model$A)
+    expect_equal(resultSmall$lpresult$model$rhs,
+                 resultSmallAlt$lpresult$model$rhs)
+    expect_equal(resultSmall$lpresult$model$sense,
+                 resultSmallAlt$lpresult$model$sense)
+})
+

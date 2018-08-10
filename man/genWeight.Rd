@@ -9,15 +9,16 @@ genWeight(fun, fun.name, uname, data)
 \arguments{
 \item{fun}{custom weight function defined by the user. Arguments of
 the weight function must only be names of variables entering
-into the function.}
+into the function, and can include the unobserved variable.}
 
 \item{fun.name}{string, name of function.}
 
 \item{uname}{the name assigned to the unobserved variable entering
 into the MTR.}
 
-\item{data}{a vector containing the values of the variables
-defining the 'fun', excluding the value of the unobservable.}
+\item{data}{a named vector containing the values of the variables
+defining the 'fun', excluding the value of the unobservable
+(generated from applying split() to a data.frame).}
 }
 \value{
 The weight function 'fun', where all arguments other than
