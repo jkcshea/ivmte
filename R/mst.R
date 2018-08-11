@@ -854,6 +854,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
+            message(paste("\n    Integrating terms for control group..."))
             pm0 <- eval(as.call(m0call))
             gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
         } else {
@@ -862,6 +863,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         }
 
         if (!is.null(m1)) {
+            message(paste("\n    Integrating terms for treated group..."))
             pm1 <- eval(as.call(m1call))
             gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
         } else {
@@ -972,17 +974,71 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                     tmpOutput <- tmpOutput / nrow(cdata)
                     assign(paste0("gstar", d), tmpOutput)
                 } else {
-                    stop(gsub("\\s+", " ",
-                              "Currently 'sample.integral = FALSE', under which 
-                           the code performs a single numerical integral for
-                           each term in m0 and m1 to improve performance.
-                           Increase 'options(expressions=)'to carry out this
-                           method. Alternatively, declare
+                    errorExpr <- isTRUE(grep("infinite recursion",
+                                             tmpOutput) == 1)
+
+                    if (.Platform$OS.type == "unix") {
+                        memoryMessage <- 
+                           "To do so in Unix systems, you must first
+                           close R. Open a terminal and check the current stack
+                           size using the command 'ulimit -s'. Set a larger
+                           size, e.g. 'ulimit -s 16384'. Start R/Rstudio from
+                           the same terminal with the command line option
+                           '--max-ppsize' to also set a larger protected stack
+                           size, e.g. 'R --max-ppsize 100000' (default value is
+                           50000). Then in R, assign the larger limit on the
+                           evaluation of nested expressions (e.g.
+                           'options(expressions = 100000') and re-run the code."
+                    } else if (.Platform$OS.type == "windows") {
+                        memoryMessage <- 
+                           "To do so in Windows, 
+                           check the memory allocation using the command
+                           'memory.limit(size = NA)'. Check the maximum amount
+                           memory you can assign to R using the command
+                           'memory.size(max = NA)'. Assign a larger amount of
+                           memory to R, e.g. 'memory.limit(size = 4095)'.
+                           Then assign a larger limit on the evaluation
+                           of nested expressions (e.g.
+                           'options(expressions = 100000') and re-run the code."
+                    } else {
+                        memoryMessage <- NULL
+                    }
+                    
+                    if (errorExpr) {
+                        stop(gsub("\\s+", " ", paste(
+                           "Evaluation is nested too deeply.
+                           Currently 'sample.integral = FALSE', under which 
+                           the code performs a single numerical integral on a
+                           deeply nested function for
+                           each term in m0 and m1. You can set a larger limit on
+                           the number of nested expressions that will be
+                           evaluated using the command 'options(expressions =)'
+                           (e.g. 'options(expressions = 100000)', the
+                           default is 5000).
+
+                           Evaluating more deeply nested expresions will require
+                           more memory. Consider increasing the memory limit of
+                           R.",
+                           memoryMessage,
+                           "Alternatively, declare
                            'sample.integral = TRUE'. The code will instead
                            perform numerical integration for each term in m0
                            and m1, for every observation in the data set. 
-                           This method is slower, but will work under the
-                           default R settings."))
+                           This method may be slower, but will work under the
+                           default R settings.")))
+                    } else {
+                       stop(gsub("\\s+", " ", paste(
+                           "Insufficient memory for evaluating nested
+                           expressions. You must increase the memory limit of
+                           R.",
+                           memoryMessage,
+                           "Alternatively, declare
+                           'sample.integral = TRUE'. The code will instead
+                           perform numerical integration for each term in m0
+                           and m1, for every observation in the data set. 
+                           This method may be slower, but will work under the
+                           default R settings.")))
+                    }
                 }
             } else {
                 monoIntegrated <- lapply(X = monoWeighted,
@@ -1094,17 +1150,73 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                                     FUN = function(x) x$value))
                                 tmpOutput <- tmpOutput / nrow(cdata)
                             } else {
-                                stop(gsub("\\s+", " ",
-                           "Currently 'sample.integral = FALSE', under which 
-                           the code performs a single numerical integral for
-                           each term in m0 and m1 to improve performance.
-                           Increase 'options(expressions=)'to carry out this
-                           method. Alternatively, declare
+
+                                errorExpr <- isTRUE(grep("infinite recursion",
+                                                         tmpOutput) == 1)
+
+                                if (.Platform$OS.type == "unix") {
+                                    memoryMessage <- 
+                           "To do so in Unix systems, you must first
+                           close R. Open a terminal and check the current stack
+                           size using the command 'ulimit -s'. Set a larger
+                           size, e.g. 'ulimit -s 16384'. Start R/Rstudio from
+                           the same terminal with the command line option
+                           '--max-ppsize' to also set a larger protected stack
+                           size, e.g. 'R --max-ppsize 100000' (default value is
+                           50000). Then in R, assign the larger limit on the
+                           evaluation of nested expressions (e.g.
+                           'options(expressions = 100000') and re-run the code."
+                                } else if (.Platform$OS.type == "windows") {
+                                    memoryMessage <- 
+                           "To do so in Windows, 
+                           check the memory allocation using the command
+                           'memory.limit(size = NA)'. Check the maximum amount
+                           memory you can assign to R using the command
+                           'memory.size(max = NA)'. Assign a larger amount of
+                           memory to R, e.g. 'memory.limit(size = 4095)'.
+                           Then assign a larger limit on the evaluation
+                           of nested expressions (e.g.
+                           'options(expressions = 100000') and re-run the code."
+                                } else {
+                                    memoryMessage <- NULL
+                                }
+                                
+                                if (errorExpr) {
+                                    stop(gsub("\\s+", " ", paste(
+                           "Evaluation is nested too deeply.
+                           Currently 'sample.integral = FALSE', under which 
+                           the code performs a single numerical integral on a
+                           deeply nested function for
+                           each term in m0 and m1. You can set a larger limit on
+                           the number of nested expressions that will be
+                           evaluated using the command 'options(expressions =)'
+                           (e.g. 'options(expressions = 100000)', the
+                           default is 5000).
+
+                           Evaluating more deeply nested expresions will require
+                           more memory. Consider increasing the memory limit of
+                           R.",
+                           memoryMessage,
+                           "Alternatively, declare
                            'sample.integral = TRUE'. The code will instead
                            perform numerical integration for each term in m0
                            and m1, for every observation in the data set. 
-                           This method is slower, but will work under the
-                           default R settings."))
+                           This method may be slower, but will work under the
+                           default R settings.")))
+                                } else {
+                                    stop(gsub("\\s+", " ", paste(
+                           "Insufficient memory for evaluating nested
+                           expressions. You must increase the memory limit of
+                           R.",
+                           memoryMessage,
+                           "Alternatively, declare
+                           'sample.integral = TRUE'. The code will instead
+                           perform numerical integration for each term in m0
+                           and m1, for every observation in the data set. 
+                           This method may be slower, but will work under the
+                           default R settings.")))
+                                }
+
                             }
                         } else {                           
                             tmpIntegrals <-
