@@ -1,3 +1,38 @@
+#' Auxiliary function: generate all permutation orderings
+#'
+#' This function generates every permutation of the first n natural
+#' numbers.
+#' @param n integer, the first n natural numbers one wishes to
+#'     permute.
+#' @return a list of all the permutations of the first n natural
+#'     numbers.
+permuteN <- function(n){
+    if (n == 1) {
+        return(matrix(1))
+    } else {
+        sp <- permuteN(n - 1)
+        p <- nrow(sp)
+        A <- matrix(nrow = n * p, ncol = n)
+        for (i in 1:n){
+            A[(i - 1) * p + 1:p, ] <- cbind(i, sp + (sp >= i))
+        }
+        return(A)
+    }
+}
+
+#' Auxiliary function: generate all permutations of a vector
+#'
+#' This function generates every permutation of the elements in a
+#' vector.
+#' @param vector The vector whose elements are to be permuted.
+#' @return a list of all the permutations of \code{vector}.
+permute <- function(vector) {
+    n <- length(vector)
+    permList <- permuteN(n)
+    lapply(split(permList, seq(1, nrow(permList))),
+            function(x) vector[x])
+}
+
 #' Obtaining IV-like estimands
 #'
 #' This function performs TSLS to obtain the estimates for the IV-like
@@ -59,25 +94,14 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #'            treat = d,
 #'            list = FALSE)
 #' @export
-ivlike.mst <- function(formula, data, subset, components = NULL, treat,
+ivlike.mst <- function(formula, data, subset, components, treat,
                          list = FALSE) {
 
     formula <- Formula::as.Formula(formula)
    
     call <- match.call(expand.dots = FALSE)
 
-    ## obtain design matrices
-    if (list == TRUE) {
-        mf <- design.mst(formula, data)
-    } else {
-        mf <- eval(modcall(call,
-                           newcall = design.mst,
-                           keepargs = c("formula", "subset"),
-                           newargs = list(data = quote(data))))
-    }
-
-    instrumented <- !is.null(mf$Z)
-
+    ## TESTING --------------------
     ## select components
     if (list == TRUE) {
         if (!is.character(components)) {
@@ -91,20 +115,79 @@ ivlike.mst <- function(formula, data, subset, components = NULL, treat,
 
     }
 
-    if (components == "NULL") {
-        components <- treat
-    } else {
-        if (substr(components, 1, 2) == "c(" &
-            substr(components, nchar(components), nchar(components)) == ")") {
-            components   <- substr(components, 3, nchar(components) - 1)
-            lmcomponents <- gsub("intercept", "(Intercept)", components)
+    ## Covert components into a vector of strings
+    stringComp <- (substr(components, 1, 2) == "c(" &
+        substr(components, nchar(components), nchar(components)) == ")")
+    
+    if (stringComp){
+        components   <- substr(components, 3, nchar(components) - 1)
+        components   <- strsplit(components, ", ")[[1]]
+    }
+   
+    ## Some interactions may need to be relabled
+    termsR <- attr(terms(formula), "term.labels")
 
-            components   <- strsplit(components, ", ")[[1]]
-            lmcomponents <- strsplit(lmcomponents, ", ")[[1]]
-        } else {
-            lmcomponents <- components
+    failTerms <- which(!components %in% termsR)
+
+    for(fail in failTerms) {
+        vars <- strsplit(components[fail], ":")[[1]]
+        varsPerm <- permute(vars)
+        varsPerm <- unlist(lapply(varsPerm,
+                                  function(x) paste(x, collapse = ":")))
+
+        correctPos <- which(varsPerm %in% termsR)
+        if (length(correctPos) > 0) {           
+            components[fail] <- varsPerm[correctPos]
         }
     }
+
+    ## Generate the lmcomponents vector
+    lmcomponents <- components
+    lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
+    
+    ## END TESTING --------------------
+    
+    ## obtain design matrices
+    if (list == TRUE) {
+        mf <- design.mst(formula, data)
+    } else {
+        mf <- eval(modcall(call,
+                           newcall = design.mst,
+                           keepargs = c("formula", "subset"),
+                           newargs = list(data = quote(data))))
+    }
+
+    instrumented <- !is.null(mf$Z)
+
+    ## ORIGINAL--------
+    ## ## select components
+    ## if (list == TRUE) {
+    ##     if (!is.character(components)) {
+    ##         components <- deparse(components)
+    ##     }
+    ## } else {
+    ##     components <- (unlist(lapply(components, deparse)))
+    ##     components <- paste0("c(",
+    ##                         paste(components, collapse = ", "),
+    ##                         ")")
+
+    ## }
+
+    ## if (components == "NULL") {
+    ##     components <- treat
+    ## } else {
+    ##     if (substr(components, 1, 2) == "c(" &
+    ##         substr(components, nchar(components), nchar(components)) == ")"){
+    ##         components   <- substr(components, 3, nchar(components) - 1)
+    ##         lmcomponents <- gsub("intercept", "(Intercept)", components)
+
+    ##         components   <- strsplit(components, ", ")[[1]]
+    ##         lmcomponents <- strsplit(lmcomponents, ", ")[[1]]
+    ##     } else {
+    ##         lmcomponents <- components
+    ##     }
+    ## }
+    ## END ORIGINAL--------
 
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {

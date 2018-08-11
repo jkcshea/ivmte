@@ -27,7 +27,8 @@ corresponding to each IV-like estimand. See
 the regressions specifications we want to include in the set of
 IV-like estimands. To select the intercept term, include in the
 vector of variable names, `intercept'. See
-\code{\link{lists.mst}} on how to input the argument.}
+\code{\link{lists.mst}} on how to input the argument. If no
+argument is provided, then}
 
 \item{propensity}{formula or variable name corresponding to
 propensity to take up treatment. If a formula is declared, then

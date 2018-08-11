@@ -36,7 +36,8 @@
 #'     the regressions specifications we want to include in the set of
 #'     IV-like estimands. To select the intercept term, include in the
 #'     vector of variable names, `intercept'. See
-#'     \code{\link{lists.mst}} on how to input the argument.
+#'     \code{\link{lists.mst}} on how to input the argument. If no
+#'     argument is provided, then
 #' @param propensity formula or variable name corresponding to
 #'     propensity to take up treatment. If a formula is declared, then
 #'     the function estimates propensity score according to the
@@ -978,7 +979,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                              tmpOutput) == 1)
 
                     if (.Platform$OS.type == "unix") {
-                        memoryMessage <- 
+                        memoryMessage <-
                            "To do so in Unix systems, you must first
                            close R. Open a terminal and check the current stack
                            size using the command 'ulimit -s'. Set a larger
@@ -990,8 +991,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                            evaluation of nested expressions (e.g.
                            'options(expressions = 100000') and re-run the code."
                     } else if (.Platform$OS.type == "windows") {
-                        memoryMessage <- 
-                           "To do so in Windows, 
+                        memoryMessage <-
+                           "To do so in Windows,
                            check the memory allocation using the command
                            'memory.limit(size = NA)'. Check the maximum amount
                            memory you can assign to R using the command
@@ -1003,11 +1004,11 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                     } else {
                         memoryMessage <- NULL
                     }
-                    
+
                     if (errorExpr) {
                         stop(gsub("\\s+", " ", paste(
                            "Evaluation is nested too deeply.
-                           Currently 'sample.integral = FALSE', under which 
+                           Currently 'sample.integral = FALSE', under which
                            the code performs a single numerical integral on a
                            deeply nested function for
                            each term in m0 and m1. You can set a larger limit on
@@ -1023,7 +1024,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                            "Alternatively, declare
                            'sample.integral = TRUE'. The code will instead
                            perform numerical integration for each term in m0
-                           and m1, for every observation in the data set. 
+                           and m1, for every observation in the data set.
                            This method may be slower, but will work under the
                            default R settings.")))
                     } else {
@@ -1035,7 +1036,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                            "Alternatively, declare
                            'sample.integral = TRUE'. The code will instead
                            perform numerical integration for each term in m0
-                           and m1, for every observation in the data set. 
+                           and m1, for every observation in the data set.
                            This method may be slower, but will work under the
                            default R settings.")))
                     }
@@ -1043,7 +1044,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             } else {
                 monoIntegrated <- lapply(X = monoWeighted,
                                          FUN = listIntegrate)
-                
+
                 monoK <- length(monoIntegrated[[1]])
 
                 assign(paste0("gstar", d),
@@ -1145,7 +1146,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                                 upper = 1),
                                              silent = TRUE)
 
-                            if (is.list(tmpOutput)) {                                
+                            if (is.list(tmpOutput)) {
                                 tmpOutput <- unlist(lapply(tmpOutput,
                                                     FUN = function(x) x$value))
                                 tmpOutput <- tmpOutput / nrow(cdata)
@@ -1155,7 +1156,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                                          tmpOutput) == 1)
 
                                 if (.Platform$OS.type == "unix") {
-                                    memoryMessage <- 
+                                    memoryMessage <-
                            "To do so in Unix systems, you must first
                            close R. Open a terminal and check the current stack
                            size using the command 'ulimit -s'. Set a larger
@@ -1167,8 +1168,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                            evaluation of nested expressions (e.g.
                            'options(expressions = 100000') and re-run the code."
                                 } else if (.Platform$OS.type == "windows") {
-                                    memoryMessage <- 
-                           "To do so in Windows, 
+                                    memoryMessage <-
+                           "To do so in Windows,
                            check the memory allocation using the command
                            'memory.limit(size = NA)'. Check the maximum amount
                            memory you can assign to R using the command
@@ -1180,11 +1181,11 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                 } else {
                                     memoryMessage <- NULL
                                 }
-                                
+
                                 if (errorExpr) {
                                     stop(gsub("\\s+", " ", paste(
                            "Evaluation is nested too deeply.
-                           Currently 'sample.integral = FALSE', under which 
+                           Currently 'sample.integral = FALSE', under which
                            the code performs a single numerical integral on a
                            deeply nested function for
                            each term in m0 and m1. You can set a larger limit on
@@ -1200,7 +1201,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                            "Alternatively, declare
                            'sample.integral = TRUE'. The code will instead
                            perform numerical integration for each term in m0
-                           and m1, for every observation in the data set. 
+                           and m1, for every observation in the data set.
                            This method may be slower, but will work under the
                            default R settings.")))
                                 } else {
@@ -1212,13 +1213,13 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                            "Alternatively, declare
                            'sample.integral = TRUE'. The code will instead
                            perform numerical integration for each term in m0
-                           and m1, for every observation in the data set. 
+                           and m1, for every observation in the data set.
                            This method may be slower, but will work under the
                            default R settings.")))
                                 }
 
                             }
-                        } else {                           
+                        } else {
                             tmpIntegrals <-
                                 lapply(seq(1, nrow(cdata)),
                                        function(x) listIntegrate(
@@ -1320,10 +1321,10 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             ## corresponding to the IV-like estimands
             sdata <- data[eval(substitute(ssubset), data), ]
             sest  <- ivlike.mst(formula = sformula,
-                                  data = sdata,
-                                  components = scomponent,
-                                  treat = treat,
-                                  list = TRUE)
+                                data = sdata,
+                                components = scomponent,
+                                treat = treat,
+                                list = TRUE)
 
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands

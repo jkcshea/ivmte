@@ -1,8 +1,9 @@
 #' Listing subsets and components
 #'
-#' This function allows the user to declare a list of subsetting
-#' conditions and variable names in non-character form. This is used
-#' to ensure clean entry of arguments into the function.
+#' This function allows the user to declare a list of variable names
+#' in non-character form and subsetting conditions. This is used to
+#' ensure clean entry of arguments into the \code{components} and
+#' \code{subset} arguments of the function.
 #'
 #' @param ... subset conditions or variable names
 #' @return list.

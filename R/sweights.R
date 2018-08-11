@@ -101,8 +101,8 @@ ivj.mst <- function(X, Z, components, treat) {
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
     cpos <- which(colnames(X) %in% components)
-
     cposcheck <- which(!components %in% colnames(X))
+   
     if (length(cposcheck) > 0) {
         errornames  <- paste(components[cposcheck], collapse = ", ")
         matrixnames <- paste(colnames(X), collapse = ", ")
@@ -120,6 +120,7 @@ ivj.mst <- function(X, Z, components, treat) {
     wvec <- solve(ezx) %*% t(Z)
     wvec <- extractcols(t(wvec), cpos)
     colnames(wvec)  <- components
+
     return(list(s0 = wvec, s1 = wvec))
 }
 
