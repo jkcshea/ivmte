@@ -241,17 +241,23 @@ genboundA.mst <- function(A0, A1, sset, gridobj, uname,
 #' @return a matrix representing the monotonicity restrictions.
 diffA <- function(A, monogrid, sn, d, ndcols) {
 
-    A_mono <- as.matrix(A[rownames(monogrid),])
-
+    A_mono <- as.matrix(A[rownames(monogrid),])   
+    
     A_max  <- A_mono[!as.logical(maxminmatch(monogrid,
                                              ".mst.monoc",
                                              ".mst.monog",
                                              min)), ]
+    
     A_min  <- A_mono[!as.logical(maxminmatch(monogrid,
                                              ".mst.monoc",
                                              ".mst.monog",
                                              max)), ]
+    
     mono   <- as.matrix(A_max - A_min)
+
+    if (length(rownames(mono)) == length(colnames(A))) {
+        if (min(rownames(mono) == colnames(A))) mono <- t(mono)
+    }
 
     if (is.null(dim(mono))) mono <- t(as.matrix(mono))
 
@@ -431,6 +437,7 @@ genmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     grid <- gridobj$grid
     othercols <- colnames(grid)[(colnames(grid) != monov) &
                                 (colnames(grid) != ".grid.order")]
+    
     colorder  <- c(othercols, monov)
     cmdorder <- paste0("order", "(", paste(colorder, collapse = ", "), ")")
     grid$.grid.index <- gridobj$map
@@ -466,7 +473,7 @@ genmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                   "m1.inc", "mte.dec", "mte.inc")
     monolist <- c("m0.dec", "m0.inc", "m1.dec",
                   "m1.inc", "mte.dec", "mte.inc")
-
+   
     call <- match.call(expand.dots = FALSE)
     monoAcall <- modcall(call,
                          newcall = stackA.mst,
@@ -475,7 +482,7 @@ genmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                                         A1 = quote(A1),
                                         monogrid = quote(monogrid)))
     monoA <- eval(monoAcall)
-
+    
     ## expand the map for monotonicity constraints accordingly.
     monoargs <- length(which(match(monolist, names(call), 0) > 0))
     monomap  <- rep(monomap, times = monoargs)
@@ -717,7 +724,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                              gridobj = quote(gridobj)))
         bdA <- eval(boundAcall)
     }
-
+    
     ## Prepare to generate matrices for monotonicity constraints
     if (hasArg(m0.inc)  | hasArg(m0.dec) |
         hasArg(m1.inc)  | hasArg(m1.dec) |

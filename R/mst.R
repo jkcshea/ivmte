@@ -855,7 +855,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
-            message(paste("\n    Integrating terms for control group..."))
+            message("    Integrating terms for control group...\n")
             pm0 <- eval(as.call(m0call))
             gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
         } else {
@@ -864,7 +864,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         }
 
         if (!is.null(m1)) {
-            message(paste("\n    Integrating terms for treated group..."))
+            message("    Integrating terms for treated group...\n")
             pm1 <- eval(as.call(m1call))
             gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
         } else {

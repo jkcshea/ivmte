@@ -371,7 +371,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
         a_mbA[negatepos, ] <- -a_mbA[negatepos, ]
         a_mbrhs <- a_mbobj$mbrhs
         a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
-
+        
         ## Test for violations
         violatevecMin <- mapply(">", (a_mbA %*% solVecMin), a_mbrhs)
         violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)
