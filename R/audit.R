@@ -190,7 +190,6 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                              replace = FALSE,
                              prob = replicate(nrow(support), (1/nrow(support))))
         grid_resid <- full_index[!(full_index %in% grid_index)]
-
     }
 
     ## Begin performing the audit
@@ -371,16 +370,16 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
         a_mbA[negatepos, ] <- -a_mbA[negatepos, ]
         a_mbrhs <- a_mbobj$mbrhs
         a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
-        
+
         ## Test for violations
         violatevecMin <- mapply(">", (a_mbA %*% solVecMin), a_mbrhs)
         violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)
-        
+
         violatevec <- violatevecMin + violatevecMax
         violate <- as.logical(sum(violatevec))
 
         if (violate) {
-            
+
             violate_pos <- which(violatevec == TRUE)
             violate_index <- unique(a_mbobj$mbmap[violate_pos])
             grid_index <- unique(c(grid_index, violate_index))

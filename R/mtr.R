@@ -473,7 +473,6 @@ uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
                   knots = knots,
                   degree = degree,
                   intercept = intercept,
-                  ## Boundary.knots = c(-1e-16, 1+1e16)
                   Boundary.knots = c(0, 1))
 }
 
@@ -712,8 +711,16 @@ defSplinesBasis <- function(splineslist, j, l, v) {
 #' @return a list of vectorized functions corresponding to a single
 #'     splines basis functions that can be numerically integrated.
 defSplines <- function(splineslist, j, v) {
-    basisLength <- length(genBasisSplines.mst(splineslist, 0)[[j]])
+    argList <- eval(parse(text = gsub("uSplines\\(",
+                                      "list(",
+                                      names(splineslist)[j])))
 
+    basisLength <- length(argList$knots) +
+        argList$degree
+
+    if(isTRUE(argList$intercept == TRUE) |
+       is.null(argList$intercept)) basisLength <- basisLength + 1
+    
     funList <- sapply(X = seq(1, basisLength),
                       FUN = defSplinesBasis,
                       splineslist = splineslist,
@@ -770,11 +777,14 @@ listMultiply <- function(list, multiplier) {
 #' numerical quadrature.
 #' @param list the list of functions to be multiplied.
 #' @return a list of scalars.
-listIntegrate <- function(list) {
+listIntegrate <- function(list, subdivisions, rel.tol, abs.tol) {
     lapply(X = list,
            FUN = integrate,
            lower = 0,
-           upper = 1)
+           upper = 1,
+           subdivisions = subdivisions,
+           rel.tol = rel.tol,
+           abs.tol = abs.tol)
 }
 
 #' Auxiliary function: mean of a list of numerically integrated
@@ -795,3 +805,33 @@ listMean <- function(integratedList, component) {
                        function(x) integratedList[[x]][[component]]$value)))
 }
 
+#' Function to perform numerical integration over partitions intervals
+#'
+#' Numerical integration of discontinuous functions is very slow. As a
+#' faster alternative, this function takes in a list of points of
+#' discontinuity, partitions the region of integration accordingly,
+#' and performs the integrals over each continuous region. The
+#' integrals are then summed up.
+#' @param FUN function to be integrated.
+#' @param splits vector, list of points of discontinuity. This vector
+#'     must also include the end points for the whole region of
+#'     integration.
+#' @return scalar.
+splitIntegrate <- function(FUN, splits, subdivisions, rel.tol, abs.tol) {
+    splits <- sort(splits)
+   
+    intervals <- (cbind(splits[seq(length(splits) - 1)],
+                        splits[seq(2, length(splits))]))
+    
+
+    integrals <- lapply(split(intervals, seq(1, nrow(intervals))),
+                        function(x) integrate(f = FUN,
+                                              lower = x[1],
+                                              upper = x[2],
+                                              subdivisions = subdivisions,
+                                              rel.tol = rel.tol,
+                                              abs.tol = abs.tol))
+    
+    total <- sum(unlist(lapply(integrals, function(x) x$value)))
+    return(total)
+}

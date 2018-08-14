@@ -123,18 +123,39 @@
 #'     weakly monotone decreasing.
 #' @param lpsolver name of the linear programming package in R used to
 #'     obtain the bounds on the treatment effect.
-#' @param sample.integral boolean, set to \code{FALSE} by
-#'     default. When the user submits a custom weight, the function
-#'     will have to perform numerical integration. When
-#'     \code{sample.integral} is set to \code{FALSE}, the function
-#'     will attempt to perform a single integral for each term in the
-#'     MTRs defined in \code{m0} and $\code{m1}$. This may require the
-#'     user to assign a higher value to
-#'     \code{options(expressions=)}. If \code{sample.integral} is set
-#'     to \code{TRUE}, then the function will instead perform an
-#'     integral for each term in the MTRs, for each observation in the
-#'     sample. This is a much slower alternative, but does not require
-#'     \code{options(expressions=)} to be set.
+#' @param int.method choose from c(1, 2, 3), set to 1 by default. When
+#'     the user submits a custom weight, the function will have to
+#'     perform numerical integration. When \code{int.method} is set to
+#'     1, the function will attempt to perform a single integral for
+#'     each term in the MTRs defined in \code{m0} and
+#'     $\code{m1}$. This may require the user to assign a higher value
+#'     to \code{options(expressions=)}. If \code{int.method} is set to
+#'     2, then the function will attempt to perform a single integral,
+#'     but split up the regions of integration according to a
+#'     user-defined partitions of the interval [0, 1]. Each endpoint
+#'     of the partition should correspond to a point of discontinuity
+#'     in the integral, and are submitted using the argument
+#'     \code{discontinuities}. The function will then integrate each
+#'     partition separately, which, in the case of numerical
+#'     integration, will be faster than integrating over the entire
+#'     region. If \code{int.method} is set to 3, then the function
+#'     will instead perform an integral for each term in the MTRs, for
+#'     each observation in the sample. This is a much slower
+#'     alternative, but does not require \code{options(expressions=)}
+#'     to be set.
+#' @param int.discont vector, values should be in the interval
+#'     [0, 1]. Each value corresponds to a point of discontinuity when
+#'     integrating over unobservable u when generating the Gamma
+#'     moments. This vector is used when \code{int.method = 2}.
+#' @param int.subdivisions integer, maximum number of subdivisions to
+#'     use to perform the numerical integration. Default is set at
+#'     100.
+#' @param int.rel.tol relative tolerance before termination of
+#'     numerical integration. Default is set at
+#'     \code{.Machine$double.eps^0.25}.
+#' @param int.abs.tol absolute tolerance before the termination of
+#'     numerical integration. Default is set to be equal to
+#'     \code{int.rel.tol}.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -170,7 +191,9 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
                 m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                 m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL,
-                sample.integral = FALSE) {
+                int.method = 1, int.discont, int.subdivisions = 100L,
+                int.rel.tol = .Machine$double.eps^0.25,
+                int.abs.tol) {
 
     ## Match call arguments
     call <- match.call(expand.dots = FALSE)
@@ -225,7 +248,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
         ## Convert formula, components, and subset inputs into lists
         length_formula <- length(ivlike)
 
-        if (hasArg(components)) {
+        if (hasArg(components) & !is.null(components)) {
             userComponents <- TRUE
             if (class_list(components)) {
                 length_components <- length(components)
@@ -351,6 +374,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     ## 0.d Check numeric arguments and case completion
     ##---------------------------
 
+    ## Variable and weight checks
     if (hasArg(treat)) {
         if (! deparse(substitute(treat)) %in% colnames(data)) {
             stop("Declared treatment indicator not found in data")
@@ -421,6 +445,8 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                       'logit', or 'probit'."))
         }
     }
+
+    ## Audit checks
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
         stop("Cannot set obseq.tol below 0.")
     }
@@ -449,6 +475,65 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
     if (!((audit.max %% 1 == 0) & audit.max > 0)) {
         stop("audit.max must be an integer greater than or equal to 1.")
+    }
+
+    ## Integral checks
+    if (hasArg(int.method) | hasArg(int.discont) | hasArg(int.subdivisions) |
+        hasArg(int.rel.tol) | hasArg(int.abs.tol)) {
+
+        if (hasArg(target)) {
+            warning(gsub("\\s+", " ",
+                         "A preset target parameter is chosen, and options for
+                         performing integrals are also provided. These options
+                         will only be used if custom weights are used to define
+                         the target parameter."))
+        }
+        
+        if (hasArg(int.method)) {
+            if (! int.method %in% c(1, 2, 3)) {
+                stop("int.method must be set to either 1, 2, or 3.")
+            }
+            if (int.method == 2 & !hasArg(int.discont)) {
+                stop(gsub("\\s+", " ",
+                          "If int.method is set to 2, then a vector of points of
+                      discontinuities in the interval [0, 1] must be provided
+                      through the argument int.discont."))
+            }
+            if (int.method != 2 & hasArg(int.discont)) {
+                warning(gsub("\\s+", " ",
+                             paste0("A vector of points of
+                      discontinuities in the interval [0, 1] is provided, but
+                      will only be used if int.method is set to 2. Currently,
+                      int.method is set to ", int.method, ".")))
+            }
+        }
+
+        if (hasArg(int.discont)) {
+            if (!is.vector(int.discont)) {
+                stop(gsub("\\s+", " ",
+                          "int.discont must be a vector of values
+                       in the interval [0, 1]."))
+            }
+            int.discont <- sort(unique(c(c(0, 1), int.discont)))
+            
+            if (max(int.discont) > 1 | min(int.discont) < 0) {
+                stop(gsub("\\s+", " ",
+                          "int.discont must be a vector of values
+                       in the interval [0, 1]."))
+            }
+        }
+
+        if (!hasArg(int.abs.tol)) {
+            int.abs.tol <- int.rel.tol
+        }
+        
+        if(int.abs.tol < 0 | int.rel.tol < 0) {
+            stop("int.rel.tol and int.abs.tol must be positive values.")
+        }
+        
+        if (int.subdivisions < 0) {
+            stop("int.subdivisions must be a positive integer.")
+        }
     }
 
     ##---------------------------
@@ -948,7 +1033,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                      multiplier = get(paste0("custom", d)),
                                      SIMPLIFY = FALSE)
 
-            if (sample.integral == FALSE) {
+            if (int.method %in% c(1, 2)) {
                 tmpFunSum <-
                     lapply(seq(1, length(monoWeighted[[1]])),
                            function(l) {
@@ -961,21 +1046,43 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                     Reduce,
                                     f = "funAdd")
 
-                tmpOutput <- try(lapply(tmpFunSum,
-                                        FUN = integrate,
-                                        lower = 0,
-                                        upper = 1),
-                                 silent = TRUE)
-
-
+                if (int.method == 1) {
+                    tmpOutput <- try(lapply(tmpFunSum,
+                                            FUN = integrate,
+                                            lower = 0,
+                                            upper = 1,
+                                            subdivisions = int.subdivisions,
+                                            rel.tol = int.rel.tol,
+                                            abs.tol = int.abs.tol),
+                                     silent = TRUE)
+                } else {
+                    tmpOutput <- try(lapply(tmpFunSum,
+                                            FUN = splitIntegrate,
+                                            splits = int.discont,
+                                            subdivisions = int.subdivisions,
+                                            rel.tol = int.rel.tol,
+                                            abs.tol = int.abs.tol),
+                                     silent = TRUE)
+                }
+                
                 if (is.list(tmpOutput)) {
                     uniIntegral <- TRUE
-                    tmpOutput <- unlist(lapply(tmpOutput,
-                                               FUN = function(x) x$value))
+                    if (int.method == 1) {
+                        tmpOutput <- unlist(lapply(tmpOutput,
+                                                   FUN = function(x) x$value))
+                    } else {
+                        tmpOutput <- unlist(tmpOutput)
+                    }
                     tmpOutput <- tmpOutput / nrow(cdata)
                     assign(paste0("gstar", d), tmpOutput)
                 } else {
-                    errorExpr <- isTRUE(grep("infinite recursion",
+                    errorExpr  <- isTRUE(grep("infinite recursion",
+                                             tmpOutput) == 1)
+
+                    errorStack <- isTRUE(grep("C stack usage",
+                                             tmpOutput) == 1)
+
+                    errorSubdi <- isTRUE(grep("subdivisions",
                                              tmpOutput) == 1)
 
                     if (.Platform$OS.type == "unix") {
@@ -1008,42 +1115,52 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                     if (errorExpr) {
                         stop(gsub("\\s+", " ", paste(
                            "Evaluation is nested too deeply.
-                           Currently 'sample.integral = FALSE', under which
-                           the code performs a single numerical integral on a
-                           deeply nested function for
+                           Currently 'int.method' is set to 1 or 2, under
+                           which the code performs a single numerical integral
+                           on a deeply nested function for
                            each term in m0 and m1. You can set a larger limit on
                            the number of nested expressions that will be
                            evaluated using the command 'options(expressions =)'
                            (e.g. 'options(expressions = 100000)', the
                            default is 5000).
 
-                           Evaluating more deeply nested expresions will require
-                           more memory. Consider increasing the memory limit of
-                           R.",
+                           Evaluating more deeply nested expressions will
+                           require  more memory. Consider increasing the memory
+                           limit of R.",
                            memoryMessage,
                            "Alternatively, declare
-                           'sample.integral = TRUE'. The code will instead
+                           'int.method = 3'. The code will instead
                            perform numerical integration for each term in m0
                            and m1, for every observation in the data set.
                            This method may be slower, but will work under the
                            default R settings.")))
-                    } else {
+                    } else if (errorStack) {
                        stop(gsub("\\s+", " ", paste(
                            "Insufficient memory for evaluating nested
                            expressions. You must increase the memory limit of
                            R.",
                            memoryMessage,
                            "Alternatively, declare
-                           'sample.integral = TRUE'. The code will instead
+                           'int.method = 3'. The code will instead
                            perform numerical integration for each term in m0
                            and m1, for every observation in the data set.
                            This method may be slower, but will work under the
                            default R settings.")))
+                    } else if (errorSubdi) {
+                       stop(gsub("\\s+", " ", paste(
+                           "Maximum number of numerical integral subdivisions
+                            reached. Increase the value assigned to argument
+                            'int.subdivisions'.")))
+                    } else {
+                        stop(tmpOutput)
                     }
                 }
             } else {
                 monoIntegrated <- lapply(X = monoWeighted,
-                                         FUN = listIntegrate)
+                                         FUN = listIntegrate,
+                                         subdivisions = int.subdivisions,
+                                         rel.tol = int.rel.tol,
+                                         abs.tol = int.abs.tol)
 
                 monoK <- length(monoIntegrated[[1]])
 
@@ -1125,9 +1242,10 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 for (j in 1:length(splinesFunctions)) {
                     basisLength <- length(splinesFunctions[[j]][[1]][[1]])
                     interLength <- length(splinesFunctions[[j]])
+                    
                     for (v in 1:interLength) {
 
-                        if (sample.integral == FALSE) {
+                        if (int.method %in% c(1, 2)) {
                             tmpFunSum <-
                                 lapply(seq(1, basisLength),
                                        function(l) {
@@ -1140,20 +1258,43 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                                 Reduce,
                                                 f = "funAdd")
 
-                            tmpOutput <- try(lapply(tmpFunSum,
-                                                FUN = integrate,
-                                                lower = 0,
-                                                upper = 1),
+                            if (int.method == 1) {
+                                tmpOutput <- try(lapply(tmpFunSum,
+                                                        FUN = integrate,
+                                                        lower = 0,
+                                                        upper = 1,
+                                                subdivisions = int.subdivisions,
+                                                rel.tol = int.rel.tol,
+                                                abs.tol = int.abs.tol),
                                              silent = TRUE)
-
+                            } else {
+                                tmpOutput <- try(lapply(tmpFunSum,
+                                                        FUN = splitIntegrate,
+                                                        splits = int.discont,
+                                                subdivisions = int.subdivisions,
+                                                rel.tol = int.rel.tol,
+                                                abs.tol = int.abs.tol),
+                                             silent = TRUE)
+                            }
+                            
                             if (is.list(tmpOutput)) {
-                                tmpOutput <- unlist(lapply(tmpOutput,
-                                                    FUN = function(x) x$value))
+                                if (int.method == 1) {
+                                    tmpOutput <- unlist(lapply(tmpOutput,
+                                                     FUN = function(x) x$value))
+                                } else {
+                                    tmpOutput <- unlist(tmpOutput)
+                                }                                
                                 tmpOutput <- tmpOutput / nrow(cdata)
                             } else {
-
+                                
                                 errorExpr <- isTRUE(grep("infinite recursion",
                                                          tmpOutput) == 1)
+                                
+                                errorStack <- isTRUE(grep("C stack usage",
+                                                          tmpOutput) == 1)
+                                
+                                errorSubdi <- isTRUE(grep("subdivisions",
+                                                          tmpOutput) == 1)
 
                                 if (.Platform$OS.type == "unix") {
                                     memoryMessage <-
@@ -1185,45 +1326,54 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                 if (errorExpr) {
                                     stop(gsub("\\s+", " ", paste(
                            "Evaluation is nested too deeply.
-                           Currently 'sample.integral = FALSE', under which
-                           the code performs a single numerical integral on a
-                           deeply nested function for
+                           Currently 'int.method' is set to 1 or 2, under
+                           which the code performs a single numerical integral
+                           on a deeply nested function for
                            each term in m0 and m1. You can set a larger limit on
                            the number of nested expressions that will be
                            evaluated using the command 'options(expressions =)'
                            (e.g. 'options(expressions = 100000)', the
                            default is 5000).
 
-                           Evaluating more deeply nested expresions will require
-                           more memory. Consider increasing the memory limit of
-                           R.",
+                           Evaluating more deeply nested expressions will
+                           require more memory. Consider increasing the memory
+                           limit of R.",
                            memoryMessage,
                            "Alternatively, declare
-                           'sample.integral = TRUE'. The code will instead
+                           'int.method = 3'. The code will instead
                            perform numerical integration for each term in m0
                            and m1, for every observation in the data set.
                            This method may be slower, but will work under the
                            default R settings.")))
-                                } else {
+                                } else if (errorStack) {
                                     stop(gsub("\\s+", " ", paste(
                            "Insufficient memory for evaluating nested
                            expressions. You must increase the memory limit of
                            R.",
                            memoryMessage,
                            "Alternatively, declare
-                           'sample.integral = TRUE'. The code will instead
+                           'int.method = 3'. The code will instead
                            perform numerical integration for each term in m0
                            and m1, for every observation in the data set.
                            This method may be slower, but will work under the
                            default R settings.")))
+                                } else if (errorSubdi) {
+                                    stop(gsub("\\s+", " ", paste(
+                           "Maximum number of numerical integral subdivisions
+                            reached. Increase the value assigned to argument
+                            'int.subdivisions'.")))
+                                } else {
+                                    stop(tmpOutput)
                                 }
-
-                            }
+                            }                            
                         } else {
                             tmpIntegrals <-
                                 lapply(seq(1, nrow(cdata)),
                                        function(x) listIntegrate(
-                                           splinesFunctions[[j]][[v]][[x]]))
+                                            splinesFunctions[[j]][[v]][[x]],
+                                            subdivisions = int.subdivisions,
+                                            rel.tol = int.rel.tol,
+                                            abs.tol = int.abs.tol))
 
                             tmpOutput <-
                                 sapply(seq(1, basisLength),
