@@ -343,35 +343,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
     }
 
     ##---------------------------
-    ## 0.c Check monotonicity conditions
-    ##---------------------------
-
-    if (hasArg(m0.inc) & hasArg(m0.dec)) {
-        if (m0.inc == TRUE & m0.dec == TRUE) {
-            stop(gsub("\\s+", " ",
-                      "Cannot have m0 be monotone increasing and monotone
-                      decreasing."))
-        }
-    }
-
-    if (hasArg(m1.inc) & hasArg(m1.dec)) {
-        if (m1.inc == TRUE & m1.dec == TRUE) {
-            stop(gsub("\\s+", " ",
-                      "Cannot have m1 be monotone increasing and monotone
-                      decreasing."))
-        }
-    }
-
-    if (hasArg(mte.inc) & hasArg(mte.dec)) {
-        if (mte.inc == TRUE & mte.dec == TRUE) {
-            stop(gsub("\\s+", " ",
-                      "Cannot have MTE be monotone increasing and monotone
-                      decreasing."))
-        }
-    }
-
-    ##---------------------------
-    ## 0.d Check numeric arguments and case completion
+    ## 0.c Check numeric arguments and case completion
     ##---------------------------
 
     ## Variable and weight checks
