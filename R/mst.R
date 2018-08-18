@@ -57,9 +57,15 @@
 #'     ("\code{atu}"), LATE ("\code{late}"), and generalized LATE
 #'     ("\code{genlate}").
 #' @param target.weight0 user-defined weight function for the control
-#'     group defining the target parameter.
+#'     group defining the target parameter. A list of functions can be
+#'     submitted if the weighting function is in fact a spline.
 #' @param target.weight1 user-defined weight function for the treated
-#'     group defining the target parameter.
+#'     group defining the target parameter. A list of functions can be
+#'     submitted if the weighting function is in fact a spline.
+#' @param target.knots0 user-defined set of knots associated with
+#'     splines weights for the control group.
+#' @param target.knots1 user-defined set of knots associated with
+#'     splines weights for the treated group.
 #' @param late.Z vector of variable names used to define the LATE.
 #' @param late.from baseline set of values of Z used to define the
 #'     LATE.
@@ -143,8 +149,8 @@
 #'     each observation in the sample. This is a much slower
 #'     alternative, but does not require \code{options(expressions=)}
 #'     to be set.
-#' @param int.discont vector, values should be in the interval
-#'     [0, 1]. Each value corresponds to a point of discontinuity when
+#' @param int.discont vector, values should be in the interval [0,
+#'     1]. Each value corresponds to a point of discontinuity when
 #'     integrating over unobservable u when generating the Gamma
 #'     moments. This vector is used when \code{int.method = 2}.
 #' @param int.subdivisions integer, maximum number of subdivisions to
@@ -185,7 +191,8 @@
 #' @export
 mst <- function(ivlike, data, subset, components, propensity, link,
                 treat, m0, m1, uname = u, target, target.weight0,
-                target.weight1, late.Z, late.from, late.to, late.X,
+                target.weight1, target.knots0 = NULL, target.knots1 = NULL,
+                late.Z, late.from, late.to, late.X,
                 eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
                 grid.Nu = 20, grid.Nx = 20, audit.Nx = 2,
                 audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
@@ -928,7 +935,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             gstar1 <- NULL
             pm1 <- NULL
         }
-
+        
         gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                             data = cdata,
                                             lb = w0$lb,
@@ -944,432 +951,622 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                             d = 1)
     } else {
 
-        ## Generate list of custom weights
-        custom0 <- lapply(split(cdata, seq(1, nrow(cdata))),
-                          genWeight,
-                          uname = deparse(substitute(uname)),
-                          fun = target.weight0,
-                          fun.name = deparse(substitute(target.weight0)))
+        ## FIX: is this repeated from before? i.e. have you already
+        ## converted potential single functions into lists?
+        target.weight0 <- c(target.weight0)
+        target.weight1 <- c(target.weight1)
+        target.knots0  <- c(target.knots0)
+        target.knots1  <- c(target.knots1)
 
-        custom1 <- lapply(split(cdata, seq(1, nrow(cdata))),
-                          genWeight,
-                          uname = deparse(substitute(uname)),
-                          fun = target.weight1,
-                          fun.name = deparse(substitute(target.weight1)))
-
-        ## Generate the non-spline functions to be integrated
-        mf0call <- modcall(call,
-                          newcall = polyparse.mst,
-                          keepargs = c("uname"),
-                          newargs = list(formula = m0,
-                                         data = quote(cdata),
-                                         as.function = TRUE))
-
-        mf1call <- modcall(call,
-                          newcall = polyparse.mst,
-                          keepargs = c("uname"),
-                          newargs = list(formula = m1,
-                                         data = quote(cdata),
-                                         as.function = TRUE))
-
-        dlist <- NULL
-        if (!is.null(m0)) {
-            pm0  <- eval(as.call(m0call))  ## To be used for the S-set
-            pmf0 <- eval(as.call(mf0call)) ## To be used for target paramters
-            dlist <- c(dlist, 0)
+        ## Convert fixed/numeric weights into functions
+        if (is.numeric(target.weight0)) {
+            target.weight0 <- sapply(target.weight0, constructConstant)
         } else {
-            gstar0 <- NULL
-            pm0 <- NULL
+            numeric <- which(unlist(lapply(target.weight0, is.numeric)))
+            target.weight0[numeric] <- sapply(unlist(target.weight0[numeric]),
+                                              constructConstant)
         }
 
-        if (!is.null(m1)) {
-            pm1  <- eval(as.call(m1call))
-            pmf1 <- eval(as.call(mf1call))
-            dlist <- c(dlist, 1)
+        if (is.numeric(target.weight1)) {
+            target.weight1 <- sapply(target.weight1, constructConstant)
         } else {
-            gstar1 <- NULL
-            pm1 <- NULL
+            numeric <- which(unlist(lapply(target.weight1, is.numeric)))
+            target.weight1[numeric] <- sapply(unlist(target.weight1[numeric]),
+                                              constructConstant)
         }
 
-        ## Integrate the non-spline functions
-        message("    Performing numerical integration...")
+        ## Convert fixed/numeric knots into functions
+        if (!is.null(target.knots0)) {
+            if (is.numeric(target.knots0)) {
+                target.knots0 <- sapply(target.knots.0, constructConstant)
+            } else {
+                numeric <- which(unlist(lapply(target.knots0, is.numeric)))
+                target.knots0[numeric] <- sapply(unlist(target.knots0[numeric]),
+                                                 constructConstant)
+            }
+        }
 
-        for (d in dlist) {
-            if (d == 0) messageGroup <- "for control group..."
-            if (d == 1) messageGroup <- "for treated group..."
-            message(paste("\n        Integrating non-splines terms",
-                          messageGroup))
+        if (!is.null(target.knots1)) {
+            if (is.numeric(target.knots1)) {
+                target.knots1 <- sapply(target.knots.1, constructConstant)
+            } else {
+                numeric <- which(unlist(lapply(target.knots1, is.numeric)))
+                target.knots1[numeric] <- sapply(unlist(target.knots1[numeric]),
+                                                 constructConstant)
+            }
+        }
+        
+        for (d in 0:1) {
+            
+            mtr <- get(paste0("m", d))
+            
+            ## Include end points
+            splitFirst <- function(...) {
+                0
+            }
+            
+            splitLast <- function(...) {
+                1
+            }
+            
+            target.knots <- c(splitFirst,
+                              get(paste0("target.knots", d)),
+                              splitLast)
+            
+            target.weight <- get(paste0("target.weight", d))
+            
+            wKnotVars <- formalArgs(target.knots[[2]])
+            wValVars  <- formalArgs(target.weight[[1]])
+            
+            ## Integrate non-splines terms
 
-            monoWeighted   <- mapply(FUN = listMultiply,
-                                     list = get(paste0("pmf", d))$mlist,
-                                     multiplier = get(paste0("custom", d)),
-                                     SIMPLIFY = FALSE)
-
-            if (int.method %in% c(1, 2)) {
-                tmpFunSum <-
-                    lapply(seq(1, length(monoWeighted[[1]])),
-                           function(l) {
-                               lapply(seq(1, nrow(cdata)),
-                                      function(i) {
-                                          monoWeighted[[i]][[l]]})
-                           })
-
-                tmpFunSum <- lapply(tmpFunSum,
-                                    Reduce,
-                                    f = "funAdd")
-
-                if (int.method == 1) {
-                    tmpOutput <- try(lapply(tmpFunSum,
-                                            FUN = integrate,
-                                            lower = 0,
-                                            upper = 1,
-                                            subdivisions = int.subdivisions,
-                                            rel.tol = int.rel.tol,
-                                            abs.tol = int.abs.tol),
-                                     silent = TRUE)
+            if (!is.null(mtr)) {
+                if (d == 0) {
+                    message(
+                      "    Integrating non-spline terms for control group...\n")
                 } else {
-                    tmpOutput <- try(lapply(tmpFunSum,
-                                            FUN = splitIntegrate,
-                                            splits = int.discont,
-                                            subdivisions = int.subdivisions,
-                                            rel.tol = int.rel.tol,
-                                            abs.tol = int.abs.tol),
-                                     silent = TRUE)
+                    message(
+                      "    Integrating non-spline terms for treated group...\n")
                 }
+
+                pm <- eval(as.call(get(paste0("m", d, "call"))))
+
+                gamma <- rep(0, length(pm$terms))
                 
-                if (is.list(tmpOutput)) {
-                    uniIntegral <- TRUE
-                    if (int.method == 1) {
-                        tmpOutput <- unlist(lapply(tmpOutput,
-                                                   FUN = function(x) x$value))
+                for(i in 1:length(target.weight)) {
+
+                    if (wKnotVars == "...") {
+                        lb <- rep(0, nrow(cdata))
+                        ub <- rep(1, nrow(cdata))
                     } else {
-                        tmpOutput <- unlist(tmpOutput)
-                    }
-                    tmpOutput <- tmpOutput / nrow(cdata)
-                    assign(paste0("gstar", d), tmpOutput)
-                } else {
-                    errorExpr  <- isTRUE(grep("infinite recursion",
-                                             tmpOutput) == 1)
-
-                    errorStack <- isTRUE(grep("C stack usage",
-                                             tmpOutput) == 1)
-
-                    errorSubdi <- isTRUE(grep("subdivisions",
-                                             tmpOutput) == 1)
-
-                    if (.Platform$OS.type == "unix") {
-                        memoryMessage <-
-                           "To do so in Unix systems, you must first
-                           close R. Open a terminal and check the current stack
-                           size using the command 'ulimit -s'. Set a larger
-                           size, e.g. 'ulimit -s 16384'. Start R/Rstudio from
-                           the same terminal with the command line option
-                           '--max-ppsize' to also set a larger protected stack
-                           size, e.g. 'R --max-ppsize 100000' (default value is
-                           50000). Then in R, assign the larger limit on the
-                           evaluation of nested expressions (e.g.
-                           'options(expressions = 100000') and re-run the code."
-                    } else if (.Platform$OS.type == "windows") {
-                        memoryMessage <-
-                           "To do so in Windows,
-                           check the memory allocation using the command
-                           'memory.limit(size = NA)'. Check the maximum amount
-                           memory you can assign to R using the command
-                           'memory.size(max = NA)'. Assign a larger amount of
-                           memory to R, e.g. 'memory.limit(size = 4095)'.
-                           Then assign a larger limit on the evaluation
-                           of nested expressions (e.g.
-                           'options(expressions = 100000') and re-run the code."
-                    } else {
-                        memoryMessage <- NULL
+                        lb <- unlist(lapply(X = split(cdata[, wKnotVars],
+                                                      seq(1, nrow(cdata))),
+                                            FUN = listFunEval,
+                                            fun = target.knots[[i]], 
+                                            argnames = wKnotVars))
+                        
+                        ub <- unlist(lapply(X = split(cdata[, wKnotVars],
+                                                      seq(1, nrow(cdata))),
+                                            FUN = listFunEval,
+                                            fun = target.knots[[i + 1]],
+                                            argnames = wKnotVars))
                     }
 
-                    if (errorExpr) {
-                        stop(gsub("\\s+", " ", paste(
-                           "Evaluation is nested too deeply.
-                           Currently 'int.method' is set to 1 or 2, under
-                           which the code performs a single numerical integral
-                           on a deeply nested function for
-                           each term in m0 and m1. You can set a larger limit on
-                           the number of nested expressions that will be
-                           evaluated using the command 'options(expressions =)'
-                           (e.g. 'options(expressions = 100000)', the
-                           default is 5000).
+                    weights <- unlist(lapply(X = split(cdata[, wValVars],
+                                                       seq(1, nrow(cdata))),
+                                             FUN = listFunEval,
+                                             fun = target.weight[[i]], 
+                                             argnames = wValVars))
 
-                           Evaluating more deeply nested expressions will
-                           require  more memory. Consider increasing the memory
-                           limit of R.",
-                           memoryMessage,
-                           "Alternatively, declare
-                           'int.method = 3'. The code will instead
-                           perform numerical integration for each term in m0
-                           and m1, for every observation in the data set.
-                           This method may be slower, but will work under the
-                           default R settings.")))
-                    } else if (errorStack) {
-                       stop(gsub("\\s+", " ", paste(
-                           "Insufficient memory for evaluating nested
-                           expressions. You must increase the memory limit of
-                           R.",
-                           memoryMessage,
-                           "Alternatively, declare
-                           'int.method = 3'. The code will instead
-                           perform numerical integration for each term in m0
-                           and m1, for every observation in the data set.
-                           This method may be slower, but will work under the
-                           default R settings.")))
-                    } else if (errorSubdi) {
-                       stop(gsub("\\s+", " ", paste(
-                           "Maximum number of numerical integral subdivisions
-                            reached. Increase the value assigned to argument
-                            'int.subdivisions'.")))
-                    } else {
-                        stop(tmpOutput)
-                    }
-                }
+                    gamma <- gamma + gengamma.mst(pm,
+                                                  lb = lb,
+                                                  ub = ub,
+                                                  multiplier = weights)
+                }   
+
+                assign(paste0("gstar", d), gamma)
+                assign(paste0("pm", d), pm)
             } else {
-                monoIntegrated <- lapply(X = monoWeighted,
-                                         FUN = listIntegrate,
-                                         subdivisions = int.subdivisions,
-                                         rel.tol = int.rel.tol,
-                                         abs.tol = int.abs.tol)
-
-                monoK <- length(monoIntegrated[[1]])
-
-                assign(paste0("gstar", d),
-                       sapply(X = seq(1, monoK),
-                              FUN = listMean,
-                              integratedList = monoIntegrated))
+                assign(paste0("gstar", d), NULL)
+                assign(paste0("pm", d), NULL)
             }
-        }
 
-        if (!is.null(m0)) names(gstar0) <- pmf0$terms
-        if (!is.null(m1)) names(gstar1) <- pmf1$terms
+            ## Integrate splines terms
 
-        ## Generate the spline functions to be integrated.
-        ## Indexing takes the following structure:
-        ## splinesFunctions[[j]][[v]][[i]][[l]]
-        ## j: splines index
-        ## v: interaction index
-        ## i: observation index
-        ## l: basis component index
-        splinesFunctions0 <- list()
-        splinesFunctions1 <- list()
-
-        for (d in 0:1) {
-            splineslist <- splinesobj[[d + 1]]$splineslist
-            if (length(splineslist) > 0) {
-                for (j in 1:length(splineslist)) {
-
-                    ## Construct design matrix for interaction terms
-                    if ("1" %in% splineslist[[j]]) {
-                        dmatFormula <- paste("~ ", paste(splineslist[[j]],
-                                                         collapse = " + "))
-                    } else {
-                        dmatFormula <- paste("~ 0 + ", paste(splineslist[[j]],
-                                                             collapse = " + "))
-                    }
-                    dmat <- design.mst(dmatFormula, cdata)$X
-
-                    ## Apply interactions
-                    tmp <- lapply(X = seq(1, length(splineslist[[j]])),
-                                  FUN = function(x)
-                                      lapply(X = dmat[, x],
-                                             FUN = defSplines,
-                                             splineslist = splineslist,
-                                             j = j))
-
-                    ## Apply weights
-                    for (v in 1:length(splineslist[[j]])) {
-                        tmp[[v]] <- mapply(FUN = listMultiply,
-                                           list = tmp[[v]],
-                                           multiplier = get(paste0("custom", d)),
-                                           SIMPLIFY = FALSE)
-                    }
-
-                    if (d == 0) {
-                        splinesFunctions0[[j]] <- tmp
-                    } else {
-                        splinesFunctions1[[j]] <- tmp
-                    }
-                }
+            if (d == 0) {
+                message(
+                    "    Integrating spline terms for control group...\n")
             } else {
-                if (d == 0) splinesFunctions0 <- NULL
-                if (d == 1) splinesFunctions1 <- NULL
+                message(
+                    "    Integrating spline terms for treated group...\n")
             }
-        }
+            
+            noSplineMtr <- splinesobj[[d + 1]]
+          
+            if (!is.null(noSplineMtr$splineslist)) {
 
-        ## Integrate spline components
-        gstarSpline0 <- NULL
-        gstarSpline1 <- NULL
-        for (d in 0:1) {
-            gnames <- c()
-            if (d == 0) splinesFunctions <- splinesFunctions0
-            if (d == 1) splinesFunctions <- splinesFunctions1
-            if (!is.null(splinesFunctions)) {
-                if (d == 0) messageGroup <- "for control group..."
-                if (d == 1) messageGroup <- "for treated group..."
-                message(paste("\n        Integrating splines", messageGroup))
+                basisLengths <- sapply(names(noSplineMtr$splineslist),
+                                       function(x) {
+                    argList <- eval(parse(text = gsub("uSplines\\(",
+                                                      "list(", x)))
+                    basisLength <- length(argList$knots) +  argList$degree
+                    if(isTRUE(argList$intercept == TRUE) |
+                       is.null(argList$intercept)) basisLength <-
+                                                       basisLength + 1
+                    return(basisLength)
+                })
 
-                for (j in 1:length(splinesFunctions)) {
-                    basisLength <- length(splinesFunctions[[j]][[1]][[1]])
-                    interLength <- length(splinesFunctions[[j]])
+                gammaSplines <- rep(0, sum(basisLengths))
+                
+                for (i in 1:length(target.weight)) {
+
+                    if (wKnotVars == "...") {
+                        lb <- rep(0, nrow(cdata))
+                        ub <- rep(1, nrow(cdata))
+                    } else {
+                        
+                        lb <- unlist(lapply(X = split(cdata[, wKnotVars],
+                                                      seq(1, nrow(cdata))),
+                                            FUN = listFunEval,
+                                            fun = target.knots[[i]], 
+                                            argnames = wKnotVars))
+                        
+                        ub <- unlist(lapply(X = split(cdata[, wKnotVars],
+                                                      seq(1, nrow(cdata))),
+                                            FUN = listFunEval,
+                                            fun = target.knots[[i + 1]],
+                                            argnames = wKnotVars))
+                    }
                     
-                    for (v in 1:interLength) {
-
-                        if (int.method %in% c(1, 2)) {
-                            tmpFunSum <-
-                                lapply(seq(1, basisLength),
-                                       function(l) {
-                                       lapply(seq(1, nrow(cdata)),
-                                       function(i) {
-                                       splinesFunctions[[j]][[v]][[i]][[l]]})
-                                       })
-
-                            tmpFunSum <- lapply(tmpFunSum,
-                                                Reduce,
-                                                f = "funAdd")
-
-                            if (int.method == 1) {
-                                tmpOutput <- try(lapply(tmpFunSum,
-                                                        FUN = integrate,
-                                                        lower = 0,
-                                                        upper = 1,
-                                                subdivisions = int.subdivisions,
-                                                rel.tol = int.rel.tol,
-                                                abs.tol = int.abs.tol),
-                                             silent = TRUE)
-                            } else {
-                                tmpOutput <- try(lapply(tmpFunSum,
-                                                        FUN = splitIntegrate,
-                                                        splits = int.discont,
-                                                subdivisions = int.subdivisions,
-                                                rel.tol = int.rel.tol,
-                                                abs.tol = int.abs.tol),
-                                             silent = TRUE)
-                            }
-                            
-                            if (is.list(tmpOutput)) {
-                                if (int.method == 1) {
-                                    tmpOutput <- unlist(lapply(tmpOutput,
-                                                     FUN = function(x) x$value))
-                                } else {
-                                    tmpOutput <- unlist(tmpOutput)
-                                }                                
-                                tmpOutput <- tmpOutput / nrow(cdata)
-                            } else {
-                                
-                                errorExpr <- isTRUE(grep("infinite recursion",
-                                                         tmpOutput) == 1)
-                                
-                                errorStack <- isTRUE(grep("C stack usage",
-                                                          tmpOutput) == 1)
-                                
-                                errorSubdi <- isTRUE(grep("subdivisions",
-                                                          tmpOutput) == 1)
-
-                                if (.Platform$OS.type == "unix") {
-                                    memoryMessage <-
-                           "To do so in Unix systems, you must first
-                           close R. Open a terminal and check the current stack
-                           size using the command 'ulimit -s'. Set a larger
-                           size, e.g. 'ulimit -s 16384'. Start R/Rstudio from
-                           the same terminal with the command line option
-                           '--max-ppsize' to also set a larger protected stack
-                           size, e.g. 'R --max-ppsize 100000' (default value is
-                           50000). Then in R, assign the larger limit on the
-                           evaluation of nested expressions (e.g.
-                           'options(expressions = 100000') and re-run the code."
-                                } else if (.Platform$OS.type == "windows") {
-                                    memoryMessage <-
-                           "To do so in Windows,
-                           check the memory allocation using the command
-                           'memory.limit(size = NA)'. Check the maximum amount
-                           memory you can assign to R using the command
-                           'memory.size(max = NA)'. Assign a larger amount of
-                           memory to R, e.g. 'memory.limit(size = 4095)'.
-                           Then assign a larger limit on the evaluation
-                           of nested expressions (e.g.
-                           'options(expressions = 100000') and re-run the code."
-                                } else {
-                                    memoryMessage <- NULL
-                                }
-
-                                if (errorExpr) {
-                                    stop(gsub("\\s+", " ", paste(
-                           "Evaluation is nested too deeply.
-                           Currently 'int.method' is set to 1 or 2, under
-                           which the code performs a single numerical integral
-                           on a deeply nested function for
-                           each term in m0 and m1. You can set a larger limit on
-                           the number of nested expressions that will be
-                           evaluated using the command 'options(expressions =)'
-                           (e.g. 'options(expressions = 100000)', the
-                           default is 5000).
-
-                           Evaluating more deeply nested expressions will
-                           require more memory. Consider increasing the memory
-                           limit of R.",
-                           memoryMessage,
-                           "Alternatively, declare
-                           'int.method = 3'. The code will instead
-                           perform numerical integration for each term in m0
-                           and m1, for every observation in the data set.
-                           This method may be slower, but will work under the
-                           default R settings.")))
-                                } else if (errorStack) {
-                                    stop(gsub("\\s+", " ", paste(
-                           "Insufficient memory for evaluating nested
-                           expressions. You must increase the memory limit of
-                           R.",
-                           memoryMessage,
-                           "Alternatively, declare
-                           'int.method = 3'. The code will instead
-                           perform numerical integration for each term in m0
-                           and m1, for every observation in the data set.
-                           This method may be slower, but will work under the
-                           default R settings.")))
-                                } else if (errorSubdi) {
-                                    stop(gsub("\\s+", " ", paste(
-                           "Maximum number of numerical integral subdivisions
-                            reached. Increase the value assigned to argument
-                            'int.subdivisions'.")))
-                                } else {
-                                    stop(tmpOutput)
-                                }
-                            }                            
-                        } else {
-                            tmpIntegrals <-
-                                lapply(seq(1, nrow(cdata)),
-                                       function(x) listIntegrate(
-                                            splinesFunctions[[j]][[v]][[x]],
-                                            subdivisions = int.subdivisions,
-                                            rel.tol = int.rel.tol,
-                                            abs.tol = int.abs.tol))
-
-                            tmpOutput <-
-                                sapply(seq(1, basisLength),
-                                       function(l)
-                                           mean(sapply(seq(1, nrow(cdata)),
-                                                function(x)
-                                                tmpIntegrals[[x]][[l]]$value)))
-                        }
-
-                        gnames <-
-                            c(gnames,
-                              paste0(paste0("u", d, "S", j, ".",
-                                    seq(1, basisLength)),
-                                    paste0(":",
-                                    splinesobj[[d + 1]]$splineslist[[j]][[v]])))
-                        if (d == 0) gstarSpline0 <- c(gstarSpline0, tmpOutput)
-                        if (d == 1) gstarSpline1 <- c(gstarSpline1, tmpOutput)
-                    }
+                    weights <- unlist(lapply(X = split(cdata[, wValVars],
+                                                       seq(1, nrow(cdata))),
+                                             FUN = listFunEval,
+                                             fun = target.weight[[i]], 
+                                             argnames = wValVars))
+                    
+                    gammaSplines <- gammaSplines +
+                        genGammaSplines.mst(splines = noSplineMtr,
+                                            data = cdata,
+                                            lb = lb,
+                                            ub = ub,
+                                            multiplier = weights,
+                                            d = d)
                 }
-                if (d == 0) names(gstarSpline0) <- gnames
-                if (d == 1) names(gstarSpline1) <- gnames
+                assign(paste0("gstarSpline", d), gammaSplines)
+            } else {
+                assign(paste0("gstarSpline", d), NULL)
             }
         }
-        message("")
+        
+        ## OLD -------------------------
+        ## ## Generate list of custom weights
+        ## custom0 <- lapply(split(cdata, seq(1, nrow(cdata))),
+        ##                   genWeight,
+        ##                   uname = deparse(substitute(uname)),
+        ##                   fun = target.weight0,
+        ##                   fun.name = deparse(substitute(target.weight0)))
+
+        ## custom1 <- lapply(split(cdata, seq(1, nrow(cdata))),
+        ##                   genWeight,
+        ##                   uname = deparse(substitute(uname)),
+        ##                   fun = target.weight1,
+        ##                   fun.name = deparse(substitute(target.weight1)))
+
+        ## ## Generate the non-spline functions to be integrated
+        ## mf0call <- modcall(call,
+        ##                   newcall = polyparse.mst,
+        ##                   keepargs = c("uname"),
+        ##                   newargs = list(formula = m0,
+        ##                                  data = quote(cdata),
+        ##                                  as.function = TRUE))
+
+        ## mf1call <- modcall(call,
+        ##                   newcall = polyparse.mst,
+        ##                   keepargs = c("uname"),
+        ##                   newargs = list(formula = m1,
+        ##                                  data = quote(cdata),
+        ##                                  as.function = TRUE))
+
+        ## dlist <- NULL
+        ## if (!is.null(m0)) {
+        ##     pm0  <- eval(as.call(m0call))  ## To be used for the S-set
+        ##     pmf0 <- eval(as.call(mf0call)) ## To be used for target paramters
+        ##     dlist <- c(dlist, 0)
+        ## } else {
+        ##     gstar0 <- NULL
+        ##     pm0 <- NULL
+        ## }
+
+        ## if (!is.null(m1)) {
+        ##     pm1  <- eval(as.call(m1call))
+        ##     pmf1 <- eval(as.call(mf1call))
+        ##     dlist <- c(dlist, 1)
+        ## } else {
+        ##     gstar1 <- NULL
+        ##     pm1 <- NULL
+        ## }
+
+        ## ## Integrate the non-spline functions
+        ## message("    Performing numerical integration...")
+
+        ## for (d in dlist) {
+        ##     if (d == 0) messageGroup <- "for control group..."
+        ##     if (d == 1) messageGroup <- "for treated group..."
+        ##     message(paste("\n        Integrating non-splines terms",
+        ##                   messageGroup))
+
+        ##     monoWeighted   <- mapply(FUN = listMultiply,
+        ##                              list = get(paste0("pmf", d))$mlist,
+        ##                              multiplier = get(paste0("custom", d)),
+        ##                              SIMPLIFY = FALSE)
+
+        ##     if (int.method %in% c(1, 2)) {
+        ##         tmpFunSum <-
+        ##             lapply(seq(1, length(monoWeighted[[1]])),
+        ##                    function(l) {
+        ##                        lapply(seq(1, nrow(cdata)),
+        ##                               function(i) {
+        ##                                   monoWeighted[[i]][[l]]})
+        ##                    })
+
+        ##         tmpFunSum <- lapply(tmpFunSum,
+        ##                             Reduce,
+        ##                             f = "funAdd")
+
+        ##         if (int.method == 1) {
+        ##             tmpOutput <- try(lapply(tmpFunSum,
+        ##                                     FUN = integrate,
+        ##                                     lower = 0,
+        ##                                     upper = 1,
+        ##                                     subdivisions = int.subdivisions,
+        ##                                     rel.tol = int.rel.tol,
+        ##                                     abs.tol = int.abs.tol),
+        ##                              silent = TRUE)
+        ##         } else {
+        ##             tmpOutput <- try(lapply(tmpFunSum,
+        ##                                     FUN = splitIntegrate,
+        ##                                     splits = int.discont,
+        ##                                     subdivisions = int.subdivisions,
+        ##                                     rel.tol = int.rel.tol,
+        ##                                     abs.tol = int.abs.tol),
+        ##                              silent = TRUE)
+        ##         }
+                
+        ##         if (is.list(tmpOutput)) {
+        ##             uniIntegral <- TRUE
+        ##             if (int.method == 1) {
+        ##                 tmpOutput <- unlist(lapply(tmpOutput,
+        ##                                            FUN = function(x) x$value))
+        ##             } else {
+        ##                 tmpOutput <- unlist(tmpOutput)
+        ##             }
+        ##             tmpOutput <- tmpOutput / nrow(cdata)
+        ##             assign(paste0("gstar", d), tmpOutput)
+        ##         } else {
+        ##             errorExpr  <- isTRUE(grep("infinite recursion",
+        ##                                      tmpOutput) == 1)
+
+        ##             errorStack <- isTRUE(grep("C stack usage",
+        ##                                      tmpOutput) == 1)
+
+        ##             errorSubdi <- isTRUE(grep("subdivisions",
+        ##                                      tmpOutput) == 1)
+
+        ##             if (.Platform$OS.type == "unix") {
+        ##                 memoryMessage <-
+        ##                    "To do so in Unix systems, you must first
+        ##                    close R. Open a terminal and check the current stack
+        ##                    size using the command 'ulimit -s'. Set a larger
+        ##                    size, e.g. 'ulimit -s 16384'. Start R/Rstudio from
+        ##                    the same terminal with the command line option
+        ##                    '--max-ppsize' to also set a larger protected stack
+        ##                    size, e.g. 'R --max-ppsize 100000' (default value is
+        ##                    50000). Then in R, assign the larger limit on the
+        ##                    evaluation of nested expressions (e.g.
+        ##                    'options(expressions = 100000') and re-run the code."
+        ##             } else if (.Platform$OS.type == "windows") {
+        ##                 memoryMessage <-
+        ##                    "To do so in Windows,
+        ##                    check the memory allocation using the command
+        ##                    'memory.limit(size = NA)'. Check the maximum amount
+        ##                    memory you can assign to R using the command
+        ##                    'memory.size(max = NA)'. Assign a larger amount of
+        ##                    memory to R, e.g. 'memory.limit(size = 4095)'.
+        ##                    Then assign a larger limit on the evaluation
+        ##                    of nested expressions (e.g.
+        ##                    'options(expressions = 100000') and re-run the code."
+        ##             } else {
+        ##                 memoryMessage <- NULL
+        ##             }
+
+        ##             if (errorExpr) {
+        ##                 stop(gsub("\\s+", " ", paste(
+        ##                    "Evaluation is nested too deeply.
+        ##                    Currently 'int.method' is set to 1 or 2, under
+        ##                    which the code performs a single numerical integral
+        ##                    on a deeply nested function for
+        ##                    each term in m0 and m1. You can set a larger limit on
+        ##                    the number of nested expressions that will be
+        ##                    evaluated using the command 'options(expressions =)'
+        ##                    (e.g. 'options(expressions = 100000)', the
+        ##                    default is 5000).
+
+        ##                    Evaluating more deeply nested expressions will
+        ##                    require  more memory. Consider increasing the memory
+        ##                    limit of R.",
+        ##                    memoryMessage,
+        ##                    "Alternatively, declare
+        ##                    'int.method = 3'. The code will instead
+        ##                    perform numerical integration for each term in m0
+        ##                    and m1, for every observation in the data set.
+        ##                    This method may be slower, but will work under the
+        ##                    default R settings.")))
+        ##             } else if (errorStack) {
+        ##                stop(gsub("\\s+", " ", paste(
+        ##                    "Insufficient memory for evaluating nested
+        ##                    expressions. You must increase the memory limit of
+        ##                    R.",
+        ##                    memoryMessage,
+        ##                    "Alternatively, declare
+        ##                    'int.method = 3'. The code will instead
+        ##                    perform numerical integration for each term in m0
+        ##                    and m1, for every observation in the data set.
+        ##                    This method may be slower, but will work under the
+        ##                    default R settings.")))
+        ##             } else if (errorSubdi) {
+        ##                stop(gsub("\\s+", " ", paste(
+        ##                    "Maximum number of numerical integral subdivisions
+        ##                     reached. Increase the value assigned to argument
+        ##                     'int.subdivisions'.")))
+        ##             } else {
+        ##                 stop(tmpOutput)
+        ##             }
+        ##         }
+        ##     } else {
+        ##         monoIntegrated <- lapply(X = monoWeighted,
+        ##                                  FUN = listIntegrate,
+        ##                                  subdivisions = int.subdivisions,
+        ##                                  rel.tol = int.rel.tol,
+        ##                                  abs.tol = int.abs.tol)
+
+        ##         monoK <- length(monoIntegrated[[1]])
+
+        ##         assign(paste0("gstar", d),
+        ##                sapply(X = seq(1, monoK),
+        ##                       FUN = listMean,
+        ##                       integratedList = monoIntegrated))
+        ##     }
+        ## }
+
+        ## if (!is.null(m0)) names(gstar0) <- pmf0$terms
+        ## if (!is.null(m1)) names(gstar1) <- pmf1$terms
+
+        ## ## Generate the spline functions to be integrated.
+        ## ## Indexing takes the following structure:
+        ## ## splinesFunctions[[j]][[v]][[i]][[l]]
+        ## ## j: splines index
+        ## ## v: interaction index
+        ## ## i: observation index
+        ## ## l: basis component index
+        ## splinesFunctions0 <- list()
+        ## splinesFunctions1 <- list()
+
+        ## for (d in 0:1) {
+        ##     splineslist <- splinesobj[[d + 1]]$splineslist
+        ##     if (length(splineslist) > 0) {
+        ##         for (j in 1:length(splineslist)) {
+
+        ##             ## Construct design matrix for interaction terms
+        ##             if ("1" %in% splineslist[[j]]) {
+        ##                 dmatFormula <- paste("~ ", paste(splineslist[[j]],
+        ##                                                  collapse = " + "))
+        ##             } else {
+        ##                 dmatFormula <- paste("~ 0 + ", paste(splineslist[[j]],
+        ##                                                      collapse = " + "))
+        ##             }
+        ##             dmat <- design.mst(dmatFormula, cdata)$X
+
+        ##             ## Apply interactions
+        ##             tmp <- lapply(X = seq(1, length(splineslist[[j]])),
+        ##                           FUN = function(x)
+        ##                               lapply(X = dmat[, x],
+        ##                                      FUN = defSplines,
+        ##                                      splineslist = splineslist,
+        ##                                      j = j))
+
+        ##             ## Apply weights
+        ##             for (v in 1:length(splineslist[[j]])) {
+        ##                 tmp[[v]] <- mapply(FUN = listMultiply,
+        ##                                    list = tmp[[v]],
+        ##                                    multiplier = get(paste0("custom", d)),
+        ##                                    SIMPLIFY = FALSE)
+        ##             }
+
+        ##             if (d == 0) {
+        ##                 splinesFunctions0[[j]] <- tmp
+        ##             } else {
+        ##                 splinesFunctions1[[j]] <- tmp
+        ##             }
+        ##         }
+        ##     } else {
+        ##         if (d == 0) splinesFunctions0 <- NULL
+        ##         if (d == 1) splinesFunctions1 <- NULL
+        ##     }
+        ## }
+
+        ## ## Integrate spline components
+        ## gstarSpline0 <- NULL
+        ## gstarSpline1 <- NULL
+        ## for (d in 0:1) {
+        ##     gnames <- c()
+        ##     if (d == 0) splinesFunctions <- splinesFunctions0
+        ##     if (d == 1) splinesFunctions <- splinesFunctions1
+        ##     if (!is.null(splinesFunctions)) {
+        ##         if (d == 0) messageGroup <- "for control group..."
+        ##         if (d == 1) messageGroup <- "for treated group..."
+        ##         message(paste("\n        Integrating splines", messageGroup))
+
+        ##         for (j in 1:length(splinesFunctions)) {
+        ##             basisLength <- length(splinesFunctions[[j]][[1]][[1]])
+        ##             interLength <- length(splinesFunctions[[j]])
+                    
+        ##             for (v in 1:interLength) {
+
+        ##                 if (int.method %in% c(1, 2)) {
+        ##                     tmpFunSum <-
+        ##                         lapply(seq(1, basisLength),
+        ##                                function(l) {
+        ##                                lapply(seq(1, nrow(cdata)),
+        ##                                function(i) {
+        ##                                splinesFunctions[[j]][[v]][[i]][[l]]})
+        ##                                })
+
+        ##                     tmpFunSum <- lapply(tmpFunSum,
+        ##                                         Reduce,
+        ##                                         f = "funAdd")
+
+        ##                     if (int.method == 1) {
+        ##                         tmpOutput <- try(lapply(tmpFunSum,
+        ##                                                 FUN = integrate,
+        ##                                                 lower = 0,
+        ##                                                 upper = 1,
+        ##                                         subdivisions = int.subdivisions,
+        ##                                         rel.tol = int.rel.tol,
+        ##                                         abs.tol = int.abs.tol),
+        ##                                      silent = TRUE)
+        ##                     } else {
+        ##                         tmpOutput <- try(lapply(tmpFunSum,
+        ##                                                 FUN = splitIntegrate,
+        ##                                                 splits = int.discont,
+        ##                                         subdivisions = int.subdivisions,
+        ##                                         rel.tol = int.rel.tol,
+        ##                                         abs.tol = int.abs.tol),
+        ##                                      silent = TRUE)
+        ##                     }
+                            
+        ##                     if (is.list(tmpOutput)) {
+        ##                         if (int.method == 1) {
+        ##                             tmpOutput <- unlist(lapply(tmpOutput,
+        ##                                              FUN = function(x) x$value))
+        ##                         } else {
+        ##                             tmpOutput <- unlist(tmpOutput)
+        ##                         }                                
+        ##                         tmpOutput <- tmpOutput / nrow(cdata)
+        ##                     } else {
+                                
+        ##                         errorExpr <- isTRUE(grep("infinite recursion",
+        ##                                                  tmpOutput) == 1)
+                                
+        ##                         errorStack <- isTRUE(grep("C stack usage",
+        ##                                                   tmpOutput) == 1)
+                                
+        ##                         errorSubdi <- isTRUE(grep("subdivisions",
+        ##                                                   tmpOutput) == 1)
+
+        ##                         if (.Platform$OS.type == "unix") {
+        ##                             memoryMessage <-
+        ##                    "To do so in Unix systems, you must first
+        ##                    close R. Open a terminal and check the current stack
+        ##                    size using the command 'ulimit -s'. Set a larger
+        ##                    size, e.g. 'ulimit -s 16384'. Start R/Rstudio from
+        ##                    the same terminal with the command line option
+        ##                    '--max-ppsize' to also set a larger protected stack
+        ##                    size, e.g. 'R --max-ppsize 100000' (default value is
+        ##                    50000). Then in R, assign the larger limit on the
+        ##                    evaluation of nested expressions (e.g.
+        ##                    'options(expressions = 100000') and re-run the code."
+        ##                         } else if (.Platform$OS.type == "windows") {
+        ##                             memoryMessage <-
+        ##                    "To do so in Windows,
+        ##                    check the memory allocation using the command
+        ##                    'memory.limit(size = NA)'. Check the maximum amount
+        ##                    memory you can assign to R using the command
+        ##                    'memory.size(max = NA)'. Assign a larger amount of
+        ##                    memory to R, e.g. 'memory.limit(size = 4095)'.
+        ##                    Then assign a larger limit on the evaluation
+        ##                    of nested expressions (e.g.
+        ##                    'options(expressions = 100000') and re-run the code."
+        ##                         } else {
+        ##                             memoryMessage <- NULL
+        ##                         }
+
+        ##                         if (errorExpr) {
+        ##                             stop(gsub("\\s+", " ", paste(
+        ##                    "Evaluation is nested too deeply.
+        ##                    Currently 'int.method' is set to 1 or 2, under
+        ##                    which the code performs a single numerical integral
+        ##                    on a deeply nested function for
+        ##                    each term in m0 and m1. You can set a larger limit on
+        ##                    the number of nested expressions that will be
+        ##                    evaluated using the command 'options(expressions =)'
+        ##                    (e.g. 'options(expressions = 100000)', the
+        ##                    default is 5000).
+
+        ##                    Evaluating more deeply nested expressions will
+        ##                    require more memory. Consider increasing the memory
+        ##                    limit of R.",
+        ##                    memoryMessage,
+        ##                    "Alternatively, declare
+        ##                    'int.method = 3'. The code will instead
+        ##                    perform numerical integration for each term in m0
+        ##                    and m1, for every observation in the data set.
+        ##                    This method may be slower, but will work under the
+        ##                    default R settings.")))
+        ##                         } else if (errorStack) {
+        ##                             stop(gsub("\\s+", " ", paste(
+        ##                    "Insufficient memory for evaluating nested
+        ##                    expressions. You must increase the memory limit of
+        ##                    R.",
+        ##                    memoryMessage,
+        ##                    "Alternatively, declare
+        ##                    'int.method = 3'. The code will instead
+        ##                    perform numerical integration for each term in m0
+        ##                    and m1, for every observation in the data set.
+        ##                    This method may be slower, but will work under the
+        ##                    default R settings.")))
+        ##                         } else if (errorSubdi) {
+        ##                             stop(gsub("\\s+", " ", paste(
+        ##                    "Maximum number of numerical integral subdivisions
+        ##                     reached. Increase the value assigned to argument
+        ##                     'int.subdivisions'.")))
+        ##                         } else {
+        ##                             stop(tmpOutput)
+        ##                         }
+        ##                     }                            
+        ##                 } else {
+        ##                     tmpIntegrals <-
+        ##                         lapply(seq(1, nrow(cdata)),
+        ##                                function(x) listIntegrate(
+        ##                                     splinesFunctions[[j]][[v]][[x]],
+        ##                                     subdivisions = int.subdivisions,
+        ##                                     rel.tol = int.rel.tol,
+        ##                                     abs.tol = int.abs.tol))
+
+        ##                     tmpOutput <-
+        ##                         sapply(seq(1, basisLength),
+        ##                                function(l)
+        ##                                    mean(sapply(seq(1, nrow(cdata)),
+        ##                                         function(x)
+        ##                                         tmpIntegrals[[x]][[l]]$value)))
+        ##                 }
+
+        ##                 gnames <-
+        ##                     c(gnames,
+        ##                       paste0(paste0("u", d, "S", j, ".",
+        ##                             seq(1, basisLength)),
+        ##                             paste0(":",
+        ##                             splinesobj[[d + 1]]$splineslist[[j]][[v]])))
+        ##                 if (d == 0) gstarSpline0 <- c(gstarSpline0, tmpOutput)
+        ##                 if (d == 1) gstarSpline1 <- c(gstarSpline1, tmpOutput)
+        ##             }
+        ##         }
+        ##         if (d == 0) names(gstarSpline0) <- gnames
+        ##         if (d == 1) names(gstarSpline1) <- gnames
+        ##     }
+        ## }
+        ## message("")
+
+        ## ## END OLD -------------------------
     }
 
     gstar0 <- c(gstar0, gstarSpline0)
