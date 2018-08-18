@@ -864,10 +864,14 @@ splitIntegrate <- function(FUN, splits, subdivisions, rel.tol, abs.tol) {
 #' @param pos the index/position of the function to be evaluated in
 #'     \code{funList}.
 #' @return the output of the function evaluated.
-listFunEval <- function(fun, values, argnames) {
-    args <- as.list(values)
-    names(args) <- argnames
-    do.call(fun, args)
+listFunEval <- function(fun, values = NULL, argnames = NULL) {
+    if (!is.null(values) & !is.null(argnames)) {
+        args <- as.list(values)
+        names(args) <- argnames
+        do.call(fun, args)
+    } else {
+        do.call(fun, list())
+    }
 }
 
 
