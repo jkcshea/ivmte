@@ -58,14 +58,30 @@
 #'     ("\code{genlate}").
 #' @param target.weight0 user-defined weight function for the control
 #'     group defining the target parameter. A list of functions can be
-#'     submitted if the weighting function is in fact a spline.
+#'     submitted if the weighting function is in fact a spline. The
+#'     arguments of the function should be variable names in
+#'     \code{data}. If the weight is constant across all observations,
+#'     then the user can instead submit the value of the weight
+#'     instead of a function.
 #' @param target.weight1 user-defined weight function for the treated
 #'     group defining the target parameter. A list of functions can be
-#'     submitted if the weighting function is in fact a spline.
-#' @param target.knots0 user-defined set of knots associated with
-#'     splines weights for the control group.
-#' @param target.knots1 user-defined set of knots associated with
-#'     splines weights for the treated group.
+#'     submitted if the weighting function is in fact a spline. The
+#'     arguments of the function should be variable names in
+#'     \code{data}. If the weight is constant across all observations,
+#'     then the user can instead submit the value of the weight
+#'     instead of a function.
+#' @param target.knots0 user-defined set of functions defining the
+#'     knots associated with splines weights for the control
+#'     group. The arguments of the function should consist only of
+#'     variable names in \code{data}. If the knot is constant across
+#'     all observations, then the user can instead submit the value of
+#'     the weight instead of a function.
+#' @param target.knots1 user-defined set of functions defining the
+#'     knots associated with splines weights for the treated
+#'     group. The arguments of the function should be variable names
+#'     in \code{data}. If the knot is constant across all
+#'     observations, then the user can instead submit the value of the
+#'     weight instead of a function.
 #' @param late.Z vector of variable names used to define the LATE.
 #' @param late.from baseline set of values of Z used to define the
 #'     LATE.
@@ -129,39 +145,6 @@
 #'     weakly monotone decreasing.
 #' @param lpsolver name of the linear programming package in R used to
 #'     obtain the bounds on the treatment effect.
-#' @param int.method choose from c(1, 2, 3), set to 1 by default. When
-#'     the user submits a custom weight, the function will have to
-#'     perform numerical integration. When \code{int.method} is set to
-#'     1, the function will attempt to perform a single integral for
-#'     each term in the MTRs defined in \code{m0} and
-#'     $\code{m1}$. This may require the user to assign a higher value
-#'     to \code{options(expressions=)}. If \code{int.method} is set to
-#'     2, then the function will attempt to perform a single integral,
-#'     but split up the regions of integration according to a
-#'     user-defined partitions of the interval [0, 1]. Each endpoint
-#'     of the partition should correspond to a point of discontinuity
-#'     in the integral, and are submitted using the argument
-#'     \code{discontinuities}. The function will then integrate each
-#'     partition separately, which, in the case of numerical
-#'     integration, will be faster than integrating over the entire
-#'     region. If \code{int.method} is set to 3, then the function
-#'     will instead perform an integral for each term in the MTRs, for
-#'     each observation in the sample. This is a much slower
-#'     alternative, but does not require \code{options(expressions=)}
-#'     to be set.
-#' @param int.discont vector, values should be in the interval [0,
-#'     1]. Each value corresponds to a point of discontinuity when
-#'     integrating over unobservable u when generating the Gamma
-#'     moments. This vector is used when \code{int.method = 2}.
-#' @param int.subdivisions integer, maximum number of subdivisions to
-#'     use to perform the numerical integration. Default is set at
-#'     100.
-#' @param int.rel.tol relative tolerance before termination of
-#'     numerical integration. Default is set at
-#'     \code{.Machine$double.eps^0.25}.
-#' @param int.abs.tol absolute tolerance before the termination of
-#'     numerical integration. Default is set to be equal to
-#'     \code{int.rel.tol}.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -197,10 +180,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 grid.Nu = 20, grid.Nx = 20, audit.Nx = 2,
                 audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
                 m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL,
-                int.method = 1, int.discont, int.subdivisions = 100L,
-                int.rel.tol = .Machine$double.eps^0.25,
-                int.abs.tol) {
+                m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL) {
 
     ## Match call arguments
     call <- match.call(expand.dots = FALSE)
@@ -415,8 +395,104 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                       target weight is to be used, inputs for both
                       target.weight0 and target.weight1 must be provided."))
         }
-    }
 
+        if (!hasArg(target)) {
+
+            ## Conver all entries into lists
+            target.weight0 <- c(target.weight0)
+            target.weight1 <- c(target.weight1)
+            target.knots0  <- c(target.knots0)
+            target.knots1  <- c(target.knots1)
+
+            ## Weight check
+            weightCheck1 <- unlist(lapply(target.weight0, is.function))
+            weightCheck2 <- unlist(lapply(target.weight0, function(x)
+                is.numeric(x) * (length(x) == 1)))
+            fails0 <- which(weightCheck1 + weightCheck2 == 0)
+            
+            if (length(fails0) > 0) {
+                stop(gsub("\\s+", " ",
+                          paste0("Each component of the custom weight
+                             vectors/lists
+                             must either be functions or constants. The
+                             following entries of target.weight0 are neither: ",
+                             paste(fails0, collapse = ", "),
+                             ".")))
+            }
+            
+            weightCheck1 <- unlist(lapply(target.weight1, is.function))
+            weightCheck2 <- unlist(lapply(target.weight1, function(x)
+                is.numeric(x) * (length(x) == 1)))
+            fails1 <- which(weightCheck1 + weightCheck2 == 0)
+            
+            if (length(fails1) > 0) {
+                stop(gsub("\\s+", " ",
+                          paste0("Each component of the custom weight
+                             vectors/lists
+                             must either be functions or constants. The
+                             following entries of target.weight1 are neither: ",
+                             paste(fails1, collapse = ", "),
+                             ".")))
+            }
+            
+            if (length(target.weight0) != (length(target.knots0) + 1)) {
+                stop(gsub("\\s+", " ",
+                          paste0("The number of weight functions declared in
+                                 target.weight0 must be exactly equal to the
+                                 number of knots declared in target.knots0
+                                 plus 1. Currently, the number of weights
+                                 declared is ", length(target.weight0),
+                                 ", and the number of knots declared is ",
+                                 length(target.knots0), ".")))
+            }
+            if (length(target.weight1) != (length(target.knots1) + 1)) {
+                stop(gsub("\\s+", " ",
+                          paste0("The number of weight functions declared in
+                                 target.weight1 must be exactly equal to the
+                                 number of knots declared in target.knots1
+                                 plus 1. Currently, the number of weights
+                                 declared is ", length(target.weight1),
+                                 ", and the number of knots declared is ",
+                                 length(target.knots1), ".")))
+            }
+
+            ## Knots check
+            if (!is.null(target.knots0)) {
+                knotsCheck1 <- unlist(lapply(target.knots0, is.function))
+                knotsCheck2 <- unlist(lapply(target.knots0, function(x)
+                    is.numeric(x) * (length(x) == 1)))
+                fails0 <- which(knotsCheck1 + knotsCheck2 == 0)
+                
+                if (length(fails0) > 0) {
+                    stop(gsub("\\s+", " ",
+                              paste0("Each component of the custom knots
+                             vectors/lists
+                             must either be functions or constants. The
+                             following entries of target.knots0 are neither: ",
+                             paste(fails0, collapse = ", "),
+                             ".")))
+                }
+            }
+
+            if (!is.null(target.knots1)) {
+                knotsCheck1 <- unlist(lapply(target.knots1, is.function))
+                knotsCheck2 <- unlist(lapply(target.knots1, function(x)
+                    is.numeric(x) * (length(x) == 1)))
+                fails1 <- which(knotsCheck1 + knotsCheck2 == 0)
+                
+                if (length(fails1) > 0) {
+                    stop(gsub("\\s+", " ",
+                              paste0("Each component of the custom knots
+                             vectors/lists
+                             must either be functions or constants. The
+                             following entries of target.knots1 are neither: ",
+                             paste(fails0, collapse = ", "),
+                             ".")))
+                }                
+            }
+        }
+    }
+    
     if (hasArg(link)) {
         if (! link %in% c("linear", "logit", "probit")) {
             stop(gsub("\\s+", " ",
@@ -424,7 +500,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                       'logit', or 'probit'."))
         }
     }
-
+    
     ## Audit checks
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
         stop("Cannot set obseq.tol below 0.")
@@ -454,65 +530,6 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
     if (!((audit.max %% 1 == 0) & audit.max > 0)) {
         stop("audit.max must be an integer greater than or equal to 1.")
-    }
-
-    ## Integral checks
-    if (hasArg(int.method) | hasArg(int.discont) | hasArg(int.subdivisions) |
-        hasArg(int.rel.tol) | hasArg(int.abs.tol)) {
-
-        if (hasArg(target)) {
-            warning(gsub("\\s+", " ",
-                         "A preset target parameter is chosen, and options for
-                         performing integrals are also provided. These options
-                         will only be used if custom weights are used to define
-                         the target parameter."))
-        }
-        
-        if (hasArg(int.method)) {
-            if (! int.method %in% c(1, 2, 3)) {
-                stop("int.method must be set to either 1, 2, or 3.")
-            }
-            if (int.method == 2 & !hasArg(int.discont)) {
-                stop(gsub("\\s+", " ",
-                          "If int.method is set to 2, then a vector of points of
-                      discontinuities in the interval [0, 1] must be provided
-                      through the argument int.discont."))
-            }
-            if (int.method != 2 & hasArg(int.discont)) {
-                warning(gsub("\\s+", " ",
-                             paste0("A vector of points of
-                      discontinuities in the interval [0, 1] is provided, but
-                      will only be used if int.method is set to 2. Currently,
-                      int.method is set to ", int.method, ".")))
-            }
-        }
-
-        if (hasArg(int.discont)) {
-            if (!is.vector(int.discont)) {
-                stop(gsub("\\s+", " ",
-                          "int.discont must be a vector of values
-                       in the interval [0, 1]."))
-            }
-            int.discont <- sort(unique(c(c(0, 1), int.discont)))
-            
-            if (max(int.discont) > 1 | min(int.discont) < 0) {
-                stop(gsub("\\s+", " ",
-                          "int.discont must be a vector of values
-                       in the interval [0, 1]."))
-            }
-        }
-
-        if (!hasArg(int.abs.tol)) {
-            int.abs.tol <- int.rel.tol
-        }
-        
-        if(int.abs.tol < 0 | int.rel.tol < 0) {
-            stop("int.rel.tol and int.abs.tol must be positive values.")
-        }
-        
-        if (int.subdivisions < 0) {
-            stop("int.subdivisions must be a positive integer.")
-        }
     }
 
     ##---------------------------
@@ -644,26 +661,43 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             vars_mtr   <- c(vars_mtr, all.vars(sf1))
             terms_mtr1 <- c(terms_mtr1, attr(terms(sf1), "term.labels"))
         }
-
+        
     } else {
         stop("m0 and m1 must be one-sided formulas.")
     }
-
-    ## Collect list of variables used in custom weights (if defined)
-
-    if (!hasArg(target)) {
-
-        warning("THIS PART NEEDS TO BE FIXED ABOUT COLLECTING THE VARIABLES.")
         
-        ## wArgList0 <- formalArgs(target.weight0)
-        ## vars_weights <- c(vars_weights,
-        ##                   wArgList0[wArgList0 != deparse(substitute(uname))])
+    ## Collect list of variables used in custom weights (if defined)
+    if (!hasArg(target)) {        
 
-        ## wArgList1 <- formalArgs(target.weight1)
-        ## vars_weights <- c(vars_weights,
-        ##                   wArgList1[wArgList1 != deparse(substitute(uname))])
+        for (i in 1:length(target.weight0)) {
+            if (is.function(target.weight0[[i]])) {
+                vars_weights <- c(vars_weights,
+                                  formalArgs(target.weight0[[i]]))
+            }
+            
+            if (i < length(target.weight0)) {
+                if (is.function(target.knots0[[i]])) {
+                    vars_weights <- c(vars_weights,
+                                      formalArgs(target.knots0[[i]]))
+                }
+            }
+        }
+        
+        for (i in 1:length(target.weight1)) {
+            if (is.function(target.weight1[[i]])) {
+                vars_weights <- c(vars_weights,
+                                  formalArgs(target.weight1[[i]]))
+            }
+            
+            if (i < length(target.weight1)) {
+                if (is.function(target.knots1[[i]])) {
+                    vars_weights <- c(vars_weights,
+                                      formalArgs(target.knots1[[i]]))
+                }
+            }
+        }
     }
-
+    
     ## Collect list of all terms used in propensity formula
 
     if (hasArg(propensity)) {
@@ -937,7 +971,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
             gstar1 <- NULL
             pm1 <- NULL
         }
-        
+
         gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                             data = cdata,
                                             lb = w0$lb,
@@ -952,13 +986,6 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                             multiplier = w1$mp,
                                             d = 1)
     } else {
-
-        ## FIX: is this repeated from before? i.e. have you already
-        ## converted potential single functions into lists?
-        target.weight0 <- c(target.weight0)
-        target.weight1 <- c(target.weight1)
-        target.knots0  <- c(target.knots0)
-        target.knots1  <- c(target.knots1)
 
         ## Convert fixed/numeric weights into functions
         if (is.numeric(target.weight0)) {
@@ -997,26 +1024,26 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                                  constructConstant)
             }
         }
-        
+
         for (d in 0:1) {
-            
+
             mtr <- get(paste0("m", d))
-            
+
             ## Include end points
             splitFirst <- function(...) {
                 0
             }
-            
+
             splitLast <- function(...) {
                 1
             }
-            
+
             target.knots <- c(splitFirst,
                               get(paste0("target.knots", d)),
                               splitLast)
-            
+
             target.weight <- get(paste0("target.weight", d))
-            
+
             ## Integrate non-splines terms
 
             if (!is.null(mtr)) {
@@ -1031,13 +1058,13 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 pm <- eval(as.call(get(paste0("m", d, "call"))))
 
                 gamma <- rep(0, length(pm$terms))
-                
+
                 for(i in 1:length(target.weight)) {
 
                     wKnotVarsL <- formalArgs(target.knots[[i]])
                     wKnotVarsU <- formalArgs(target.knots[[i + 1]])
 
-                    if (wKnotVarsL == "...") {
+                    if (wKnotVarsL[1] == "...") {
                         lb <- unlist(lapply(X = seq(1, nrow(cdata)),
                                             FUN = listFunEval,
                                             fun = target.knots[[i]]))
@@ -1045,15 +1072,15 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                         lb <- unlist(lapply(X = split(cdata[, wKnotVarsL],
                                                       seq(1, nrow(cdata))),
                                             FUN = listFunEval,
-                                            fun = target.knots[[i]], 
+                                            fun = target.knots[[i]],
                                             argnames = wKnotVarsL))
                     }
-                    
-                    if (wKnotVarsU == "...") {
+
+                    if (wKnotVarsU[1] == "...") {
                         ub <- unlist(lapply(X = seq(1, nrow(cdata)),
                                             FUN = listFunEval,
                                             fun = target.knots[[i + 1]]))
-                        
+
                     } else {
                         ub <- unlist(lapply(X = split(cdata[, wKnotVarsU],
                                                       seq(1, nrow(cdata))),
@@ -1061,18 +1088,18 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                             fun = target.knots[[i + 1]],
                                             argnames = wKnotVarsU))
                     }
-                    
+
                     wValVars  <- formalArgs(target.weight[[i]])
 
-                    if (wValVars == "...") {
+                    if (wValVars[1] == "...") {
                         weights <- unlist(lapply(X = seq(1, nrow(cdata)),
                                                  FUN = listFunEval,
-                                                 fun = target.weight[[i]]))                        
+                                                 fun = target.weight[[i]]))
                     } else {
                         weights <- unlist(lapply(X = split(cdata[, wValVars],
                                                            seq(1, nrow(cdata))),
                                                  FUN = listFunEval,
-                                                 fun = target.weight[[i]], 
+                                                 fun = target.weight[[i]],
                                                  argnames = wValVars))
                     }
 
@@ -1080,7 +1107,7 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                                                   lb = lb,
                                                   ub = ub,
                                                   multiplier = weights)
-                }   
+                }
 
                 assign(paste0("gstar", d), gamma)
                 assign(paste0("pm", d), pm)
@@ -1098,9 +1125,9 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 message(
                     "    Integrating spline terms for treated group...\n")
             }
-            
+
             noSplineMtr <- splinesobj[[d + 1]]
-          
+
             if (!is.null(noSplineMtr$splineslist)) {
 
                 basisLengths <- sapply(names(noSplineMtr$splineslist),
@@ -1115,13 +1142,13 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                 })
 
                 gammaSplines <- rep(0, sum(basisLengths))
-                
+
                 for (i in 1:length(target.weight)) {
 
                     wKnotVarsL <- formalArgs(target.knots[[i]])
                     wKnotVarsU <- formalArgs(target.knots[[i + 1]])
-                    
-                    if (wKnotVarsL == "...") {
+
+                    if (wKnotVarsL[1] == "...") {
                         lb <- unlist(lapply(X = seq(1, nrow(cdata)),
                                             FUN = listFunEval,
                                             fun = target.knots[[i]]))
@@ -1129,15 +1156,15 @@ mst <- function(ivlike, data, subset, components, propensity, link,
                         lb <- unlist(lapply(X = split(cdata[, wKnotVarsL],
                                                       seq(1, nrow(cdata))),
                                             FUN = listFunEval,
-                                            fun = target.knots[[i]], 
+                                            fun = target.knots[[i]],
                                             argnames = wKnotVarsL))
                     }
-                    
-                    if (wKnotVarsU == "...") {
+
+                    if (wKnotVarsU[1] == "...") {
                         ub <- unlist(lapply(X = seq(1, nrow(cdata)),
                                             FUN = listFunEval,
                                             fun = target.knots[[i + 1]]))
-                        
+
                     } else {
                         ub <- unlist(lapply(X = split(cdata[, wKnotVarsU],
                                                       seq(1, nrow(cdata))),
@@ -1148,18 +1175,18 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
                     wValVars  <- formalArgs(target.weight[[i]])
 
-                    if (wValVars == "...") {
+                    if (wValVars[1] == "...") {
                         weights <- unlist(lapply(X = seq(1, nrow(cdata)),
                                                  FUN = listFunEval,
-                                                 fun = target.weight[[i]]))                        
+                                                 fun = target.weight[[i]]))
                     } else {
                         weights <- unlist(lapply(X = split(cdata[, wValVars],
                                                            seq(1, nrow(cdata))),
                                                  FUN = listFunEval,
-                                                 fun = target.weight[[i]], 
+                                                 fun = target.weight[[i]],
                                                  argnames = wValVars))
                     }
-                    
+
                     gammaSplines <- gammaSplines +
                         genGammaSplines.mst(splines = noSplineMtr,
                                             data = cdata,

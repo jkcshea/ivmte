@@ -5,12 +5,12 @@
 \title{Estimation procedure from Mogstad, Torgovitsky (2017)}
 \usage{
 mst(ivlike, data, subset, components, propensity, link, treat, m0, m1,
-  uname = u, target, target.weight0, target.weight1, late.Z, late.from,
-  late.to, late.X, eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
-  grid.Nu = 20, grid.Nx = 20, audit.Nx = 2, audit.Nu = 3,
-  audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
-  mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL,
-  sample.integral = FALSE)
+  uname = u, target, target.weight0, target.weight1, target.knots0 = NULL,
+  target.knots1 = NULL, late.Z, late.from, late.to, late.X, eval.X,
+  genlate.lb, genlate.ub, obseq.tol = 1, grid.Nu = 20, grid.Nx = 20,
+  audit.Nx = 2, audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
+  m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
+  mte.inc, lpsolver = NULL)
 }
 \arguments{
 \item{ivlike}{formula or vector of formulas used to specify the
@@ -56,10 +56,34 @@ allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
 ("\code{genlate}").}
 
 \item{target.weight0}{user-defined weight function for the control
-group defining the target parameter.}
+group defining the target parameter. A list of functions can be
+submitted if the weighting function is in fact a spline. The
+arguments of the function should be variable names in
+\code{data}. If the weight is constant across all observations,
+then the user can instead submit the value of the weight
+instead of a function.}
 
 \item{target.weight1}{user-defined weight function for the treated
-group defining the target parameter.}
+group defining the target parameter. A list of functions can be
+submitted if the weighting function is in fact a spline. The
+arguments of the function should be variable names in
+\code{data}. If the weight is constant across all observations,
+then the user can instead submit the value of the weight
+instead of a function.}
+
+\item{target.knots0}{user-defined set of functions defining the
+knots associated with splines weights for the control
+group. The arguments of the function should consist only of
+variable names in \code{data}. If the knot is constant across
+all observations, then the user can instead submit the value of
+the weight instead of a function.}
+
+\item{target.knots1}{user-defined set of functions defining the
+knots associated with splines weights for the treated
+group. The arguments of the function should be variable names
+in \code{data}. If the knot is constant across all
+observations, then the user can instead submit the value of the
+weight instead of a function.}
 
 \item{late.Z}{vector of variable names used to define the LATE.}
 
@@ -150,19 +174,6 @@ weakly monotone decreasing.}
 
 \item{lpsolver}{name of the linear programming package in R used to
 obtain the bounds on the treatment effect.}
-
-\item{sample.integral}{boolean, set to \code{FALSE} by
-default. When the user submits a custom weight, the function
-will have to perform numerical integration. When
-\code{sample.integral} is set to \code{FALSE}, the function
-will attempt to perform a single integral for each term in the
-MTRs defined in \code{m0} and $\code{m1}$. This may require the
-user to assign a higher value to
-\code{options(expressions=)}. If \code{sample.integral} is set
-to \code{TRUE}, then the function will instead perform an
-integral for each term in the MTRs, for each observation in the
-sample. This is a much slower alternative, but does not require
-\code{options(expressions=)} to be set.}
 }
 \value{
 Returns a list of results from throughout the estimation

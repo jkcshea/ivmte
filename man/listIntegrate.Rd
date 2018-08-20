@@ -4,7 +4,7 @@
 \alias{listIntegrate}
 \title{Auxiliary funtion: integrate a list of functions}
 \usage{
-listIntegrate(list)
+listIntegrate(list, subdivisions, rel.tol, abs.tol)
 }
 \arguments{
 \item{list}{the list of functions to be multiplied.}

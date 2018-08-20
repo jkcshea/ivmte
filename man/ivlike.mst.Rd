@@ -4,7 +4,7 @@
 \alias{ivlike.mst}
 \title{Obtaining IV-like specifications}
 \usage{
-ivlike.mst(formula, data, subset, components = NULL, treat, list = FALSE)
+ivlike.mst(formula, data, subset, components, treat, list = FALSE)
 }
 \arguments{
 \item{formula}{formula to be estimated using OLS/IV.}

@@ -874,7 +874,12 @@ listFunEval <- function(fun, values = NULL, argnames = NULL) {
     }
 }
 
-
+#' Construct constant function
+#'
+#' This function constructs another function that returns a
+#' constant. It is used for constructing weight/knot functions.
+#' @param x scalar, the constant the function evaluates to.
+#' @return a function.
 constructConstant <- function(x) {
     fun <- function(...) {
         x
