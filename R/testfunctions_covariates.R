@@ -4,7 +4,7 @@
 #' for each term in a formula.
 #' @param formula formula, each term of which will have its mean
 #'     calculated.
-#' @param disribution data.table, characterizing the distribution of
+#' @param distribution data.table, characterizing the distribution of
 #'     the variables entering into \code{formula}.
 #' @param density string, name of the variable \code{data}
 #'     characterizing the density.
@@ -56,7 +56,7 @@ m.int <- function(ub, lb, coef){
 #' @param data data.table.
 #' @param s0 variable name (contained in the data) for the S-weight
 #'     used to generate the Gamma moments for the control group.
-#' @param s0 variable name (contained in the data) for the S-weight
+#' @param s1 variable name (contained in the data) for the S-weight
 #'     used to generate the Gamma moments for the treated group.
 #' @param lb scalar, lower bound for integration.
 #' @param ub scalar, upper bound for integration.

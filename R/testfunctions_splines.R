@@ -94,6 +94,8 @@ wAtt <- function(z, d, ed) {
 #'     corresponding to the first spline specification ("s1").
 #' @param u0s2 matrix, the spline basis for the control group ("u0")
 #'     corresponding to the second spline specification ("s2").
+#' @param target boolean, set to \code{TRUE} if the gamma moment being
+#'     generated corresponds to the target parameter.
 #' @param ... all other arguments that enter into \code{weight},
 #'     excluding the argument \code{d} for treatment indicator.
 #' @return vector, the Gamma moments associated with \code{weight}.

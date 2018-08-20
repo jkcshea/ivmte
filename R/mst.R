@@ -1066,25 +1066,25 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
                     if (wKnotVarsL[1] == "...") {
                         lb <- unlist(lapply(X = seq(1, nrow(cdata)),
-                                            FUN = listFunEval,
+                                            FUN = funEval,
                                             fun = target.knots[[i]]))
                     } else {
                         lb <- unlist(lapply(X = split(cdata[, wKnotVarsL],
                                                       seq(1, nrow(cdata))),
-                                            FUN = listFunEval,
+                                            FUN = funEval,
                                             fun = target.knots[[i]],
                                             argnames = wKnotVarsL))
                     }
 
                     if (wKnotVarsU[1] == "...") {
                         ub <- unlist(lapply(X = seq(1, nrow(cdata)),
-                                            FUN = listFunEval,
+                                            FUN = funEval,
                                             fun = target.knots[[i + 1]]))
 
                     } else {
                         ub <- unlist(lapply(X = split(cdata[, wKnotVarsU],
                                                       seq(1, nrow(cdata))),
-                                            FUN = listFunEval,
+                                            FUN = funEval,
                                             fun = target.knots[[i + 1]],
                                             argnames = wKnotVarsU))
                     }
@@ -1093,12 +1093,12 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
                     if (wValVars[1] == "...") {
                         weights <- unlist(lapply(X = seq(1, nrow(cdata)),
-                                                 FUN = listFunEval,
+                                                 FUN = funEval,
                                                  fun = target.weight[[i]]))
                     } else {
                         weights <- unlist(lapply(X = split(cdata[, wValVars],
                                                            seq(1, nrow(cdata))),
-                                                 FUN = listFunEval,
+                                                 FUN = funEval,
                                                  fun = target.weight[[i]],
                                                  argnames = wValVars))
                     }
@@ -1150,25 +1150,25 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
                     if (wKnotVarsL[1] == "...") {
                         lb <- unlist(lapply(X = seq(1, nrow(cdata)),
-                                            FUN = listFunEval,
+                                            FUN = funEval,
                                             fun = target.knots[[i]]))
                     } else {
                         lb <- unlist(lapply(X = split(cdata[, wKnotVarsL],
                                                       seq(1, nrow(cdata))),
-                                            FUN = listFunEval,
+                                            FUN = funEval,
                                             fun = target.knots[[i]],
                                             argnames = wKnotVarsL))
                     }
 
                     if (wKnotVarsU[1] == "...") {
                         ub <- unlist(lapply(X = seq(1, nrow(cdata)),
-                                            FUN = listFunEval,
+                                            FUN = funEval,
                                             fun = target.knots[[i + 1]]))
 
                     } else {
                         ub <- unlist(lapply(X = split(cdata[, wKnotVarsU],
                                                       seq(1, nrow(cdata))),
-                                            FUN = listFunEval,
+                                            FUN = funEval,
                                             fun = target.knots[[i + 1]],
                                             argnames = wKnotVarsU))
                     }
@@ -1177,12 +1177,12 @@ mst <- function(ivlike, data, subset, components, propensity, link,
 
                     if (wValVars[1] == "...") {
                         weights <- unlist(lapply(X = seq(1, nrow(cdata)),
-                                                 FUN = listFunEval,
+                                                 FUN = funEval,
                                                  fun = target.weight[[i]]))
                     } else {
                         weights <- unlist(lapply(X = split(cdata[, wValVars],
                                                            seq(1, nrow(cdata))),
-                                                 FUN = listFunEval,
+                                                 FUN = funEval,
                                                  fun = target.weight[[i]],
                                                  argnames = wValVars))
                     }

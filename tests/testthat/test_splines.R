@@ -1,4 +1,4 @@
-context("Test of case involving only covariates, no splines.")
+context("Test of case involving splines.")
 
 set.seed(10L)
 
@@ -399,104 +399,153 @@ test_that("LP problem", {
 })
 
 ##------------------------
-## Alternative, where ATT is declared using custom weights
+## Alternative, where custom spline weights are declared
 ##------------------------
 
-## For speed, use only a subsample
-subsample <- sample(seq(1, nrow(dtsf)), size = 100, replace = FALSE)
-dtsfSmall <- dtsf[subsample, ]
-edw <- mean(dtsfSmall$d)
-
-#' Weight function for ATT, D = 0
-#'
-#' This function simply generates the weight given X and Z.
-#' @param u the value of the unobservable
-#' @param x the value of the covariate X
-#' @param z the value of the instrument Z
-#' @return scalar.
-weight0 <- function(u, x, z) {
-    p <- 0.5 - 0.1 * x + 0.2 * z
-    return(-(u <= p) / edw)
+## Declare weight functions and knots
+weight11 <- function(z) {
+    1 / (1 + z)
 }
-weight0 <- Vectorize(weight0)
 
-#' Weight function for ATT, D = 1
-#'
-#' This function simply generates the weight given X and Z.
-#' @param u the value of the unobservable
-#' @param x the value of the covariate X
-#' @param z the value of the instrument Z
-#' @return scalar.
-weight1 <- function(u, x, z) {
-    p <- 0.5 - 0.1 * x + 0.2 * z
-    return((u <=  p) / edw)
+weight01 <- function(z, x) {
+    - 1 / (1 + z + abs(x))
 }
-weight1 <- Vectorize(weight1)
+weight02 <- function(z) {
+    - (1 / (1 + z)) * 1.33
+}
 
-## Standard estimate using smaller sample
-set.seed(10L)
-resultSmall <- mst(ivlike = ivlike,
-                   data = dtsfSmall,
-                   components = components,
-                   propensity = p,
-                   m1 = ~ x + uSplines(degree = 2,
-                                       knots = c(0.3, 0.6),
-                                       intercept = FALSE),
-                   m0 = ~ 0 + x : uSplines(degree = 0,
-                                           knots = c(0.2, 0.5, 0.8),
-                                           intercept = TRUE) +
-                       uSplines(degree = 1,
-                                knots = c(0.4),
-                                intercept = TRUE) +
-                       I(u ^ 2),
-                   uname = u,
-                   target = "att",
-                   obseq.tol = 1.01,
-                   grid.Nu = 3,
-                   grid.Nx = 2,
-                   audit.Nx = 1,
-                   audit.Nu = 5,
-                   m1.ub = 55,
-                   m0.lb = 0,
-                   mte.inc = TRUE)
+knots01 <- function(z, x) {
+    0.3 + 0.3 * z + 0.1 * x
+}
 
 ## Custom weight estimate using smaller sample
 set.seed(10L)
-resultSmallAlt <- mst(ivlike = ivlike,
-                      data = dtsfSmall,
-                      components = components,
-                      propensity = p,
-                      m1 = ~ x + uSplines(degree = 2,
-                                          knots = c(0.3, 0.6),
-                                          intercept = FALSE),
-                      m0 = ~ 0 + x : uSplines(degree = 0,
-                                              knots = c(0.2, 0.5, 0.8),
-                                              intercept = TRUE) +
-                          uSplines(degree = 1,
-                                   knots = c(0.4),
-                                   intercept = TRUE) +
-                          I(u ^ 2),
-                      uname = u,
-                      target.weight0 = weight0,
-                      target.weight1 = weight1,
-                      obseq.tol = 1.01,
-                      grid.Nu = 3,
-                      grid.Nx = 2,
-                      audit.Nx = 1,
-                      audit.Nu = 5,
-                      m1.ub = 55,
-                      m0.lb = 0,
-                      mte.inc = TRUE)
+resultAlt <- mst(ivlike = ivlike,
+                 data = dtsf,
+                 components = components,
+                 propensity = p,
+                 m1 = ~ x + uSplines(degree = 2,
+                                     knots = c(0.3, 0.6),
+                                     intercept = FALSE),
+                 m0 = ~ 0 + x : uSplines(degree = 0,
+                                         knots = c(0.2, 0.5, 0.8),
+                                         intercept = TRUE) +
+                     uSplines(degree = 1,
+                              knots = c(0.4),
+                              intercept = TRUE) +
+                     I(u ^ 2),
+                 uname = u,
+                 target.weight0 = c(weight01, weight02),
+                 target.weight1 = weight11,
+                 target.knots0 = knots01,
+                 obseq.tol = 1.01,
+                 grid.Nu = 3,
+                 grid.Nx = 2,
+                 audit.Nx = 1,
+                 audit.Nu = 5,
+                 m1.ub = 55,
+                 m0.lb = 0,
+                 mte.inc = TRUE)
+
+##------------------------
+## Reconstruct target gamma moments
+##------------------------
+
+## Construct weights
+dts$weight11 <- 1 / (1 + dts$z)
+dts$weight01 <- - 1 / (1 + dts$z + abs(dts$x))
+dts$weight02 <- - (1 / (1 + dts$z)) * 1.33
+dts$knots01 <- 0.3 + 0.3 * dts$z + 0.1 * dts$x
+
+## Construct control group, nonsplines term
+u2vecA <- sapply(dts$knots01, function(x) (1 / 3) * x ^ 3)
+u2vecB <- sapply(rep(1, nrow(dts)), function(x) (1 / 3) * x ^ 3) - u2vecA
+
+u2vecA <- u2vecA * dts$weight01 * dts$f
+u2vecB <- u2vecB * dts$weight02 * dts$f
+
+gstarCustomNS0 <- sum(u2vecA + u2vecB)
+
+## Construct control group, splines 1
+splineMat0a <- t(mapply(splines2::ibs,
+                        x = dts$knots01,
+                        MoreArgs = list(degree = 0,
+                                        knots = c(0.2, 0.5, 0.8),
+                                        intercept = TRUE,
+                                        Boundary.knots = c(0, 1))))
+
+splineMat0b <- t(mapply(splines2::ibs,
+                        x = rep(1, nrow(dts)),
+                        MoreArgs = list(degree = 0,
+                                        knots = c(0.2, 0.5, 0.8),
+                                        intercept = TRUE,
+                                        Boundary.knots = c(0, 1))))
+
+splineMat01a <- sweep(splineMat0a, MARGIN = 1, STATS = dts$x, FUN = "*")
+splineMat01a <- sweep(splineMat01a, MARGIN = 1, STATS = dts$weight01, FUN = "*")
+splineMat01a <- sweep(splineMat01a, MARGIN = 1, STATS = dts$f, FUN = "*")
+
+splineMat01b <- splineMat0b - splineMat0a
+splineMat01b <- sweep(splineMat01b, MARGIN = 1, STATS = dts$x, FUN = "*")
+splineMat01b <- sweep(splineMat01b, MARGIN = 1, STATS = dts$weight02, FUN = "*")
+splineMat01b <- sweep(splineMat01b, MARGIN = 1, STATS = dts$f, FUN = "*")
+
+gstarCustomS01 <- colSums(splineMat01a + splineMat01b)
+
+## Construct control group, splines 2
+
+splineMat0c <- t(mapply(splines2::ibs,
+                        x = dts$knots01,
+                        MoreArgs = list(degree = 1,
+                                        knots = c(0.4),
+                                        intercept = TRUE,
+                                        Boundary.knots = c(0, 1))))
+
+splineMat0d <- t(mapply(splines2::ibs,
+                        x = rep(1, nrow(dts)),
+                        MoreArgs = list(degree = 1,
+                                        knots = c(0.4),
+                                        intercept = TRUE,
+                                        Boundary.knots = c(0, 1))))
+
+splineMat01c <- sweep(splineMat0c, MARGIN = 1, STATS = dts$weight01, FUN = "*")
+splineMat01c <- sweep(splineMat01c, MARGIN = 1, STATS = dts$f, FUN = "*")
+
+splineMat01d <- splineMat0d - splineMat0c
+splineMat01d <- sweep(splineMat01d, MARGIN = 1, STATS = dts$weight02, FUN = "*")
+splineMat01d <- sweep(splineMat01d, MARGIN = 1, STATS = dts$f, FUN = "*")
+
+gstarCustomS02 <- colSums(splineMat01c + splineMat01d)
+
+## Construct treated  group, nonsplines term
+
+gstarCustomNS1 <- c(sum(dts$weight11 * dts$f),
+                    sum(dts$x * dts$weight11 * dts$f))
+
+## Construct treated  group, splines
+
+splineMat1 <- t(mapply(splines2::ibs,
+                        x = rep(1, nrow(dts)),
+                        MoreArgs = list(degree = 2,
+                                        knots = c(0.3, 0.6),
+                                        intercept = FALSE,
+                                        Boundary.knots = c(0, 1))))
+
+splineMat1 <- sweep(splineMat1, MARGIN = 1, STATS = dts$weight11, FUN = "*")
+splineMat1 <- sweep(splineMat1, MARGIN = 1, STATS = dts$f, FUN = "*")
+
+gstarCustomS11 <- colSums(splineMat1)
+
+## Group terms
+gstarCustom0 <- c(gstarCustomNS0,
+                  gstarCustomS02,
+                  gstarCustomS01)
+
+gstarCustom1 <- c(gstarCustomNS1,
+                  gstarCustomS11)
 
 ## Begin testing
 test_that("Custom weights", {
-    expect_equal(resultSmall$gstar, resultSmallAlt$gstar, tolerance = 1e-5)
-    expect_equal(resultSmall$bound, resultSmallAlt$bound, tolerance = 1e-6)
-    expect_equal(resultSmall$lpresult$model$A,
-                 resultSmallAlt$lpresult$model$A)
-    expect_equal(resultSmall$lpresult$model$rhs,
-                 resultSmallAlt$lpresult$model$rhs)
-    expect_equal(resultSmall$lpresult$model$sense,
-                 resultSmallAlt$lpresult$model$sense)
+    expect_equal(as.numeric(gstarCustom0), as.numeric(resultAlt$gstar$g0))
+    expect_equal(as.numeric(gstarCustom1), as.numeric(resultAlt$gstar$g1))
 })
-

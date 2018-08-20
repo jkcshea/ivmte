@@ -25,6 +25,9 @@ corresponding to the first spline specification ("s1").}
 \item{u0s2}{matrix, the spline basis for the control group ("u0")
 corresponding to the second spline specification ("s2").}
 
+\item{target}{boolean, set to \code{TRUE} if the gamma moment being
+generated corresponds to the target parameter.}
+
 \item{...}{all other arguments that enter into \code{weight},
 excluding the argument \code{d} for treatment indicator.}
 }

@@ -12,12 +12,12 @@ genGamma(data, s0, s1, lb, ub)
 \item{s0}{variable name (contained in the data) for the S-weight
 used to generate the Gamma moments for the control group.}
 
+\item{s1}{variable name (contained in the data) for the S-weight
+used to generate the Gamma moments for the treated group.}
+
 \item{lb}{scalar, lower bound for integration.}
 
 \item{ub}{scalar, upper bound for integration.}
-
-\item{s0}{variable name (contained in the data) for the S-weight
-used to generate the Gamma moments for the treated group.}
 }
 \value{
 list, contains the vectors of the Gamma moments for control

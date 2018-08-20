@@ -4,16 +4,21 @@
 \name{dtcf}
 \alias{dtcf}
 \title{Covariates data set}
-\format{A data frame with 10,000 rows and 9 columns.
+\format{A data frame with 10,000 rows and 14 columns.
 \describe{
   \item{x1}{covariate 1}
   \item{x2}{covariate 2}
   \item{z1}{instrument 1}
   \item{z2}{instrument 2}
-  \item{p}{probability of purchasing mosquito net}
-  \item{d}{indicator for treatment (d = 1) versus control (d = 0) group}
+  \item{latent}{latent variable determining treatment participation}
+  \item{p}{probability of treatment uptake}
   \item{ey0}{counterfactual outcome when not a recipient of treatment}
   \item{ey1}{counterfactual outcome when a recipient of treatment}
+  \item{f}{density}
+  \item{multiplier}{number of observations in data set}
+  \item{d}{indicator for treatment (d = 1) versus control (d = 0) group}
+  \item{i}{counter of observations within support of (X, Z)}
+  \item{dcut}{the number of treated subjects by (X, Z)}
   \item{ey}{the observed outcome}
 }}
 \source{

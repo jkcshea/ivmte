@@ -10,11 +10,11 @@ popmean(formula, distribution, density = "f")
 \item{formula}{formula, each term of which will have its mean
 calculated.}
 
+\item{distribution}{data.table, characterizing the distribution of
+the variables entering into \code{formula}.}
+
 \item{density}{string, name of the variable \code{data}
 characterizing the density.}
-
-\item{disribution}{data.table, characterizing the distribution of
-the variables entering into \code{formula}.}
 }
 \value{
 vector, the means for each term in \code{formula}.
