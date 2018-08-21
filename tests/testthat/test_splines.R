@@ -352,7 +352,7 @@ modelO$lb <- c(replicate(ncol(Aextra), 0),
 
 ## Minimize observational equivalence deviation
 modelO$modelsense <- "min"
-minobseq <- gurobi::gurobi(modelO)$objbound
+minobseq <- gurobi::gurobi(modelO)$objval
 
 ##-------------------------
 ## Obtain the bounds for the ATT

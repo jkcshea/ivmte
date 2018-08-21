@@ -61,7 +61,6 @@
 #'   \item{z2}{instrument 2}
 #'   \item{latent}{latent variable determining treatment participation}
 #'   \item{p}{probability of treatment uptake}
-#'   \item{d}{indicator for treatment (d = 1) versus control (d = 0) group}
 #'   \item{ey0}{counterfactual outcome when not a recipient of treatment}
 #'   \item{ey1}{counterfactual outcome when a recipient of treatment}
 #'   \item{f}{density}
