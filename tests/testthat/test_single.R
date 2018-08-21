@@ -2,26 +2,26 @@ context("Test estimation when only a single IV-like specification is provided.")
 
 set.seed(10L)
 
-result <-  mst(ivlike = ey ~ d + x1 + x2,
-               data = dtcf,
-               components = lists.mst(d, x1),
-               subset = z2 %in% c(2, 3),
-               propensity = d ~ x1 + x2 + z1 + z2,
-               link = "logit",
-               m0 = ~ x1 + I(x2 * u) + I(x2 * u^2),
-               m1 = ~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
-               uname = u,
-               target = "late",
-               late.Z = c(z1, z2),
-               late.from = c(1, 2),
-               late.to = c(0, 3),
-               late.X = c(x1, x2),
-               eval.X = c(0, 1),
-               obseq.tol = 0.01,
-               grid.Nu = 5,
-               grid.Nx = 5,
-               audit.Nx = 5,
-               audit.Nu = 5)
+result <- ivmte(ivlike = ey ~ d + x1 + x2,
+                data = dtcf,
+                components = lists.mst(d, x1),
+                subset = z2 %in% c(2, 3),
+                propensity = d ~ x1 + x2 + z1 + z2,
+                link = "logit",
+                m0 = ~ x1 + I(x2 * u) + I(x2 * u^2),
+                m1 = ~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
+                uname = u,
+                target = "late",
+                late.Z = c(z1, z2),
+                late.from = c(1, 2),
+                late.to = c(0, 3),
+                late.X = c(x1, x2),
+                eval.X = c(0, 1),
+                obseq.tol = 0.01,
+                grid.Nu = 5,
+                grid.Nx = 5,
+                audit.Nx = 5,
+                audit.Nu = 5)
 
 ##------------------------
 ## Implement test

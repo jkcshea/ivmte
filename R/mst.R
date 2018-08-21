@@ -172,16 +172,16 @@
 #'     m1.dec = TRUE)
 #'
 #' @export
-mst <- function(ivlike, data, subset, components, propensity, link,
-                treat, m0, m1, uname = u, target, target.weight0,
-                target.weight1, target.knots0 = NULL, target.knots1 = NULL,
-                late.Z, late.from, late.to, late.X,
-                eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
-                grid.Nu = 20, grid.Nx = 20, audit.Nx = 2,
-                audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
-                m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL) {
-
+ivmte <- function(ivlike, data, subset, components, propensity, link,
+                  treat, m0, m1, uname = u, target, target.weight0,
+                  target.weight1, target.knots0 = NULL, target.knots1 = NULL,
+                  late.Z, late.from, late.to, late.X,
+                  eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
+                  grid.Nu = 20, grid.Nx = 20, audit.Nx = 2,
+                  audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
+                  m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
+                  m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL) {
+    
     ## Match call arguments
     call <- match.call(expand.dots = FALSE)
 

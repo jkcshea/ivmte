@@ -13,30 +13,30 @@ ivlike <- c(ey ~ d,
 components <- lists.mst(c(intercept, d), d, c(d, x))
 
 set.seed(10L)
-result <- mst(ivlike = ivlike,
-              data = dtsf,
-              components = components,
-              propensity = p,
-              m1 = ~ x + uSplines(degree = 2,
-                                  knots = c(0.3, 0.6),
-                                  intercept = FALSE),
-              m0 = ~ 0 + x : uSplines(degree = 0,
-                                      knots = c(0.2, 0.5, 0.8),
-                                      intercept = TRUE) +
-                  uSplines(degree = 1,
-                           knots = c(0.4),
-                           intercept = TRUE) +
-                  I(u ^ 2),
-              uname = u,
-              target = "att",
-              obseq.tol = 1.01,
-              grid.Nu = 3,
-              grid.Nx = 2,
-              audit.Nx = 1,
-              audit.Nu = 5,
-              m1.ub = 55,
-              m0.lb = 0,
-              mte.inc = TRUE)
+result <- ivmte(ivlike = ivlike,
+                data = dtsf,
+                components = components,
+                propensity = p,
+                m1 = ~ x + uSplines(degree = 2,
+                                    knots = c(0.3, 0.6),
+                                    intercept = FALSE),
+                m0 = ~ 0 + x : uSplines(degree = 0,
+                                        knots = c(0.2, 0.5, 0.8),
+                                        intercept = TRUE) +
+                    uSplines(degree = 1,
+                             knots = c(0.4),
+                             intercept = TRUE) +
+                    I(u ^ 2),
+                uname = u,
+                target = "att",
+                obseq.tol = 1.01,
+                grid.Nu = 3,
+                grid.Nx = 2,
+                audit.Nx = 1,
+                audit.Nu = 5,
+                m1.ub = 55,
+                m0.lb = 0,
+                mte.inc = TRUE)
 
 ##-------------------------
 ## Perform tests
@@ -420,32 +420,32 @@ knots01 <- function(z, x) {
 
 ## Custom weight estimate using smaller sample
 set.seed(10L)
-resultAlt <- mst(ivlike = ivlike,
-                 data = dtsf,
-                 components = components,
-                 propensity = p,
-                 m1 = ~ x + uSplines(degree = 2,
-                                     knots = c(0.3, 0.6),
-                                     intercept = FALSE),
-                 m0 = ~ 0 + x : uSplines(degree = 0,
-                                         knots = c(0.2, 0.5, 0.8),
-                                         intercept = TRUE) +
-                     uSplines(degree = 1,
-                              knots = c(0.4),
-                              intercept = TRUE) +
-                     I(u ^ 2),
-                 uname = u,
-                 target.weight0 = c(weight01, weight02),
-                 target.weight1 = weight11,
-                 target.knots0 = knots01,
-                 obseq.tol = 1.01,
-                 grid.Nu = 3,
-                 grid.Nx = 2,
-                 audit.Nx = 1,
-                 audit.Nu = 5,
-                 m1.ub = 55,
-                 m0.lb = 0,
-                 mte.inc = TRUE)
+resultAlt <- ivmte(ivlike = ivlike,
+                   data = dtsf,
+                   components = components,
+                   propensity = p,
+                   m1 = ~ x + uSplines(degree = 2,
+                                       knots = c(0.3, 0.6),
+                                       intercept = FALSE),
+                   m0 = ~ 0 + x : uSplines(degree = 0,
+                                           knots = c(0.2, 0.5, 0.8),
+                                           intercept = TRUE) +
+                       uSplines(degree = 1,
+                                knots = c(0.4),
+                                intercept = TRUE) +
+                       I(u ^ 2),
+                   uname = u,
+                   target.weight0 = c(weight01, weight02),
+                   target.weight1 = weight11,
+                   target.knots0 = knots01,
+                   obseq.tol = 1.01,
+                   grid.Nu = 3,
+                   grid.Nx = 2,
+                   audit.Nx = 1,
+                   audit.Nu = 5,
+                   m1.ub = 55,
+                   m0.lb = 0,
+                   mte.inc = TRUE)
 
 ##------------------------
 ## Reconstruct target gamma moments
