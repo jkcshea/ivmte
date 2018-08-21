@@ -1,4 +1,4 @@
-Package: mst
+Package: ivmte
 Title: Implements Estimation Procedure from Mogstad, Torgovitsky (2017)
 Version: 0.0.0.9000
 Authors@R: person("Joshua",
