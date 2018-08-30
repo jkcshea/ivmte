@@ -5,7 +5,7 @@
 \title{Generating LP moments for IV-like estimands}
 \usage{
 gensset.mst(data, sset, sest, splinesobj, pmodobj, pm0, pm1, ncomponents,
-  scount, subset_index)
+  scount, subset_index, means = TRUE)
 }
 \arguments{
 \item{data}{\code{data.frame} used to estimate the treatment

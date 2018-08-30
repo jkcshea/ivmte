@@ -20,7 +20,8 @@ Suggests:
 	lpSolveAPI (>= 3.4.4),
 	splines2 (>= 3.4.4),
 	testthat (>= 2.0.0),
-	data.table (>= 1.11.2)	
+	data.table (>= 1.11.2),
+	gmm (>= 1.6-2)
 License: GPL-2 | GPL-3
 Encoding: UTF-8
 LazyData: true

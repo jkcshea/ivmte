@@ -10,7 +10,7 @@ ivmte(ivlike, data, subset, components, propensity, link, treat, m0, m1,
   genlate.lb, genlate.ub, obseq.tol = 1, grid.Nu = 20, grid.Nx = 20,
   audit.Nx = 2, audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
-  mte.inc, lpsolver = NULL)
+  mte.inc, lpsolver = NULL, point = FALSE, point.itermax = 100)
 }
 \arguments{
 \item{ivlike}{formula or vector of formulas used to specify the
@@ -174,6 +174,17 @@ weakly monotone decreasing.}
 
 \item{lpsolver}{name of the linear programming package in R used to
 obtain the bounds on the treatment effect.}
+
+\item{point}{boolean, default set to \code{FALSE}. Set to
+\code{TRUE} if it is believed that the treatment effects are
+point identified. If set to \code{TRUE}, then a GMM procedure
+is implemented to estimate the treatment effects. Shape
+constraints on the MTRs will be ignored under point
+identification.}
+
+\item{point.itermax}{integer, default of 100. Maximum number of
+iterations allowed for GMM estimation under point
+identification.}
 }
 \value{
 Returns a list of results from throughout the estimation

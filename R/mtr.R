@@ -575,7 +575,7 @@ uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 #'     to. "[b]" will be an integer reflect which component of the
 #'     basis the column pertains to.
 genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
-                                subset, d = NULL) {
+                                subset, d = NULL, means = TRUE) {
 
     splines <- splines$splineslist
 
@@ -636,9 +636,14 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
                                          paste0(":", splines[[j]][l])))
                 splinesGamma <- cbind(splinesGamma, tmpGamma)
             }
-        }        
-        splinesGamma <- colMeans(splinesGamma)
-        names(splinesGamma) <- splinesNames
+        }
+
+        if (means == TRUE) {
+            splinesGamma <- colMeans(splinesGamma)
+            names(splinesGamma) <- splinesNames
+        } else {
+            colnames(splinesGamma) <- splinesNames
+        }
         return(splinesGamma)
     }
 }
