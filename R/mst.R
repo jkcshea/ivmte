@@ -151,9 +151,13 @@
 #'     is implemented to estimate the treatment effects. Shape
 #'     constraints on the MTRs will be ignored under point
 #'     identification.
-#' @param point.itermax integer, default of 100. Maximum number of
-#'     iterations allowed for GMM estimation under point
-#'     identification.
+#' @param point.tol scalar, set default at 1-e08. Tolerance for bounds
+#'     before automatically switchingto case of point
+#'     identification. So if the estimated bounds are narrower than
+#'     \code{point.tol}, and no shape restrictions are declared, the
+#'     function instead provides a point estimate of the treatment
+#'     effect. The output would be the same as if \code{point} was set
+#'     to \code{TRUE}.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -190,7 +194,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                   audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
                   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                   m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL,
-                  point = FALSE, point.itermax = 100) {
+                  point = FALSE, point.tol = 1e-08) {
     
     ## Match call arguments
     call <- match.call(expand.dots = FALSE)
@@ -548,13 +552,23 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         stop("audit.Nx must be an integer greater than or equal to 1.")
     }
 
+
     if (hasArg(m0.dec) | hasArg(m0.inc) |
         hasArg(m1.dec) | hasArg(m1.inc) |
-        hasArg(mte.dec) | hasArg(mte.inc)) {
+        hasArg(mte.dec) | hasArg(mte.inc) |
+        hasArg(m0.lb) | hasArg(m0.ub) |
+        hasArg(m1.lb) | hasArg(m1.ub) |
+        hasArg(mte.lb) | hasArg(mte.ub)) {
+
+        noshape = FALSE ## indicator for whether shape restrictions declared
+        
         if (!((audit.Nu %% 1 == 0) & audit.Nu > 0) | audit.Nu < 2) {
             stop("audit.Nu must be an integer greater than or equal to 2.")
         }
     } else {
+
+        noshape = TRUE 
+        
         if (!((audit.Nu %% 1 == 0) & audit.Nu > 0)) {
             stop("audit.Nu must be an integer greater than or equal to 1.")
         }
@@ -1302,7 +1316,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                   ncomponents = ncomponents,
                                   scount = scount,
                                   subset_index = subset_index,
-                                  means = FALSE)
+                                  means = TRUE)
         }
 
         sset <- setobj$sset
@@ -1360,7 +1374,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                       ncomponents = ncomponents,
                                       scount = scount,
                                       subset_index = subset_index,
-                                      means = FALSE)
+                                      means = TRUE)
             }
 
             ## Update set of moments (gammas)
@@ -1399,8 +1413,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         ## Obtain GMM estimate
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
-                                 gstar1 = gstar1,
-                                 N = nrow(cdata))
+                                 gstar1 = gstar1)
         
         return(list(sset  = sset,
                     gstar = list(g0 = gstar0,
@@ -1411,8 +1424,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                     ci90 = gmmResult$ci90,
                     ci95 = gmmResult$ci95,
                     mtr.coef = gmmResult$coef,
-                    mtr.vcov = gmmResult$vcov,
-                    convergeCode = gmmResult$convergeCode))
+                    mtr.vcov = gmmResult$vcov))
     }
     
     ##---------------------------
@@ -1474,19 +1486,46 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     ##---------------------------
 
     audit <- eval(audit_call)
-    cat("Bound: (", audit$min, ",", audit$max, ")\n")
 
-    ## include additional output material
-    return(list(sset  = sset,
-                gstar = list(g0 = gstar0,
-                             g1 = gstar1),
-                propensity = pmodel,
-                bound = c(audit$min, audit$max),
-                lpresult =  audit$lpresult,
-                poly0 = pm0,
-                poly1 = pm1,
-                auditgrid = audit$gridobj,
-                minobseq = audit$minobseq))
+    ## If there are no shape restrictions and bounds are very tight,
+    ## apply point identification method
+    if (abs(audit$max - audit$min) < point.tol & noshape == TRUE) {
+
+        message(gsub("\\s+", " ",
+                     paste0("Width of bounds is narrower than 'point.tol', which
+                     is set to ", point.tol, ". Estimation under point
+                     identification will instead be performed.")))
+
+        gmmResult <- gmmEstimate(sset = sset,
+                                 gstar0 = gstar0,
+                                 gstar1 = gstar1)
+        
+        return(list(sset  = sset,
+                    gstar = list(g0 = gstar0,
+                                 g1 = gstar1),
+                    propensity = pmodel,
+                    te = gmmResult$te,
+                    se = gmmResult$se,
+                    ci90 = gmmResult$ci90,
+                    ci95 = gmmResult$ci95,
+                    mtr.coef = gmmResult$coef,
+                    mtr.vcov = gmmResult$vcov))
+        
+    } else {
+        cat("Bound: (", audit$min, ",", audit$max, ")\n")
+
+        ## include additional output material
+        return(list(sset  = sset,
+                    gstar = list(g0 = gstar0,
+                                 g1 = gstar1),
+                    propensity = pmodel,
+                    bound = c(audit$min, audit$max),
+                    lpresult =  audit$lpresult,
+                    poly0 = pm0,
+                    poly1 = pm1,
+                    auditgrid = audit$gridobj,
+                    minobseq = audit$minobseq))
+    }
 }
 
 
@@ -1652,30 +1691,17 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     \code{\link[stats]{optim}}), the coefficients on the MTR, and
 #'     the variance/covariance matrix of the MTR coefficient
 #'     estimates.
-gmmEstimate <- function(sset, gstar0, gstar1, N = NULL) {
-  
+gmmEstimate <- function(sset, gstar0, gstar1) {
+ 
     gmmMat <- NULL
+    gmmVec <- NULL
     
     for (s in 1:length(sset)) {
 
-        gmmAdd <- cbind(sset[[s]]$g0,
-                        sset[[s]]$g1)
-        
-        if (is.null(N)) {
-            warning(gsub("\\s+", " ",
-                         "Number of observations based on first
-                          moment condition."))
-            N <- nrow(gmmAdd)
-        }
+        gmmMat <- rbind(gmmMat, c(sset[[s]]$g0,
+                                  sset[[s]]$g1))
 
-        ## Account for cases of subsetting            
-        if (nrow(gmmAdd) < N) {
-            meansAdd <- colMeans(gmmAdd)
-            meansAdd <- t(replicate(N - nrow(gmmAdd), meansAdd))
-            gmmAdd <- rbind(gmmAdd, meansAdd)
-        }
-        
-        gmmMat <- cbind(gmmMat, gmmAdd)
+        gmmVec <- c(gmmVec, sset[[s]]$beta)
     }
 
     gmmCompN <- ncol(gmmMat) / length(sset)
@@ -1690,35 +1716,16 @@ gmmEstimate <- function(sset, gstar0, gstar1, N = NULL) {
                          IV-like specifications, or modify m0 and m1.")))
     }
 
+    newColNames <- paste0("x", seq(1, ncol(gmmMat)))
+    colnames(gmmMat) <- newColNames
+    gmmMat <- as.data.frame(gmmMat)
+    gmmFormula <- as.formula(paste("gmmVec ~ 0 + ",
+                                   paste(paste0("gmmMat$", newColNames),
+                                         collapse = " + ")))
 
-    ## Construct function defining moment conditions, and obtain estimates
-    gmmF <- function(theta, data) {
-        output <- NULL
-        for (s in 1:length(sset)) {
-            a <- (s - 1) * gmmCompN + 1
-            b <- s * gmmCompN
-            output <- cbind(output,
-                            gmmMat[, a:b] %*% theta - sset[[s]]$beta)
-        }
-        return(output)
-    }
-
-    gmmInit <- rep(0, gmmCompN)
-    names(gmmInit) <- c(paste0("m0:", names(gstar0)),
-                        paste0("m1:", names(gstar1)))
-    
-    gmmResult <- gmm::gmm(g = gmmF,
+    gmmResult <- gmm::gmm(g = gmmFormula,
                           x = gmmMat,
-                          t0 = gmmInit)
-
-    convergeCode <- gmmResult$algoInfo$convergence
-
-    if (convergeCode == 1){
-        warning(gsub("\\s+", " ",
-                     "Maximum iterations is reached in GMM point estimate
-                          of treatment effect."),
-                call. = FALSE)
-    }
+                          type = "twoStep")
 
     ## Construct point estimate and CI of TE
     te <- sum(c(gstar0, gstar1) * gmmResult$coefficients)
@@ -1727,6 +1734,15 @@ gmmEstimate <- function(sset, gstar0, gstar1, N = NULL) {
                c(gstar0, gstar1))
     ci90 <- c(te - qnorm(0.95) * se, te + qnorm(0.95) * se)
     ci95 <- c(te - qnorm(0.975) * se, te + qnorm(0.975) * se)
+
+    outCoef <- gmmResult$coefficients
+    outVcov <- gmmResult$vcov
+
+    mtrnames <- c(paste0("m0:", names(gstar0)),
+                  paste0("m1:", names(gstar1)))
+    names(outCoef) <- mtrnames
+    rownames(outVcov) <- mtrnames
+    colnames(outVcov) <- mtrnames
     
     message()
     message(paste0("Treatment effect (s.e.): ", round(te, 4), " (",
@@ -1739,7 +1755,6 @@ gmmEstimate <- function(sset, gstar0, gstar1, N = NULL) {
                 se = se,
                 ci90 = ci90,
                 ci95 = ci95,
-                convergeCode = convergeCode,
-                coef = gmmResult$coefficients,
-                vcov = gmmResult$vcov))
+                coef = outCoef,
+                vcov = outVcov))
 }

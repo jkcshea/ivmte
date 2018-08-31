@@ -10,7 +10,7 @@ ivmte(ivlike, data, subset, components, propensity, link, treat, m0, m1,
   genlate.lb, genlate.ub, obseq.tol = 1, grid.Nu = 20, grid.Nx = 20,
   audit.Nx = 2, audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
-  mte.inc, lpsolver = NULL, point = FALSE, point.itermax = 100)
+  mte.inc, lpsolver = NULL, point = FALSE, point.tol = 1e-08)
 }
 \arguments{
 \item{ivlike}{formula or vector of formulas used to specify the
@@ -182,9 +182,13 @@ is implemented to estimate the treatment effects. Shape
 constraints on the MTRs will be ignored under point
 identification.}
 
-\item{point.itermax}{integer, default of 100. Maximum number of
-iterations allowed for GMM estimation under point
-identification.}
+\item{point.tol}{scalar, set default at 1-e08. Tolerance for bounds
+before automatically switchingto case of point
+identification. So if the estimated bounds are narrower than
+\code{point.tol}, and no shape restrictions are declared, the
+function instead provides a point estimate of the treatment
+effect. The output would be the same as if \code{point} was set
+to \code{TRUE}.}
 }
 \value{
 Returns a list of results from throughout the estimation

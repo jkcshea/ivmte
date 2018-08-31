@@ -4,7 +4,7 @@
 \alias{gmmEstimate}
 \title{GMM estimate of TE under point identification}
 \usage{
-gmmEstimate(sset, gstar0, gstar1, N = NULL)
+gmmEstimate(sset, gstar0, gstar1)
 }
 \arguments{
 \item{sset}{a list of lists constructed from the function
