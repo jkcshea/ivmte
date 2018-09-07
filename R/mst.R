@@ -1302,7 +1302,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                   ncomponents = ncomponents,
                                   scount = scount,
                                   subset_index = subset_index,
-                                  means = FALSE)
+                                  means = FALSE,
+                                  yvar = vars_y,
+                                  dvar = treat)
         }
 
         sset <- setobj$sset
@@ -1360,10 +1362,14 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                       ncomponents = ncomponents,
                                       scount = scount,
                                       subset_index = subset_index,
-                                      means = FALSE)
+                                      means = FALSE,
+                                      yvar = vars_y,
+                                      dvar = treat)
+
+                "THIS IS WHERE YOU WANT TO CARRY ON FROM!"
             }
 
-            ## Update set of moments (gammas)
+            ## Update set of moments (gammas)            
             sset <- setobj$sset
             scount <- setobj$scount
         }
@@ -1397,6 +1403,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         }
 
         ## Obtain GMM estimate
+        
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
@@ -1513,10 +1520,23 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 #' @param scount A counter for the number of elements in the S-set.
 #' @param subset_index An index for the subset of the data the IV
 #'     regression is restricted to.
+#' @param means boolean, set to \code{TRUE} by default. If set to
+#'     \code{TRUE}, then the gamma moments are returned, i.e. sample
+#'     averages are taken. If set to \code{FALSE}, then no sample
+#'     averages are taken, and a matrix is returned. The sample
+#'     average of each column of the matrix corresponds to a
+#'     particular gamma moment.
+#' @param yvar name of outcome variable. This is only used if
+#'     \code{means = FALSE}, which occurs when the user believes the
+#'     treatment effect is point identified.
+#' @param dvar name of treatment indicator. This is only used if
+#'     \code{means = FALSE}, which occurs when the user believes the
+#'     treatment effect is point identified.
 #' @return A list containing the point estimate for the IV regression,
 #'     and the expectation of each monomial term in the MTR.
 gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
-                        ncomponents, scount, subset_index, means = TRUE) {
+                        ncomponents, scount, subset_index, means = TRUE,
+                        yvar, dvar) {
 
     for (j in 1:ncomponents) {
         message(paste0("    Moment ", scount, "..."))
@@ -1602,9 +1622,23 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                 g0 = c(gs0, gsSpline0),
                                                 g1 = c(gs1, gsSpline1))
         } else {
+            ## Now generate the vectors for Y * S(D, Z).
+            
+            if (!is.null(subset_index)) {
+                newsubset <- subset_index
+            } else {
+                newsubset <- seq(1, nrow(data))
+            }
+            
+            yvec <- data[newsubset, yvar]
+            dvec <- data[newsubset, dvar]          
+
+            yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] * (1 - dvec))
+            
             sset[[paste0("s", scount)]] <- list(beta = sest$beta[j],
                                                 g0 = cbind(gs0, gsSpline0),
-                                                g1 = cbind(gs1, gsSpline1))
+                                                g1 = cbind(gs1, gsSpline1),
+                                                ys = yvec)            
         }
 
         ## update counter (note scount is not referring
@@ -1615,7 +1649,6 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 
     return(list(sset = sset, scount = scount))
 }
-
 
 #' GMM estimate of TE under point identification
 #'
@@ -1655,30 +1688,31 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 gmmEstimate <- function(sset, gstar0, gstar1, N = NULL) {
   
     gmmMat <- NULL
-    
+    yMat   <- NULL
+   
     for (s in 1:length(sset)) {
 
-        gmmAdd <- cbind(sset[[s]]$g0,
+        ids <- as.integer(rownames(sset[[s]]$g0))
+        
+        gmmAdd <- cbind(ids, s,
+                        sset[[s]]$g0,
                         sset[[s]]$g1)
         
-        if (is.null(N)) {
-            warning(gsub("\\s+", " ",
-                         "Number of observations based on first
-                          moment condition."))
-            N <- nrow(gmmAdd)
-        }
+        gmmMat <- rbind(gmmMat, gmmAdd)
 
-        ## Account for cases of subsetting            
-        if (nrow(gmmAdd) < N) {
-            meansAdd <- colMeans(gmmAdd)
-            meansAdd <- t(replicate(N - nrow(gmmAdd), meansAdd))
-            gmmAdd <- rbind(gmmAdd, meansAdd)
-        }
-        
-        gmmMat <- cbind(gmmMat, gmmAdd)
+        yAdd <- cbind(ids, s, sset[[s]]$ys)
+        yMat <- rbind(yMat, yAdd)
     }
 
-    gmmCompN <- ncol(gmmMat) / length(sset)
+    gmmMat <- gmmMat[order(gmmMat[, 1], gmmMat[, 2]), ]
+    yMat   <- yMat[order(yMat[, 1], yMat[, 2]), ]
+
+    ids <- unique(gmmMat[, 1])    
+
+    gmmMat <- gmmMat[, -c(1, 2)]
+    yMat   <- yMat[, -c(1, 2)]
+    
+    gmmCompN <- ncol(gmmMat)
     
     if (gmmCompN > length(sset)) {
         stop(gsub("\\s+", " ",
@@ -1690,40 +1724,48 @@ gmmEstimate <- function(sset, gstar0, gstar1, N = NULL) {
                          IV-like specifications, or modify m0 and m1.")))
     }
 
+    ## Perform two-step GMM estimate
+    ## Perform first step
 
-    ## Construct function defining moment conditions, and obtain estimates
-    gmmF <- function(theta, data) {
-        output <- NULL
-        for (s in 1:length(sset)) {
-            a <- (s - 1) * gmmCompN + 1
-            b <- s * gmmCompN
-            output <- cbind(output,
-                            gmmMat[, a:b] %*% theta - sset[[s]]$beta)
-        }
-        return(output)
-    }
+    Z <- do.call("rbind", rep(list(diag(length(sset))), length(ids)))
 
-    gmmInit <- rep(0, gmmCompN)
-    names(gmmInit) <- c(paste0("m0:", names(gstar0)),
-                        paste0("m1:", names(gstar1)))
+    theta <- solve(t(gmmMat) %*% Z %*% t(Z) %*% gmmMat) %*%
+        t(gmmMat) %*% Z %*% t(Z) %*% yMat
     
-    gmmResult <- gmm::gmm(g = gmmF,
-                          x = gmmMat,
-                          t0 = gmmInit)
+    errors <- yMat - gmmMat %*% theta
+    
+    emat <- lapply(ids, function(x) {
+        evec <- (errors[as.integer(rownames(errors)) == x])
+        evec %*% t(evec)
+    })
+    emat <- Reduce("+", emat)
 
-    convergeCode <- gmmResult$algoInfo$convergence
+    ## Perform second step
+    
+    theta <- solve(t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% gmmMat) %*%
+        t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% yMat
+    
+    errors <- yMat - gmmMat %*% theta
+    
+    emat <- lapply(ids, function(x) {
+        evec <- (errors[as.integer(rownames(errors)) == x])
+        evec %*% t(evec)
+    })
+    
+    emat <- Reduce("+", emat) / length(ids)
+    avar <- solve(t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% gmmMat)
 
-    if (convergeCode == 1){
-        warning(gsub("\\s+", " ",
-                     "Maximum iterations is reached in GMM point estimate
-                          of treatment effect."),
-                call. = FALSE)
-    }
-
+    rownames(theta) <- c(paste0("m0.", names(gstar0)),
+                        paste0("m1.", names(gstar1)))
+    rownames(avar) <- c(paste0("m0.", names(gstar0)),
+                        paste0("m1.", names(gstar1)))
+    colnames(avar) <- c(paste0("m0.", names(gstar0)),
+                        paste0("m1.", names(gstar1)))
+    
     ## Construct point estimate and CI of TE
-    te <- sum(c(gstar0, gstar1) * gmmResult$coefficients)
+    te <- sum(c(gstar0, gstar1) * theta)
     se <- sqrt(t(c(gstar0, gstar1)) %*%
-               gmmResult$vcov %*%
+               avar %*%
                c(gstar0, gstar1))
     ci90 <- c(te - qnorm(0.95) * se, te + qnorm(0.95) * se)
     ci95 <- c(te - qnorm(0.975) * se, te + qnorm(0.975) * se)
@@ -1739,7 +1781,6 @@ gmmEstimate <- function(sset, gstar0, gstar1, N = NULL) {
                 se = se,
                 ci90 = ci90,
                 ci95 = ci95,
-                convergeCode = convergeCode,
-                coef = gmmResult$coefficients,
-                vcov = gmmResult$vcov))
+                coef = theta,
+                vcov = avar))
 }
