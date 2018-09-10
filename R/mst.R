@@ -779,6 +779,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                  variable."),
                             call. = FALSE)
                     treat <- ptreat
+                } else {
+                    treat <- deparse(substitute(treat))
                 }
             } else {
                 warning(gsub("\\s+", " ",
@@ -905,7 +907,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     newpropensity <- unique(c(vars_formulas_x,
                               vars_formulas_z,
                               vars_mtr))
-
+    
     newpropensity <- newpropensity[(newpropensity !=
                                     deparse(substitute(uname))) &
                                    (newpropensity != treat)]
@@ -943,6 +945,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     }
 
     data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
+    rownames(data) <- as.character(seq(1, nrow(data)))
     cdata <- data
 
     ##---------------------------
@@ -1783,9 +1786,9 @@ gmmEstimate <- function(sset, gstar0, gstar1, N = NULL) {
     emat <- lapply(ids, function(x) {
         evec <- (errors[as.integer(rownames(errors)) == x])
         evec %*% t(evec)
-    })
+    })  
+    emat <- Reduce("+", emat)
     
-    emat <- Reduce("+", emat) / length(ids)
     avar <- solve(t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% gmmMat)
 
     rownames(theta) <- c(paste0("m0.", names(gstar0)),
@@ -1810,8 +1813,8 @@ gmmEstimate <- function(sset, gstar0, gstar1, N = NULL) {
                    round(ci90[2], 4), ")" ))
     message(paste0("95% C.I.: (", round(ci95[1], 4), ", ",
                    round(ci95[2], 4), ")" ))
-    return(list(te = te,
-                se = se,
+    return(list(te = as.numeric(te),
+                se = as.numeric(se),
                 ci90 = ci90,
                 ci95 = ci95,
                 coef = theta,
