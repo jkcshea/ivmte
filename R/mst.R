@@ -297,6 +297,30 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         ## subsetting is used
         if (hasArg(subset)) {
             if (!class(subset) == "list") subset <- list(subset)
+
+            ## Check if all subseting conditions are logical
+            nonLogicSubset <- NULL
+            for (i in 1:length(ivlike)) {
+                if (subset[[i]] == "") {
+                    ssubset <- replicate(nrow(data), TRUE)
+                } else {
+                    ssubset <- subset[[i]]
+                }
+
+                if (!is.logical(head(eval(substitute(ssubset), data)))) {
+                    nonLogicSubset <- c(nonLogicSubset, i)
+                }
+            }
+            if (length(nonLogicSubset) > 0) {
+                stop(gsub("\\s+", " ",
+                          paste0("The conditions in the following
+                      positions of the subset list are not
+                      logical: ",
+                      paste(nonLogicSubset, collapse = ", "),
+                      ". Please change the conditions so they
+                      are logical.")))
+            }
+           
             if(length(subset) < length_formula) {
                 warning(gsub("\\s+", " ",
                              "List of subset conditions not the same length
@@ -323,6 +347,14 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         }
 
     } else {
+        if (hasArg(subset)) {
+            if (!is.logical(head(eval(substitute(subset), data)))) {
+                stop(gsub("\\s+", " ",
+                          "The subset condition is not logical.
+                      Please change the condition to be logical."))
+            }
+        }     
+        
         specCompWarn <- FALSE
         if (hasArg(components)) {
             userComponents <- TRUE
@@ -966,15 +998,15 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     ## Generate target weights
     if (hasArg(target)) {
         if (target == "ate") {
-            w1 <- wate1.mst(data)
+            w1 <- wate1.mst(cdata)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "att") {
-            w1 <- watt1.mst(data, mean(data[[treat]]), pmodel$phat)
+            w1 <- watt1.mst(cdata, mean(cdata[[treat]]), pmodel$phat)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "atu") {
-            w1 <- watu1.mst(data, 1- mean(data[[treat]]), pmodel$phat)
+            w1 <- watu1.mst(cdata, 1- mean(cdata[[treat]]), pmodel$phat)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "late") {
@@ -982,12 +1014,12 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                 late.X <- NULL
                 eval.X <- NULL
             }
-            w1 <- wlate1.mst(data, late.from, late.to, substitute(late.Z),
+            w1 <- wlate1.mst(cdata, late.from, late.to, substitute(late.Z),
                              pmodel$model, substitute(late.X), eval.X)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "genlate") {
-            w1 <- wgenlate1.mst(data, genlate.lb, genlate.ub)
+            w1 <- wgenlate1.mst(cdata, genlate.lb, genlate.ub)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else {
@@ -1272,7 +1304,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         sest <- eval(scall)
 
         ncomponents <- length(sest$betas)
-        if (hasArg(subset)) {
+        
+        if (hasArg(subset)) {                
             subset_index <- rownames(data[eval(substitute(subset), data), ])
         } else {
             subset_index <- rownames(data)
@@ -1313,7 +1346,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     } else if (class_list(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
-
+        
         ## loop across IV specifications
         for (i in 1:length(ivlike)) {
 
@@ -1325,7 +1358,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             } else {
                 ssubset <- subset[[i]]
             }
-
+            
             ## Obtain coefficient estimates and S-weights
             ## corresponding to the IV-like estimands
             sdata <- data[eval(substitute(ssubset), data), ]
