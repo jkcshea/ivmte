@@ -314,18 +314,18 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
 
     ub <- split(replicate(nmono, ub), seq(length(ub)))
     lb <- split(replicate(nmono, lb), seq(length(lb)))
- 
+
     monoeval <- t(mapply(polylisteval, integrals, ub)) -
         t(mapply(polylisteval, integrals, lb))
 
     termsN <- length(integrals[[1]])
     if (termsN == 1) monoeval <- t(monoeval)
- 
+
     ## The object monoeval is supposed to have as many rows as the
     ## number of observations used for estimation. However, if the
     ## provided MTR objects include only one term, R transposes the
     ## matrix. So below I undo that transpose if the number of terms
-    ## is 1. 
+    ## is 1.
 
     preGamma <- sweep(monoeval,
                       MARGIN = 1,
@@ -342,6 +342,7 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
 
         return(gstar)
     } else {
+        colnames(preGamma) <- monomials$terms
         return(preGamma)
     }
 }
@@ -491,7 +492,7 @@ removeSplines <- function(formula) {
 #'                         names(splineslist)[2])))
 #' }
 uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
-    
+
     splines2::ibs(x = x,
                   knots = knots,
                   degree = degree,
@@ -611,11 +612,11 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
             splinesLB <- eval(parse(text = gsub("uSplines\\(",
                                                 "uSplinesInt(x = lb, ",
                                                 names(splines)[j])))
-            
+
             splinesUB <- eval(parse(text = gsub("uSplines\\(",
                                                 "uSplinesInt(x = ub, ",
                                                 names(splines)[j])))
-            splinesInt <- splinesUB - splinesLB           
+            splinesInt <- splinesUB - splinesLB
 
             ## Combine the design and integral matrices
             for (l in 1:length(splines[[j]])) {
