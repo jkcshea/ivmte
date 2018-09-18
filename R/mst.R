@@ -156,6 +156,10 @@
 #'     identification. So default estimate is the two-step GMM.
 #' @param point.target boolean, set to true if the estimation of the
 #'     target gamma moments should also be performed using GMM.
+#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
+#'     then messages are provided throughout the estimation
+#'     procedure. Set to \code{FALSE} to suppress all messages,
+#'     e.g. when performing the bootstrap.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -193,7 +197,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                   m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL,
                   point = FALSE, point.target = FALSE,
-                  point.itermax = 2, point.tol = 1e-08) {
+                  point.itermax = 2, point.tol = 1e-08, noisy = TRUE) {
 
     ## Match call arguments
     call <- match.call(expand.dots = FALSE)
@@ -955,7 +959,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     ## 2. Obtain propensity scores
     ##---------------------------
 
-    message("Obtaining propensity scores...\n")
+    if (noisy == TRUE) {
+        message("Obtaining propensity scores...\n")
+    }
 
     ## Estimate propensity scores
     if (class_formula(propensity)) {
@@ -979,7 +985,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     ## 3. Generate target moments/gamma terms
     ##---------------------------
 
-    message("Generating target moments...\n")
+    if (noisy == TRUE) {
+        message("Generating target moments...\n")
+    }
 
     if (!is.null(m0)) {
         m0call <- modcall(call,
@@ -1034,7 +1042,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
-            message("    Integrating terms for control group...\n")
+            if (noisy == TRUE) {
+                message("    Integrating terms for control group...\n")
+            }
             pm0 <- eval(as.call(m0call))
             if (point.target == FALSE) {
                 gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
@@ -1047,7 +1057,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         }
 
         if (!is.null(m1)) {
-            message("    Integrating terms for treated group...\n")
+            if (noisy == TRUE) {
+                message("    Integrating terms for treated group...\n")
+            }
             pm1 <- eval(as.call(m1call))
             if (point.target == FALSE) {
                 gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
@@ -1152,12 +1164,14 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             ## Integrate non-splines terms
 
             if (!is.null(mtr)) {
-                if (d == 0) {
-                    message(
+                if (noisy == TRUE) {
+                    if (d == 0) {
+                        message(
                       "    Integrating non-spline terms for control group...\n")
-                } else {
-                    message(
+                    } else {
+                        message(
                       "    Integrating non-spline terms for treated group...\n")
+                    }
                 }
 
                 pm <- eval(as.call(get(paste0("m", d, "call"))))
@@ -1230,13 +1244,14 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             }
 
             ## Integrate splines terms
-
-            if (d == 0) {
-                message(
-                    "    Integrating spline terms for control group...\n")
-            } else {
-                message(
-                    "    Integrating spline terms for treated group...\n")
+            if (noisy == TRUE) {
+                if (d == 0) {
+                    message(
+                        "    Integrating spline terms for control group...\n")
+                } else {
+                    message(
+                        "    Integrating spline terms for treated group...\n")
+                }
             }
 
             noSplineMtr <- splinesobj[[d + 1]]
@@ -1333,12 +1348,14 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         gstar0 <- cbind(gstar0, gstarSpline0)
         gstar1 <- cbind(gstar1, gstarSpline1)
     }
-  
+
     ##---------------------------
     ## 4. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
 
-    message("Generating IV-like moments...")
+    if (noisy == TRUE) {
+        message("Generating IV-like moments...")
+    }
 
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
@@ -1379,7 +1396,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                   pm1 = pm1,
                                   ncomponents = ncomponents,
                                   scount = scount,
-                                  subset_index = subset_index)
+                                  subset_index = subset_index,
+                                  noisy = noisy)
         } else {
             setobj <- gensset.mst(data = cdata,
                                   sset = sset,
@@ -1393,7 +1411,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                   subset_index = subset_index,
                                   means = FALSE,
                                   yvar = vars_y,
-                                  dvar = treat)
+                                  dvar = treat,
+                                  noisy = noisy)
         }
 
         sset <- setobj$sset
@@ -1439,7 +1458,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                       pm1 = pm1,
                                       ncomponents = ncomponents,
                                       scount = scount,
-                                      subset_index = subset_index)
+                                      subset_index = subset_index,
+                                      noisy = noisy)
             } else {
                 setobj <- gensset.mst(data = cdata,
                                       sset = sset,
@@ -1453,7 +1473,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                       subset_index = subset_index,
                                       means = FALSE,
                                       yvar = vars_y,
-                                      dvar = treat)
+                                      dvar = treat,
+                                      noisy = noisy)
             }
 
             ## Update set of moments (gammas)
@@ -1495,7 +1516,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                  gstar1 = gstar1,
                                  point.target = point.target,
                                  itermax = point.itermax,
-                                 tol = point.tol)
+                                 tol = point.tol,
+                                 noisy = noisy)
 
         return(list(sset  = sset,
                     gstar = list(g0 = gstar0,
@@ -1514,8 +1536,10 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     ## 5. Define constraint matrices using the audit
     ##---------------------------
 
-    if (obseq.tol > 0) {
-        message("\nPerforming audit procedure...\n")
+    if (noisy == TRUE) {
+        if (obseq.tol > 0) {
+            message("\nPerforming audit procedure...\n")
+        }
     }
 
     audit.args <- c("uname", "grid.Nu", "grid.Nx",
@@ -1620,14 +1644,20 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 #' @param dvar name of treatment indicator. This is only used if
 #'     \code{means = FALSE}, which occurs when the user believes the
 #'     treatment effect is point identified.
+#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
+#'     then messages are provided throughout the estimation
+#'     procedure. Set to \code{FALSE} to suppress all messages,
+#'     e.g. when performing the bootstrap.
 #' @return A list containing the point estimate for the IV regression,
 #'     and the expectation of each monomial term in the MTR.
 gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         ncomponents, scount, subset_index, means = TRUE,
-                        yvar, dvar) {
+                        yvar, dvar, noisy = TRUE) {
 
     for (j in 1:ncomponents) {
-        message(paste0("    Moment ", scount, "..."))
+        if (noisy == TRUE) {
+            message(paste0("    Moment ", scount, "..."))
+        }
 
         if (!is.null(pm0)) {
             if (means == TRUE) {
@@ -1759,6 +1789,10 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #' @param gstar1 vector, the target gamma moments for d = 1.
 #' @param point.target boolean, indicate whether or not GMM procedure
 #'     should also be used to estimate the target gamma moments.
+#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
+#'     then messages are provided throughout the estimation
+#'     procedure. Set to \code{FALSE} to suppress all messages,
+#'     e.g. when performing the bootstrap.
 #' @return a list containing the point estimate of the treatment
 #'     effects, the standard errors, the 90% and 95% confidence
 #'     intervals, the convergence code (see
@@ -1766,8 +1800,8 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     the variance/covariance matrix of the MTR coefficient
 #'     estimates.
 gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
-                        itermax = 100, tol = 1e-08) {
-    
+                        itermax = 100, tol = 1e-08, noisy = TRUE) {
+
     gmmMat <- NULL
     yMat   <- NULL
 
@@ -1809,7 +1843,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
             M
         })
         gmmMat <- Reduce("rbind", gmmMat)
-      
+
         ## expand Y mat
         yMat <- lapply(ids, function(x) {
             Y1 <- yMat[yMat[, 1] == x, ]
@@ -1827,10 +1861,10 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
         })
         yMat <- Reduce("rbind", yMat)
     }
-   
+
     gmmMat <- gmmMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
-   
+
     if (gmmCompN > length(sset)) {
         stop(gsub("\\s+", " ",
                   paste0("Infinite number of solutions exist: excluding
@@ -1843,11 +1877,11 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
                          IV-like specifications, or modify m0 and m1.")))
     }
 
-    ## Perform two-step GMM estimate
+    ## Perform two-step GMM estimate (allows for iterative GMM)
     ## Perform first step
     Zrows <- length(sset)
     if (point.target == TRUE) Zrows <- Zrows + gmmCompN
-    
+
     Z <- do.call("rbind", rep(list(diag(Zrows)), length(ids)))
 
     theta <- solve(t(gmmMat) %*% Z %*% t(Z) %*% gmmMat) %*%
@@ -1855,32 +1889,18 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
 
     errors <- yMat - gmmMat %*% theta
 
+    ematTest <- lapply(ids, function(x) {
+        evec <- (errors[as.integer(rownames(errors)) == x])
+    })
+    ematTest <- Reduce("cbind", ematTest)
+
     emat <- lapply(ids, function(x) {
         evec <- (errors[as.integer(rownames(errors)) == x])
         evec %*% t(evec)
     })
     emat <- Reduce("+", emat)
 
-
-    print("MODIFYING TESTED EMAT: ADDING IN DIAGONLA")
-    emat <- emat + diag(ncol(emat))
-
-    print("emat inverse")
-    print(solve(emat))
-    
-    ## Perform second step
-    ## ORIGINAL ----------------------------------
-    ## theta <- solve(t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% gmmMat) %*%
-    ##     t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% yMat
-
-    ## errors <- yMat - gmmMat %*% theta
-
-    ## emat <- lapply(ids, function(x) {
-    ##     evec <- (errors[as.integer(rownames(errors)) == x])
-    ##     evec %*% t(evec)
-    ## })
-    ## emat <- Reduce("+", emat)
-    ## EXPERIMENT ----------------------------------
+    ## Perform second (or more) step(s)
     i <- 1
     diff <- Inf
 
@@ -1903,12 +1923,8 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
         theta <- thetaNew
     }
 
-    ## END EXPERIMENT ------------------------------
+    avar <- solve(t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% gmmMat)
 
-    print('THIS IS TESTING! YOU ADDED DIAGONAL MATRIX')
-
-    avar <- solve(t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% gmmMat + diag(ncol(gmmMat)))
-    
     if (point.target == FALSE) {
         nameVec <- c(paste0("m0.", names(gstar0)),
                      paste0("m1.", names(gstar1)))
@@ -1938,17 +1954,19 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
 
         se <- sqrt(t(grad) %*% avar %*% grad)
     }
-    
+
     ci90 <- c(te - qnorm(0.95) * se, te + qnorm(0.95) * se)
     ci95 <- c(te - qnorm(0.975) * se, te + qnorm(0.975) * se)
-    
-    message()
-    message(paste0("Treatment effect (s.e.): ", round(te, 4), " (",
-                   round(se, 4), ")"))
-    message(paste0("90% C.I.: (", round(ci90[1], 4), ", ",
-                   round(ci90[2], 4), ")" ))
-    message(paste0("95% C.I.: (", round(ci95[1], 4), ", ",
-                   round(ci95[2], 4), ")" ))
+
+    if (noisy == TRUE) {
+        message()
+        message(paste0("Treatment effect (s.e.): ", round(te, 4), " (",
+                       round(se, 4), ")"))
+        message(paste0("90% C.I.: (", round(ci90[1], 4), ", ",
+                       round(ci90[2], 4), ")" ))
+        message(paste0("95% C.I.: (", round(ci95[1], 4), ", ",
+                       round(ci95[2], 4), ")" ))
+    }
     return(list(te = as.numeric(te),
                 se = as.numeric(se),
                 ci90 = ci90,
