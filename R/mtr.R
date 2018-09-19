@@ -339,10 +339,9 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
             gstar <- mean(preGamma)
         }
         names(gstar) <- monomials$terms
-
         return(gstar)
     } else {
-        colnames(preGamma) <- monomials$terms
+        colnames(preGamma) <- monomials$terms        
         return(preGamma)
     }
 }
@@ -577,7 +576,7 @@ uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 #'     basis the column pertains to.
 genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
                                 subset, d = NULL, means = TRUE) {
-
+    
     splines <- splines$splineslist
 
     if (is.null(splines)) {
@@ -585,6 +584,9 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
     } else {
         if (!hasArg(subset)) {
             subset <- replicate(nrow(data), TRUE)
+            gmmRownames <- rownames(data)
+        } else {
+            gmmRownames <- rownames(data)[as.integer(eval(subset, data))]
         }
 
         if (length(lb) == 1) lb <- replicate(nrow(data[subset, ]), lb)
@@ -644,6 +646,7 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
             names(splinesGamma) <- splinesNames
         } else {
             colnames(splinesGamma) <- splinesNames
+            rownames(splinesGamma) <- gmmRownames
         }
         return(splinesGamma)
     }

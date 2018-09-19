@@ -952,7 +952,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     }
 
     data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
-    rownames(data) <- as.character(seq(1, nrow(data)))
+    ## Adjust row names to handle bootstrapping
+    rownames(data) <- as.character(seq(1, nrow(data))) 
     cdata <- data
 
     ##---------------------------
@@ -1801,6 +1802,22 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     estimates.
 gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
                         itermax = 100, tol = 1e-08, noisy = TRUE) {
+
+
+    ## TESTING ----------------------
+    ## print(colnames(gstar0))
+    ## print(colnames(gstar1))
+   
+    
+    ## if (all(colnames(gstar0) == colnames(gstar1))) {
+    ##     print("all components the same")
+    ## }
+    
+    ## stop("end of test")
+
+    
+    ## END TESTING ------------------
+    
 
     gmmMat <- NULL
     yMat   <- NULL
