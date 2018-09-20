@@ -397,37 +397,37 @@ removeSplines <- function(formula) {
         splineslist <- list()
 
         for (splineobj in splineterms) {
-
             splinespos <- regexpr("uSplines\\(", splineobj)
             degreepos  <- regexpr("degree = ", splineobj)
             knotspos   <- regexpr("knots = ", splineobj)
             knotslpos  <- regexpr("knots = c\\(", splineobj)
             interpos   <- regexpr("intercept = ", splineobj)
 
-            substr(splineobj, splinespos, nchar(splineobj))
-
             ## Check if vectors or sequences are declared to adjust parsing
             firstopen  <- regexpr("\\(",
                                   substr(splineobj,
-                                         splinespos + 8,
+                                         splinespos + 8 + 1,
                                          nchar(splineobj)))
+            
             firstclose <- regexpr("\\)",
                                   substr(splineobj,
-                                         splinespos,
+                                         splinespos + 8 + 1,
                                          nchar(splineobj)))
+        
             secondclose <- regexpr("\\)",
                                    substr(splineobj,
-                                          splinespos + 8 + firstclose,
+                                          splinespos + 8 + 1 + firstclose,
                                           nchar(splineobj)))
 
+            ## For the case where knots are explcitly declared
             if ((firstopen < firstclose) & (secondclose != - 1)) {
                 splinecmd <- substr(splineobj,
                                     splinespos,
                                     splinespos + 8 + firstclose + secondclose)
-            } else {
+            } else { ## For the case where knots are passed as an object
                 splinecmd <- substr(splineobj,
                                     splinespos,
-                                    splinespos + firstclose - 1)
+                                    splinespos + 8 + 1 + firstclose - 1)
             }
 
             ## Separate uSplines command from terms interacting with the spline
@@ -441,19 +441,101 @@ removeSplines <- function(formula) {
             if (interobj == splinecmd) interobj <- "1"
 
             if (splinecmd %in% names(splineslist)) {
-                splineslist[[splinecmd]] <- c(splineslist[[splinecmd]], interobj)
+                splineslist[[splinecmd]] <- c(splineslist[[splinecmd]],
+                                              interobj)
             } else {
                 splineslist[[splinecmd]] <- c(interobj)
             }
         }
 
+        ## Now construct spline dictionary and spline keys
+        splinesDict <- list()
+        splinesKey <- NULL
+
+        for (i in 1:length(splineslist)) {
+            inDict <- FALSE
+            splinesSpec <- eval(parse(text = gsub("uSplines\\(",
+                                                  "list(",
+                                                  names(splineslist)[i])))
+
+            if (! "intercept" %in% names(splinesSpec)) {
+                splinesSpec$intercept = TRUE
+            }
+            
+            ## Check if the spline is already in the dictionary
+            if (length(splinesDict) > 0) {
+                j <- 1
+                while (j <= length(splinesDict) & inDict == FALSE) {
+                    inDict <-
+                        (all.equal(splinesDict[[j]]$knots,
+                                   splinesSpec$knots) == TRUE) &
+                        (splinesDict[[j]]$intercept == splinesSpec$intercept) &
+                        (splinesDict[[j]]$degree == splinesSpec$degree)
+                    
+                    j <- j + 1
+                }              
+            }
+            
+            ## Update dictionary and key
+            if (inDict == FALSE) {
+                splinesDict[[length(splinesDict) + 1]] <-
+                    splinesSpec[order(names(splinesSpec))]
+                splinesKey <- rbind(splinesKey, c(i, length(splinesDict)))
+            } else {
+                splinesKey <- rbind(splinesKey, c(i, j - 1))
+            }
+        }       
+        colnames(splinesKey) <- c("spline", "dictKey")
+
+        ## Using dictionary, generate new condensed splines list
+        splinesList2 <- list()
+        for (j in 1:length(splinesDict)) {
+            dictKey <- paste0("uSplines(degree = ",
+                              splinesDict[[j]]$degree,
+                              ", knots = c(",
+                              paste(splinesDict[[j]]$knots,
+                                    collapse = ", "),
+                              "), intercept = ",
+                              splinesDict[[j]]$intercept,
+                              ")")
+
+            newEntry <- sort(unlist(splineslist[splinesKey[splinesKey[, 2] == j,
+                                                           1]]))
+
+            ## Convert I() as-is declarations to interactions, if possible
+            newEntry <- sapply(newEntry, function(x) {
+                multiply <- grepl("*", x)
+                asis <- substr(x, 1, 2) == "I("
+                if (! multiply * asis) {
+                    return(x)
+                } else {
+                    othops <- 0
+                    for (j in c("\\^", "\\+", "-", "/")) {
+                        othops <- max(othops, grepl(j, x))
+                    }
+                    if (othops == 1) {
+                        return(x)
+                    } else {
+                        x <- substring(x, 3, nchar(x) - 1)
+                        print(x)
+                        x <- gsub("\\*", ":", x)
+                        x <- gsub(" ", "", x)
+                        return(x)
+                    }
+                }
+            })
+            names(newEntry) <- NULL
+            splinesList2[[dictKey]] <- newEntry
+        }        
     } else {
         nosplines <- formula
-        splineslist <- NULL
+        splinesList2 <- NULL
+        splinesDict <- NULL
     }
 
     return(list(formula = nosplines,
-                splineslist = splineslist))
+                splineslist = splinesList2,
+                splinesdict = splinesDict))
 }
 
 #' Integrated splines

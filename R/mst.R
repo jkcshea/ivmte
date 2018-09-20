@@ -48,9 +48,15 @@
 #'     be chosen from \code{linear}, \code{probit}, or \code{logit}.
 #' @param treat variable name for treatment indicator
 #' @param m0 one-sided formula for marginal treatment response
-#'     function for control group.
+#'     function for control group. Splines can also be incorporated
+#'     using the expression "uSplines(degree, knots, intercept)". The
+#'     'intercept' argument may be omitted, and is set to \code{TRUE}
+#'     by default.
 #' @param m1 one-sided formula for marginal treatment response
-#'     function for treated group.
+#'     function for treated group. Splines can also be incorporated
+#'     using the expression "uSplines(degree, knots, intercept)". The
+#'     'intercept' argument may be omitted, and is set to \code{TRUE}
+#'     by default.
 #' @param uname variable name for unobservable used in declaring MTRs.
 #' @param target target parameter to be estimated. Currently function
 #'     allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
@@ -1511,6 +1517,38 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             }
         }
 
+        ## Check if there are common splines across the MTRs
+        commonM1Splines <- NULL
+        if (length(splinesobj[[1]]$splinesdict) > 0 &
+            length(splinesobj[[2]]$splinesdict) > 0) {
+            for (i in 1:length(splinesobj[[2]]$splinesdict)) {
+                for (j in 1:length(splinesobj[[1]]$splinesdict)) {
+                    common <- 
+                        (all.equal(splinesobj[[2]]$splinesdict[[i]]$knots,
+                                   splinesobj[[1]]$splinesdict[[j]]$knots,) ==
+                         TRUE) &
+                        (splinesobj[[2]]$splinesdict[[i]]$intercept ==
+                         splinesobj[[1]]$splinesdict[[j]]$intercept) &
+                        (splinesobj[[2]]$splinesdict[[i]]$degree ==
+                         splinesobj[[1]]$splinesdict[[j]]$degree)
+                    if (common) commonM1Splines <-
+                                    rbind(commonM1Splines, c(i, j))
+                }
+            }
+        }
+        
+        if (!is.null(commonM1Splines)) {
+            colnames(commonM1Splines) <- c("m1", "m0")
+        }
+        
+        print('common m1 splines')
+        print(commonM1Splines)
+
+        ## Check if there are common interactions with common splines
+        ## you'll need a list structure for this.
+        
+        stop("end of testing")
+
         ## Obtain GMM estimate
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
@@ -1606,7 +1644,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                 poly0 = pm0,
                 poly1 = pm1,
                 auditgrid = audit$gridobj,
-                minobseq = audit$minobseq))
+                minobseq = audit$minobseq,
+                splinesdict = list(splinesobj[[1]]$splinesdict,
+                                   splinesobj[[2]]$splinesdict)))
 }
 
 
@@ -1818,7 +1858,6 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
     
     ## END TESTING ------------------
     
-
     gmmMat <- NULL
     yMat   <- NULL
 
