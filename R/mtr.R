@@ -341,7 +341,7 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
         names(gstar) <- monomials$terms
         return(gstar)
     } else {
-        colnames(preGamma) <- monomials$terms        
+        colnames(preGamma) <- monomials$terms
         return(preGamma)
     }
 }
@@ -408,12 +408,12 @@ removeSplines <- function(formula) {
                                   substr(splineobj,
                                          splinespos + 8 + 1,
                                          nchar(splineobj)))
-            
+
             firstclose <- regexpr("\\)",
                                   substr(splineobj,
                                          splinespos + 8 + 1,
                                          nchar(splineobj)))
-        
+
             secondclose <- regexpr("\\)",
                                    substr(splineobj,
                                           splinespos + 8 + 1 + firstclose,
@@ -461,7 +461,7 @@ removeSplines <- function(formula) {
             if (! "intercept" %in% names(splinesSpec)) {
                 splinesSpec$intercept = TRUE
             }
-            
+
             ## Check if the spline is already in the dictionary
             if (length(splinesDict) > 0) {
                 j <- 1
@@ -471,11 +471,11 @@ removeSplines <- function(formula) {
                                    splinesSpec$knots) == TRUE) &
                         (splinesDict[[j]]$intercept == splinesSpec$intercept) &
                         (splinesDict[[j]]$degree == splinesSpec$degree)
-                    
+
                     j <- j + 1
-                }              
+                }
             }
-            
+
             ## Update dictionary and key
             if (inDict == FALSE) {
                 splinesDict[[length(splinesDict) + 1]] <-
@@ -484,7 +484,7 @@ removeSplines <- function(formula) {
             } else {
                 splinesKey <- rbind(splinesKey, c(i, j - 1))
             }
-        }       
+        }
         colnames(splinesKey) <- c("spline", "dictKey")
 
         ## Using dictionary, generate new condensed splines list
@@ -526,7 +526,7 @@ removeSplines <- function(formula) {
             })
             names(newEntry) <- NULL
             splinesList2[[dictKey]] <- newEntry
-        }        
+        }
     } else {
         nosplines <- formula
         splinesList2 <- NULL
@@ -658,7 +658,7 @@ uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 #'     basis the column pertains to.
 genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
                                 subset, d = NULL, means = TRUE) {
-    
+
     splines <- splines$splineslist
 
     if (is.null(splines)) {
