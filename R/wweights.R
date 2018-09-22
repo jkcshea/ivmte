@@ -220,3 +220,153 @@ genWeight <- function(fun, fun.name, uname, data) {
 }
 
 
+#' Check if custom weights are negations of each other
+#'
+#' This function checks whether the user-declared weights for treated
+#' and control groups are in fact negations of each other. This is
+#' problematic for the GMM procedure when accounting for estimation
+#' error of the target weights.
+#' @param data data set used for estimation. The comparisons are made
+#'     only on values in the support of the data set.
+#' @param target.knots0 user-defined set of functions defining the
+#'     knots associated with splines weights for the control
+#'     group. The arguments of the function should consist only of
+#'     variable names in \code{data}. If the knot is constant across
+#'     all observations, then the user can instead submit the value of
+#'     the weight instead of a function.
+#' @param target.knots1 user-defined set of functions defining the
+#'     knots associated with splines weights for the treated
+#'     group. The arguments of the function should be variable names
+#'     in \code{data}. If the knot is constant across all
+#'     observations, then the user can instead submit the value of the
+#'     weight instead of a function.
+#' @param target.weight0 user-defined weight function for the control
+#'     group defining the target parameter. A list of functions can be
+#'     submitted if the weighting function is in fact a spline. The
+#'     arguments of the function should be variable names in
+#'     \code{data}. If the weight is constant across all observations,
+#'     then the user can instead submit the value of the weight
+#'     instead of a function.
+#' @param target.weight1 user-defined weight function for the treated
+#'     group defining the target parameter. A list of functions can be
+#'     submitted if the weighting function is in fact a spline. The
+#'     arguments of the function should be variable names in
+#'     \code{data}. If the weight is constant across all observations,
+#'     then the user can instead submit the value of the weight
+#'     instead of a function.
+#' @param N integer, default set to 20. This is the maxmimum number of
+#'     points between treated and control groups to compare and
+#'     determine whether or not the weights are indeed negations of
+#'     one another. If the data set contains fewer than \code{N}
+#'     unique values for a given set of variables, then all those
+#'     unique values are used for the comparison.
+#' @return boolean. If the weights are negations of each other,
+#'     \code{TRUE} is returned.
+negationCheck <- function(data, target.knots0, target.knots1,
+                          target.weight0, target.weight1, N = 20) {
+
+    negation <- TRUE
+    ## Check number of knots
+    if (length(target.knots0) == length(target.knots1)) {
+        i <- 1
+        while (i <= length(target.weight0)) {
+            if (i < length(target.weight0)) {
+                ## Check if knot arguments are the same
+                if (!setequal(formalArgs(target.knots0[[i]]),
+                              formalArgs(target.knots1[[i]]))) {
+                    negation <- FALSE
+                    break
+                }
+                
+                ## If knots arguments are the same, check
+                ## if knot values are the same
+                if (!setequal(formalArgs(target.knots0[[i]]), "...")) {
+                    wKnotVars <- formalArgs(target.knots0[[i]])
+                    tdata <- unique(data[, wKnotVars])
+                    if (is.null(dim(tdata))) {
+                        tdata <- matrix(tdata, ncol = length(wValVars))
+                    }                            
+                    kNCheck <- min(N, nrow(tdata))
+                    kNSample <- sample(x = seq(1, nrow(tdata)),
+                                       size = kNCheck,
+                                       replace = FALSE)
+                    
+                    kNEval0 <- unlist(
+                        lapply(X = split(tdata[kNSample, ],
+                                         seq(1, kNCheck)),
+                               FUN = funEval,
+                               fun = target.knots0[[i]],
+                               argnames = wKnotVars))
+
+                    kNEval1 <- unlist(
+                        lapply(X = split(tdata[kNSample, ],
+                                         seq(1, kNCheck)),
+                               FUN = funEval,
+                               fun = target.knots1[[i]],
+                               argnames = wKnotVars))
+
+                    if (! all(kNEval0 == kNEval1)) {
+                        negation <- FALSE
+                        break
+                    }
+                } else {
+                    if (target.knots0[[i]](0) !=
+                                          target.knots1[[i]](0)) {
+                        negation <- FALSE
+                        break
+                    }
+                }
+            }
+
+            ## Check if weight arguments are the same
+            if (!setequal(formalArgs(target.weight0[[i]]),
+                          formalArgs(target.weight1[[i]]))) {
+                negation <- FALSE
+                break
+            }
+
+            ## Check if weights are the same
+            if (!setequal(formalArgs(target.weight0[[i]]), "...")) {
+                wValVars <- formalArgs(target.weight0[[i]])
+                tdata <- unique(data[, wValVars])
+                if (is.null(dim(tdata))) {
+                    tdata <- matrix(tdata, ncol = length(wValVars))
+                }
+                
+                kNCheck <- min(20, nrow(tdata))
+                kNSample <- sample(x = seq(1, nrow(tdata)),
+                                   size = kNCheck,
+                                   replace = FALSE)
+
+                kNEval0 <- unlist(
+                    lapply(X = split(tdata[kNSample, ],
+                                     seq(1, kNCheck)),
+                           FUN = funEval,
+                           fun = target.weight0[[i]],
+                           argnames = wValVars))
+
+                kNEval1 <- unlist(
+                    lapply(X = split(tdata[kNSample, ],
+                                     seq(1, kNCheck)),
+                           FUN = funEval,
+                           fun = target.weight1[[i]],
+                           argnames = wValVars))
+
+                if (! all(kNEval0 == -kNEval1)) {
+                    negation <- FALSE
+                    break
+                }
+            } else {
+                if (target.weight0[[i]](0) !=
+                                       -target.weight1[[i]](0)) {
+                    negation <- FALSE
+                    break
+                }
+            }
+            i <- i + 1
+        }
+    } else {
+        negation <- FALSE
+    }
+    return(negation)
+}

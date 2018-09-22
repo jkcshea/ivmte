@@ -1265,18 +1265,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 
             if (!is.null(noSplineMtr$splineslist)) {
 
-                basisLengths <- sapply(names(noSplineMtr$splineslist),
-                                       function(x) {
-                    argList <- eval(parse(text = gsub("uSplines\\(",
-                                                      "list(", x)))
-                    basisLength <- length(argList$knots) +  argList$degree
-                    if(isTRUE(argList$intercept == TRUE) |
-                       is.null(argList$intercept)) basisLength <-
-                                                       basisLength + 1
-                    return(basisLength)
-                })
-
-                gammaSplines <- rep(0, sum(basisLengths))
+                gammaSplines <- 0
 
                 for (i in 1:length(target.weight)) {
 
@@ -1518,18 +1507,16 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         }
 
         ## Check if weights are negations
-        negation <- FALSE
+        commonM1Terms <- NULL
+        commonM1Splines <- NULL
+        commonM1Comp <- list()
 
-        ##------------------------
-        ## INSERT NEGATION CHECK
         if (hasArg(target)) {
             negation <- TRUE
+        } else {
+            negation <- negationCheck(cdata, target.knots0, target.knots1,
+                                      target.weight0, target.weight1)
         }
-
-        
-
-        ## END NEGATION CHECK
-        ##------------------------
 
         if (negation == TRUE) {
             ## Check if there are common non-spline terms across the MTRs
@@ -1539,9 +1526,6 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             commonM1Terms <- nsterms1[cpos]
 
             ## Check if there are common splines across the MTRs
-            commonM1Splines <- NULL
-            commonM1Comp <- list()
-
             if (length(splinesobj[[1]]$splinesdict) > 0 &
                 length(splinesobj[[2]]$splinesdict) > 0) {
                 for (i in 1:length(splinesobj[[2]]$splinesdict)) {
@@ -1960,9 +1944,12 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
         ## procedure to avoid collinearity when accounting for
         ## estimation error of target weights
 
+        keepTerms <- rep(1, ncol(gstar1))
+        
         if (length(commonM1Terms) > 0) {
             dropTerms <- sapply(commonM1Terms,
                                 function(x) which(colnames(gstar1) == x))
+            keepTerms[dropTerms] <- 0
         }
         if (length(commonM1Comp) > 0) {
             dropSpline <- lapply(seq(1:length(commonM1Comp)),
@@ -1975,20 +1962,11 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
                                          return(NULL)
                                      }
                                  })
-        }
-        
-        dropSpline <- Reduce("c", dropSpline)
-        dropSpline <- sapply(dropSpline, grepl,
-                             x = colnames(gstar1))
-        dropSpline <- rowSums(dropSpline)
+            dropSpline <- Reduce("c", dropSpline)
+            dropSpline <- sapply(dropSpline, grepl,
+                                 x = colnames(gstar1))
+            dropSpline <- rowSums(dropSpline)
 
-        keepTerms <- rep(1, ncol(gstar1))
-
-        if (length(commonM1Terms) > 0) {
-            keepTerms[dropTerms] <- 0
-        }
-
-        if (length(commonM1Comp) > 0) {
             keepTerms <- as.logical(keepTerms - dropSpline)
         }
 

@@ -790,8 +790,9 @@ genBasisSplines.mst <- function(splines, x, d = NULL) {
 #' Evaluate a particular function
 #'
 #' This function evaluates a single function in a list of functions.
-#' @param fun the function to be integrated.
-#' @param values the values of the arguments to the function.
+#' @param fun the function to be evaluated.
+#' @param values the values of the arguments to the function. Ordering
+#'     is assumed to be the same as in \code{argnames}.
 #' @param argnames the argument names corresponding to \code{values}.
 #' @return the output of the function evaluated.
 funEval <- function(fun, values = NULL, argnames = NULL) {
