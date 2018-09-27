@@ -150,7 +150,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
         nterms <- lapply(nterms, gsub, pattern = sep, replacement = " ")
     }
     nterms <- strsplit(trimws(unlist(nterms)), " ")
-
+       
     ## Find monomials of degree 1 ('degree' is with respect to u)
     u_pos <- lapply(nterms, whichforlist, obj = uname)
     u_pos <- which(u_pos > 0)
@@ -163,7 +163,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
                            whichforlist, obj =  paste0(uname, "^"))
     deggtr2      <- FALSE
     if (length(unlist(uexp_subpos)) > 0) deggtr2 <- TRUE
-
+   
     ## Create a matrix stating the degree for each monomial with degree >= 1
     if(length(u_pos) == 0){
         exptab1 <- NULL
@@ -238,10 +238,39 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
 
     names(monomial_list) <- rownames(data)
 
+    ## Generate index for non-U variables---this is used to avoid
+    ## collinearity issues in the GMM estimate.
+
+    xIndex <- sapply(nterms, function(x) {
+        paste(sort(x), collapse = ":")
+    })
+   
+    xIndex[u_pos] <- sapply(nterms[u_pos], function(x) {
+        paste(sort(x[which(x != uname)]), collapse = ":")
+    })
+
+    if (length(uexp_pos) > 0) {
+        xIndex[uexp_pos] <- sapply(seq(1, length(uexp_pos)), function(x) {
+            if (length(nterms[[uexp_pos[x]]]) > 1) {
+                return(paste(sort(nterms[[uexp_pos[x]]][-uexp_subpos[[x]]]),
+                             collapse = ":"))
+            } else {
+                return("")
+            }
+        })
+    }
+    
+    xIndex[xIndex == ""] <- "1"
+
+    if ("(Intercept)" %in% colnames(dmat)) {
+        xIndex <- c("1", xIndex)
+    }
+    
     return(list(plist = polynomial_list,
                 mlist = monomial_list,
                 ilist = integral_list,
                 exporder = exporder,
+                xindex = xIndex,
                 terms = oterms))
 }
 
