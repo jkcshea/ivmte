@@ -150,7 +150,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
         nterms <- lapply(nterms, gsub, pattern = sep, replacement = " ")
     }
     nterms <- strsplit(trimws(unlist(nterms)), " ")
-       
+    
     ## Find monomials of degree 1 ('degree' is with respect to u)
     u_pos <- lapply(nterms, whichforlist, obj = uname)
     u_pos <- which(u_pos > 0)
@@ -240,32 +240,33 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
 
     ## Generate index for non-U variables---this is used to avoid
     ## collinearity issues in the GMM estimate.
-
-    xIndex <- sapply(nterms, function(x) {
+    
+    xIndex <- unlist(lapply(nterms, function(x) {
         paste(sort(x), collapse = ":")
-    })
+    }))
    
-    xIndex[u_pos] <- sapply(nterms[u_pos], function(x) {
+    xIndex[u_pos] <- unlist(lapply(nterms[u_pos], function(x) {
         paste(sort(x[which(x != uname)]), collapse = ":")
-    })
+    }))
 
     if (length(uexp_pos) > 0) {
-        xIndex[uexp_pos] <- sapply(seq(1, length(uexp_pos)), function(x) {
+        xIndex[uexp_pos] <- unlist(lapply(seq(1, length(uexp_pos)),
+            function(x) {
             if (length(nterms[[uexp_pos[x]]]) > 1) {
                 return(paste(sort(nterms[[uexp_pos[x]]][-uexp_subpos[[x]]]),
                              collapse = ":"))
             } else {
                 return("")
             }
-        })
+        }))
     }
-    
+   
     xIndex[xIndex == ""] <- "1"
 
     if ("(Intercept)" %in% colnames(dmat)) {
         xIndex <- c("1", xIndex)
     }
-    
+
     return(list(plist = polynomial_list,
                 mlist = monomial_list,
                 ilist = integral_list,
@@ -546,7 +547,6 @@ removeSplines <- function(formula) {
                         return(x)
                     } else {
                         x <- substring(x, 3, nchar(x) - 1)
-                        print(x)
                         x <- gsub("\\*", ":", x)
                         x <- gsub(" ", "", x)
                         return(x)
@@ -691,7 +691,8 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
     splines <- splines$splineslist
 
     if (is.null(splines)) {
-        return(NULL)
+        return(list(gamma = NULL,
+                    interactions = NULL))
     } else {
         if (!hasArg(subset)) {
             subset <- replicate(nrow(data), TRUE)
@@ -705,6 +706,7 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
 
         splinesGamma <- NULL
         splinesNames <- NULL
+        splinesInter <- NULL
 
         for (j in 1:length(splines)) {
 
@@ -749,6 +751,9 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
                                          seq(1, ncol(tmpGamma)),
                                          paste0(":", splines[[j]][l])))
                 splinesGamma <- cbind(splinesGamma, tmpGamma)
+                splinesInter <- c(splinesInter,
+                                  rep(splines[[j]][[l]],
+                                      ncol(tmpGamma)))
             }
         }
 
@@ -759,7 +764,9 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
             colnames(splinesGamma) <- splinesNames
             rownames(splinesGamma) <- gmmRownames
         }
-        return(splinesGamma)
+        ## return(splinesGamma)
+        return(list(gamma = splinesGamma,
+                    interactions = splinesInter))
     }
 }
 
