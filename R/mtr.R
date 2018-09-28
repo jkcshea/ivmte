@@ -212,7 +212,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
         oterms   <- c("(Intercept)", oterms)
     }
     polymat <- as.matrix(dmat[, oterms])
-
+    
     ## prepare monomials and their integrals
     polynomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
                               genpoly,

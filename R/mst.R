@@ -994,7 +994,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 
     xindex0 <- NULL
     xindex1 <- NULL
-    
+    uexporder0 <- NULL
+    uexporder1 <- NULL
+
     if (noisy == TRUE) {
         message("Generating target moments...\n")
     }
@@ -1056,12 +1058,13 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                 message("    Integrating terms for control group...\n")
             }
             pm0 <- eval(as.call(m0call))
-            xindex0 <- c(xindex0, pm0$xindex)
-            
+
             if (point.target == FALSE) {
                 gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
             } else {
                 gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
+                xindex0 <- c(xindex0, pm0$xindex)
+                uexporder0 <- c(uexporder0, pm0$exporder)
             }
         } else {
             gstar0 <- NULL
@@ -1073,12 +1076,13 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                 message("    Integrating terms for treated group...\n")
             }
             pm1 <- eval(as.call(m1call))
-          
-            xindex1 <- c(xindex1, pm1$xindex)
+
             if (point.target == FALSE) {
                 gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
             } else {
                 gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp, means = FALSE)
+                xindex1 <- c(xindex1, pm1$xindex)
+                uexporder1 <- c(uexporder1, pm1$exporder)
             }
         } else {
             gstar1 <- NULL
@@ -1086,7 +1090,6 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         }
 
         if (point.target == FALSE) {
-            ## gstarSpline0 
             gstarSplineObj0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                                 data = cdata,
                                                 lb = w0$lb,
@@ -1094,7 +1097,6 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                                 multiplier = w0$mp,
                                                 d = 0)
             gstarSpline0 <- gstarSplineObj0$gamma
-            xindex0 <- c(xindex0, gstarSplineObj0$interactions)
 
             gstarSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
                                                 data = cdata,
@@ -1103,9 +1105,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                                 multiplier = w1$mp,
                                                 d = 1)
             gstarSpline1 <- gstarSplineObj1$gamma
-            xindex1 <- c(xindex1, gstarSplineObj1$interactions)
         } else {
-            ## gstarSpline0
             gstarSplineObj0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                                 data = cdata,
                                                 lb = w0$lb,
@@ -1115,8 +1115,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                                 means = FALSE)
             gstarSpline0 <- gstarSplineObj0$gamma
             xindex0 <- c(xindex0, gstarSplineObj0$interactions)
+            uexporder0 <- c(uexporder0,
+                            rep(-1, length(xindex0) - length(uexporder0)))            
 
-            ## gstarSpline1
             gstarSplineObj1 <- genGammaSplines.mst(splines = splinesobj[[2]],
                                                 data = cdata,
                                                 lb = w1$lb,
@@ -1126,7 +1127,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                                 means = FALSE)
             gstarSpline1 <- gstarSplineObj1$gamma
             xindex1 <- c(xindex1, gstarSplineObj1$interactions)
-        }      
+            uexporder1 <- c(uexporder1,
+                            rep(-1, length(xindex1) - length(uexporder1)))
+        }
     } else {
 
         ## Convert fixed/numeric weights into functions
@@ -1542,11 +1545,11 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             nsterms0 <- attr(terms(splinesobj[[1]]$formula), "term.labels")
             if (attr(terms(splinesobj[[1]]$formula), "intercept") == 1) {
                 nsterms0 <- c("(Intercept)", nsterms0)
-            }            
+            }
             nsterms1 <- attr(terms(splinesobj[[2]]$formula), "term.labels")
             if (attr(terms(splinesobj[[2]]$formula), "intercept") == 1) {
                 nsterms1 <- c("(Intercept)", nsterms1)
-            }            
+            }
             cpos <- sapply(nsterms1, function(x) x %in% nsterms0)
             commonM1Terms <- nsterms1[cpos]
 
@@ -1583,7 +1586,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                    function(x) {
                                    x %in% unlist(splinesobj[[1]]$splineslist[k])
                                    })
-                    if (length(cpos) > 0) {
+                    if (sum(cpos) > 0) {
                         tmpObj <- unlist(splinesobj[[2]]$splineslist[j])[cpos]
                         names(tmpObj) <- NULL
                         commonM1Comp[[i]] <- tmpObj
@@ -1597,14 +1600,16 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             if (target == "ate") ateSwitch = TRUE
         }
 
-        print(splinesobj[[2]]$splineslist)
-        
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
                                  point.target = point.target,
                                  itermax = point.itermax,
                                  tol = point.tol,
+                                 obsComp0 = xindex0,
+                                 obsComp1 = xindex1,
+                                 uexp0 = uexporder0,
+                                 uexp1 = uexporder1,
                                  commonM1Terms = commonM1Terms,
                                  commonM1Comp = commonM1Comp,
                                  ate = ateSwitch,
@@ -1886,6 +1891,14 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     iterative GMM process. By default this is set to 2 (two-step
 #'     GMM).
 #' @param tol tolerance level for iterative GMM to terminate.
+#' @param obsComp0 vector of observable variables. This is the
+#'     observable component of each term in m0.
+#' @param obsComp1 vector of observable variables. This is the
+#'     observable component of each term in m1.
+#' @param uexp0 vector of exponential on unobservable term in m0. The
+#'     values only apply to non-spline terms, though.
+#' @param uexp1 vector of exponential on unobservable term in m1. The
+#'     values only apply to non-spline terms, though. 
 #' @param commonM1Terms character, vector of variable names of m1 that
 #'     are also included in m0. Depending on the target parameter
 #'     weight, the error in estimating the target wight of these
@@ -1907,10 +1920,12 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     the variance/covariance matrix of the MTR coefficient
 #'     estimates.
 gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
-                        itermax = 2, tol = 1e-08,
-                        commonM1Terms, commonM1Comp, ate = FALSE,
-                        noisy = TRUE) {
-    
+                        itermax = 2, tol = 1e-08, obsComp0, obsComp1,
+                        commonM1Terms, commonM1Comp,
+                        uexp0, uexp1, 
+                        ate = FALSE,
+                        negate = TRUE, noisy = TRUE) {
+
     gmmMat <- NULL
     yMat   <- NULL
 
@@ -1950,59 +1965,169 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
     ## Account for case where point.target = TRUE
     gmmExclN <- 0
     gmmExclN <- gmmExclN + length(commonM1Terms)
-   
+
     if (point.target == TRUE) {
 
         ## Determine if any terms need to be dropped for the GMM
         ## procedure to avoid collinearity when accounting for
         ## estimation error of target weights
-        keepTerms0 <- rep(1, ncol(gstar0))
-        keepTerms1 <- rep(1, ncol(gstar1))
 
-        if (ate == TRUE) {
-            if ("(Intercept)" %in% colnames(gstar0)) {
-                keepTerms0[which(colnames(gstar0) == "(Intercept)")] <- 0
-                gmmExclN <- gmmExclN + 1
-            }
-            
-            if ( ("(Intercept)" %in% colnames(gstar1)) &
-                 !("(Intercept)" %in% commonM1Terms)) {
-                keepTerms1[which(colnames(gstar1) == "(Intercept)")] <- 0
-                gmmExclN <- gmmExclN + 1
-            }
-        }
+        ## ORIGINAL-------------------------
         
-        if (length(commonM1Terms) > 0) {
-            dropTerms <- sapply(commonM1Terms,
-                                function(x) which(colnames(gstar1) == x))
-            keepTerms1[dropTerms] <- 0
+        ## keepTerms0 <- rep(1, ncol(gstar0))
+        ## keepTerms1 <- rep(1, ncol(gstar1))
+
+        ## if (ate == TRUE) {
+        ##     if ("(Intercept)" %in% colnames(gstar0)) {
+        ##         keepTerms0[which(colnames(gstar0) == "(Intercept)")] <- 0
+        ##         gmmExclN <- gmmExclN + 1
+        ##     }
+
+        ##     if ( ("(Intercept)" %in% colnames(gstar1)) &
+        ##          !("(Intercept)" %in% commonM1Terms)) {
+        ##         keepTerms1[which(colnames(gstar1) == "(Intercept)")] <- 0
+        ##         gmmExclN <- gmmExclN + 1
+        ##     }
+        ## }
+
+        ## if (length(commonM1Terms) > 0) {
+        ##     dropTerms <- sapply(commonM1Terms,
+        ##                         function(x) which(colnames(gstar1) == x))
+        ##     keepTerms1[dropTerms] <- 0
+        ## }
+        ## if (length(commonM1Comp) > 0) {
+        ##     dropSpline <- lapply(seq(1:length(commonM1Comp)),
+        ##                          function(x) {
+        ##                              if (length(commonM1Comp[[x]]) > 0) {
+        ##                                  return(paste0("u1S", x,
+        ##                                                "\\.[0-9]:",
+        ##                                                commonM1Comp[[x]]))
+        ##                              } else {
+        ##                                  return(NULL)
+        ##                              }
+        ##                          })
+        ##     dropSpline <- Reduce("c", dropSpline)
+        ##     dropSpline <- sapply(dropSpline, grepl,
+        ##                          x = colnames(gstar1))
+        ##     dropSpline <- rowSums(dropSpline)
+
+        ##     gmmExclN <- gmmExclN + sum(dropSpline)
+
+        ##     keepTerms1 <- as.logical(keepTerms1 - dropSpline)
+        ## }
+
+        ## EXPERIMENTING --------------------------
+
+        keepTerms0 <- rep(0, length(obsComp0))
+        keepTerms1 <- rep(0, length(obsComp1))
+        
+        ## Select components to keep when estimating ATE
+        if (ate == TRUE) {
+            includedTerms <- c("1")
+
+            for (i in 1:length(obsComp0)) {
+                if (! obsComp0[i] %in% includedTerms) {
+                    keepTerms0[i] <- 1
+                    includedTerms <- c(includedTerms,
+                                       obsComp0[i])
+                }
+            }
+
+            for (i in 1:length(obsComp1)) {
+                if (! obsComp1[i] %in% includedTerms) {
+                    keepTerms1[i] <- 1
+                    includedTerms <- c(includedTerms,
+                                       obsComp1[i])
+                }
+            }
+
+            print(rbind(obsComp0, keepTerms0))
+            print(rbind(obsComp1, keepTerms1))
+            print(includedTerms)
         }
-        if (length(commonM1Comp) > 0) {
-            dropSpline <- lapply(seq(1:length(commonM1Comp)),
-                                 function(x) {
-                                     if (length(commonM1Comp[[x]]) > 0) {
-                                         return(paste0("u1S", x,
-                                                       "\\.[0-9]:",
-                                                       commonM1Comp[[x]]))
-                                     } else {
-                                         return(NULL)
-                                     }
-                                 })
-            dropSpline <- Reduce("c", dropSpline)
-            dropSpline <- sapply(dropSpline, grepl,
-                                 x = colnames(gstar1))
-            dropSpline <- rowSums(dropSpline)
 
-            gmmExclN <- gmmExclN + sum(dropSpline)
+        ## Select components to keep when estimating non-ATE target
+        ## parameters whose weights are negations of each other
+        if (ate == FALSE & negate == TRUE) {
+            if ((sum(uexp0 >= 0) > 0) & (sum(uexp1 >= 0))) {
+                ## m0comps <- obsComp0[uexp0 >= 0]
+                ## u0comps <- uexp0[uexp0 >= 0]
+                ## m1comps <- obsComp1[uexp1 >= 0]
+                ## u1comps <- uexp1[uexp1 >= 0]
 
-            keepTerms1 <- as.logical(keepTerms1 - dropSpline)
+                m1keep <- rep(1, sum(uexp1 >= 0))
+
+                for (i in seq(1, sum(uexp1 >= 0))) {
+                    for (j in seq(1, sum(uexp0 >= 0))) {
+                        if (obsComp1[i] == obsComp0[j] &
+                            uexp1[i] == uexp0[j]) {
+                            m1keep[i] <- 0
+                        }
+                    }
+                }
+            }
+
+            if (length(commonM1Comp) > 0) {
+                dropSpline <- lapply(seq(1:length(commonM1Comp)),
+                                     function(x) {
+                                         if (length(commonM1Comp[[x]]) > 0) {
+                                             return(paste0("u1S", x,
+                                                           "\\.[0-9]:",
+                                                           commonM1Comp[[x]]))
+                                         } else {
+                                             return(NULL)
+                                         }
+                                     })
+                dropSpline <- Reduce("c", dropSpline)
+                dropSpline <- sapply(dropSpline, grepl,
+                                     x = colnames(gstar1))
+                
+                dropSpline <- rowSums(dropSpline)
+
+                ## gmmExclN <- gmmExclN + sum(dropSpline)
+
+                keepSpline1 <- 1 - dropSpline[(sum(uexp1 >= 0) + 1) :
+                                              length(uexp1)]
+            } else {
+                keepSpline1 <- rep(1, length(uexp1) - (sum(uexp1 >= 0)))
+            }
+
+            keepTerms1 <- as.logical(c(m1keep, keepSpline1))
+            
+            print("m0comp")
+            print(obsComp0[uexp0 >= 0])
+            print("m1comps")
+            print(obsComp1[uexp1 >= 0])
+            
+            print("m1keep")
+            print(m1keep)
+
+            print("keep tetrms 1")
+            print(keepTerms1)
+
+            print("check that gstar and uexp are same length")
+            print(ncol(gstar0) == length(uexp0))
+            print(ncol(gstar1) == length(uexp1))
+            stop("end of test")
         }
 
+        ## Select components to keep when estimating non-ATE target
+        ## parameters whose weights are not negations of each other
+        if (ate == FALSE & negate == FALSE) {
+            keepTerms0 <- rep(1, length(obsComp0))
+            keepTerms1 <- rep(1, length(obsComp1))
+        }
+
+        stop("end of test")
+
+        
         print("keep terms 0")
         print(keepTerms0)
-        
+
         print("keep terms 1")
         print(keepTerms1)
+
+        ## END EXPERIMENTING ----------------------
         
         ## expand GMM mat
         gmmMat <- lapply(ids, function(x) {
@@ -2043,13 +2168,13 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
     }
 
     stop("end of test")
-    
+
     gmmMat <- gmmMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
 
     print(dim(gmmMat))
     print(length(yMat))
-    
+
     ## Perform two-step GMM estimate (allows for iterative GMM)
     ## Perform first step
     Zrows <- length(sset)
@@ -2072,7 +2197,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, point.target = FALSE,
         evec %*% t(evec)
     })
     emat <- Reduce("+", emat)
-   
+
     ## Perform second (or more) step(s)
     i <- 1
     diff <- Inf
