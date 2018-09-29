@@ -1114,7 +1114,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             gstarSpline0 <- gstarSplineObj0$gamma
             xindex0 <- c(xindex0, gstarSplineObj0$interactions)
             uexporder0 <- c(uexporder0,
-                            rep(-1, length(xindex0) - length(uexporder0)))            
+                            rep(-1, length(xindex0) - length(uexporder0)))
 
             gstarSplineObj1 <- genGammaSplines.mst(splines = splinesobj[[2]],
                                                 data = cdata,
@@ -1529,7 +1529,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         ## Check if weights are negations
         commonM1Terms <- NULL
         commonM1Splines <- NULL
-        commonM1Comp <- list()
+        commonM1STerms <- list()
 
         if (hasArg(target)) {
             negation <- TRUE
@@ -1587,7 +1587,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                     if (sum(cpos) > 0) {
                         tmpObj <- unlist(splinesobj[[2]]$splineslist[j])[cpos]
                         names(tmpObj) <- NULL
-                        commonM1Comp[[i]] <- tmpObj
+                        commonM1STerms[[i]] <- tmpObj
                     }
                 }
             }
@@ -1608,7 +1608,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                  uexp0 = uexporder0,
                                  uexp1 = uexporder1,
                                  commonM1Terms = commonM1Terms,
-                                 commonM1Comp = commonM1Comp,
+                                 commonM1STerms = commonM1STerms,
                                  ate = ateSwitch,
                                  negate = negation,
                                  noisy = noisy)
@@ -1894,12 +1894,12 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #' @param uexp0 vector of exponential on unobservable term in m0. The
 #'     values only apply to non-spline terms, though.
 #' @param uexp1 vector of exponential on unobservable term in m1. The
-#'     values only apply to non-spline terms, though. 
+#'     values only apply to non-spline terms, though.
 #' @param commonM1Terms character, vector of variable names of m1 that
 #'     are also included in m0. Depending on the target parameter
 #'     weight, the error in estimating the target wight of these
 #'     variables may need to be excluded from the GMM procedure.
-#' @param commonM1Terms list, each element is a character vector
+#' @param commonM1STerms list, each element is a character vector
 #'     corresponding to a spline in m1 also found in m0. The character
 #'     vector stores the variable names that interact with a given
 #'     spline in both m0 and m1. Depending on the target parameter
@@ -1917,14 +1917,14 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     estimates.
 gmmEstimate <- function(sset, gstar0, gstar1,
                         itermax = 2, tol = 1e-08, obsComp0, obsComp1,
-                        commonM1Terms, commonM1Comp,
-                        uexp0, uexp1, 
+                        commonM1Terms, commonM1STerms,
+                        uexp0, uexp1,
                         ate = FALSE,
                         negate = TRUE, noisy = TRUE) {
 
     gmmMat <- NULL
     yMat   <- NULL
-    
+
     for (s in 1:length(sset)) {
 
         ids <- as.integer(rownames(sset[[s]]$g0))
@@ -1945,18 +1945,17 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     ids <- unique(gmmMat[, 1])
     gmmCompN <- ncol(gmmMat) - 2
 
-    print("Remember to implement this GMM count check.")
-    ## if (gmmCompN > length(sset)) {
-    ##     stop(gsub("\\s+", " ",
-    ##               paste0("Infinite number of solutions exist: excluding
-    ##                      target moments, there are ",
-    ##                      gmmCompN,
-    ##                      " unknown parameters/MTR coefficients and ",
-    ##                      length(sset),
-    ##                      " moment conditions (defined by IV-like
-    ##                      specifications). Either expand the number of
-    ##                      IV-like specifications, or modify m0 and m1.")))
-    ## }
+    if (gmmCompN > length(sset)) {
+        stop(gsub("\\s+", " ",
+                  paste0("Infinite number of solutions exist: excluding
+                         target moments, there are ",
+                         gmmCompN,
+                         " unknown parameters/MTR coefficients and ",
+                         length(sset),
+                         " moment conditions (defined by IV-like
+                         specifications). Either expand the number of
+                         IV-like specifications, or modify m0 and m1.")))
+    }
 
     ## Account for case where point.target = TRUE
     if (ate == FALSE) {
@@ -1964,10 +1963,13 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         ## Determine if any terms need to be dropped for the GMM
         ## procedure to avoid collinearity when accounting for
         ## estimation error of target weights
-        
+
         ## Select components to keep when estimating non-ATE target
         ## parameters whose weights are negations of each other
         if (negate == TRUE) {
+
+            corresponding1 <- rep(0, length(uexp1))
+
             if ((sum(uexp0 >= 0) > 0) & (sum(uexp1 >= 0))) {
                 m1keep <- rep(1, sum(uexp1 >= 0))
 
@@ -1976,36 +1978,47 @@ gmmEstimate <- function(sset, gstar0, gstar1,
                         if (obsComp1[i] == obsComp0[j] &
                             uexp1[i] == uexp0[j]) {
                             m1keep[i] <- 0
+                            corresponding1[i] <- j
                         }
                     }
                 }
             }
 
-            if (length(commonM1Comp) > 0) {
-                dropSpline <- lapply(seq(1:length(commonM1Comp)),
+            if (length(commonM1STerms) > 0) {
+                dropSpline0 <- lapply(seq(1:length(commonM1STerms)),
                                      function(x) {
-                                         if (length(commonM1Comp[[x]]) > 0) {
-                                             return(paste0("u1S", x,
+                                         if (length(commonM1STerms[[x]]) > 0) {
+                                             return(paste0("u0S", x,
                                                            "\\.[0-9]:",
-                                                           commonM1Comp[[x]]))
+                                                           commonM1STerms[[x]]))
                                          } else {
                                              return(NULL)
                                          }
                                      })
-                dropSpline <- Reduce("c", dropSpline)
-                dropSpline <- sapply(dropSpline, grepl,
-                                     x = colnames(gstar1))
-                
-                dropSpline <- rowSums(dropSpline)
 
-                keepSpline1 <- 1 - dropSpline[(sum(uexp1 >= 0) + 1) :
-                                              length(uexp1)]
-            } else {
-                keepSpline1 <- rep(1, length(uexp1) - (sum(uexp1 >= 0)))
+                dropSpline1 <- lapply(seq(1:length(commonM1STerms)),
+                                     function(x) {
+                                         if (length(commonM1STerms[[x]]) > 0) {
+                                             return(paste0("u1S", x,
+                                                           "\\.[0-9]:",
+                                                           commonM1STerms[[x]]))
+                                         } else {
+                                             return(NULL)
+                                         }
+                                     })
+
+                dropSpline0 <- Reduce("c", dropSpline0)
+                dropSpline1 <- Reduce("c", dropSpline1)
+                dropSpline1 <- sapply(dropSpline1, grepl,
+                                     x = colnames(gstar1))
+
+                for (i in 1:length(dropSpline0)) {
+                    corresponding1[dropSpline1[, i]] <- grep(dropSpline0[i],
+                                                             colnames(gstar0))
+                }
             }
 
-            keepTerms1 <- as.logical(c(m1keep, keepSpline1))
-
+            keepTerms1 <- as.logical(corresponding1 == 0)
             gmmExclN <- sum(1 - keepTerms1)
         }
 
@@ -2013,9 +2026,10 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         ## parameters whose weights are not negations of each other
         if (negate == FALSE) {
             keepTerms1 <- rep(1, length(obsComp1))
+            corresponding1 <- rep(0, length(uexp1))
             gmmExclN <- 0
         }
-      
+
         ## Expand GMM mat
         gmmMat <- lapply(ids, function(x) {
             M1 <- rbind(gmmMat[gmmMat[, 1] == x, ],
@@ -2054,15 +2068,10 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     gmmMat <- gmmMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
 
-    print(dim(gmmMat))
-    print(length(yMat))
-
-    stop("end of test")
-    
     ## Perform two-step GMM estimate (allows for iterative GMM)
     ## Perform first step
     Zrows <- length(sset)
-    if (point.target == TRUE) Zrows <- Zrows + gmmCompN - gmmExclN
+    if (ate == FALSE) Zrows <- Zrows + gmmCompN - gmmExclN
 
     Z <- do.call("rbind", rep(list(diag(Zrows)), length(ids)))
 
@@ -2106,34 +2115,82 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     }
     avar <- solve(t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% gmmMat)
 
-    if (point.target == FALSE) {
-        nameVec <- c(paste0("m0.", names(gstar0)),
-                     paste0("m1.", names(gstar1)))
+    ## Construct point estimate and CI of TE
+    if (ate == TRUE) {
+
+        nameVec <- c(paste0("m0.", colnames(gstar0)),
+                     paste0("m1.", colnames(gstar1)))
+
         rownames(theta) <- nameVec
         rownames(avar) <- nameVec
         colnames(avar) <- nameVec
 
-        ## Construct point estimate and CI of TE
-        te <- sum(c(gstar0, gstar1) * theta)
-        se <- sqrt(t(c(gstar0, gstar1)) %*%
+        te <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
+        se <- sqrt(t(c(colMeans(gstar0), colMeans(gstar1))) %*%
                    avar %*%
-                   c(gstar0, gstar1))
+                   c(colMeans(gstar0), colMeans(gstar1)))
+
     } else {
+        ## For the case where some components are redundant, we need
+        ## to apply the delta method
+
         nameVec <- c(paste0("m0.coef.", colnames(gstar0)),
                      paste0("m1.coef.", colnames(gstar1)),
-                     paste0("m0.gamma.", colnames(gstar0)),
-                     paste0("m1.gamma.", colnames(gstar1[keepTerms1])))
+                     paste0("gm0.", colnames(gstar0)))
+        if (sum(keepTerms1) > 0) {
+            nameVec <- c(nameVec, paste0("gm1.", colnames(gstar1)[keepTerms1]))
+        }
 
         rownames(theta) <- nameVec
         rownames(avar) <- nameVec
         colnames(avar) <- nameVec
 
-        te <- sum(theta[1:(nrow(theta) / 2), ] *
-                  theta[(nrow(theta) / 2 + 1):nrow(theta), ])
+        gs0len <- length(colnames(gstar0))
+        gs1len <- length(colnames(gstar1))
+        gs1lenSub <- length(colnames(gstar1)[keepTerms1])
 
-        grad <- c(theta[(nrow(theta) / 2 + 1):nrow(theta), ],
-                      theta[1:(nrow(theta) / 2), ])
+        ## Construct gradient vector
+        thetaPar  <- theta[1:(gs0len + gs1len)]
+        gamma0    <- theta[((gs0len + gs1len) + 1) : (2 * gs0len + gs1len)]
+        if (gs1lenSub > 0) {
+            gamma1sub <- theta[(length(theta) - gs1lenSub + 1) : length(theta)]
+        } else {
+            gamma1sub <- NULL
+        }
 
+        gamma1 <- rep(0, length(colnames(gstar1)))
+
+        if (sum(corresponding1 == 0) > 0) {
+            gamma1[corresponding1 == 0] <- gamma1sub
+        }
+
+        if (sum(corresponding1 != 0) > 0) {
+            gamma1[corresponding1 != 0] <-
+                -gamma0[corresponding1[corresponding1 != 0]]
+        }
+
+        thetaPar0 <- thetaPar[1:ncol(gstar0)]
+        thetaPar1 <- thetaPar[(ncol(gstar0) + 1) : length(thetaPar)]
+
+        theta0dg <- thetaPar0
+        theta0dgtmp <- sapply(seq(1, ncol(gstar1)), function(x) {
+            v <- rep(0, ncol(gstar0))
+            if (corresponding1[x] > 0) {
+                v[corresponding1[x]] <- thetaPar1[x]
+            }
+            v
+        })
+        if (!is.null(dim(theta0dgtmp))) {
+            theta0dgtmp <- rowSums(theta0dgtmp)
+        } else {
+            theta0dgtmp <- sum(theta0dgtmp)
+        }
+
+        theta0dg <- theta0dg - theta0dgtmp
+        theta1dg <- thetaPar1[keepTerms1]
+
+        te <- sum(c(thetaPar0, thetaPar1) * c(gamma0, gamma1))
+        grad <- c(gamma0, gamma1, theta0dg, theta1dg)
         se <- sqrt(t(grad) %*% avar %*% grad)
     }
 

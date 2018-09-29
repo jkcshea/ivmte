@@ -30,10 +30,7 @@ vecextract <- function(vector, position, truncation = 0) {
 #'
 #' This function takes in a first vector of coefficients, and a second
 #' vector declaring which univariate polynomial basis corresponds to
-#' each element of the first vector. Then it generates a list of
-#' monomials corresponding to the polynomial.
-#' @param vector vector of polynomial coefficients.
-#' @param basis vector of exponents corresponding to each element of
+#' each element ofexponents corresponding to each element of
 #'     \code{vector}.
 #' @param zero logical, if \code{FALSE} then \code{vector} does not
 #'     include an element for the constant term. The vector
