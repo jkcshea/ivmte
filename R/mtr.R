@@ -43,7 +43,7 @@ vecextract <- function(vector, position, truncation = 0) {
 #'     package.
 genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
 
-    if (length(basis) == 1 & typeof(basis) == "list") basis <- unlist(basis)   
+    if (length(basis) == 1 & typeof(basis) == "list") basis <- unlist(basis)
     if (!zero) basis <- basis + 1
 
     monolist  <- mapply(genej, pos = basis, length = basis, SIMPLIFY = FALSE)
@@ -76,7 +76,7 @@ genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
 genpoly <- function(vector, basis, zero = FALSE) {
     if (length(basis) == 1 & typeof(basis) == "list") basis <- unlist(basis)
     if (!zero) basis <- basis + 1
-    
+
     polyvec <- replicate(max(basis), 0)
     polyvec[basis] <- vector
     return(as.function(polynom::polynomial(polyvec)))
@@ -150,7 +150,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
         nterms <- lapply(nterms, gsub, pattern = sep, replacement = " ")
     }
     nterms <- strsplit(trimws(unlist(nterms)), " ")
-    
+
     ## Find monomials of degree 1 ('degree' is with respect to u)
     u_pos <- lapply(nterms, whichforlist, obj = uname)
     u_pos <- which(u_pos > 0)
@@ -163,7 +163,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
                            whichforlist, obj =  paste0(uname, "^"))
     deggtr2      <- FALSE
     if (length(unlist(uexp_subpos)) > 0) deggtr2 <- TRUE
-   
+
     ## Create a matrix stating the degree for each monomial with degree >= 1
     if(length(u_pos) == 0){
         exptab1 <- NULL
@@ -212,8 +212,8 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
         oterms   <- c("(Intercept)", oterms)
     }
     polymat <- as.matrix(dmat[, oterms])
-    
-    ## prepare monomials and their integrals    
+
+    ## prepare monomials and their integrals
     polynomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
                               genpoly,
                               basis = exporder)
@@ -240,11 +240,11 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
 
     ## Generate index for non-U variables---this is used to avoid
     ## collinearity issues in the GMM estimate.
-    
+
     xIndex <- unlist(lapply(nterms, function(x) {
         paste(sort(x), collapse = ":")
     }))
-   
+
     xIndex[u_pos] <- unlist(lapply(nterms[u_pos], function(x) {
         paste(sort(x[which(x != uname)]), collapse = ":")
     }))
@@ -260,7 +260,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
             }
         }))
     }
-   
+
     xIndex[xIndex == ""] <- "1"
 
     if ("(Intercept)" %in% colnames(dmat)) {
@@ -408,13 +408,13 @@ removeSplines <- function(formula) {
     fterms <- attr(terms(formula), "term.labels")
     finter <- attr(terms(formula), "intercept")
 
-    print(fterms)
-    print(finter)
-    
-    whichspline <- sapply(fterms,
-                          function(y) grepl(x = y, pattern = "uSplines\\("))
+    if (length(fterms) == 0) {
+        whichspline <- 0
+    } else {
 
-    print(whichspline)
+        whichspline <- sapply(fterms,
+                              function(y) grepl(x = y, pattern = "uSplines\\("))
+    }
 
     if (max(whichspline) == 1) {
         ftobj <- terms(formula)
