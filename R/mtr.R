@@ -43,6 +43,7 @@ vecextract <- function(vector, position, truncation = 0) {
 #'     package.
 genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
 
+    if (length(basis) == 1 & typeof(basis) == "list") basis <- unlist(basis)   
     if (!zero) basis <- basis + 1
 
     monolist  <- mapply(genej, pos = basis, length = basis, SIMPLIFY = FALSE)
@@ -73,7 +74,9 @@ genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
 #' @return A function in the form of the \code{polynom}
 #'     package.
 genpoly <- function(vector, basis, zero = FALSE) {
+    if (length(basis) == 1 & typeof(basis) == "list") basis <- unlist(basis)
     if (!zero) basis <- basis + 1
+    
     polyvec <- replicate(max(basis), 0)
     polyvec[basis] <- vector
     return(as.function(polynom::polynomial(polyvec)))
@@ -210,7 +213,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
     }
     polymat <- as.matrix(dmat[, oterms])
     
-    ## prepare monomials and their integrals
+    ## prepare monomials and their integrals    
     polynomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
                               genpoly,
                               basis = exporder)
@@ -405,8 +408,13 @@ removeSplines <- function(formula) {
     fterms <- attr(terms(formula), "term.labels")
     finter <- attr(terms(formula), "intercept")
 
+    print(fterms)
+    print(finter)
+    
     whichspline <- sapply(fterms,
                           function(y) grepl(x = y, pattern = "uSplines\\("))
+
+    print(whichspline)
 
     if (max(whichspline) == 1) {
         ftobj <- terms(formula)
