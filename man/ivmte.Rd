@@ -10,7 +10,8 @@ ivmte(ivlike, data, subset, components, propensity, link, treat, m0, m1,
   genlate.lb, genlate.ub, obseq.tol = 1, grid.Nu = 20, grid.Nx = 20,
   audit.Nx = 2, audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
-  mte.inc, lpsolver = NULL, point = FALSE, point.itermax = 100)
+  mte.inc, lpsolver = NULL, point = FALSE, point.itermax = 2,
+  point.tol = 1e-08, noisy = TRUE)
 }
 \arguments{
 \item{ivlike}{formula or vector of formulas used to specify the
@@ -43,10 +44,16 @@ be chosen from \code{linear}, \code{probit}, or \code{logit}.}
 \item{treat}{variable name for treatment indicator}
 
 \item{m0}{one-sided formula for marginal treatment response
-function for control group.}
+function for control group. Splines can also be incorporated
+using the expression "uSplines(degree, knots, intercept)". The
+'intercept' argument may be omitted, and is set to \code{TRUE}
+by default.}
 
 \item{m1}{one-sided formula for marginal treatment response
-function for treated group.}
+function for treated group. Splines can also be incorporated
+using the expression "uSplines(degree, knots, intercept)". The
+'intercept' argument may be omitted, and is set to \code{TRUE}
+by default.}
 
 \item{uname}{variable name for unobservable used in declaring MTRs.}
 
@@ -182,9 +189,14 @@ is implemented to estimate the treatment effects. Shape
 constraints on the MTRs will be ignored under point
 identification.}
 
-\item{point.itermax}{integer, default of 100. Maximum number of
+\item{point.itermax}{integer, default of 2. Maximum number of
 iterations allowed for GMM estimation under point
-identification.}
+identification. So default estimate is the two-step GMM.}
+
+\item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
+then messages are provided throughout the estimation
+procedure. Set to \code{FALSE} to suppress all messages,
+e.g. when performing the bootstrap.}
 }
 \value{
 Returns a list of results from throughout the estimation

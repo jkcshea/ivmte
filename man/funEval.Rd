@@ -7,9 +7,10 @@
 funEval(fun, values = NULL, argnames = NULL)
 }
 \arguments{
-\item{fun}{the function to be integrated.}
+\item{fun}{the function to be evaluated.}
 
-\item{values}{the values of the arguments to the function.}
+\item{values}{the values of the arguments to the function. Ordering
+is assumed to be the same as in \code{argnames}.}
 
 \item{argnames}{the argument names corresponding to \code{values}.}
 }

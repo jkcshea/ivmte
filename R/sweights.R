@@ -55,7 +55,7 @@ olsj.mst <- function(X, components, treat) {
     wvec1 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X1)
     wvec1 <- extractcols(t(wvec1), cpos)
     colnames(wvec1)  <- components
-
+        
     return(list(s0 = wvec0, s1 = wvec1))
 }
 

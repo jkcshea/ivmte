@@ -5,7 +5,7 @@
 \title{Generating LP moments for IV-like estimands}
 \usage{
 gensset.mst(data, sset, sest, splinesobj, pmodobj, pm0, pm1, ncomponents,
-  scount, subset_index, means = TRUE)
+  scount, subset_index, means = TRUE, yvar, dvar, noisy = TRUE)
 }
 \arguments{
 \item{data}{\code{data.frame} used to estimate the treatment
@@ -33,6 +33,26 @@ we want to include in the S-set.}
 
 \item{subset_index}{An index for the subset of the data the IV
 regression is restricted to.}
+
+\item{means}{boolean, set to \code{TRUE} by default. If set to
+\code{TRUE}, then the gamma moments are returned, i.e. sample
+averages are taken. If set to \code{FALSE}, then no sample
+averages are taken, and a matrix is returned. The sample
+average of each column of the matrix corresponds to a
+particular gamma moment.}
+
+\item{yvar}{name of outcome variable. This is only used if
+\code{means = FALSE}, which occurs when the user believes the
+treatment effect is point identified.}
+
+\item{dvar}{name of treatment indicator. This is only used if
+\code{means = FALSE}, which occurs when the user believes the
+treatment effect is point identified.}
+
+\item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
+then messages are provided throughout the estimation
+procedure. Set to \code{FALSE} to suppress all messages,
+e.g. when performing the bootstrap.}
 }
 \value{
 A list containing the point estimate for the IV regression,
