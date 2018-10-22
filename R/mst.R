@@ -260,9 +260,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         if (hasArg(components)) {
             if (!is.null(components)) {
                 userComponents <- TRUE
-            } 
+            }
         }
-       
+
         ## if (hasArg(components) & !is.null(components)) {
         if (userComponents) {
             ## userComponents <- TRUE
@@ -1777,8 +1777,8 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     subset = subset_index,
                                     means = FALSE)
 
-                print(paste("S-weight of", j, "th componnt from S set, d = 0"))
-                print(sest$sw0[, j])
+                ## print(paste("S-weight of", j, "th componnt from S set, d = 0"))
+                ## print(sest$sw0[, j])
             }
         } else {
             gs0 <- NULL
@@ -1798,15 +1798,15 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     multiplier = sest$sw1[, j],
                                     subset = subset_index,
                                     means = FALSE)
-                print(paste(j, "th componnt from S set, d = 1"))
-                print(sest$sw1[, j])
+                ## print(paste(j, "th componnt from S set, d = 1"))
+                ## print(sest$sw1[, j])
             }
 
-            print("S-weight ratios, (d = 0) / (d = 1)")
-            print(sest$sw0[, j] / sest$sw1[, j])
+            ## print("S-weight ratios, (d = 0) / (d = 1)")
+            ## print(sest$sw0[, j] / sest$sw1[, j])
             ## print(paste(j, "th componnt from S set, d = 1"))
             ## print(head(sest$sw1[, j]))
-            
+
         } else {
             gs1 <- NULL
         }
@@ -1943,7 +1943,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     yMat   <- NULL
 
     ymtest <- NULL
-    
+
     for (s in 1:length(sset)) {
 
         ids <- as.integer(rownames(sset[[s]]$g0))
@@ -1962,17 +1962,17 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     N <- length(ids)
 
-    print("G matrix (analogous to GMM covariates), pre-sorted")
-    print(gmmMat)
+    ## print("G matrix (analogous to GMM covariates), pre-sorted")
+    ## print(gmmMat)
 
-    print("Y * S(D, X, Z) values: each column is for an IV-like specification")
-    print(ymtest)
-    print(colMeans(ymtest))
+    ## print("Y * S(D, X, Z) values: each column is for an IV-like specification")
+    ## print(ymtest)
+    ## print(colMeans(ymtest))
 
-    print("Y matrix rank")
-    print(qr(ymtest)$rank)
-    
-    
+    ## print("Y matrix rank")
+    ## print(qr(ymtest)$rank)
+
+
     gmmMat <- gmmMat[order(gmmMat[, 1], gmmMat[, 2]), ]
     yMat   <- yMat[order(yMat[, 1], yMat[, 2]), ]
 
@@ -2112,71 +2112,97 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     ## }
     ## print("Head of gmmMat")
     ## print(head(gmmMat, n = 50))
-  
-    Zrows <- length(sset)
-    if (ate == FALSE) Zrows <- Zrows + gmmCompN - gmmExclN
 
-    Z <- do.call("rbind", rep(list(diag(Zrows)), length(ids)))
-    
-    emat <- diag(Zrows)
+    ## Zrows <- length(sset)
+    ## if (ate == FALSE) Zrows <- Zrows + gmmCompN - gmmExclN
+
+    ## Z <- do.call("rbind", rep(list(diag(Zrows)), length(ids)))
+
+    ## emat <- diag(Zrows)
     theta <- rep(0, ncol(gmmMat))
     i <- 1
     diff <- Inf
 
-    print("Moment matrices")
-    print(t(Z) %*% gmmMat)
-    
-    print("rank of (G'ZZ'G) matrix")
-    print(qr(t(gmmMat) %*% Z %*% solve(emat)
-                          %*% t(Z) %*% gmmMat)$rank)
+    ## print("Moment matrices")
+    ## print(t(Z) %*% gmmMat)
+
+    ## print("rank of (G'ZZ'G) matrix")
+    ## print(qr(t(gmmMat) %*% Z %*% solve(emat)
+    ##                       %*% t(Z) %*% gmmMat)$rank)
 
 
     while (i <= itermax & diff > tol) {
 
-        print("Error matrix")
-        print(emat)
+        ## print("Error matrix")
+        ## print(emat)
 
-        print("Rank of error matrix")
-        print(qr(emat)$rank)
-        
-        thetaNew <- solve(t(gmmMat) %*% Z %*% solve(emat)
-                          %*% t(Z) %*% gmmMat) %*%
-            t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% yMat
+        ## print("Rank of error matrix")
+        ## print(qr(emat)$rank)
+
+        if (i == 1) {
+            thetaNew <- solve(t(gmmMat) %*% gmmMat) %*% t(gmmMat) %*% yMat
+        } else {
+            olsA <- lapply(ids, function(x) {
+                gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+                t(gmmi) %*% solve(emat) %*% gmmi
+            })
+            olsA <- Reduce("+", olsA)
+
+            olsB <- lapply(ids, function(x) {
+                gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+                yvec <- yMat[as.integer(rownames(errors)) == x]
+                t(gmmi) %*% solve(emat) %*% yvec
+            })
+            olsB <- Reduce("+", olsB)
+
+            thetaNew <- solve(olsA) %*% olsB
+        }
+
+        ## thetaNew <- solve(t(gmmMat) %*% Z %*% solve(emat)
+        ##                   %*% t(Z) %*% gmmMat) %*%
+        ##     t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% yMat
 
         print("Theta")
         print(thetaNew)
 
-        print("Fitted Y values")
-        fitted <- gmmMat %*% thetaNew
+        ## thetaAT <- solve(t(gmmMat) %*% gmmMat) %*% t(gmmMat) %*% yMat
+        ## print("Theta AT--this will be used")
+        ## print(thetaAT)
+        ## thetaNew <- thetaAT
+
+        ## print("Fitted Y values")
+        ## fitted <- gmmMat %*% thetaNew
         ## fitted <- fitted[c((seq(1:10) * 3 - 2), (seq(1:10) * 3 - 1), (seq(1:10) * 3)), ]
-        
+
         ## fitted <- cbind(sort(as.numeric(unique(rownames(fitted)))), seq(1, 3), fitted)
         ## colnames(fitted) <- c("ids", "s", "fitted")
         ## print(fitted[order(fitted[, 2], fitted[, 1]), ])
-        print(fitted)
+        ## print(fitted)
 
-        print("Observed Y values")
-        print(yMat)
-       
+        ## print("Observed Y values")
+        ## print(yMat)
+
         errors <- yMat - gmmMat %*% thetaNew
 
-        emattest <- lapply(ids, function(x) {
-            evec <- (errors[as.integer(rownames(errors)) == x])
-            evec
-        })
-        emattest <- Reduce("rbind", emattest)
-        print("Stacked error vectors (each row is an observation)")
-        print(emattest)
-        print(qr(emattest)$rank)
+        ## emattest <- lapply(ids, function(x) {
+        ##     evec <- (errors[as.integer(rownames(errors)) == x])
+        ##     evec
+        ## })
+        ## emattest <- Reduce("rbind", emattest)
+        ## print("Stacked error vectors (each row is an observation)")
+        ## print(emattest)
+        ## print(qr(emattest)$rank)
         ## print(mean(emattest[1:5, ]))
         ## print(mean(emattest[6:10, ]))
-        
+
         emat <- lapply(ids, function(x) {
             evec <- (errors[as.integer(rownames(errors)) == x])
             evec %*% t(evec)
         })
+        emat <- Reduce("+", emat) / N
 
-        emat <- Reduce("+", emat)
+        print("emat inverse")
+        print(solve(emat))
 
         ## print("dimension and rank of emat")
         ## print(dim(emat))
@@ -2193,25 +2219,72 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
         theta <- thetaNew
     }
-    
-    avar <- solve(t(gmmMat) %*% Z %*% solve(emat) %*% t(Z) %*% gmmMat)
 
     ## print("first avar")
     ## print(avar)
-    
-    ## TESTING ------------------------ Use alternative GMM SE formula
+
+    ## TESTING ------------------------
+    ## Use alternative GMM SE formula
     ## when we do not construct the optimal weighting matrix
+
     if (itermax == 1) {
-        avar2 <- solve(t(gmmMat) %*% Z %*% t(Z) %*% gmmMat) %*%
-            t(gmmMat) %*% Z %*% emat %*% t(Z) %*% gmmMat %*%
-            solve(t(gmmMat) %*% Z %*% t(Z) %*% gmmMat)
-        
+
+        ## avar <- solve(t(gmmMat) %*% Z %*% t(Z) %*% gmmMat) %*%
+        ##     t(gmmMat) %*% Z %*% emat %*% t(Z) %*% gmmMat %*%
+        ##     solve(t(gmmMat) %*% Z %*% t(Z) %*% gmmMat)
+
+        ## Homoskedastic
+        ## emat <- emat / N
+        ## seMeat <- lapply(ids, function(x) {
+        ##     gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+        ##     t(gmmi) %*% emat %*% gmmi
+        ## })
+        ## seMeat <- Reduce("+", seMeat)
+
+        ## print("AT style avar")
+        ## avar <- solve(t(gmmMat) %*%  gmmMat) %*%
+        ##     seMeat %*%
+        ##     solve(t(gmmMat) %*% gmmMat)
+        ## print(avar)
+
+        ## Heteroskedastic
+        seMeat <- lapply(ids, function(x) {
+            gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+            evec <- errors[as.integer(rownames(errors)) == x]
+            t(gmmi) %*% evec %*% t(evec) %*% gmmi
+        })
+        seMeat <- Reduce("+", seMeat)
+
+        ## print("AT style avar")
+        avar <- solve(t(gmmMat) %*%  gmmMat) %*%
+            seMeat %*%
+            solve(t(gmmMat) %*% gmmMat)
+        ## print(avar)
+
         ## print("difference in avar")
         ## print(avar - avar2)
+        ## avar <- avar2
+    } else {
+        seMeat <- lapply(ids, function(x) {
+            gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+            evec <- errors[as.integer(rownames(errors)) == x]
+            t(gmmi) %*% solve(emat) %*% evec %*%
+                t(evec) %*% solve(emat) %*% gmmi
+        })
+        seMeat <- Reduce("+", seMeat)
 
-        avar <- avar2
+        seBread <- lapply(ids, function(x) {
+            gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+            t(gmmi) %*% solve(emat) %*% gmmi
+        })
+        seBread <- Reduce("+", seBread)
+
+        avar <- solve(seBread) %*% seMeat %*% solve(seBread)
+        print('emat')
+        print(emat)
+        print("Avar")
+        print(avar)
     }
-    
     ## print("gmmSum")
     ## print(t(Z) %*% gmmMat / N)
 
@@ -2222,7 +2295,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     ## exception of the error matrix...
 
     ## print("regresion attempt")
-    
+
     ## muy <- t(Z) %*% yMat / N
     ## mux <- t(Z) %*% gmmMat / N
 
@@ -2233,7 +2306,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     ## print("the averaged data")
     ## print(tdata)
-    
+
     ## THIS IS A TEST WITH TH EREGRESSION
     ## theta <- matrix(summary(lm(y ~ 0 + ., data = tdata))$coef[, 1], ncol = 1)
 
@@ -2241,9 +2314,9 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     ## print(theta)
     ## The variance of the errors are exploding... this shouldn't be.
 
-    
+
     ## END TESTING---------------------
-    
+
     ## Construct point estimate and CI of TE
     if (ate == TRUE) {
 
@@ -2254,13 +2327,13 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         rownames(avar) <- nameVec
         colnames(avar) <- nameVec
 
-        print("gamma vec")
-        print(c(colMeans(gstar0), colMeans(gstar1)))
-        print("Theta")
-        print(theta)
-        print("avar")
-        print(avar / N)
-              
+        ## print("gamma vec")
+        ## print(c(colMeans(gstar0), colMeans(gstar1)))
+        ## print("Theta")
+        ## print(theta)
+        ## print("avar")
+        ## print(avar)
+
         te <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
         se <- sqrt(t(c(colMeans(gstar0), colMeans(gstar1))) %*%
                    avar %*%
