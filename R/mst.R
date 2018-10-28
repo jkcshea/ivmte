@@ -1445,6 +1445,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
 
+        testmat0 <- NULL
+        testmat1 <- NULL
+        
         ## loop across IV specifications
         for (i in 1:length(ivlike)) {
 
@@ -1466,6 +1469,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                 treat = treat,
                                 list = TRUE)
 
+            testmat0 <- cbind(testmat0, sest$sw0)
+            testmat1 <- cbind(testmat1, sest$sw1)
+            
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands
             subset_index <- rownames(sdata)
@@ -1504,6 +1510,18 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             sset <- setobj$sset
             scount <- setobj$scount
         }
+        ## print("testmat0")
+        ## print(testmat0)
+        ## print("testmat0 rank")
+        ## print(qr(testmat0)$rank)
+        ## print("testmat0 rref")
+        ## print(pracma::rref(testmat0))
+        ## print("testmat1")
+        ## print(testmat1)
+        ## print("testmat1 rank")
+        ## print(qr(testmat1)$rank)
+        ## print("testmat1 rref")
+        ## print(pracma::rref(testmat1))
     } else {
         stop(gsub("\\s+", " ",
                   "'ivlike' argument must either be a formula or a vector of
@@ -1605,7 +1623,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         if (hasArg(target)) {
             if (target == "ate") ateSwitch = TRUE
         }
-
+        
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
@@ -1909,9 +1927,11 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #' @param obsComp1 vector of observable variables. This is the
 #'     observable component of each term in m1.
 #' @param uexp0 vector of exponential on unobservable term in m0. The
-#'     values only apply to non-spline terms, though.
+#'     values only apply to non-spline terms, though. All spline terms
+#'     are assigned a value of -1.
 #' @param uexp1 vector of exponential on unobservable term in m1. The
-#'     values only apply to non-spline terms, though.
+#'     values only apply to non-spline terms, though. All spline terms
+#'     are assigned a value of -1.
 #' @param commonM1Terms character, vector of variable names of m1 that
 #'     are also included in m0. Depending on the target parameter
 #'     weight, the error in estimating the target wight of these
@@ -1979,18 +1999,17 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     ids <- unique(gmmMat[, 1])
     gmmCompN <- ncol(gmmMat) - 2
 
-    print("Remember to put this warning back in")
-    ## if (gmmCompN > length(sset)) {
-    ##     stop(gsub("\\s+", " ",
-    ##               paste0("System is underidentified: excluding
-    ##                      target moments, there are ",
-    ##                      gmmCompN,
-    ##                      " unknown parameters/MTR coefficients and ",
-    ##                      length(sset),
-    ##                      " moment conditions (defined by IV-like
-    ##                      specifications). Either expand the number of
-    ##                      IV-like specifications, or modify m0 and m1.")))
-    ## }
+    if (gmmCompN > length(sset)) {
+        stop(gsub("\\s+", " ",
+                  paste0("System is underidentified: excluding
+                         target moments, there are ",
+                         gmmCompN,
+                         " unknown parameters/MTR coefficients and ",
+                         length(sset),
+                         " moment conditions (defined by IV-like
+                         specifications). Either expand the number of
+                         IV-like specifications, or modify m0 and m1.")))
+    }
 
     ## Account for case where point.target = TRUE
     if (ate == FALSE) {
@@ -2004,7 +2023,11 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         if (negate == TRUE) {
 
             corresponding1 <- rep(0, length(uexp1))
+            ## Length of `corresponding1' is equal to number of terms
+            ## in m1. Each entry will contain the position of the
+            ## corresponding term in m0.
 
+            ## First address common non-spline terms
             if ((sum(uexp0 >= 0) > 0) & (sum(uexp1 >= 0))) {
                 m1keep <- rep(1, sum(uexp1 >= 0))
 
@@ -2019,6 +2042,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
                 }
             }
 
+            ## Now address common spline terms
             if (length(commonM1STerms) > 0) {
                 dropSpline0 <- lapply(seq(1:length(commonM1STerms)),
                                      function(x) {
@@ -2102,13 +2126,14 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     gmmMat <- gmmMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
-
+   
     ## Perform iterative estimation
-    print("remember to undo iterative estimation")
     theta <- rep(0, ncol(gmmMat))
     i <- 1
     diff <- Inf
 
+    ## itermax is capped at 2, although it can be increased to
+    ## correspond to iterated FGLS
     while (i <= itermax & diff > tol) {
 
         if (i == 1) {
@@ -2116,49 +2141,48 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         } else {
             olsA <- lapply(ids, function(x) {
                 gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
-                t(gmmi) %*% solve(emat) %*% gmmi
+                t(gmmi) %*% ematInv %*% gmmi
             })
             olsA <- Reduce("+", olsA)
 
             olsB <- lapply(ids, function(x) {
                 gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
                 yvec <- yMat[as.integer(rownames(errors)) == x]
-                t(gmmi) %*% solve(emat) %*% yvec
+                t(gmmi) %*% ematInv %*% yvec
             })
             olsB <- Reduce("+", olsB)
 
             thetaNew <- solve(olsA) %*% olsB
         }
 
-        print("Theta estimate")
-        print(thetaNew)
-
         errors <- yMat - gmmMat %*% thetaNew
-
-        if (i == 1) {
+        
+        if (i <= (itermax - 1)) {
             emat <- lapply(ids, function(x) {
-                evec <- (errors[as.integer(rownames(errors)) == x])
+                evec <- errors[as.integer(rownames(errors)) == x]
+                evec <- round(evec, 8)
                 evec %*% t(evec)
             })
             emat <- Reduce("+", emat) / N
-        }
+            emat <- (emat + t(emat)) / 2
 
-        ## Check invertability of emat
-        ## print("errors")
-        ## print(matrix(errors, nrow = 3))
-        print("emat")
-        print(emat)
-        print("emat row reduce")
-        print(pracma::rref(emat))
-        print("emat inverse")
-        print(solve(emat))
+            ## print("this is emat")
+            ## print(emat)
+            ## print(qr(emat)$rank)
+            ## print(all(eigen(emat)$eigenvalues > 0))
+            ## print(pracma::rref(emat))
+            ## stop('end of test')
+            
+            ematInv <- solve(emat, tol = 1e-20)
+            ematInv <- (ematInv + t(ematInv)) / 2
+        }
 
         diff <- sqrt(sum((thetaNew - theta) ^ 2))
         i <- i + 1
 
         theta <- thetaNew
     }
-
+  
     if (itermax == 1) {
         
         seMeat <- lapply(ids, function(x) {
@@ -2168,41 +2192,29 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         })
         seMeat <- Reduce("+", seMeat)
 
-
-        print("checking if seMeat is invertible")
-        print(solve(seMeat))
-        
-
         avar <- solve(t(gmmMat) %*%  gmmMat) %*%
             seMeat %*%
             solve(t(gmmMat) %*% gmmMat)
 
-    } else {
-        
+    } else {        
         seMeat <- lapply(ids, function(x) {
             gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
-            evec <- errors[as.integer(rownames(errors)) == x]
-            t(gmmi) %*% solve(emat) %*% evec %*%
-                t(evec) %*% solve(emat) %*% gmmi
+            evec <- errors[as.integer(rownames(errors)) == x]            
+
+            bmat <- t(gmmi) %*% ematInv %*% evec
+            bmat %*% t(bmat)
+            
         })
-        seMeat <- Reduce("+", seMeat)
-
-        print("seMeat")
-        print(seMeat)
-
+        seMeat <- Reduce("+", seMeat)      
+       
         seBread <- lapply(ids, function(x) {
             gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
-            t(gmmi) %*% solve(emat) %*% gmmi
+            t(gmmi) %*% ematInv %*% gmmi
+
         })
         seBread <- Reduce("+", seBread)
-
-        print("seBread")
-        print(seBread)
-        
+      
         avar <- solve(seBread) %*% seMeat %*% solve(seBread)
-
-        print("avar")
-        print(avar)
     }
 
     ## Construct point estimate and CI of TE
@@ -2230,7 +2242,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         if (sum(keepTerms1) > 0) {
             nameVec <- c(nameVec, paste0("gm1.", colnames(gstar1)[keepTerms1]))
         }
-
+      
         rownames(theta) <- nameVec
         rownames(avar) <- nameVec
         colnames(avar) <- nameVec
@@ -2279,6 +2291,13 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         theta0dg <- theta0dg - theta0dgtmp
         theta1dg <- thetaPar1[keepTerms1]
 
+        ## print("theta vector")
+        ## print(round(c(thetaPar0, thetaPar1), 2))
+        ## print("gamma vector")
+        ## print(round(c(gamma0, gamma1), 2))
+        ## print("gradient")
+        ## print(round(c(gamma0, gamma1, theta0dg, theta1dg), 2))
+        
         te <- sum(c(thetaPar0, thetaPar1) * c(gamma0, gamma1))
         grad <- c(gamma0, gamma1, theta0dg, theta1dg)
         se <- sqrt(t(grad) %*% avar %*% grad)
