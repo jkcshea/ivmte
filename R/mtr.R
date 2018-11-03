@@ -347,7 +347,7 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
 
     monoeval <- t(mapply(polylisteval, integrals, ub)) -
         t(mapply(polylisteval, integrals, lb))
-
+    
     termsN <- length(integrals[[1]])
     if (termsN == 1) monoeval <- t(monoeval)
 

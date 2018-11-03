@@ -76,15 +76,21 @@ propensity.mst <- function(formula, data, link = "linear", late.Z,
             stop('Provided propensity scores are not between 0 and 1.')
         }
         model <- NULL
-        if (hasArg(late.Z)) {
+        if (hasArg(late.Z)) {            
             ## Generate a matrix of propensity scores corresponding to
             ## each X and Z---this only works if the X and Z are
             ## declared for the LATE variables.
-            late.Z <- restring(substitute(late.Z), substitute = FALSE)
-
+            zIsVec <- substr(deparse(substitute(late.Z)), 1, 2) == "c("
+            if (zIsVec) {
+                late.Z <- restring(substitute(late.Z), substitute = FALSE)
+            } else {
+                late.Z <- deparse(substitute(late.Z))
+            }
+            
             if(hasArg(late.X))  late.X <- restring(substitute(late.X),
                                                    substitute = FALSE)
             if(!hasArg(late.X)) late.X <- NULL
+            
             model <- unique(data[, c(late.X, late.Z, fname)])
 
             ## There should be no duplicate (X, Z)s in the model

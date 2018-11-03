@@ -104,7 +104,13 @@ wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
     ## Determine the type of model we are working with (data.frame
     ## vs. glm)
     modclass <- class(model)[1]
-    strinst  <- restring(Z, substitute = FALSE)
+
+    zIsVec <- substr(deparse(Z), 1, 2) == "c("
+    if (zIsVec) {
+        strinst <- restring(Z, substitute = FALSE)
+    } else {
+        strinst <- deparse(Z)
+    }
     strcovar <- NULL
 
     if (!is.null(X)) {
@@ -112,21 +118,26 @@ wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
         data[, strcovar] <- t(replicate(nrow(data), eval.X))
     }
 
-
     ## Predict propensity scores using lm and glm models
-    data[, strinst]  <- t(replicate(nrow(data), from))
+    if (length(strinst) == 1) {
+        data[, strinst] <- replicate(nrow(data), from)
+        data[, strinst] <- replicate(nrow(data), to)
+    } else {
+        data[, strinst] <- t(replicate(nrow(data), from))
+        data[, strinst] <- t(replicate(nrow(data), to))
+    }
+
     if (modclass ==  "lm") {
         bfrom <- predict.lm(model, data)
+    }
+
+    if (modclass ==  "lm") {
+        bto   <- predict.lm(model, data)
     }
 
     if (modclass == "glm") {
         bfrom <- predict.glm(model, data,
                              type = "response")
-    }
-
-    data[, strinst]  <- t(replicate(nrow(data), to))
-    if (modclass ==  "lm") {
-        bto   <- predict.lm(model, data)
     }
 
     if (modclass == "glm") {
@@ -136,6 +147,7 @@ wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
 
     ## Predict propensity scores using data.frame model
     if (modclass == "data.frame") {
+
         cond_from <- mapply(function(a, b) paste(a, "==", b), strinst, from)
         cond_from <- paste(cond_from, collapse = " & ")
 
@@ -277,7 +289,7 @@ negationCheck <- function(data, target.knots0, target.knots1,
                     negation <- FALSE
                     break
                 }
-                
+
                 ## If knots arguments are the same, check
                 ## if knot values are the same
                 if (!setequal(formalArgs(target.knots0[[i]]), "...")) {
@@ -285,12 +297,12 @@ negationCheck <- function(data, target.knots0, target.knots1,
                     tdata <- unique(data[, wKnotVars])
                     if (is.null(dim(tdata))) {
                         tdata <- matrix(tdata, ncol = length(wValVars))
-                    }                            
+                    }
                     kNCheck <- min(N, nrow(tdata))
                     kNSample <- sample(x = seq(1, nrow(tdata)),
                                        size = kNCheck,
                                        replace = FALSE)
-                    
+
                     kNEval0 <- unlist(
                         lapply(X = split(tdata[kNSample, ],
                                          seq(1, kNCheck)),
@@ -332,7 +344,7 @@ negationCheck <- function(data, target.knots0, target.knots1,
                 if (is.null(dim(tdata))) {
                     tdata <- matrix(tdata, ncol = length(wValVars))
                 }
-                
+
                 kNCheck <- min(20, nrow(tdata))
                 kNSample <- sample(x = seq(1, nrow(tdata)),
                                    size = kNCheck,

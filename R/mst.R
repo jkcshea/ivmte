@@ -993,7 +993,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                         formula = substitute(propensity)))
     }
     pmodel <- eval(pcall)
-
+    
     ##---------------------------
     ## 3. Generate target moments/gamma terms
     ##---------------------------
@@ -1057,7 +1057,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         } else {
             stop("Unrecognized target parameter.")
         }
-
+        
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
             if (noisy == TRUE) {
@@ -1095,6 +1095,11 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             pm1 <- NULL
         }
 
+        ## print("w0")
+        ## print(w0)
+        ## print("w1")
+        ## print(w1)
+        
         if (point == FALSE) {
             gstarSplineObj0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                                 data = cdata,
@@ -2118,6 +2123,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
                         gstar1[x, keepTerms1])
 
             Y <- rbind(Y1, Y2, Y3)
+          
             rownames(Y) <- as.character(rep(x, nrow(Y)))
             Y
         })
@@ -2126,19 +2132,37 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     gmmMat <- gmmMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
-   
+
+    ## TESTING ---------
+
+    ## gmmSupport <- cbind(gstar0, gstar1[, keepTerms1])
+    ## nGmmError <- nrow(unique(gmmSupport)) - 1
+    ## nGamma <- ncol(gstar0) + sum(keepTerms1 == 1)
+
+    ## if (nGamma > nGmmError) {
+    ##     stop("collinearity problems")
+    ## }
+
+    ## stop("end of test")
+    
+    ## END TESTING ----
+      
     ## Perform iterative estimation
     theta <- rep(0, ncol(gmmMat))
     i <- 1
     diff <- Inf
 
+    if (itermax > 2) warning("Itermax is capped at 2.")
+    
     ## itermax is capped at 2, although it can be increased to
     ## correspond to iterated FGLS
-    while (i <= itermax & diff > tol) {
+    while (i <= itermax & i <= 2 & diff > tol) {
 
         if (i == 1) {
             thetaNew <- solve(t(gmmMat) %*% gmmMat) %*% t(gmmMat) %*% yMat
         } else {
+            print("I AM HERE")
+            
             olsA <- lapply(ids, function(x) {
                 gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
                 t(gmmi) %*% ematInv %*% gmmi
@@ -2165,13 +2189,6 @@ gmmEstimate <- function(sset, gstar0, gstar1,
             })
             emat <- Reduce("+", emat) / N
             emat <- (emat + t(emat)) / 2
-
-            ## print("this is emat")
-            ## print(emat)
-            ## print(qr(emat)$rank)
-            ## print(all(eigen(emat)$eigenvalues > 0))
-            ## print(pracma::rref(emat))
-            ## stop('end of test')
             
             ematInv <- solve(emat, tol = 1e-20)
             ematInv <- (ematInv + t(ematInv)) / 2
@@ -2182,12 +2199,15 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
         theta <- thetaNew
     }
-  
+   
     if (itermax == 1) {
         
         seMeat <- lapply(ids, function(x) {
             gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
             evec <- errors[as.integer(rownames(errors)) == x]
+            ## evec <- round(evec, 8)
+            ## bmat <- t(gmmi) %*% evec
+            ## bmat %*% t(bmat)
             t(gmmi) %*% evec %*% t(evec) %*% gmmi
         })
         seMeat <- Reduce("+", seMeat)
@@ -2196,11 +2216,14 @@ gmmEstimate <- function(sset, gstar0, gstar1,
             seMeat %*%
             solve(t(gmmMat) %*% gmmMat)
 
-    } else {        
+    } else {
+
+        print("I AM HERE ALOS")
         seMeat <- lapply(ids, function(x) {
             gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
-            evec <- errors[as.integer(rownames(errors)) == x]            
-
+            evec <- errors[as.integer(rownames(errors)) == x]
+            evec <- round(evec, 8)
+            
             bmat <- t(gmmi) %*% ematInv %*% evec
             bmat %*% t(bmat)
             
@@ -2213,8 +2236,13 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
         })
         seBread <- Reduce("+", seBread)
-      
+
+        ## breadInv <- solve(seBread)
+        ## breadInv <- (breadInv + t(breadInv)) / 2
+       
         avar <- solve(seBread) %*% seMeat %*% solve(seBread)
+        ## avar  <- breadInv %*% seMeat %*% breadInv
+        
     }
 
     ## Construct point estimate and CI of TE
@@ -2253,6 +2281,8 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
         ## Construct gradient vector
         thetaPar  <- theta[1:(gs0len + gs1len)]
+
+        ## Negate appropriate gamma terms in the gradient
         gamma0    <- theta[((gs0len + gs1len) + 1) : (2 * gs0len + gs1len)]
         if (gs1lenSub > 0) {
             gamma1sub <- theta[(length(theta) - gs1lenSub + 1) : length(theta)]
@@ -2271,6 +2301,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
                 -gamma0[corresponding1[corresponding1 != 0]]
         }
 
+        ## Take difference of appropriate parameter estimates in the gradient
         thetaPar0 <- thetaPar[1:ncol(gstar0)]
         thetaPar1 <- thetaPar[(ncol(gstar0) + 1) : length(thetaPar)]
 
@@ -2291,16 +2322,40 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         theta0dg <- theta0dg - theta0dgtmp
         theta1dg <- thetaPar1[keepTerms1]
 
-        ## print("theta vector")
-        ## print(round(c(thetaPar0, thetaPar1), 2))
-        ## print("gamma vector")
-        ## print(round(c(gamma0, gamma1), 2))
-        ## print("gradient")
-        ## print(round(c(gamma0, gamma1, theta0dg, theta1dg), 2))
+        print("full theta")
+        print(theta)
+        print("gstar gamma means")
+        print(c(colMeans(gstar0), colMeans(gstar1)))
         
-        te <- sum(c(thetaPar0, thetaPar1) * c(gamma0, gamma1))
+        print("names vec")
+        print(nameVec)
+        print("theta vector")
+        print(round(c(thetaPar0, thetaPar1), 2))
+        print("gamma vector")
+        print(round(c(gamma0, gamma1), 2))
+        print("gradient")
+        print(round(c(gamma0, gamma1, theta0dg, theta1dg), 2))
+        
+        ## te <- sum(c(thetaPar0, thetaPar1) *
+        ##           c(colMeans(gstar0), colMeans(gstar1)))
+        te <- sum(c(theta0dg, theta1dg) * c(gamma0, gamma1sub))
         grad <- c(gamma0, gamma1, theta0dg, theta1dg)
         se <- sqrt(t(grad) %*% avar %*% grad)
+
+        ## TESTING ---------------
+        ## te <- sum(theta)
+        ## se <- sqrt(t(rep(1, nrow(avar))) %*% avar %*% rep(1, nrow(avar)))
+        ## print("this is avar")
+        ## print(avar)
+        ## print("this is avar RREF")
+        ## print(pracma::rref(avar))
+        ## print("this is avar's rank")
+        ## print(qr(avar)$rank)
+        ## print(pracma::Rank(avar))
+        ## print("a var positive definie")
+        ## print(all(round(eigen(avar)$values, 10) >= 0))
+        ## print(eigen(avar)$values)             
+        ## END TESTING -----------
     }
 
     ci90 <- c(te - qnorm(0.95) * se, te + qnorm(0.95) * se)
