@@ -345,7 +345,7 @@ polyProduct <- function(poly1, poly2) {
 #' @export
 gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
                          subset = NULL, means = TRUE) {
-
+   
     exporder  <- monomials$exporder
     integrals <- monomials$ilist
 
@@ -378,6 +378,7 @@ gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
                       FUN = "*")
 
     if (means) {
+        
         if (is.matrix(preGamma)) {
             gstar <- colMeans(preGamma)
         } else {

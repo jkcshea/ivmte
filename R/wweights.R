@@ -118,26 +118,31 @@ wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
         data[, strcovar] <- t(replicate(nrow(data), eval.X))
     }
 
-    ## Predict propensity scores using lm and glm models
+    ## Predict propensity scores for 'from' case
     if (length(strinst) == 1) {
         data[, strinst] <- replicate(nrow(data), from)
-        data[, strinst] <- replicate(nrow(data), to)
     } else {
         data[, strinst] <- t(replicate(nrow(data), from))
-        data[, strinst] <- t(replicate(nrow(data), to))
     }
 
     if (modclass ==  "lm") {
         bfrom <- predict.lm(model, data)
     }
 
-    if (modclass ==  "lm") {
-        bto   <- predict.lm(model, data)
-    }
-
     if (modclass == "glm") {
         bfrom <- predict.glm(model, data,
                              type = "response")
+    }
+
+    ## Predict propensity scores for 'from' case
+    if (length(strinst) == 1) {
+        data[, strinst] <- replicate(nrow(data), to)
+    } else {
+        data[, strinst] <- t(replicate(nrow(data), to))
+    }
+
+    if (modclass ==  "lm") {
+        bto   <- predict.lm(model, data)
     }
 
     if (modclass == "glm") {

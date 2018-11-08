@@ -981,7 +981,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 
     data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
     ## Adjust row names to handle bootstrapping
-    rownames(data) <- as.character(seq(1, nrow(data)))
+    rownames(data) <- as.character(seq(1, nrow(data)))   
     cdata <- data
 
     ##---------------------------
@@ -1110,11 +1110,6 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             gstar1 <- NULL
             pm1 <- NULL
         }
-
-        ## print("w0")
-        ## print(w0)
-        ## print("w1")
-        ## print(w1)
         
         if (point == FALSE) {
             gstarSplineObj0 <- genGammaSplines.mst(splines = splinesobj[[1]],
@@ -1540,112 +1535,13 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
 
-        if (hasArg(target)) {
-            if (!target %in% c("ate", "genlate")) {
-                if (class_formula(propensity)) {
-                    warning(gsub("\\s+", " ",
-                                 "Asymptotic standard error estimates do not account
-                             for estimation of propensity scores. Consider
-                             estimating standard errors via bootstrap."),
-                            call. = FALSE)
-                }
-            }
-        } else {
-            if (class_formula(propensity)) {
-                warning(gsub("\\s+", " ",
-                             "Asymptotic standard error estimates do not account
-                             for estimation of propensity scores. Consider
-                             estimating standard errors via bootstrap."),
-                        call. = FALSE)
-            }
-        }
-
-        ## FIX: is it better to move all of this down into gmmEstimate?
-        ## Check if weights are negations
-        commonM1Terms <- NULL
-        commonM1Splines <- NULL
-        commonM1STerms <- list()
-
-        if (hasArg(target)) {
-            negation <- TRUE
-        } else {
-            negation <- negationCheck(cdata, target.knots0, target.knots1,
-                                      target.weight0, target.weight1)
-        }
-
-        if (negation == TRUE) {
-            ## Check if there are common non-spline terms across the MTRs
-            nsterms0 <- attr(terms(splinesobj[[1]]$formula), "term.labels")
-            if (attr(terms(splinesobj[[1]]$formula), "intercept") == 1) {
-                nsterms0 <- c("(Intercept)", nsterms0)
-            }
-            nsterms1 <- attr(terms(splinesobj[[2]]$formula), "term.labels")
-            if (attr(terms(splinesobj[[2]]$formula), "intercept") == 1) {
-                nsterms1 <- c("(Intercept)", nsterms1)
-            }
-            cpos <- sapply(nsterms1, function(x) x %in% nsterms0)
-            commonM1Terms <- nsterms1[cpos]
-
-            ## Check if there are common splines across the MTRs
-            if (length(splinesobj[[1]]$splinesdict) > 0 &
-                length(splinesobj[[2]]$splinesdict) > 0) {
-                for (i in 1:length(splinesobj[[2]]$splinesdict)) {
-                    for (j in 1:length(splinesobj[[1]]$splinesdict)) {
-                        common <-
-                            (all.equal(splinesobj[[2]]$splinesdict[[i]]$knots,
-                                   splinesobj[[1]]$splinesdict[[j]]$knots,) ==
-                             TRUE) &
-                            (splinesobj[[2]]$splinesdict[[i]]$intercept ==
-                             splinesobj[[1]]$splinesdict[[j]]$intercept) &
-                            (splinesobj[[2]]$splinesdict[[i]]$degree ==
-                             splinesobj[[1]]$splinesdict[[j]]$degree)
-                        if (common) commonM1Splines <-
-                                        rbind(commonM1Splines, c(i, j))
-                    }
-                }
-            }
-
-            if (!is.null(commonM1Splines)) {
-                colnames(commonM1Splines) <- c("m1", "m0")
-            }
-
-            ## Check if there are common interactions with common splines
-            if (!is.null(commonM1Splines)) {
-                for (i in 1:nrow(commonM1Splines)) {
-                    j <- commonM1Splines[i, 1]
-                    k <- commonM1Splines[i, 2]
-
-                    cpos <- sapply(unlist(splinesobj[[2]]$splineslist[j]),
-                                   function(x) {
-                                   x %in% unlist(splinesobj[[1]]$splineslist[k])
-                                   })
-                    if (sum(cpos) > 0) {
-                        tmpObj <- unlist(splinesobj[[2]]$splineslist[j])[cpos]
-                        names(tmpObj) <- NULL
-                        commonM1STerms[[i]] <- tmpObj
-                    }
-                }
-            }
-        }
         ## Obtain GMM estimate
-        ateSwitch = FALSE
-        if (hasArg(target)) {
-            if (target == "ate") ateSwitch = TRUE
-        }
         
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
                                  itermax = point.itermax,
                                  tol = point.tol,
-                                 obsComp0 = xindex0,
-                                 obsComp1 = xindex1,
-                                 uexp0 = uexporder0,
-                                 uexp1 = uexporder1,
-                                 commonM1Terms = commonM1Terms,
-                                 commonM1STerms = commonM1STerms,
-                                 ate = ateSwitch,
-                                 negate = negation,
                                  noisy = noisy)
 
         return(list(sset  = sset,
@@ -1653,11 +1549,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                  g1 = gstar1),
                     propensity = pmodel,
                     te = gmmResult$te,
-                    se = gmmResult$se,
-                    ci90 = gmmResult$ci90,
-                    ci95 = gmmResult$ci95,
-                    mtr.coef = gmmResult$coef,
-                    mtr.vcov = gmmResult$vcov))
+                    mtr.coef = gmmResult$coef))
     }
 
     ##---------------------------
@@ -1722,6 +1614,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 
     audit <- eval(audit_call)
 
+    ## stop("end of test")
+
     ## If there are no shape restrictions and bounds are very tight,
     ## apply point identification method
     if (abs(audit$max - audit$min) < point.tol & noshape == TRUE) {
@@ -1736,14 +1630,6 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                  gstar1 = gstar1,
                                  itermax = point.itermax,
                                  tol = point.tol,
-                                 obsComp0 = xindex0,
-                                 obsComp1 = xindex1,
-                                 uexp0 = uexporder0,
-                                 uexp1 = uexporder1,
-                                 commonM1Terms = commonM1Terms,
-                                 commonM1STerms = commonM1STerms,
-                                 ate = ateSwitch,
-                                 negate = negation,
                                  noisy = noisy)
 
         return(list(sset  = sset,
@@ -1876,9 +1762,6 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
             gs1 <- NULL
         }
 
-        ## print("This is the subset index!")
-        ## print(subset_index)
-
         if (means == TRUE) {
             gsSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                              data = data,
@@ -1928,35 +1811,13 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
             } else {
                 newsubset <- seq(1, nrow(data))
             }
-
-            ## print("This is the data!")
-            ## print(data)
-
-            ## print(yvar)
-            ## print(dvar)
             
             yvec <- as.vector(data[newsubset, yvar])
             dvec <- as.vector(data[newsubset, dvar])
 
-            ## print("This is the dvec")
-            ## print(dvec)
-            
-            ## print("this is the yvec!")
-            ## print(yvec)
-
-            ## print("This is the weights!")
-            ## print(sest$sw1[, j])
-
-            ## print("This is the weights!")
-            ## print(sest$sw0[, j])
-
             yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] * (1 - dvec))
-            ## print(typeof(yvec))
-            ## print(class(yvec))
-            names(yvec) <- newsubset
             
-            ## print("this is the yvec afterwards!")
-            ## print(yvec)
+            names(yvec) <- newsubset
             
             sset[[paste0("s", scount)]] <- list(beta = sest$beta[j],
                                                 g0 = cbind(gs0, gsSpline0),
@@ -1996,26 +1857,6 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     iterative GMM process. By default this is set to 2 (two-step
 #'     GMM).
 #' @param tol tolerance level for iterative GMM to terminate.
-#' @param obsComp0 vector of observable variables. This is the
-#'     observable component of each term in m0.
-#' @param obsComp1 vector of observable variables. This is the
-#'     observable component of each term in m1.
-#' @param uexp0 vector of exponential on unobservable term in m0. The
-#'     values only apply to non-spline terms, though. All spline terms
-#'     are assigned a value of -1.
-#' @param uexp1 vector of exponential on unobservable term in m1. The
-#'     values only apply to non-spline terms, though. All spline terms
-#'     are assigned a value of -1.
-#' @param commonM1Terms character, vector of variable names of m1 that
-#'     are also included in m0. Depending on the target parameter
-#'     weight, the error in estimating the target wight of these
-#'     variables may need to be excluded from the GMM procedure.
-#' @param commonM1STerms list, each element is a character vector
-#'     corresponding to a spline in m1 also found in m0. The character
-#'     vector stores the variable names that interact with a given
-#'     spline in both m0 and m1. Depending on the target parameter
-#'     weight, the error in estimating the target wight of these
-#'     variables may need to be excluded from the GMM procedure.
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
@@ -2027,11 +1868,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     the variance/covariance matrix of the MTR coefficient
 #'     estimates.
 gmmEstimate <- function(sset, gstar0, gstar1,
-                        itermax = 2, tol = 1e-08, obsComp0, obsComp1,
-                        commonM1Terms, commonM1STerms,
-                        uexp0, uexp1,
-                        ate = FALSE,
-                        negate = TRUE, noisy = TRUE) {
+                        itermax = 2, tol = 1e-08, noisy = TRUE) {
 
     gmmMat <- NULL
     yMat   <- NULL
@@ -2039,11 +1876,6 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     for (s in 1:length(sset)) {
 
         ids <- as.integer(rownames(sset[[s]]$g0))
-
-        ## print(sset[[s]]$g0)
-        ## print(sset[[s]]$g1)
-        ## print(sset[[s]]$ys)
-
         
         gmmAdd <- cbind(ids, s,
                         sset[[s]]$g0,
@@ -2054,12 +1886,6 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         yAdd <- cbind(ids, s, sset[[s]]$ys)
         yMat <- rbind(yMat, yAdd)
     }
-
-    ## print("gmmMat raw---column names should be bootstrap ids...")
-    ## print(head(gmmMat, n = 20))
-    
-    ## print("yMat raw---column names should be bootstrap ids...")
-    ## print(head(yMat, n = 20))
 
     N <- length(ids)
     
@@ -2080,152 +1906,10 @@ gmmEstimate <- function(sset, gstar0, gstar1,
                          specifications). Either expand the number of
                          IV-like specifications, or modify m0 and m1.")))
     }
-  
-    ## Account for case where point.target = TRUE
-    if (ate == FALSE) {
-
-        ## Determine if any terms need to be dropped for the GMM
-        ## procedure to avoid collinearity when accounting for
-        ## estimation error of target weights
-
-        ## Select components to keep when estimating non-ATE target
-        ## parameters whose weights are negations of each other
-        if (negate == TRUE) {
-
-            corresponding1 <- rep(0, length(uexp1))
-            ## Length of `corresponding1' is equal to number of terms
-            ## in m1. Each entry will contain the position of the
-            ## corresponding term in m0.
-            
-            ## First address common non-spline terms
-            if ((sum(uexp0 >= 0) > 0) & (sum(uexp1 >= 0))) {
-                m1keep <- rep(1, sum(uexp1 >= 0))
-                
-                for (i in seq(1, sum(uexp1 >= 0))) {
-                    for (j in seq(1, sum(uexp0 >= 0))) {
-                        if (obsComp1[i] == obsComp0[j] &
-                            uexp1[i] == uexp0[j]) {
-                            m1keep[i] <- 0
-                            corresponding1[i] <- j
-                        }
-                    }
-                }
-            }
-
-            ## Now address common spline terms
-            if (length(commonM1STerms) > 0) {
-                dropSpline0 <- lapply(seq(1:length(commonM1STerms)),
-                                     function(x) {
-                                         if (length(commonM1STerms[[x]]) > 0) {
-                                             return(paste0("u0S", x,
-                                                           "\\.[0-9]:",
-                                                           commonM1STerms[[x]]))
-                                         } else {
-                                             return(NULL)
-                                         }
-                                     })
-
-                dropSpline1 <- lapply(seq(1:length(commonM1STerms)),
-                                     function(x) {
-                                         if (length(commonM1STerms[[x]]) > 0) {
-                                             return(paste0("u1S", x,
-                                                           "\\.[0-9]:",
-                                                           commonM1STerms[[x]]))
-                                         } else {
-                                             return(NULL)
-                                         }
-                                     })
-
-                dropSpline0 <- Reduce("c", dropSpline0)
-                dropSpline1 <- Reduce("c", dropSpline1)
-                dropSpline1 <- sapply(dropSpline1, grepl,
-                                     x = colnames(gstar1))
-
-                for (i in 1:length(dropSpline0)) {
-                    corresponding1[dropSpline1[, i]] <- grep(dropSpline0[i],
-                                                             colnames(gstar0))
-                }
-            }
-
-            keepTerms1 <- as.logical(corresponding1 == 0)
-            gmmExclN <- sum(1 - keepTerms1)
-        }
-
-        ## Select components to keep when estimating non-ATE target
-        ## parameters whose weights are not negations of each other
-        if (negate == FALSE) {
-            keepTerms1 <- rep(1, length(obsComp1))
-            corresponding1 <- rep(0, length(uexp1))
-            gmmExclN <- 0
-        }
-
-        ## Expand GMM mat
-        gmmMat <- lapply(ids, function(x) {
-            M1 <- rbind(gmmMat[gmmMat[, 1] == x, ],
-                        matrix(0,
-                               nrow = (ncol(gmmMat) - 2 - gmmExclN),
-                               ncol = ncol(gmmMat)))
-            M2 <- rbind(matrix(0,
-                               nrow = length(sset),
-                               ncol = (ncol(gmmMat) - 2 - gmmExclN)),
-                        diag(ncol(gmmMat) - 2 - gmmExclN))
-            M <- cbind(M1, M2)
-            rownames(M) <- as.character(rep(x, nrow(M)))
-            M
-        })
-        gmmMat <- Reduce("rbind", gmmMat)
-       
-        ## Expand Y mat
-        yMat <- lapply(ids, function(x) {
-            Y1 <- yMat[yMat[, 1] == x, ]
-            Y2 <- cbind(matrix(0,
-                               nrow = length(gstar0[x, ]),
-                               ncol = 2),
-                        gstar0[x, ])
-            Y3 <- cbind(matrix(0,
-                               nrow = length(gstar1[x, keepTerms1]),
-                               ncol = 2),
-                        gstar1[x, keepTerms1])
-
-            Y <- rbind(Y1, Y2, Y3)
-          
-            rownames(Y) <- as.character(rep(x, nrow(Y)))
-            Y
-        })
-        yMat <- Reduce("rbind", yMat)
-    }
-   
-    ## print(head(gmmMat))
-    ## print(head(yMat, n = 20))
-    ## stop()
-    
+     
     gmmMat <- gmmMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
 
-    ## TESTING -----------
-    ## print(yMat)
-    ylist <- lapply(ids, function(x) {
-        yMat[as.integer(names(yMat)) == x]
-    })
-    ## print("ylist")
-    ## print(ylist)
-    ## END TESTING -------
-
-    
-    ## TESTING ---------
-
-    ## gmmSupport <- cbind(gstar0, gstar1[, keepTerms1])
-    ## nGmmError <- nrow(unique(gmmSupport)) - 1
-    ## nGamma <- ncol(gstar0) + sum(keepTerms1 == 1)
-
-    ## if (nGamma > nGmmError) {
-    ##     stop("collinearity problems")
-    ## }
-
-    ## stop("end of test")
-    
-    ## END TESTING ----
-      
     ## Perform iterative estimation
     theta <- rep(0, ncol(gmmMat))
     i <- 1
@@ -2267,14 +1951,9 @@ gmmEstimate <- function(sset, gstar0, gstar1,
             })
             emat <- Reduce("+", emat) / N
             emat <- (emat + t(emat)) / 2
-            ## ematInv <- solve(emat, tol = 1e-20)
+
             ematInv <- solve(emat)
             ematInv <- (ematInv + t(ematInv)) / 2
-
-            print("This is emat")
-            print(emat)
-            print("this is emat inverse")
-            print(ematInv)
         }
 
         diff <- sqrt(sum((thetaNew - theta) ^ 2))        
@@ -2282,185 +1961,18 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
         i <- i + 1
     }
-   
-    if (itermax == 1) {
-
-        seMeat <- lapply(ids, function(x) {
-
-            gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
-            evec <- errors[as.integer(rownames(errors)) == x]
-            ## evec <- round(evec, 8)
-            bmat <- t(gmmi) %*% evec
-            bmat %*% t(bmat)
-        })        
-        seMeat <- Reduce("+", seMeat)
-        seMeat <- (seMeat + t(seMeat)) / 2
-
-        print("this is seMeat")
-        print(seMeat)
-
-        print("this is seBread preinverse")
-        print(t(gmmMat) %*% gmmMat)
-        print("this is seBread inverse")
-        print(solve(t(gmmMat) %*% gmmMat))
-        
-        avar <- solve(t(gmmMat) %*% gmmMat) %*%
-            seMeat %*%
-            solve(t(gmmMat) %*% gmmMat)
-        avar <- (avar + t(avar)) / 2
-        print("this is avar")
-        print(avar)
-
-    } else {
-        
-        ## ORIGINAL --------------------
-        seMeat <- lapply(ids, function(x) {
-            gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
-            evec <- errors[as.integer(rownames(errors)) == x]
-            ## evec <- round(evec, 8)
-            bmat <- t(gmmi) %*% ematInv %*% evec
-            bmat %*% t(bmat)    
-        })
-        seMeat <- Reduce("+", seMeat)
-        seMeat <- (seMeat + t(seMeat)) / 2
-
-        print("this is seMeat")
-        print(seMeat)
-        
-        seBread <- lapply(ids, function(x) {
-            gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
-            t(gmmi) %*% ematInv %*% gmmi
-
-        })
-        seBread <- Reduce("+", seBread)
-        seBread <- (seBread + t(seBread)) / 2
-
-        print("this is seBread")
-        print(seBread)
-        
-        avar <- solve(seBread) %*% seMeat %*% solve(seBread)
-
-        print("This is avar")
-        print(avar)
-    }
-    
-    ## Construct point estimate and CI of TE
-    if (ate == TRUE) {
-
-        nameVec <- c(paste0("m0.", colnames(gstar0)),
-                     paste0("m1.", colnames(gstar1)))
-
-        rownames(theta) <- nameVec
-        rownames(avar) <- nameVec
-        colnames(avar) <- nameVec
-        
-        te <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
-        se <- sqrt(t(c(colMeans(gstar0), colMeans(gstar1))) %*%
-                   avar %*%
-                   c(colMeans(gstar0), colMeans(gstar1)))
-
-    } else {
-        ## For the case where some components are redundant, we do a
-        ## more involved delta method.
-
-        nameVec <- c(paste0("m0.coef.", colnames(gstar0)),
-                     paste0("m1.coef.", colnames(gstar1)),
-                     paste0("gm0.", colnames(gstar0)))
-        if (sum(keepTerms1) > 0) {
-            nameVec <- c(nameVec, paste0("gm1.", colnames(gstar1)[keepTerms1]))
-        }
       
-        rownames(theta) <- nameVec
-        rownames(avar) <- nameVec
-        colnames(avar) <- nameVec
-
-        gs0len <- length(colnames(gstar0))
-        gs1len <- length(colnames(gstar1))
-        gs1lenSub <- length(colnames(gstar1)[keepTerms1])
-
-        ## Construct gradient vector
-        thetaPar  <- theta[1:(gs0len + gs1len)]
-
-        ## Negate appropriate gamma terms in the gradient
-        gamma0 <- theta[((gs0len + gs1len) + 1) : (2 * gs0len + gs1len)]
-        if (gs1lenSub > 0) {
-            gamma1sub <- theta[(length(theta) - gs1lenSub + 1) : length(theta)]
-        } else {
-            gamma1sub <- NULL
-        }
-
-        gamma1 <- rep(0, length(colnames(gstar1)))
-
-        if (sum(corresponding1 == 0) > 0) {
-            gamma1[corresponding1 == 0] <- gamma1sub
-        }
-
-        if (sum(corresponding1 != 0) > 0) {
-            gamma1[corresponding1 != 0] <-
-                -gamma0[corresponding1[corresponding1 != 0]]
-        }
-
-        ## Take difference of appropriate parameter estimates in the gradient
-        thetaPar0 <- thetaPar[1:ncol(gstar0)]
-        thetaPar1 <- thetaPar[(ncol(gstar0) + 1) : length(thetaPar)]
-
-        theta0dg <- thetaPar0
-        theta0dgtmp <- sapply(seq(1, ncol(gstar1)), function(x) {
-            v <- rep(0, ncol(gstar0))
-            if (corresponding1[x] > 0) {
-                v[corresponding1[x]] <- thetaPar1[x]
-            }
-            v
-        })
-        if (!is.null(dim(theta0dgtmp))) {
-            theta0dgtmp <- rowSums(theta0dgtmp)
-        } else {
-            theta0dgtmp <- sum(theta0dgtmp)
-        }
-
-        theta0dg <- theta0dg - theta0dgtmp
-        theta1dg <- thetaPar1[keepTerms1]
-
-        print("full theta")
-        print(theta)
-        print("gstar gamma means")
-        print(c(colMeans(gstar0), colMeans(gstar1)))
-        
-        ## print("names vec")
-        ## print(nameVec)
-        ## print("theta vector")
-        ## print(round(c(thetaPar0, thetaPar1), 2))
-        ## print("gamma vector")
-        ## print(round(c(gamma0, gamma1), 2))
-        ## print("gradient")
-        ## print(round(c(gamma0, gamma1, theta0dg, theta1dg), 2))
-        
-        ## te <- sum(c(thetaPar0, thetaPar1) *
-        ##           c(colMeans(gstar0), colMeans(gstar1)))
-        te <- sum(c(theta0dg, theta1dg) * c(gamma0, gamma1sub))
-        grad <- c(gamma0, gamma1, theta0dg, theta1dg)
-        se <- sqrt(t(grad) %*% avar %*% grad)
-
-        print("this is the gradient")
-        print(grad)
-    }
-
-    ci90 <- c(te - qnorm(0.95) * se, te + qnorm(0.95) * se)
-    ci95 <- c(te - qnorm(0.975) * se, te + qnorm(0.975) * se)
+    ## Construct point estimate and CI of TE
+    
+    rownames(theta) <- c(paste0("m0.", colnames(gstar0)),
+                         paste0("m1.", colnames(gstar1)))
+    
+    te <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
 
     if (noisy == TRUE) {
         message()
-        message(paste0("Treatment effect (s.e.): ", round(te, 4), " (",
-                       round(se, 4), ")"))
-        message(paste0("90% C.I.: (", round(ci90[1], 4), ", ",
-                       round(ci90[2], 4), ")" ))
-        message(paste0("95% C.I.: (", round(ci95[1], 4), ", ",
-                       round(ci95[2], 4), ")" ))
+        message(paste0("Treatment effect: ", round(te, 4)))
     }
     return(list(te = as.numeric(te),
-                se = as.numeric(se),
-                ci90 = ci90,
-                ci95 = ci95,
-                coef = theta,
-                vcov = avar))
+                coef = theta))
 }
