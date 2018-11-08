@@ -106,15 +106,15 @@
 #'     value of 0 corresponds to no violation of observational
 #'     equivalence, and the assumption that the model is correctly
 #'     specified.
-#' @param grid.Nu number of evenly spread points in the interval [0,
+#' @param grid.nu number of evenly spread points in the interval [0,
 #'     1] of the unobservable u used to form the grid for imposing
 #'     shape restrictions on the MTRs.
-#' @param grid.Nx number of evenly spread points of the covariates to
+#' @param grid.nx number of evenly spread points of the covariates to
 #'     use to form the grid for imposing shape restrictions on the
 #'     MTRs.
-#' @param audit.Nx number of points on the covariates space to audit
+#' @param audit.nx number of points on the covariates space to audit
 #'     in each iteration of the audit procedure.
-#' @param audit.Nu number of points in the interval [0, 1],
+#' @param audit.nu number of points in the interval [0, 1],
 #'     corresponding to the normalized value of the unobservable term,
 #'     to audit in each iteration of the audit procedure.
 #' @param audit.max maximum number of iterations in the audit
@@ -203,8 +203,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                   target.weight1, target.knots0 = NULL, target.knots1 = NULL,
                   late.Z, late.from, late.to, late.X,
                   eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
-                  grid.Nu = 20, grid.Nx = 20, audit.Nx = 2,
-                  audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
+                  grid.nu = 20, grid.nx = 20, audit.nx = 2,
+                  audit.nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
                   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                   m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL,
                   point = FALSE, point.itermax = 2,
@@ -580,8 +580,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         if (hasArg(m0.dec) | hasArg(m0.inc) |
             hasArg(m1.dec) | hasArg(m1.inc) |
             hasArg(mte.dec) | hasArg(mte.inc) |
-            hasArg(audit.Nu) | hasArg(audit.Nx) |
-            hasArg(grid.Nu) | hasArg(grid.Nx)|
+            hasArg(audit.nu) | hasArg(audit.nx) |
+            hasArg(grid.nu) | hasArg(grid.nx)|
             hasArg(audit.tol) | hasArg(audit.max)) {
             warning(gsub("\\s+", " ",
                          "If argument 'point' is set to TRUE, then shape
@@ -594,15 +594,15 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
         stop("Cannot set obseq.tol below 0.")
     }
-    if (!((grid.Nu %% 1 == 0) & grid.Nu >= 2)) {
-        stop("grid.Nu must be an integer greater than or equal to 2.")
+    if (!((grid.nu %% 1 == 0) & grid.nu >= 2)) {
+        stop("grid.nu must be an integer greater than or equal to 2.")
     }
-    if (!((grid.Nx %% 1 == 0) & grid.Nx >= 0)) {
-        stop("grid.Nx must be an integer greater than or equal to 0.")
+    if (!((grid.nx %% 1 == 0) & grid.nx >= 0)) {
+        stop("grid.nx must be an integer greater than or equal to 0.")
     }
 
-    if (!((audit.Nx %% 1 == 0) & audit.Nx > 0)) {
-        stop("audit.Nx must be an integer greater than or equal to 1.")
+    if (!((audit.nx %% 1 == 0) & audit.nx > 0)) {
+        stop("audit.nx must be an integer greater than or equal to 1.")
     }
 
 
@@ -615,15 +615,15 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 
         noshape = FALSE ## indicator for whether shape restrictions declared
         
-        if (!((audit.Nu %% 1 == 0) & audit.Nu > 0) | audit.Nu < 2) {
-            stop("audit.Nu must be an integer greater than or equal to 2.")
+        if (!((audit.nu %% 1 == 0) & audit.nu > 0) | audit.nu < 2) {
+            stop("audit.nu must be an integer greater than or equal to 2.")
         }
     } else {
 
         noshape = TRUE 
         
-        if (!((audit.Nu %% 1 == 0) & audit.Nu > 0)) {
-            stop("audit.Nu must be an integer greater than or equal to 1.")
+        if (!((audit.nu %% 1 == 0) & audit.nu > 0)) {
+            stop("audit.nu must be an integer greater than or equal to 1.")
         }
     }
 
@@ -1562,8 +1562,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         }
     }
 
-    audit.args <- c("uname", "grid.Nu", "grid.Nx",
-                    "audit.Nx", "audit.Nu", "audit.max", "audit.tol",
+    audit.args <- c("uname", "grid.nu", "grid.nx",
+                    "audit.nx", "audit.nu", "audit.max", "audit.tol",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",

@@ -98,8 +98,8 @@
 #' @export
 audit.mst <- function(data, uname, m0, m1, splinesobj,
                       vars_mtr, terms_mtr0, terms_mtr1,
-                      grid.Nu = 20, grid.Nx = 50,
-                      audit.Nx = 5, audit.Nu = 3, audit.max = 5,
+                      grid.nu = 20, grid.nx = 50,
+                      audit.nx = 5, audit.nu = 3, audit.max = 5,
                       audit.tol = 1e-08,
                       m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                       m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
@@ -151,7 +151,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                      ## variable. I use this in case I want to
                      ## generalize the monotonciity restrictions to
                      ## other covariates
-    uvec    <- round(seq(0, 1, length.out = grid.Nu), 8)
+    uvec    <- round(seq(0, 1, length.out = grid.nu), 8)
     xvars   <- unique(vars_mtr)
 
     xvars   <- xvars[xvars != uname]
@@ -184,9 +184,9 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
         ## Select first iteration of the grid
         full_index <- seq(1, nrow(support))
 
-        grid.Nx <- min(grid.Nx, nrow(support))
+        grid.nx <- min(grid.nx, nrow(support))
         grid_index <- sample(full_index,
-                             grid.Nx,
+                             grid.nx,
                              replace = FALSE,
                              prob = replicate(nrow(support), (1/nrow(support))))
         grid_resid <- full_index[!(full_index %in% grid_index)]
@@ -232,6 +232,11 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
 
+        ## print("lpobj")
+        ## print(lpobj)
+
+        ## stop("end of testing")
+
         minobseq  <- obseqmin.mst(sset, lpobj, lpsolver)
         
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
@@ -270,7 +275,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                              to be greater than 0 to allow for violation of
                              observational equivalence, or expanding the grid
                              size for imposing the shape restrictions
-                             (grid.Nx, grid.Nu). \n"))
+                             (grid.nx, grid.nu). \n"))
             }
             warning(gsub("\\s+", " ",
                          "Setting obseq.tol to 0 allows for no violation of
@@ -280,7 +285,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
         }
 
         ## Generate a new grid for the audit
-        a_uvec <- round(runif(audit.Nu), 8)
+        a_uvec <- round(runif(audit.nu), 8)
 
         if (noX) {
             a_grid <- data.frame(a_uvec)
@@ -293,12 +298,12 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
             }
 
             ## Generate alternate grid from residual indexes
-            audit.Nx <- min(audit.Nx, length(grid_resid))
-            if (audit.Nx == length(grid_resid)) {
+            audit.nx <- min(audit.nx, length(grid_resid))
+            if (audit.nx == length(grid_resid)) {
                 a_grid_index <- grid_resid
             } else {
                 a_grid_index <- sample(grid_resid,
-                                        audit.Nx,
+                                        audit.nx,
                                         replace = FALSE,
                                         prob = replicate(nrow(resid_support),
                                         (1 / nrow(resid_support))))
@@ -329,9 +334,9 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                           audits (audit.max = ", audit.max, ") reached, but
                           bounds extend to +/- infinity. Either increase the
                           number of audits allowed (audit.max), the size of
-                          the initial grid (grid.Nx, grid.Nu), or the
+                          the initial grid (grid.nx, grid.nu), or the
                           expansion of the grid in the audit procedure
-                          (audit.Nx, audit.Nu). \n")))
+                          (audit.nx, audit.nu). \n")))
             }
         } else {
             if (existsolution == FALSE) {
