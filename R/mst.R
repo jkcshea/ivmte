@@ -48,9 +48,15 @@
 #'     be chosen from \code{linear}, \code{probit}, or \code{logit}.
 #' @param treat variable name for treatment indicator
 #' @param m0 one-sided formula for marginal treatment response
-#'     function for control group.
+#'     function for control group. Splines can also be incorporated
+#'     using the expression "uSplines(degree, knots, intercept)". The
+#'     'intercept' argument may be omitted, and is set to \code{TRUE}
+#'     by default.
 #' @param m1 one-sided formula for marginal treatment response
-#'     function for treated group.
+#'     function for treated group. Splines can also be incorporated
+#'     using the expression "uSplines(degree, knots, intercept)". The
+#'     'intercept' argument may be omitted, and is set to \code{TRUE}
+#'     by default.
 #' @param uname variable name for unobservable used in declaring MTRs.
 #' @param target target parameter to be estimated. Currently function
 #'     allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
@@ -158,6 +164,13 @@
 #'     function instead provides a point estimate of the treatment
 #'     effect. The output would be the same as if \code{point} was set
 #'     to \code{TRUE}.
+#' @param point.itermax integer, default of 2. Maximum number of
+#'     iterations allowed for GMM estimation under point
+#'     identification. So default estimate is the two-step GMM.
+#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
+#'     then messages are provided throughout the estimation
+#'     procedure. Set to \code{FALSE} to suppress all messages,
+#'     e.g. when performing the bootstrap.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -194,8 +207,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                   audit.Nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
                   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                   m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL,
-                  point = FALSE, point.tol = 1e-08) {
-    
+                  point = FALSE, point.itermax = 2,
+                  point.tol = 1e-08, noisy = TRUE) {
     ## Match call arguments
     call <- match.call(expand.dots = FALSE)
 
@@ -249,8 +262,16 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         ## Convert formula, components, and subset inputs into lists
         length_formula <- length(ivlike)
 
-        if (hasArg(components) & !is.null(components)) {
-            userComponents <- TRUE
+        userComponents  <- FALSE
+        if (hasArg(components)) {
+            if (!is.null(components)) {
+                userComponents <- TRUE
+            }
+        }
+
+        ## if (hasArg(components) & !is.null(components)) {
+        if (userComponents) {
+            ## userComponents <- TRUE
             if (class_list(components)) {
                 length_components <- length(components)
                 if (length_components == length_formula) {
@@ -265,7 +286,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                 components <- complist
             }
         } else {
-            userComponents <- FALSE
+            ## userComponents <- FALSE
             length_components <- length_formula
             components <- as.list(replicate(length_formula, ""))
             warning(gsub("\\s+", " ",
@@ -301,6 +322,30 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         ## subsetting is used
         if (hasArg(subset)) {
             if (!class(subset) == "list") subset <- list(subset)
+
+            ## Check if all subseting conditions are logical
+            nonLogicSubset <- NULL
+            for (i in 1:length(ivlike)) {
+                if (subset[[i]] == "") {
+                    ssubset <- replicate(nrow(data), TRUE)
+                } else {
+                    ssubset <- subset[[i]]
+                }
+
+                if (!is.logical(head(eval(substitute(ssubset), data)))) {
+                    nonLogicSubset <- c(nonLogicSubset, i)
+                }
+            }
+            if (length(nonLogicSubset) > 0) {
+                stop(gsub("\\s+", " ",
+                          paste0("The conditions in the following
+                      positions of the subset list are not
+                      logical: ",
+                      paste(nonLogicSubset, collapse = ", "),
+                      ". Please change the conditions so they
+                      are logical.")))
+            }
+
             if(length(subset) < length_formula) {
                 warning(gsub("\\s+", " ",
                              "List of subset conditions not the same length
@@ -327,6 +372,14 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         }
 
     } else {
+        if (hasArg(subset)) {
+            if (!is.logical(head(eval(substitute(subset), data)))) {
+                stop(gsub("\\s+", " ",
+                          "The subset condition is not logical.
+                      Please change the condition to be logical."))
+            }
+        }
+
         specCompWarn <- FALSE
         if (hasArg(components)) {
             userComponents <- TRUE
@@ -409,10 +462,10 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                       target weight is to be used, inputs for both
                       target.weight0 and target.weight1 must be provided."))
         }
-        
+
         if (!hasArg(target)) {
-            
-            ## Conver all entries into lists
+
+            ## Convert all entries into lists
             target.weight0 <- c(target.weight0)
             target.weight1 <- c(target.weight1)
             target.knots0  <- c(target.knots0)
@@ -423,7 +476,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             weightCheck2 <- unlist(lapply(target.weight0, function(x)
                 is.numeric(x) * (length(x) == 1)))
             fails0 <- which(weightCheck1 + weightCheck2 == 0)
-            
+
             if (length(fails0) > 0) {
                 stop(gsub("\\s+", " ",
                           paste0("Each component of the custom weight
@@ -433,12 +486,12 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                              paste(fails0, collapse = ", "),
                              ".")))
             }
-            
+
             weightCheck1 <- unlist(lapply(target.weight1, is.function))
             weightCheck2 <- unlist(lapply(target.weight1, function(x)
                 is.numeric(x) * (length(x) == 1)))
             fails1 <- which(weightCheck1 + weightCheck2 == 0)
-            
+
             if (length(fails1) > 0) {
                 stop(gsub("\\s+", " ",
                           paste0("Each component of the custom weight
@@ -448,7 +501,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                              paste(fails1, collapse = ", "),
                              ".")))
             }
-            
+
             if (length(target.weight0) != (length(target.knots0) + 1)) {
                 stop(gsub("\\s+", " ",
                           paste0("The number of weight functions declared in
@@ -476,7 +529,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                 knotsCheck2 <- unlist(lapply(target.knots0, function(x)
                     is.numeric(x) * (length(x) == 1)))
                 fails0 <- which(knotsCheck1 + knotsCheck2 == 0)
-                
+
                 if (length(fails0) > 0) {
                     stop(gsub("\\s+", " ",
                               paste0("Each component of the custom knots
@@ -493,7 +546,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                 knotsCheck2 <- unlist(lapply(target.knots1, function(x)
                     is.numeric(x) * (length(x) == 1)))
                 fails1 <- which(knotsCheck1 + knotsCheck2 == 0)
-                
+
                 if (length(fails1) > 0) {
                     stop(gsub("\\s+", " ",
                               paste0("Each component of the custom knots
@@ -502,11 +555,11 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                              following entries of target.knots1 are neither: ",
                              paste(fails0, collapse = ", "),
                              ".")))
-                }                
+                }
             }
         }
     }
-    
+
     if (hasArg(link)) {
         if (! link %in% c("linear", "logit", "probit")) {
             stop(gsub("\\s+", " ",
@@ -516,27 +569,27 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     }
 
     if (hasArg(point)) {
-        
+
         if (!requireNamespace("gmm", quietly = TRUE)) {
             stop(gsub("\\s+", " ",
                       "To estimate the treatement effect under
                       point identification, please install the package
                       gmm (version 1.6-2 or later)."))
         }
-        
+
         if (hasArg(m0.dec) | hasArg(m0.inc) |
             hasArg(m1.dec) | hasArg(m1.inc) |
             hasArg(mte.dec) | hasArg(mte.inc) |
             hasArg(audit.Nu) | hasArg(audit.Nx) |
             hasArg(grid.Nu) | hasArg(grid.Nx)|
-            hasArg(audit.tol) | hasArg(audit.max)) {        
+            hasArg(audit.tol) | hasArg(audit.max)) {
             warning(gsub("\\s+", " ",
                          "If argument 'point' is set to TRUE, then shape
                          restrictions on m0 and m1 are ignored, and the audit
                          procedure is not implemented."))
         }
     }
-    
+
     ## Audit checks
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
         stop("Cannot set obseq.tol below 0.")
@@ -707,20 +760,20 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             vars_mtr   <- c(vars_mtr, all.vars(sf1))
             terms_mtr1 <- c(terms_mtr1, attr(terms(sf1), "term.labels"))
         }
-        
+
     } else {
         stop("m0 and m1 must be one-sided formulas.")
     }
-        
+
     ## Collect list of variables used in custom weights (if defined)
-    if (!hasArg(target)) {        
+    if (!hasArg(target)) {
 
         for (i in 1:length(target.weight0)) {
             if (is.function(target.weight0[[i]])) {
                 vars_weights <- c(vars_weights,
                                   formalArgs(target.weight0[[i]]))
             }
-            
+
             if (i < length(target.weight0)) {
                 if (is.function(target.knots0[[i]])) {
                     vars_weights <- c(vars_weights,
@@ -728,13 +781,13 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                 }
             }
         }
-        
+
         for (i in 1:length(target.weight1)) {
             if (is.function(target.weight1[[i]])) {
                 vars_weights <- c(vars_weights,
                                   formalArgs(target.weight1[[i]]))
             }
-            
+
             if (i < length(target.weight1)) {
                 if (is.function(target.knots1[[i]])) {
                     vars_weights <- c(vars_weights,
@@ -743,7 +796,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             }
         }
     }
-    
+
     ## Collect list of all terms used in propensity formula
 
     if (hasArg(propensity)) {
@@ -761,6 +814,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                  variable."),
                             call. = FALSE)
                     treat <- ptreat
+                } else {
+                    treat <- deparse(substitute(treat))
                 }
             } else {
                 warning(gsub("\\s+", " ",
@@ -925,13 +980,17 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     }
 
     data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
+    ## Adjust row names to handle bootstrapping
+    rownames(data) <- as.character(seq(1, nrow(data)))
     cdata <- data
 
     ##---------------------------
     ## 2. Obtain propensity scores
     ##---------------------------
 
-    message("Obtaining propensity scores...\n")
+    if (noisy == TRUE) {
+        message("Obtaining propensity scores...\n")
+    }
 
     ## Estimate propensity scores
     if (class_formula(propensity)) {
@@ -950,12 +1009,19 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                         formula = substitute(propensity)))
     }
     pmodel <- eval(pcall)
-
+    
     ##---------------------------
     ## 3. Generate target moments/gamma terms
     ##---------------------------
 
-    message("Generating target moments...\n")
+    xindex0 <- NULL
+    xindex1 <- NULL
+    uexporder0 <- NULL
+    uexporder1 <- NULL
+
+    if (noisy == TRUE) {
+        message("Generating target moments...\n")
+    }
 
     if (!is.null(m0)) {
         m0call <- modcall(call,
@@ -980,15 +1046,15 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     ## Generate target weights
     if (hasArg(target)) {
         if (target == "ate") {
-            w1 <- wate1.mst(data)
+            w1 <- wate1.mst(cdata)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "att") {
-            w1 <- watt1.mst(data, mean(data[[treat]]), pmodel$phat)
+            w1 <- watt1.mst(cdata, mean(cdata[[treat]]), pmodel$phat)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "atu") {
-            w1 <- watu1.mst(data, 1- mean(data[[treat]]), pmodel$phat)
+            w1 <- watu1.mst(cdata, 1 - mean(cdata[[treat]]), pmodel$phat)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "late") {
@@ -996,50 +1062,101 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                 late.X <- NULL
                 eval.X <- NULL
             }
-            w1 <- wlate1.mst(data, late.from, late.to, substitute(late.Z),
+            w1 <- wlate1.mst(cdata, late.from, late.to, substitute(late.Z),
                              pmodel$model, substitute(late.X), eval.X)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "genlate") {
-            w1 <- wgenlate1.mst(data, genlate.lb, genlate.ub)
+            w1 <- wgenlate1.mst(cdata, genlate.lb, genlate.ub)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else {
             stop("Unrecognized target parameter.")
         }
-
+        
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
-            message("    Integrating terms for control group...\n")
+            if (noisy == TRUE) {
+                message("    Integrating terms for control group...\n")
+            }
             pm0 <- eval(as.call(m0call))
-            gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
+
+            if (point == FALSE) {
+                gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp)
+            } else {
+                gstar0 <- gengamma.mst(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
+                xindex0 <- c(xindex0, pm0$xindex)
+                uexporder0 <- c(uexporder0, pm0$exporder)
+            }
         } else {
             gstar0 <- NULL
             pm0 <- NULL
         }
-
+       
         if (!is.null(m1)) {
-            message("    Integrating terms for treated group...\n")
+            if (noisy == TRUE) {
+                message("    Integrating terms for treated group...\n")
+            }
             pm1 <- eval(as.call(m1call))
-            gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
+
+            if (point == FALSE) {
+                gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp)
+            } else {
+                gstar1 <- gengamma.mst(pm1, w1$lb, w1$ub, w1$mp, means = FALSE)
+                xindex1 <- c(xindex1, pm1$xindex)
+                uexporder1 <- c(uexporder1, pm1$exporder)
+            }
         } else {
             gstar1 <- NULL
             pm1 <- NULL
         }
 
-        gstarSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
-                                            data = cdata,
-                                            lb = w0$lb,
-                                            ub = w0$ub,
-                                            multiplier = w0$mp,
-                                            d = 0)
+        ## print("w0")
+        ## print(w0)
+        ## print("w1")
+        ## print(w1)
+        
+        if (point == FALSE) {
+            gstarSplineObj0 <- genGammaSplines.mst(splines = splinesobj[[1]],
+                                                data = cdata,
+                                                lb = w0$lb,
+                                                ub = w0$ub,
+                                                multiplier = w0$mp,
+                                                d = 0)
+            gstarSpline0 <- gstarSplineObj0$gamma
 
-        gstarSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
-                                            data = cdata,
-                                            lb = w1$lb,
-                                            ub = w1$ub,
-                                            multiplier = w1$mp,
-                                            d = 1)
+            gstarSplineObj1 <- genGammaSplines.mst(splines = splinesobj[[2]],
+                                                data = cdata,
+                                                lb = w1$lb,
+                                                ub = w1$ub,
+                                                multiplier = w1$mp,
+                                                d = 1)
+            gstarSpline1 <- gstarSplineObj1$gamma
+        } else {
+            gstarSplineObj0 <- genGammaSplines.mst(splines = splinesobj[[1]],
+                                                data = cdata,
+                                                lb = w0$lb,
+                                                ub = w0$ub,
+                                                multiplier = w0$mp,
+                                                d = 0,
+                                                means = FALSE)
+            gstarSpline0 <- gstarSplineObj0$gamma
+            xindex0 <- c(xindex0, gstarSplineObj0$interactions)
+            uexporder0 <- c(uexporder0,
+                            rep(-1, length(xindex0) - length(uexporder0)))
+
+            gstarSplineObj1 <- genGammaSplines.mst(splines = splinesobj[[2]],
+                                                data = cdata,
+                                                lb = w1$lb,
+                                                ub = w1$ub,
+                                                multiplier = w1$mp,
+                                                d = 1,
+                                                means = FALSE)
+            gstarSpline1 <- gstarSplineObj1$gamma
+            xindex1 <- c(xindex1, gstarSplineObj1$interactions)
+            uexporder1 <- c(uexporder1,
+                            rep(-1, length(xindex1) - length(uexporder1)))
+        }
     } else {
 
         ## Convert fixed/numeric weights into functions
@@ -1102,12 +1219,14 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             ## Integrate non-splines terms
 
             if (!is.null(mtr)) {
-                if (d == 0) {
-                    message(
+                if (noisy == TRUE) {
+                    if (d == 0) {
+                        message(
                       "    Integrating non-spline terms for control group...\n")
-                } else {
-                    message(
+                    } else {
+                        message(
                       "    Integrating non-spline terms for treated group...\n")
+                    }
                 }
 
                 pm <- eval(as.call(get(paste0("m", d, "call"))))
@@ -1158,10 +1277,18 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                                  argnames = wValVars))
                     }
 
-                    gamma <- gamma + gengamma.mst(pm,
-                                                  lb = lb,
-                                                  ub = ub,
-                                                  multiplier = weights)
+                    if (point == FALSE) {
+                        gamma <- gamma + gengamma.mst(pm,
+                                                      lb = lb,
+                                                      ub = ub,
+                                                      multiplier = weights)
+                    } else {
+                        gamma <- gamma + gengamma.mst(pm,
+                                                      lb = lb,
+                                                      ub = ub,
+                                                      multiplier = weights,
+                                                      means = FALSE)
+                    }
                 }
 
                 assign(paste0("gstar", d), gamma)
@@ -1172,31 +1299,21 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             }
 
             ## Integrate splines terms
-
-            if (d == 0) {
-                message(
-                    "    Integrating spline terms for control group...\n")
-            } else {
-                message(
-                    "    Integrating spline terms for treated group...\n")
+            if (noisy == TRUE) {
+                if (d == 0) {
+                    message(
+                        "    Integrating spline terms for control group...\n")
+                } else {
+                    message(
+                        "    Integrating spline terms for treated group...\n")
+                }
             }
 
             noSplineMtr <- splinesobj[[d + 1]]
 
             if (!is.null(noSplineMtr$splineslist)) {
 
-                basisLengths <- sapply(names(noSplineMtr$splineslist),
-                                       function(x) {
-                    argList <- eval(parse(text = gsub("uSplines\\(",
-                                                      "list(", x)))
-                    basisLength <- length(argList$knots) +  argList$degree
-                    if(isTRUE(argList$intercept == TRUE) |
-                       is.null(argList$intercept)) basisLength <-
-                                                       basisLength + 1
-                    return(basisLength)
-                })
-
-                gammaSplines <- rep(0, sum(basisLengths))
+                gammaSplines <- 0
 
                 for (i in 1:length(target.weight)) {
 
@@ -1242,13 +1359,24 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                                  argnames = wValVars))
                     }
 
-                    gammaSplines <- gammaSplines +
-                        genGammaSplines.mst(splines = noSplineMtr,
-                                            data = cdata,
-                                            lb = lb,
-                                            ub = ub,
-                                            multiplier = weights,
-                                            d = d)
+                    if (point == FALSE) {
+                        gammaSplines <- gammaSplines +
+                            genGammaSplines.mst(splines = noSplineMtr,
+                                                data = cdata,
+                                                lb = lb,
+                                                ub = ub,
+                                                multiplier = weights,
+                                                d = d)
+                    } else {
+                        gammaSplines <- gammaSplines +
+                            genGammaSplines.mst(splines = noSplineMtr,
+                                                data = cdata,
+                                                lb = lb,
+                                                ub = ub,
+                                                multiplier = weights,
+                                                d = d,
+                                                means = FALSE)
+                    }
                 }
                 assign(paste0("gstarSpline", d), gammaSplines)
             } else {
@@ -1257,14 +1385,21 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         }
     }
 
-    gstar0 <- c(gstar0, gstarSpline0)
-    gstar1 <- c(gstar1, gstarSpline1)
+    if (point == FALSE) {
+        gstar0 <- c(gstar0, gstarSpline0)
+        gstar1 <- c(gstar1, gstarSpline1)
+    } else {
+        gstar0 <- cbind(gstar0, gstarSpline0)
+        gstar1 <- cbind(gstar1, gstarSpline1)
+    }
 
     ##---------------------------
     ## 4. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
 
-    message("Generating IV-like moments...")
+    if (noisy == TRUE) {
+        message("Generating IV-like moments...")
+    }
 
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
@@ -1286,6 +1421,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         sest <- eval(scall)
 
         ncomponents <- length(sest$betas)
+
         if (hasArg(subset)) {
             subset_index <- rownames(data[eval(substitute(subset), data), ])
         } else {
@@ -1304,7 +1440,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                   pm1 = pm1,
                                   ncomponents = ncomponents,
                                   scount = scount,
-                                  subset_index = subset_index)
+                                  subset_index = subset_index,
+                                  noisy = noisy)
         } else {
             setobj <- gensset.mst(data = cdata,
                                   sset = sset,
@@ -1316,7 +1453,10 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                   ncomponents = ncomponents,
                                   scount = scount,
                                   subset_index = subset_index,
-                                  means = TRUE)
+                                  means = FALSE,
+                                  yvar = vars_y,
+                                  dvar = treat,
+                                  noisy = noisy)
         }
 
         sset <- setobj$sset
@@ -1326,6 +1466,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
 
+        testmat0 <- NULL
+        testmat1 <- NULL
+        
         ## loop across IV specifications
         for (i in 1:length(ivlike)) {
 
@@ -1347,6 +1490,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                 treat = treat,
                                 list = TRUE)
 
+            testmat0 <- cbind(testmat0, sest$sw0)
+            testmat1 <- cbind(testmat1, sest$sw1)
+            
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands
             subset_index <- rownames(sdata)
@@ -1362,7 +1508,8 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                       pm1 = pm1,
                                       ncomponents = ncomponents,
                                       scount = scount,
-                                      subset_index = subset_index)
+                                      subset_index = subset_index,
+                                      noisy = noisy)
             } else {
                 setobj <- gensset.mst(data = cdata,
                                       sset = sset,
@@ -1374,7 +1521,10 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                       ncomponents = ncomponents,
                                       scount = scount,
                                       subset_index = subset_index,
-                                      means = TRUE)
+                                      means = FALSE,
+                                      yvar = vars_y,
+                                      dvar = treat,
+                                      noisy = noisy)
             }
 
             ## Update set of moments (gammas)
@@ -1386,7 +1536,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
-  
+
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
 
@@ -1410,11 +1560,94 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             }
         }
 
+        ## FIX: is it better to move all of this down into gmmEstimate?
+        ## Check if weights are negations
+        commonM1Terms <- NULL
+        commonM1Splines <- NULL
+        commonM1STerms <- list()
+
+        if (hasArg(target)) {
+            negation <- TRUE
+        } else {
+            negation <- negationCheck(cdata, target.knots0, target.knots1,
+                                      target.weight0, target.weight1)
+        }
+
+        if (negation == TRUE) {
+            ## Check if there are common non-spline terms across the MTRs
+            nsterms0 <- attr(terms(splinesobj[[1]]$formula), "term.labels")
+            if (attr(terms(splinesobj[[1]]$formula), "intercept") == 1) {
+                nsterms0 <- c("(Intercept)", nsterms0)
+            }
+            nsterms1 <- attr(terms(splinesobj[[2]]$formula), "term.labels")
+            if (attr(terms(splinesobj[[2]]$formula), "intercept") == 1) {
+                nsterms1 <- c("(Intercept)", nsterms1)
+            }
+            cpos <- sapply(nsterms1, function(x) x %in% nsterms0)
+            commonM1Terms <- nsterms1[cpos]
+
+            ## Check if there are common splines across the MTRs
+            if (length(splinesobj[[1]]$splinesdict) > 0 &
+                length(splinesobj[[2]]$splinesdict) > 0) {
+                for (i in 1:length(splinesobj[[2]]$splinesdict)) {
+                    for (j in 1:length(splinesobj[[1]]$splinesdict)) {
+                        common <-
+                            (all.equal(splinesobj[[2]]$splinesdict[[i]]$knots,
+                                   splinesobj[[1]]$splinesdict[[j]]$knots,) ==
+                             TRUE) &
+                            (splinesobj[[2]]$splinesdict[[i]]$intercept ==
+                             splinesobj[[1]]$splinesdict[[j]]$intercept) &
+                            (splinesobj[[2]]$splinesdict[[i]]$degree ==
+                             splinesobj[[1]]$splinesdict[[j]]$degree)
+                        if (common) commonM1Splines <-
+                                        rbind(commonM1Splines, c(i, j))
+                    }
+                }
+            }
+
+            if (!is.null(commonM1Splines)) {
+                colnames(commonM1Splines) <- c("m1", "m0")
+            }
+
+            ## Check if there are common interactions with common splines
+            if (!is.null(commonM1Splines)) {
+                for (i in 1:nrow(commonM1Splines)) {
+                    j <- commonM1Splines[i, 1]
+                    k <- commonM1Splines[i, 2]
+
+                    cpos <- sapply(unlist(splinesobj[[2]]$splineslist[j]),
+                                   function(x) {
+                                   x %in% unlist(splinesobj[[1]]$splineslist[k])
+                                   })
+                    if (sum(cpos) > 0) {
+                        tmpObj <- unlist(splinesobj[[2]]$splineslist[j])[cpos]
+                        names(tmpObj) <- NULL
+                        commonM1STerms[[i]] <- tmpObj
+                    }
+                }
+            }
+        }
         ## Obtain GMM estimate
+        ateSwitch = FALSE
+        if (hasArg(target)) {
+            if (target == "ate") ateSwitch = TRUE
+        }
+        
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
-                                 gstar1 = gstar1)
-        
+                                 gstar1 = gstar1,
+                                 itermax = point.itermax,
+                                 tol = point.tol,
+                                 obsComp0 = xindex0,
+                                 obsComp1 = xindex1,
+                                 uexp0 = uexporder0,
+                                 uexp1 = uexporder1,
+                                 commonM1Terms = commonM1Terms,
+                                 commonM1STerms = commonM1STerms,
+                                 ate = ateSwitch,
+                                 negate = negation,
+                                 noisy = noisy)
+
         return(list(sset  = sset,
                     gstar = list(g0 = gstar0,
                                  g1 = gstar1),
@@ -1426,13 +1659,15 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                     mtr.coef = gmmResult$coef,
                     mtr.vcov = gmmResult$vcov))
     }
-    
+
     ##---------------------------
     ## 5. Define constraint matrices using the audit
     ##---------------------------
 
-    if (obseq.tol > 0) {
-        message("\nPerforming audit procedure...\n")
+    if (noisy == TRUE) {
+        if (obseq.tol > 0) {
+            message("\nPerforming audit procedure...\n")
+        }
     }
 
     audit.args <- c("uname", "grid.Nu", "grid.Nx",
@@ -1498,8 +1733,19 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
-                                 gstar1 = gstar1)
-        
+                                 gstar1 = gstar1,
+                                 itermax = point.itermax,
+                                 tol = point.tol,
+                                 obsComp0 = xindex0,
+                                 obsComp1 = xindex1,
+                                 uexp0 = uexporder0,
+                                 uexp1 = uexporder1,
+                                 commonM1Terms = commonM1Terms,
+                                 commonM1STerms = commonM1STerms,
+                                 ate = ateSwitch,
+                                 negate = negation,
+                                 noisy = noisy)
+
         return(list(sset  = sset,
                     gstar = list(g0 = gstar0,
                                  g1 = gstar1),
@@ -1524,7 +1770,9 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                     poly0 = pm0,
                     poly1 = pm1,
                     auditgrid = audit$gridobj,
-                    minobseq = audit$minobseq))
+                    minobseq = audit$minobseq,
+                    splinesdict = list(splinesobj[[1]]$splinesdict,
+                                       splinesobj[[2]]$splinesdict)))
     }
 }
 
@@ -1552,13 +1800,32 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 #' @param scount A counter for the number of elements in the S-set.
 #' @param subset_index An index for the subset of the data the IV
 #'     regression is restricted to.
+#' @param means boolean, set to \code{TRUE} by default. If set to
+#'     \code{TRUE}, then the gamma moments are returned, i.e. sample
+#'     averages are taken. If set to \code{FALSE}, then no sample
+#'     averages are taken, and a matrix is returned. The sample
+#'     average of each column of the matrix corresponds to a
+#'     particular gamma moment.
+#' @param yvar name of outcome variable. This is only used if
+#'     \code{means = FALSE}, which occurs when the user believes the
+#'     treatment effect is point identified.
+#' @param dvar name of treatment indicator. This is only used if
+#'     \code{means = FALSE}, which occurs when the user believes the
+#'     treatment effect is point identified.
+#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
+#'     then messages are provided throughout the estimation
+#'     procedure. Set to \code{FALSE} to suppress all messages,
+#'     e.g. when performing the bootstrap.
 #' @return A list containing the point estimate for the IV regression,
 #'     and the expectation of each monomial term in the MTR.
 gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
-                        ncomponents, scount, subset_index, means = TRUE) {
+                        ncomponents, scount, subset_index, means = TRUE,
+                        yvar, dvar, noisy = TRUE) {
 
     for (j in 1:ncomponents) {
-        message(paste0("    Moment ", scount, "..."))
+        if (noisy == TRUE) {
+            message(paste0("    Moment ", scount, "..."))
+        }
 
         if (!is.null(pm0)) {
             if (means == TRUE) {
@@ -1574,6 +1841,9 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     multiplier = sest$sw0[, j],
                                     subset = subset_index,
                                     means = FALSE)
+
+                ## print(paste("S-weight of", j, "th componnt from S set, d = 0"))
+                ## print(sest$sw0[, j])
             }
         } else {
             gs0 <- NULL
@@ -1593,11 +1863,21 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     multiplier = sest$sw1[, j],
                                     subset = subset_index,
                                     means = FALSE)
+                ## print(paste(j, "th componnt from S set, d = 1"))
+                ## print(sest$sw1[, j])
             }
-            
+
+            ## print("S-weight ratios, (d = 0) / (d = 1)")
+            ## print(sest$sw0[, j] / sest$sw1[, j])
+            ## print(paste(j, "th componnt from S set, d = 1"))
+            ## print(head(sest$sw1[, j]))
+
         } else {
             gs1 <- NULL
         }
+
+        ## print("This is the subset index!")
+        ## print(subset_index)
 
         if (means == TRUE) {
             gsSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
@@ -1606,7 +1886,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                              ub = 1,
                                              multiplier = sest$sw0[, j],
                                              subset = subset_index,
-                                             d = 0)
+                                             d = 0)$gamma
 
             gsSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
                                              data = data,
@@ -1614,7 +1894,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                              ub = pmodobj,
                                              multiplier = sest$sw1[, j],
                                              subset = subset_index,
-                                             d = 1)
+                                             d = 1)$gamma
         } else {
             gsSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                              data = data,
@@ -1623,7 +1903,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                              multiplier = sest$sw0[, j],
                                              subset = subset_index,
                                              d = 0,
-                                             means = FALSE)
+                                             means = FALSE)$gamma
 
             gsSpline1 <- genGammaSplines.mst(splines = splinesobj[[2]],
                                              data = data,
@@ -1632,7 +1912,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                              multiplier = sest$sw1[, j],
                                              subset = subset_index,
                                              d = 1,
-                                             means = FALSE)
+                                             means = FALSE)$gamma
         }
 
         ## generate components of constraints
@@ -1641,9 +1921,47 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                 g0 = c(gs0, gsSpline0),
                                                 g1 = c(gs1, gsSpline1))
         } else {
+            ## Now generate the vectors for Y * S(D, Z).
+
+            if (!is.null(subset_index)) {
+                newsubset <- subset_index
+            } else {
+                newsubset <- seq(1, nrow(data))
+            }
+
+            ## print("This is the data!")
+            ## print(data)
+
+            ## print(yvar)
+            ## print(dvar)
+            
+            yvec <- as.vector(data[newsubset, yvar])
+            dvec <- as.vector(data[newsubset, dvar])
+
+            ## print("This is the dvec")
+            ## print(dvec)
+            
+            ## print("this is the yvec!")
+            ## print(yvec)
+
+            ## print("This is the weights!")
+            ## print(sest$sw1[, j])
+
+            ## print("This is the weights!")
+            ## print(sest$sw0[, j])
+
+            yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] * (1 - dvec))
+            ## print(typeof(yvec))
+            ## print(class(yvec))
+            names(yvec) <- newsubset
+            
+            ## print("this is the yvec afterwards!")
+            ## print(yvec)
+            
             sset[[paste0("s", scount)]] <- list(beta = sest$beta[j],
                                                 g0 = cbind(gs0, gsSpline0),
-                                                g1 = cbind(gs1, gsSpline1))
+                                                g1 = cbind(gs1, gsSpline1),
+                                                ys = yvec)
         }
 
         ## update counter (note scount is not referring
@@ -1654,7 +1972,6 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 
     return(list(sset = sset, scount = scount))
 }
-
 
 #' GMM estimate of TE under point identification
 #'
@@ -1675,86 +1992,475 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     moments.
 #' @param gstar0 vector, the target gamma moments for d = 0.
 #' @param gstar1 vector, the target gamma moments for d = 1.
-#' @param N integer, the number of observations. This is required
-#'     because some IV specifications include subsetting options,
-#'     i.e. the size of the data matrices contained in the elements of
-#'     \code{sset} may differ. So \code{N} should be set equal to the
-#'     largest number of observations across all elements of
-#'     \code{sset}. For IV specifications where the number of
-#'     observations is less than N, the data matrices contaiend in
-#'     \code{sset} is expanded, with each additional row containing
-#'     the means of each column. That way, the column means of the
-#'     exapnded matrix is unaffected.
+#' @param itermax integer, maximum number of iterations allowed in the
+#'     iterative GMM process. By default this is set to 2 (two-step
+#'     GMM).
+#' @param tol tolerance level for iterative GMM to terminate.
+#' @param obsComp0 vector of observable variables. This is the
+#'     observable component of each term in m0.
+#' @param obsComp1 vector of observable variables. This is the
+#'     observable component of each term in m1.
+#' @param uexp0 vector of exponential on unobservable term in m0. The
+#'     values only apply to non-spline terms, though. All spline terms
+#'     are assigned a value of -1.
+#' @param uexp1 vector of exponential on unobservable term in m1. The
+#'     values only apply to non-spline terms, though. All spline terms
+#'     are assigned a value of -1.
+#' @param commonM1Terms character, vector of variable names of m1 that
+#'     are also included in m0. Depending on the target parameter
+#'     weight, the error in estimating the target wight of these
+#'     variables may need to be excluded from the GMM procedure.
+#' @param commonM1STerms list, each element is a character vector
+#'     corresponding to a spline in m1 also found in m0. The character
+#'     vector stores the variable names that interact with a given
+#'     spline in both m0 and m1. Depending on the target parameter
+#'     weight, the error in estimating the target wight of these
+#'     variables may need to be excluded from the GMM procedure.
+#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
+#'     then messages are provided throughout the estimation
+#'     procedure. Set to \code{FALSE} to suppress all messages,
+#'     e.g. when performing the bootstrap.
 #' @return a list containing the point estimate of the treatment
 #'     effects, the standard errors, the 90% and 95% confidence
 #'     intervals, the convergence code (see
 #'     \code{\link[stats]{optim}}), the coefficients on the MTR, and
 #'     the variance/covariance matrix of the MTR coefficient
 #'     estimates.
-gmmEstimate <- function(sset, gstar0, gstar1) {
- 
+gmmEstimate <- function(sset, gstar0, gstar1,
+                        itermax = 2, tol = 1e-08, obsComp0, obsComp1,
+                        commonM1Terms, commonM1STerms,
+                        uexp0, uexp1,
+                        ate = FALSE,
+                        negate = TRUE, noisy = TRUE) {
+
     gmmMat <- NULL
-    gmmVec <- NULL
-    
+    yMat   <- NULL
+
     for (s in 1:length(sset)) {
 
-        gmmMat <- rbind(gmmMat, c(sset[[s]]$g0,
-                                  sset[[s]]$g1))
+        ids <- as.integer(rownames(sset[[s]]$g0))
 
-        gmmVec <- c(gmmVec, sset[[s]]$beta)
+        ## print(sset[[s]]$g0)
+        ## print(sset[[s]]$g1)
+        ## print(sset[[s]]$ys)
+
+        
+        gmmAdd <- cbind(ids, s,
+                        sset[[s]]$g0,
+                        sset[[s]]$g1)
+
+        gmmMat <- rbind(gmmMat, gmmAdd)
+
+        yAdd <- cbind(ids, s, sset[[s]]$ys)
+        yMat <- rbind(yMat, yAdd)
     }
 
-    gmmCompN <- ncol(gmmMat) / length(sset)
+    ## print("gmmMat raw---column names should be bootstrap ids...")
+    ## print(head(gmmMat, n = 20))
     
+    ## print("yMat raw---column names should be bootstrap ids...")
+    ## print(head(yMat, n = 20))
+
+    N <- length(ids)
+    
+    gmmMat <- gmmMat[order(gmmMat[, 1], gmmMat[, 2]), ]
+    yMat   <- yMat[order(yMat[, 1], yMat[, 2]), ]
+
+    ids <- unique(gmmMat[, 1])
+    gmmCompN <- ncol(gmmMat) - 2
+
     if (gmmCompN > length(sset)) {
         stop(gsub("\\s+", " ",
-                  paste0("Infinite number of solutions exist: there are ",
+                  paste0("System is underidentified: excluding
+                         target moments, there are ",
                          gmmCompN,
-                         " unknown parameters and ",
+                         " unknown parameters/MTR coefficients and ",
                          length(sset),
-                         " moment conditions. Either expand the number of
+                         " moment conditions (defined by IV-like
+                         specifications). Either expand the number of
                          IV-like specifications, or modify m0 and m1.")))
     }
+  
+    ## Account for case where point.target = TRUE
+    if (ate == FALSE) {
 
-    newColNames <- paste0("x", seq(1, ncol(gmmMat)))
-    colnames(gmmMat) <- newColNames
-    gmmMat <- as.data.frame(gmmMat)
-    gmmFormula <- as.formula(paste("gmmVec ~ 0 + ",
-                                   paste(paste0("gmmMat$", newColNames),
-                                         collapse = " + ")))
+        ## Determine if any terms need to be dropped for the GMM
+        ## procedure to avoid collinearity when accounting for
+        ## estimation error of target weights
 
-    gmmResult <- gmm::gmm(g = gmmFormula,
-                          x = gmmMat,
-                          type = "twoStep")
+        ## Select components to keep when estimating non-ATE target
+        ## parameters whose weights are negations of each other
+        if (negate == TRUE) {
 
+            corresponding1 <- rep(0, length(uexp1))
+            ## Length of `corresponding1' is equal to number of terms
+            ## in m1. Each entry will contain the position of the
+            ## corresponding term in m0.
+            
+            ## First address common non-spline terms
+            if ((sum(uexp0 >= 0) > 0) & (sum(uexp1 >= 0))) {
+                m1keep <- rep(1, sum(uexp1 >= 0))
+                
+                for (i in seq(1, sum(uexp1 >= 0))) {
+                    for (j in seq(1, sum(uexp0 >= 0))) {
+                        if (obsComp1[i] == obsComp0[j] &
+                            uexp1[i] == uexp0[j]) {
+                            m1keep[i] <- 0
+                            corresponding1[i] <- j
+                        }
+                    }
+                }
+            }
+
+            ## Now address common spline terms
+            if (length(commonM1STerms) > 0) {
+                dropSpline0 <- lapply(seq(1:length(commonM1STerms)),
+                                     function(x) {
+                                         if (length(commonM1STerms[[x]]) > 0) {
+                                             return(paste0("u0S", x,
+                                                           "\\.[0-9]:",
+                                                           commonM1STerms[[x]]))
+                                         } else {
+                                             return(NULL)
+                                         }
+                                     })
+
+                dropSpline1 <- lapply(seq(1:length(commonM1STerms)),
+                                     function(x) {
+                                         if (length(commonM1STerms[[x]]) > 0) {
+                                             return(paste0("u1S", x,
+                                                           "\\.[0-9]:",
+                                                           commonM1STerms[[x]]))
+                                         } else {
+                                             return(NULL)
+                                         }
+                                     })
+
+                dropSpline0 <- Reduce("c", dropSpline0)
+                dropSpline1 <- Reduce("c", dropSpline1)
+                dropSpline1 <- sapply(dropSpline1, grepl,
+                                     x = colnames(gstar1))
+
+                for (i in 1:length(dropSpline0)) {
+                    corresponding1[dropSpline1[, i]] <- grep(dropSpline0[i],
+                                                             colnames(gstar0))
+                }
+            }
+
+            keepTerms1 <- as.logical(corresponding1 == 0)
+            gmmExclN <- sum(1 - keepTerms1)
+        }
+
+        ## Select components to keep when estimating non-ATE target
+        ## parameters whose weights are not negations of each other
+        if (negate == FALSE) {
+            keepTerms1 <- rep(1, length(obsComp1))
+            corresponding1 <- rep(0, length(uexp1))
+            gmmExclN <- 0
+        }
+
+        ## Expand GMM mat
+        gmmMat <- lapply(ids, function(x) {
+            M1 <- rbind(gmmMat[gmmMat[, 1] == x, ],
+                        matrix(0,
+                               nrow = (ncol(gmmMat) - 2 - gmmExclN),
+                               ncol = ncol(gmmMat)))
+            M2 <- rbind(matrix(0,
+                               nrow = length(sset),
+                               ncol = (ncol(gmmMat) - 2 - gmmExclN)),
+                        diag(ncol(gmmMat) - 2 - gmmExclN))
+            M <- cbind(M1, M2)
+            rownames(M) <- as.character(rep(x, nrow(M)))
+            M
+        })
+        gmmMat <- Reduce("rbind", gmmMat)
+       
+        ## Expand Y mat
+        yMat <- lapply(ids, function(x) {
+            Y1 <- yMat[yMat[, 1] == x, ]
+            Y2 <- cbind(matrix(0,
+                               nrow = length(gstar0[x, ]),
+                               ncol = 2),
+                        gstar0[x, ])
+            Y3 <- cbind(matrix(0,
+                               nrow = length(gstar1[x, keepTerms1]),
+                               ncol = 2),
+                        gstar1[x, keepTerms1])
+
+            Y <- rbind(Y1, Y2, Y3)
+          
+            rownames(Y) <- as.character(rep(x, nrow(Y)))
+            Y
+        })
+        yMat <- Reduce("rbind", yMat)
+    }
+   
+    ## print(head(gmmMat))
+    ## print(head(yMat, n = 20))
+    ## stop()
+    
+    gmmMat <- gmmMat[, -c(1, 2)]
+    yMat   <- yMat[, -c(1, 2)]
+
+    ## TESTING -----------
+    ## print(yMat)
+    ylist <- lapply(ids, function(x) {
+        yMat[as.integer(names(yMat)) == x]
+    })
+    ## print("ylist")
+    ## print(ylist)
+    ## END TESTING -------
+
+    
+    ## TESTING ---------
+
+    ## gmmSupport <- cbind(gstar0, gstar1[, keepTerms1])
+    ## nGmmError <- nrow(unique(gmmSupport)) - 1
+    ## nGamma <- ncol(gstar0) + sum(keepTerms1 == 1)
+
+    ## if (nGamma > nGmmError) {
+    ##     stop("collinearity problems")
+    ## }
+
+    ## stop("end of test")
+    
+    ## END TESTING ----
+      
+    ## Perform iterative estimation
+    theta <- rep(0, ncol(gmmMat))
+    i <- 1
+    diff <- Inf
+
+    if (itermax > 2) warning("Itermax is capped at 2.")   
+    
+    ## itermax is capped at 2, although it can be increased to
+    ## correspond to iterated FGLS
+    while (i <= itermax & i <= 2 & diff > tol) {
+
+        if (i == 1) {
+            thetaNew <- solve(t(gmmMat) %*% gmmMat) %*% t(gmmMat) %*% yMat
+        } else {
+            
+            olsA <- lapply(ids, function(x) {
+                gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+                t(gmmi) %*% ematInv %*% gmmi
+            })
+            olsA <- Reduce("+", olsA)
+
+            olsB <- lapply(ids, function(x) {
+                gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+                yvec <- yMat[as.integer(rownames(errors)) == x]
+                t(gmmi) %*% ematInv %*% yvec
+            })
+            olsB <- Reduce("+", olsB)
+
+            thetaNew <- solve(olsA) %*% olsB
+        }
+
+        errors <- yMat - gmmMat %*% thetaNew
+        
+        if (i <= (itermax - 1)) {
+            emat <- lapply(ids, function(x) {
+                evec <- errors[as.integer(rownames(errors)) == x]
+                ## evec <- round(evec, 8)
+                evec %*% t(evec)
+            })
+            emat <- Reduce("+", emat) / N
+            emat <- (emat + t(emat)) / 2
+            ## ematInv <- solve(emat, tol = 1e-20)
+            ematInv <- solve(emat)
+            ematInv <- (ematInv + t(ematInv)) / 2
+
+            print("This is emat")
+            print(emat)
+            print("this is emat inverse")
+            print(ematInv)
+        }
+
+        diff <- sqrt(sum((thetaNew - theta) ^ 2))        
+        theta <- thetaNew
+
+        i <- i + 1
+    }
+   
+    if (itermax == 1) {
+
+        seMeat <- lapply(ids, function(x) {
+
+            gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+            evec <- errors[as.integer(rownames(errors)) == x]
+            ## evec <- round(evec, 8)
+            bmat <- t(gmmi) %*% evec
+            bmat %*% t(bmat)
+        })        
+        seMeat <- Reduce("+", seMeat)
+        seMeat <- (seMeat + t(seMeat)) / 2
+
+        print("this is seMeat")
+        print(seMeat)
+
+        print("this is seBread preinverse")
+        print(t(gmmMat) %*% gmmMat)
+        print("this is seBread inverse")
+        print(solve(t(gmmMat) %*% gmmMat))
+        
+        avar <- solve(t(gmmMat) %*% gmmMat) %*%
+            seMeat %*%
+            solve(t(gmmMat) %*% gmmMat)
+        avar <- (avar + t(avar)) / 2
+        print("this is avar")
+        print(avar)
+
+    } else {
+        
+        ## ORIGINAL --------------------
+        seMeat <- lapply(ids, function(x) {
+            gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+            evec <- errors[as.integer(rownames(errors)) == x]
+            ## evec <- round(evec, 8)
+            bmat <- t(gmmi) %*% ematInv %*% evec
+            bmat %*% t(bmat)    
+        })
+        seMeat <- Reduce("+", seMeat)
+        seMeat <- (seMeat + t(seMeat)) / 2
+
+        print("this is seMeat")
+        print(seMeat)
+        
+        seBread <- lapply(ids, function(x) {
+            gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+            t(gmmi) %*% ematInv %*% gmmi
+
+        })
+        seBread <- Reduce("+", seBread)
+        seBread <- (seBread + t(seBread)) / 2
+
+        print("this is seBread")
+        print(seBread)
+        
+        avar <- solve(seBread) %*% seMeat %*% solve(seBread)
+
+        print("This is avar")
+        print(avar)
+    }
+    
     ## Construct point estimate and CI of TE
-    te <- sum(c(gstar0, gstar1) * gmmResult$coefficients)
-    se <- sqrt(t(c(gstar0, gstar1)) %*%
-               gmmResult$vcov %*%
-               c(gstar0, gstar1))
+    if (ate == TRUE) {
+
+        nameVec <- c(paste0("m0.", colnames(gstar0)),
+                     paste0("m1.", colnames(gstar1)))
+
+        rownames(theta) <- nameVec
+        rownames(avar) <- nameVec
+        colnames(avar) <- nameVec
+        
+        te <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
+        se <- sqrt(t(c(colMeans(gstar0), colMeans(gstar1))) %*%
+                   avar %*%
+                   c(colMeans(gstar0), colMeans(gstar1)))
+
+    } else {
+        ## For the case where some components are redundant, we do a
+        ## more involved delta method.
+
+        nameVec <- c(paste0("m0.coef.", colnames(gstar0)),
+                     paste0("m1.coef.", colnames(gstar1)),
+                     paste0("gm0.", colnames(gstar0)))
+        if (sum(keepTerms1) > 0) {
+            nameVec <- c(nameVec, paste0("gm1.", colnames(gstar1)[keepTerms1]))
+        }
+      
+        rownames(theta) <- nameVec
+        rownames(avar) <- nameVec
+        colnames(avar) <- nameVec
+
+        gs0len <- length(colnames(gstar0))
+        gs1len <- length(colnames(gstar1))
+        gs1lenSub <- length(colnames(gstar1)[keepTerms1])
+
+        ## Construct gradient vector
+        thetaPar  <- theta[1:(gs0len + gs1len)]
+
+        ## Negate appropriate gamma terms in the gradient
+        gamma0 <- theta[((gs0len + gs1len) + 1) : (2 * gs0len + gs1len)]
+        if (gs1lenSub > 0) {
+            gamma1sub <- theta[(length(theta) - gs1lenSub + 1) : length(theta)]
+        } else {
+            gamma1sub <- NULL
+        }
+
+        gamma1 <- rep(0, length(colnames(gstar1)))
+
+        if (sum(corresponding1 == 0) > 0) {
+            gamma1[corresponding1 == 0] <- gamma1sub
+        }
+
+        if (sum(corresponding1 != 0) > 0) {
+            gamma1[corresponding1 != 0] <-
+                -gamma0[corresponding1[corresponding1 != 0]]
+        }
+
+        ## Take difference of appropriate parameter estimates in the gradient
+        thetaPar0 <- thetaPar[1:ncol(gstar0)]
+        thetaPar1 <- thetaPar[(ncol(gstar0) + 1) : length(thetaPar)]
+
+        theta0dg <- thetaPar0
+        theta0dgtmp <- sapply(seq(1, ncol(gstar1)), function(x) {
+            v <- rep(0, ncol(gstar0))
+            if (corresponding1[x] > 0) {
+                v[corresponding1[x]] <- thetaPar1[x]
+            }
+            v
+        })
+        if (!is.null(dim(theta0dgtmp))) {
+            theta0dgtmp <- rowSums(theta0dgtmp)
+        } else {
+            theta0dgtmp <- sum(theta0dgtmp)
+        }
+
+        theta0dg <- theta0dg - theta0dgtmp
+        theta1dg <- thetaPar1[keepTerms1]
+
+        print("full theta")
+        print(theta)
+        print("gstar gamma means")
+        print(c(colMeans(gstar0), colMeans(gstar1)))
+        
+        ## print("names vec")
+        ## print(nameVec)
+        ## print("theta vector")
+        ## print(round(c(thetaPar0, thetaPar1), 2))
+        ## print("gamma vector")
+        ## print(round(c(gamma0, gamma1), 2))
+        ## print("gradient")
+        ## print(round(c(gamma0, gamma1, theta0dg, theta1dg), 2))
+        
+        ## te <- sum(c(thetaPar0, thetaPar1) *
+        ##           c(colMeans(gstar0), colMeans(gstar1)))
+        te <- sum(c(theta0dg, theta1dg) * c(gamma0, gamma1sub))
+        grad <- c(gamma0, gamma1, theta0dg, theta1dg)
+        se <- sqrt(t(grad) %*% avar %*% grad)
+
+        print("this is the gradient")
+        print(grad)
+    }
+
     ci90 <- c(te - qnorm(0.95) * se, te + qnorm(0.95) * se)
     ci95 <- c(te - qnorm(0.975) * se, te + qnorm(0.975) * se)
 
-    outCoef <- gmmResult$coefficients
-    outVcov <- gmmResult$vcov
-
-    mtrnames <- c(paste0("m0:", names(gstar0)),
-                  paste0("m1:", names(gstar1)))
-    names(outCoef) <- mtrnames
-    rownames(outVcov) <- mtrnames
-    colnames(outVcov) <- mtrnames
-    
-    message()
-    message(paste0("Treatment effect (s.e.): ", round(te, 4), " (",
-                   round(se, 4), ")"))
-    message(paste0("90% C.I.: (", round(ci90[1], 4), ", ",
-                   round(ci90[2], 4), ")" ))
-    message(paste0("95% C.I.: (", round(ci95[1], 4), ", ",
-                   round(ci95[2], 4), ")" ))
-    return(list(te = te,
-                se = se,
+    if (noisy == TRUE) {
+        message()
+        message(paste0("Treatment effect (s.e.): ", round(te, 4), " (",
+                       round(se, 4), ")"))
+        message(paste0("90% C.I.: (", round(ci90[1], 4), ", ",
+                       round(ci90[2], 4), ")" ))
+        message(paste0("95% C.I.: (", round(ci95[1], 4), ", ",
+                       round(ci95[2], 4), ")" ))
+    }
+    return(list(te = as.numeric(te),
+                se = as.numeric(se),
                 ci90 = ci90,
                 ci95 = ci95,
-                coef = outCoef,
-                vcov = outVcov))
+                coef = theta,
+                vcov = avar))
 }

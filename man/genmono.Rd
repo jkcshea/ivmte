@@ -7,11 +7,6 @@
 genmono(vector, basis, zero = FALSE, as.function = FALSE)
 }
 \arguments{
-\item{vector}{vector of polynomial coefficients.}
-
-\item{basis}{vector of exponents corresponding to each element of
-\code{vector}.}
-
 \item{zero}{logical, if \code{FALSE} then \code{vector} does not
 include an element for the constant term. The vector
 \code{basis} will need to be adjusted to account for this in
@@ -28,6 +23,6 @@ A list of monomials, in the form of the \code{polynom}
 \description{
 This function takes in a first vector of coefficients, and a second
 vector declaring which univariate polynomial basis corresponds to
-each element of the first vector. Then it generates a list of
-monomials corresponding to the polynomial.
+each element ofexponents corresponding to each element of
+    \code{vector}.
 }

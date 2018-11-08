@@ -4,7 +4,9 @@
 \alias{gmmEstimate}
 \title{GMM estimate of TE under point identification}
 \usage{
-gmmEstimate(sset, gstar0, gstar1)
+gmmEstimate(sset, gstar0, gstar1, itermax = 2, tol = 1e-08, obsComp0,
+  obsComp1, commonM1Terms, commonM1STerms, uexp0, uexp1, ate = FALSE,
+  negate = TRUE, noisy = TRUE)
 }
 \arguments{
 \item{sset}{a list of lists constructed from the function
@@ -20,16 +22,40 @@ moments.}
 
 \item{gstar1}{vector, the target gamma moments for d = 1.}
 
-\item{N}{integer, the number of observations. This is required
-because some IV specifications include subsetting options,
-i.e. the size of the data matrices contained in the elements of
-\code{sset} may differ. So \code{N} should be set equal to the
-largest number of observations across all elements of
-\code{sset}. For IV specifications where the number of
-observations is less than N, the data matrices contaiend in
-\code{sset} is expanded, with each additional row containing
-the means of each column. That way, the column means of the
-exapnded matrix is unaffected.}
+\item{itermax}{integer, maximum number of iterations allowed in the
+iterative GMM process. By default this is set to 2 (two-step
+GMM).}
+
+\item{tol}{tolerance level for iterative GMM to terminate.}
+
+\item{obsComp0}{vector of observable variables. This is the
+observable component of each term in m0.}
+
+\item{obsComp1}{vector of observable variables. This is the
+observable component of each term in m1.}
+
+\item{commonM1Terms}{character, vector of variable names of m1 that
+are also included in m0. Depending on the target parameter
+weight, the error in estimating the target wight of these
+variables may need to be excluded from the GMM procedure.}
+
+\item{commonM1STerms}{list, each element is a character vector
+corresponding to a spline in m1 also found in m0. The character
+vector stores the variable names that interact with a given
+spline in both m0 and m1. Depending on the target parameter
+weight, the error in estimating the target wight of these
+variables may need to be excluded from the GMM procedure.}
+
+\item{uexp0}{vector of exponential on unobservable term in m0. The
+values only apply to non-spline terms, though.}
+
+\item{uexp1}{vector of exponential on unobservable term in m1. The
+values only apply to non-spline terms, though.}
+
+\item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
+then messages are provided throughout the estimation
+procedure. Set to \code{FALSE} to suppress all messages,
+e.g. when performing the bootstrap.}
 }
 \value{
 a list containing the point estimate of the treatment
