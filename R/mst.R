@@ -2190,7 +2190,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     i <- 1
     diff <- Inf
 
-    if (itermax > 2) warning("Itermax is capped at 2.")
+    if (itermax > 2) warning("Itermax is capped at 2.")   
     
     ## itermax is capped at 2, although it can be increased to
     ## correspond to iterated FGLS
@@ -2226,142 +2226,65 @@ gmmEstimate <- function(sset, gstar0, gstar1,
             })
             emat <- Reduce("+", emat) / N
             emat <- (emat + t(emat)) / 2
-            
             ## ematInv <- solve(emat, tol = 1e-20)
             ematInv <- solve(emat)
             ematInv <- (ematInv + t(ematInv)) / 2
+
+            print("This is emat")
+            print(emat)
+            print("this is emat inverse")
+            print(ematInv)
         }
 
-        diff <- sqrt(sum((thetaNew - theta) ^ 2))
-        i <- i + 1
-
+        diff <- sqrt(sum((thetaNew - theta) ^ 2))        
         theta <- thetaNew
+
+        i <- i + 1
     }
    
     if (itermax == 1) {
 
-        ## ORIGINAL ---------------------
         seMeat <- lapply(ids, function(x) {
-            ## print("rownames of gmmMat")
-            ## print(as.integer(rownames(gmmMat)) == x)
-            ## print("rownames of errors")
-            ## print(as.integer(rownames(errors)) == x)
+
             gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
             evec <- errors[as.integer(rownames(errors)) == x]
-
-            ## print("gmmi")
-            ## print(gmmi)
-            ## print("evec")
-            ## print(evec)
-            
-            ## if (x == 1) {
-            ##     print("gmmi")
-            ##     print(gmmi)
-            ##     print("evec")
-            ##     print(evec)
-            ##     print("evec outer")
-            ##     print(evec %*% t(evec))
-            ## }
             ## evec <- round(evec, 8)
             bmat <- t(gmmi) %*% evec
             bmat %*% t(bmat)
-            ## t(gmmi) %*% evec %*% t(evec) %*% gmmi
-        })
-        ## print("se meat, before summation")
-        ## print(seMeat[1])
-        
+        })        
         seMeat <- Reduce("+", seMeat)
         seMeat <- (seMeat + t(seMeat)) / 2
+
+        print("this is seMeat")
+        print(seMeat)
+
+        print("this is seBread preinverse")
+        print(t(gmmMat) %*% gmmMat)
+        print("this is seBread inverse")
+        print(solve(t(gmmMat) %*% gmmMat))
         
-        ## print("seMeat symmetric?")
-        ## print(seMeat == t(seMeat))
-        ## EXPERIMENT -------------------
-        ## seMeat2 <- 0
-        ## for (x in ids) {
-        ##     gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
-        ##     evec <- errors[as.integer(rownames(errors)) == x]
-        ##     ## evec <- round(evec, 8)
-        ##     bmat <- t(gmmi) %*% evec
-        ##     seMeat2 <- seMeat2 + bmat %*% t(bmat)
-        ## }
-        ## print("seMeat2 symmertric?")
-        ## print(seMeat2 == t(seMeat2))
-        ## print("seMeat and seMeat2 the same?")
-        ## print(seMeat == seMeat2)
-        ## END EXPERIMENT----------------
-
-        ## ORIGINAL -----
-
-        ## print("seMeat")
-        ## print(seMeat)
-
-        ## print("seBread preinverse")
-        ## print(t(gmmMat) %*% gmmMat)
-       
-        avar <- solve(t(gmmMat) %*%  gmmMat) %*%
+        avar <- solve(t(gmmMat) %*% gmmMat) %*%
             seMeat %*%
             solve(t(gmmMat) %*% gmmMat)
         avar <- (avar + t(avar)) / 2
-
-        ## print('this is avar')
-        ## print(avar)
-        ## TESTING ------
-        ## gmmMatOuterInv <- solve(t(gmmMat) %*% gmmMat)
-        ## gmmMatOuterInv <- (gmmMatOuterInv + t(gmmMatOuterInv)) / 2
-        ## avar <- gmmMatOuterInv %*% 
-        ##     seMeat %*%
-        ##     gmmMatOuterInv
-        ## emat2 <- lapply(ids, function(x) {
-        ##     errors[as.integer(rownames(errors)) == x]
-        ## })
-        ## emat2 <- Reduce("rbind", emat2)
-        ## print("this is emat 2")
-        ## print(head(emat2))
-        ## print("THese are the column means of emat2")
-        ## print(colMeans(emat2))
-        ## print("this is the sum of emat2")
-        ## print(sum(emat2))
-        ## print("and this is the orthogonality check")
-        ## print(t(gmmMat) %*% errors)
-        ## print("this is the full emat2")
-        ## print(emat2)
-        ## END TESTING --
-
-        ## print("avar sym")
-        ## print(avar == t(avar))
-        ## print("avar pos def")
-        ## print(eigen(avar)$values)
-        ## print(all(round(eigen(avar)$values, 12) > 0))
+        print("this is avar")
+        print(avar)
 
     } else {
+        
         ## ORIGINAL --------------------
         seMeat <- lapply(ids, function(x) {
             gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
             evec <- errors[as.integer(rownames(errors)) == x]
             ## evec <- round(evec, 8)
             bmat <- t(gmmi) %*% ematInv %*% evec
-            bmat %*% t(bmat)
-            ## t(gmmi) %*% ematInv %*% evec %*% t(evec) %*% ematInv %*% gmmi            
+            bmat %*% t(bmat)    
         })
         seMeat <- Reduce("+", seMeat)
         seMeat <- (seMeat + t(seMeat)) / 2
-        
-        ## print("seMeat symmertric?")
-        ## print(seMeat == t(seMeat))
-        ## EXPERIMENT -------------------
-        ## seMeat2 <- 0
-        ## for (i in ids) {
-        ##     gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
-        ##     evec <- errors[as.integer(rownames(errors)) == x]
-        ##     ## evec <- round(evec, 8)
-        ##     bmat <- t(gmmi) %*% ematInv %*% evec
-        ##     seMeat2 <- seMeat2 + bmat %*% t(bmat)
-        ## }
-        ## print("seMeat2 symmertric?")
-        ## print(seMeat2 == t(seMeat2))
-        ## print("seMeat and seMeat2 the same?")
-        ## print(seMeat == seMeat2)
-        ## END EXPERIMENT----------------
+
+        print("this is seMeat")
+        print(seMeat)
         
         seBread <- lapply(ids, function(x) {
             gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
@@ -2371,10 +2294,13 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         seBread <- Reduce("+", seBread)
         seBread <- (seBread + t(seBread)) / 2
 
-        ## print("seBread symmetric?")
-        ## print(seBread == t(seBread))
+        print("this is seBread")
+        print(seBread)
         
         avar <- solve(seBread) %*% seMeat %*% solve(seBread)
+
+        print("This is avar")
+        print(avar)
     }
 
     ## Construct point estimate and CI of TE
@@ -2386,9 +2312,6 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         rownames(theta) <- nameVec
         rownames(avar) <- nameVec
         colnames(avar) <- nameVec
-
-        ## print("colmeans of gstar0, gstar1")
-        ## print(c(colMeans(gstar0), colMeans(gstar1)))
         
         te <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
         se <- sqrt(t(c(colMeans(gstar0), colMeans(gstar1))) %*%
@@ -2457,10 +2380,10 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         theta0dg <- theta0dg - theta0dgtmp
         theta1dg <- thetaPar1[keepTerms1]
 
-        ## print("full theta")
-        ## print(theta)
-        ## print("gstar gamma means")
-        ## print(c(colMeans(gstar0), colMeans(gstar1)))
+        print("full theta")
+        print(theta)
+        print("gstar gamma means")
+        print(c(colMeans(gstar0), colMeans(gstar1)))
         
         ## print("names vec")
         ## print(nameVec)
@@ -2477,20 +2400,8 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         grad <- c(gamma0, gamma1, theta0dg, theta1dg)
         se <- sqrt(t(grad) %*% avar %*% grad)
 
-        ## TESTING ---------------
-        ## te <- sum(theta)
-        ## se <- sqrt(t(rep(1, nrow(avar))) %*% avar %*% rep(1, nrow(avar)))
-        ## print("this is avar")
-        ## print(avar)
-        ## print("this is avar RREF")
-        ## print(pracma::rref(avar))
-        ## print("this is avar's rank")
-        ## print(qr(avar)$rank)
-        ## print(pracma::Rank(avar))
-        ## print("a var positive definie")
-        ## print(all(round(eigen(avar)$values, 10) >= 0))
-        ## print(eigen(avar)$values)             
-        ## END TESTING -----------
+        print("this is the gradient")
+        print(grad)
     }
 
     ci90 <- c(te - qnorm(0.95) * se, te + qnorm(0.95) * se)
