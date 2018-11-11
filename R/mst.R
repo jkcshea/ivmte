@@ -1,3 +1,155 @@
+ivmte <- function(bootstraps = 0,
+                  ivlike, data, subset, components, propensity, link,
+                  treat, m0, m1, uname = u, target, target.weight0,
+                  target.weight1, target.knots0 = NULL, target.knots1 = NULL,
+                  late.Z, late.from, late.to, late.X,
+                  eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
+                  grid.nu = 20, grid.nx = 20, audit.nx = 2,
+                  audit.nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
+                  m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
+                  m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL,
+                  point = FALSE, point.itermax = 2,
+                  point.tol = 1e-08, noisy = TRUE) {
+    ## Match call arguments
+    call <- match.call(expand.dots = FALSE)
+
+    estimateCall <- modcall(call,
+                            newcall = ivmte.estimate,
+                            dropargs = c("bootstraps", "data"),
+                            newargs = list(data = quote(data)))
+
+    if (bootstraps == 0) {
+        return(eval(estimateCall))
+    } else if (point == TRUE & (bootstraps > 0) & (bootstraps %% 1 == 0)) {
+
+        origEstimate <- eval(estimateCall)
+
+        teEstimates  <- NULL
+        mtrEstimates <- NULL
+        propEstimates <- NULL
+
+        b <- 1
+        bootFailN <- 0
+        bootFailNote <- ""
+        bootFailIndex <- NULL
+
+        while (b <= bootstraps) {
+            bdata <- data[sample(seq(1, nrow(data)),
+                                 size = nrow(data),
+                                 replace = TRUE), ]
+            bootCall <- modcall(call,
+                                newcall = ivmte.estimate,
+                                dropargs = c("bootstraps", "data", "noisy"),
+                                newargs = list(data = quote(bdata),
+                                               noisy = FALSE))
+
+            bootEstimate <- try(eval(bootCall), silent = TRUE)
+            if (is.list(bootEstimate)) {
+                teEstimates  <- c(teEstimates, bootEstimate$te)
+                mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
+                propEstimates <- cbind(propEstimates,
+                                       bootEstimate$propensity$model$coef)
+
+                if (noisy == TRUE) {
+                    message(paste0("Bootstrap iteration ", b, bootFailNote,
+                                   "..."))
+                }
+                b <- b + 1
+                bootFailN <- 0
+                bootFailNote <- ""
+            } else {
+                if (noisy == TRUE) {
+                    message(paste0("Bootstrap iteration ", b, bootFailNote,
+                                   " error, resampling..."))
+                }
+                bootFailN <- bootFailN + 1
+                bootFailIndex <- unique(c(bootFailIndex, b))
+                bootFailNote <- paste0(": resample ",
+                                       bootFailN)
+
+            }
+        }
+
+        if (length(bootFailIndex) > 0) {
+            warning(gsub("\\s+", " ",
+                         paste0("Bootstrap iteration(s) ",
+                                paste(bootFailIndex, collapse = ", "),
+                                " failed. Failed bootstraps are repeated.")))
+        }
+
+        bootSE <- sd(teEstimates)
+        mtrSE  <- apply(mtrEstimates, 1, sd)
+        propSE  <- apply(propEstimates, 1, sd)
+
+        ## Conf. int. 1: quantile method (same as percentile method)
+        ci190 <- quantile(x = teEstimates, probs = c(0.05, 0.95), type = 1)
+        ci195 <- quantile(x = teEstimates, probs = c(0.025, 0.975), type = 1)
+
+        mtrci190 <- apply(mtrEstimates, 1, quantile, probs = c(0.05, 0.95),
+                          type = 1)
+        mtrci195 <- apply(mtrEstimates, 1, quantile, probs = c(0.025, 0.975),
+                          type = 1)
+
+        propci190 <- apply(propEstimates, 1, quantile, probs = c(0.05, 0.95),
+                          type = 1)
+        propci195 <- apply(propEstimates, 1, quantile, probs = c(0.025, 0.975),
+                          type = 1)
+
+        ## Conf. int. 2: percentile, using Z statistics
+        ci290 <- origEstimate$te + c(qnorm(0.05), qnorm(0.95)) * bootSE
+        ci295 <- origEstimate$te + c(qnorm(0.025), qnorm(0.975)) * bootSE
+        names(ci290) <- c("5%", "95%")
+        names(ci295) <- c("2.5%", "97.5%")
+
+        mtrci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), mtrSE),
+                          MARGIN = 2, origEstimate$te, FUN = "+")
+        mtrci295 <- sweep(x = tcrossprod(c(qnorm(0.025), qnorm(0.975)), mtrSE),
+                          MARGIN = 2, origEstimate$te, FUN = "+")
+
+        propci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), propSE),
+                          MARGIN = 2, origEstimate$prop$model$coef, FUN = "+")
+        propci295 <- sweep(x = tcrossprod(c(qnorm(0.025), qnorm(0.975)), propSE),
+                          MARGIN = 2, origEstimate$prop$model$coef, FUN = "+")
+
+        colnames(mtrci290) <- colnames(mtrci190)
+        rownames(mtrci290) <- rownames(mtrci190)
+
+        colnames(mtrci295) <- colnames(mtrci195)
+        rownames(mtrci295) <- rownames(mtrci195)
+
+        colnames(propci290) <- colnames(propci190)
+        rownames(propci290) <- rownames(propci190)
+
+        colnames(propci295) <- colnames(propci195)
+        rownames(propci295) <- rownames(propci195)
+      
+        return(c(origEstimate,
+                 list(te.se  = bootSE,
+                      mtr.se = mtrSE,
+                      prop.se = propSE,
+                      te.bootstraps = teEstimates,
+                      mtr.bootstraps = t(mtrEstimates),
+                      te.ci1.90 = ci190,
+                      te.ci1.95 = ci195,
+                      te.ci2.90 = ci290,
+                      te.ci2.95 = ci295,
+                      mtr.ci1.90 = t(mtrci190),
+                      mtr.ci1.95 = t(mtrci195),
+                      mtr.ci2.90 = t(mtrci290),
+                      mtr.ci2.95 = t(mtrci295),
+                      prop.ci1.90 = t(propci190),
+                      prop.ci1.95 = t(propci195),
+                      prop.ci2.90 = t(propci290),
+                      prop.ci2.95 = t(propci295))))
+
+    } else if (point == FALSE) {
+        stop("Bootstraps can only be applied if 'point == TRUE'.")
+    } else {
+        stop("Bootstraps must be an integer.")
+    }
+}
+
+
 #' Estimation procedure from Mogstad, Torgovitsky (2017)
 #'
 #' This function estimates bounds on treatment effect parameters,
@@ -198,7 +350,7 @@
 #'     m1.dec = TRUE)
 #'
 #' @export
-ivmte <- function(ivlike, data, subset, components, propensity, link,
+ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
                   treat, m0, m1, uname = u, target, target.weight0,
                   target.weight1, target.knots0 = NULL, target.knots1 = NULL,
                   late.Z, late.from, late.to, late.X,
@@ -614,14 +766,14 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         hasArg(mte.lb) | hasArg(mte.ub)) {
 
         noshape = FALSE ## indicator for whether shape restrictions declared
-        
+
         if (!((audit.nu %% 1 == 0) & audit.nu > 0) | audit.nu < 2) {
             stop("audit.nu must be an integer greater than or equal to 2.")
         }
     } else {
 
-        noshape = TRUE 
-        
+        noshape = TRUE
+
         if (!((audit.nu %% 1 == 0) & audit.nu > 0)) {
             stop("audit.nu must be an integer greater than or equal to 1.")
         }
@@ -981,7 +1133,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 
     data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
     ## Adjust row names to handle bootstrapping
-    rownames(data) <- as.character(seq(1, nrow(data)))   
+    rownames(data) <- as.character(seq(1, nrow(data)))
     cdata <- data
 
     ##---------------------------
@@ -1009,7 +1161,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                                         formula = substitute(propensity)))
     }
     pmodel <- eval(pcall)
-    
+
     ##---------------------------
     ## 3. Generate target moments/gamma terms
     ##---------------------------
@@ -1073,7 +1225,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
         } else {
             stop("Unrecognized target parameter.")
         }
-        
+
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
             if (noisy == TRUE) {
@@ -1092,7 +1244,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             gstar0 <- NULL
             pm0 <- NULL
         }
-       
+
         if (!is.null(m1)) {
             if (noisy == TRUE) {
                 message("    Integrating terms for treated group...\n")
@@ -1110,7 +1262,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
             gstar1 <- NULL
             pm1 <- NULL
         }
-        
+
         if (point == FALSE) {
             gstarSplineObj0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                                 data = cdata,
@@ -1463,7 +1615,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 
         testmat0 <- NULL
         testmat1 <- NULL
-        
+
         ## loop across IV specifications
         for (i in 1:length(ivlike)) {
 
@@ -1487,7 +1639,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
 
             testmat0 <- cbind(testmat0, sest$sw0)
             testmat1 <- cbind(testmat1, sest$sw1)
-            
+
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands
             subset_index <- rownames(sdata)
@@ -1536,7 +1688,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
     if (point == TRUE) {
 
         ## Obtain GMM estimate
-        
+
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
@@ -1642,7 +1794,7 @@ ivmte <- function(ivlike, data, subset, components, propensity, link,
                     ci95 = gmmResult$ci95,
                     mtr.coef = gmmResult$coef,
                     mtr.vcov = gmmResult$vcov))
-        
+
     } else {
         cat("Bound: (", audit$min, ",", audit$max, ")\n")
 
@@ -1811,14 +1963,14 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
             } else {
                 newsubset <- seq(1, nrow(data))
             }
-            
+
             yvec <- as.vector(data[newsubset, yvar])
             dvec <- as.vector(data[newsubset, dvar])
 
             yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] * (1 - dvec))
-            
+
             names(yvec) <- newsubset
-            
+
             sset[[paste0("s", scount)]] <- list(beta = sest$beta[j],
                                                 g0 = cbind(gs0, gsSpline0),
                                                 g1 = cbind(gs1, gsSpline1),
@@ -1876,7 +2028,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     for (s in 1:length(sset)) {
 
         ids <- as.integer(rownames(sset[[s]]$g0))
-        
+
         gmmAdd <- cbind(ids, s,
                         sset[[s]]$g0,
                         sset[[s]]$g1)
@@ -1888,7 +2040,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     }
 
     N <- length(ids)
-    
+
     gmmMat <- gmmMat[order(gmmMat[, 1], gmmMat[, 2]), ]
     yMat   <- yMat[order(yMat[, 1], yMat[, 2]), ]
 
@@ -1906,7 +2058,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
                          specifications). Either expand the number of
                          IV-like specifications, or modify m0 and m1.")))
     }
-     
+
     gmmMat <- gmmMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
 
@@ -1915,8 +2067,8 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     i <- 1
     diff <- Inf
 
-    if (itermax > 2) warning("Itermax is capped at 2.")   
-    
+    if (itermax > 2) warning("Itermax is capped at 2.")
+
     ## itermax is capped at 2, although it can be increased to
     ## correspond to iterated FGLS
     while (i <= itermax & i <= 2 & diff > tol) {
@@ -1924,7 +2076,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         if (i == 1) {
             thetaNew <- solve(t(gmmMat) %*% gmmMat) %*% t(gmmMat) %*% yMat
         } else {
-            
+
             olsA <- lapply(ids, function(x) {
                 gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
                 t(gmmi) %*% ematInv %*% gmmi
@@ -1942,7 +2094,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
         }
 
         errors <- yMat - gmmMat %*% thetaNew
-        
+
         if (i <= (itermax - 1)) {
             emat <- lapply(ids, function(x) {
                 evec <- errors[as.integer(rownames(errors)) == x]
@@ -1956,17 +2108,17 @@ gmmEstimate <- function(sset, gstar0, gstar1,
             ematInv <- (ematInv + t(ematInv)) / 2
         }
 
-        diff <- sqrt(sum((thetaNew - theta) ^ 2))        
+        diff <- sqrt(sum((thetaNew - theta) ^ 2))
         theta <- thetaNew
 
         i <- i + 1
     }
-      
+
     ## Construct point estimate and CI of TE
-    
+
     rownames(theta) <- c(paste0("m0.", colnames(gstar0)),
                          paste0("m1.", colnames(gstar1)))
-    
+
     te <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
 
     if (noisy == TRUE) {

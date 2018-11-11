@@ -20,13 +20,13 @@ modcall <- function(call, newcall, newargs, keepargs, dropargs) {
     if (hasArg(newcall)) {
         lcall[[1]] <- substitute(newcall)
     }
-    if (hasArg(newargs)) {
-        lcall <- c(lcall, newargs)
-    }
     if (hasArg(dropargs)) {
         for (i in dropargs) {
             lcall[[i]] <- NULL
         }
+    }
+    if (hasArg(newargs)) {
+        lcall <- c(lcall, newargs)
     }
     return(as.call(lcall))
 }
