@@ -721,24 +721,18 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
     }
 
     if (hasArg(point)) {
-
-        if (!requireNamespace("gmm", quietly = TRUE)) {
-            stop(gsub("\\s+", " ",
-                      "To estimate the treatement effect under
-                      point identification, please install the package
-                      gmm (version 1.6-2 or later)."))
-        }
-
-        if (hasArg(m0.dec) | hasArg(m0.inc) |
-            hasArg(m1.dec) | hasArg(m1.inc) |
-            hasArg(mte.dec) | hasArg(mte.inc) |
-            hasArg(audit.nu) | hasArg(audit.nx) |
-            hasArg(grid.nu) | hasArg(grid.nx)|
-            hasArg(audit.tol) | hasArg(audit.max)) {
-            warning(gsub("\\s+", " ",
-                         "If argument 'point' is set to TRUE, then shape
-                         restrictions on m0 and m1 are ignored, and the audit
-                         procedure is not implemented."))
+        if (point == TRUE) {
+            if (hasArg(m0.dec) | hasArg(m0.inc) |
+                hasArg(m1.dec) | hasArg(m1.inc) |
+                hasArg(mte.dec) | hasArg(mte.inc) |
+                hasArg(audit.nu) | hasArg(audit.nx) |
+                hasArg(grid.nu) | hasArg(grid.nx)|
+                hasArg(audit.tol) | hasArg(audit.max)) {
+                warning(gsub("\\s+", " ",
+                             "If argument 'point' is set to TRUE, then shape
+                             restrictions on m0 and m1 are ignored, and the
+                             audit procedure is not implemented."))
+            }
         }
     }
 
@@ -770,6 +764,7 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
         if (!((audit.nu %% 1 == 0) & audit.nu > 0) | audit.nu < 2) {
             stop("audit.nu must be an integer greater than or equal to 2.")
         }
+        
     } else {
 
         noshape = TRUE
@@ -1613,9 +1608,6 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
 
-        testmat0 <- NULL
-        testmat1 <- NULL
-
         ## loop across IV specifications
         for (i in 1:length(ivlike)) {
 
@@ -1636,9 +1628,6 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
                                 components = scomponent,
                                 treat = treat,
                                 list = TRUE)
-
-            testmat0 <- cbind(testmat0, sest$sw0)
-            testmat1 <- cbind(testmat1, sest$sw1)
 
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands
@@ -1717,7 +1706,8 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
     audit.args <- c("uname", "grid.nu", "grid.nx",
                     "audit.nx", "audit.nu", "audit.max", "audit.tol",
                     "m1.ub", "m0.ub",
-                    "m1.lb", "m0.lb", "mte.ub", "mte.lb", "m0.dec",
+                    "m1.lb", "m0.lb",
+                    "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
                     "mte.inc", "obseq.tol")
 
@@ -1741,22 +1731,26 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
         maxy <- max(cdata[, vars_y])
         if (!hasArg(m1.ub)) {
             audit_call <- modcall(audit_call,
-                                  newargs = list(m1.ub = maxy))
+                                  newargs = list(m1.ub = maxy,
+                                                 m1.ub.default = TRUE))
         }
         if (!hasArg(m0.ub)) {
             audit_call <- modcall(audit_call,
-                                  newargs = list(m0.ub = maxy))
+                                  newargs = list(m0.ub = maxy,
+                                                 m0.ub.default = TRUE))
         }
     }
     if (!hasArg(m1.lb) | !hasArg(m0.lb)) {
         miny <- min(cdata[, vars_y])
         if (!hasArg(m1.lb)) {
             audit_call <- modcall(audit_call,
-                                  newargs = list(m1.lb = miny))
+                                  newargs = list(m1.lb = miny,
+                                                 m1.lb.default = TRUE))
         }
         if (!hasArg(m0.lb)) {
             audit_call <- modcall(audit_call,
-                                  newargs = list(m0.lb = miny))
+                                  newargs = list(m0.lb = miny,
+                                                 m0.lb.default = TRUE))
         }
     }
 
@@ -1767,7 +1761,7 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
     audit <- eval(audit_call)
 
     ## stop("end of test")
-
+    
     ## If there are no shape restrictions and bounds are very tight,
     ## apply point identification method
     if (abs(audit$max - audit$min) < point.tol & noshape == TRUE) {
@@ -1777,12 +1771,11 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
                      is set to ", point.tol, ". Estimation under point
                      identification will instead be performed.")))
 
-        gmmResult <- gmmEstimate(sset = sset,
-                                 gstar0 = gstar0,
-                                 gstar1 = gstar1,
-                                 itermax = point.itermax,
-                                 tol = point.tol,
-                                 noisy = noisy)
+
+        stop("You need to reconstruct all the ssets and gstar objects if the bounds are so small that you switch to the the GMM estimate.")
+        gmmResult <- gmmEstimate(sset = sset, gstar0 = gstar0, gstar1
+        = gstar1, itermax = point.itermax, tol = point.tol, noisy =
+        noisy)
 
         return(list(sset  = sset,
                     gstar = list(g0 = gstar0,
@@ -1913,7 +1906,7 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         } else {
             gs1 <- NULL
         }
-
+        
         if (means == TRUE) {
             gsSpline0 <- genGammaSplines.mst(splines = splinesobj[[1]],
                                              data = data,

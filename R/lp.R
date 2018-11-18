@@ -16,13 +16,20 @@
 #'     the constraints in the LP problem.
 #' @param mbrhs Vector of constants used to define the constraints in
 #'     the LP problem.
+#' @param bdASeq integer vector, row indexes in the \code{mbA} object
+#'     pertaining to boundedness restrictions.
+#' @param monoASeq integer vector, row indexes in the \code{mbA} object
+#'     pertaining to monotonicity restrictions.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
+#' @param shape boolean, default set to TRUE. Switch to determine
+#'     whether or not to include shape restrictions in the LP problem.
 #' @return A list of matrices and vectors necessary to define an LP
 #'     problem for Gurobi.
 #'
 #' @export
-lpsetup.mst <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL, lpsolver) {
+lpsetup.mst <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
+                        lpsolver, shape = TRUE) {
 
     ## determine lengths
     sn  <- length(sset)
@@ -42,6 +49,7 @@ lpsetup.mst <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL, lpsolver) {
         avec <- replicate(2 * sn, 0)
         avec[(2 * scount + 1) :(2 * scount + 2)] <- c(-1, 1)
         ## Regarding c(-1, 1), the -1 is for w+, 1 is for w-
+        
         avec <- c(avec, sset[[s]]$g0, sset[[s]]$g1)
         A <- rbind(A, avec)
         scount <- scount + 1
@@ -50,11 +58,18 @@ lpsetup.mst <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL, lpsolver) {
     colnames(A) <- c(seq(1, 2 * sn),
                      colnames(A)[(2 * sn + 1) : ncol(A)])
 
+    ## Define bounds on parameters
+    ub <- replicate(ncol(A), Inf)
+    lb <- c(replicate(sn * 2, 0), replicate(gn0 + gn1, -Inf))
+    
     ## Add in additional constraints if included
-    A     <- rbind(A, mbA)
-    sense <- c(sense, mbs)
-    rhs   <- c(rhs, mbrhs)
+    if (shape == TRUE) {        
+        A     <- rbind(A, mbA)
+        sense <- c(sense, mbs)
+        rhs   <- c(rhs, mbrhs)
+    }
 
+    ## Adjust for Rcplex
     if (lpsolver == "Rcplex") {
         sense[sense == "<"]  <- "L"
         sense[sense == "<="] <- "L"
@@ -62,12 +77,8 @@ lpsetup.mst <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL, lpsolver) {
         sense[sense == ">="] <- "G"
         sense[sense == "="]  <- "E"
     }
-
-    ## define bounds
-    ub <- replicate(ncol(A), Inf)
-    lb <- c(replicate(sn * 2, 0), replicate(gn0 + gn1, -Inf))
-
-    ## If using lpSolve, convert the object into one of x+/x-
+ 
+    ## Adjust for lpSolve (convert the object into one of x+/x-)
     if (lpsolver == "lpSolve") {
         obj <- c(obj, -obj[(sn * 2 + 1) : ncol(A)])
         A <- cbind(A, -A[, (sn * 2 + 1) : ncol(A)])
@@ -111,7 +122,8 @@ obseqmin.mst <- function(sset, lpobj, lpsolver) {
         model$ub    <- lpobj$ub
         model$lb    <- lpobj$lb
 
-        result   <- gurobi::gurobi(model, list(outputflag = 0))
+        ## result   <- gurobi::gurobi(model, list(outputflag = 0))
+        result   <- gurobi::gurobi(model)
         obseqmin <- result$objval
         optx     <- result$x
         status   <- result$status

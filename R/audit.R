@@ -60,6 +60,14 @@
 #'     group.
 #' @param m0.lb numeric value for lower bound on MTR for control
 #'     group.
+#' @param m1.ub.default boolean, default set to TRUE. Indicator for
+#'     whether the value assigned was by the user, or set by default.
+#' @param m0.ub.default boolean, default set to TRUE. Indicator for
+#'     whether the value assigned was by the user, or set by default.
+#' @param m1.lb.default boolean, default set to TRUE. Indicator for
+#'     whether the value assigned was by the user, or set by default.
+#' @param m0.lb.default boolean, default set to TRUE. Indicator for
+#'     whether the value assigned was by the user, or set by default.
 #' @param mte.ub numeric value for upper bound on treatment effect
 #'     paramter of interest.
 #' @param mte.lb numeric value for lower bound on treatment effect
@@ -101,8 +109,15 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                       grid.nu = 20, grid.nx = 50,
                       audit.nx = 5, audit.nu = 3, audit.max = 5,
                       audit.tol = 1e-08,
-                      m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
-                      m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
+                      m1.ub, m0.ub, m1.lb, m0.lb,
+                      m1.ub.default = FALSE,
+                      m0.ub.default = FALSE,
+                      m1.lb.default = FALSE,
+                      m0.lb.default = FALSE,
+                      mte.ub, mte.lb,
+                      m0.dec = FALSE, m0.inc = FALSE,
+                      m1.dec = FALSE, m1.inc = FALSE,
+                      mte.dec = FALSE, mte.inc = FALSE,
                       sset, gstar0, gstar1, obseq.tol = 1, lpsolver) {
 
     call  <- match.call()
@@ -232,20 +247,88 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
         ## Minimize violation of observational equivalence
         lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
 
-        ## print("lpobj")
-        ## print(lpobj)
-
-        ## stop("end of testing")
-
         minobseq  <- obseqmin.mst(sset, lpobj, lpsolver)
-        
+
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpSolve" && minobseq$status == 0) |
             (lpsolver == "lpSolveAPI" && minobseq$status == 0)) {
+
+            lpobjAlt <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs,
+                                    mbobj$mbrhs, lpsolver,
+                                    shape = FALSE)
+
+            minobseqAlt <- obseqmin.mst(sset, lpobjAlt, lpsolver)
+            solVec <- minobseqAlt$result$x
+
+            ## Test for violations
+            mbA <- mbobj$mbA
+            negatepos <- which(mbobj$mbs == ">=")
+            mbA[negatepos, ] <- -mbA[negatepos, ]
+            mbrhs <- mbobj$mbrhs
+            mbrhs[negatepos] <- -mbrhs[negatepos]
+
+            violatevec <- mapply(">", (mbA %*% solVec), mbrhs)
+            violatepos <- which(violatevec == TRUE)
+
+            violateType <- sapply(violatepos, function(x) {
+                if (x %in% mbobj$lb0seq) {
+                    if (m0.lb.default == TRUE) {
+                        return(paste0("m0.lb (set to min. observed outcome, ",
+                                      m0.lb, ", by default)"))
+                    } else {
+                        return(paste0("m0.lb (set to ",
+                                      m0.lb, ")"))
+                    }
+                }
+                if (x %in% mbobj$lb1seq) {
+                    if (m1.lb.default == TRUE) {
+                        return(paste0("m1.lb (set to min. observed outcome, ",
+                                      m1.lb, ", by default)"))
+                    } else {
+                        return(paste0("m1.lb (set to ",
+                                      m1.lb, ")"))
+                    }
+                }
+                if (x %in% mbobj$lbteseq) return("mte.lb")
+                if (x %in% mbobj$ub0seq) {
+                    if (m0.ub.default == TRUE) {
+                        return(paste0("m0.ub (set to max. observed outcome, ",
+                                      m0.ub, ", by default)"))
+                    } else {
+                        return(paste0("m0.ub (set to ",
+                                      m0.ub, ")"))
+                    }
+                }
+                if (x %in% mbobj$ub1seq) {
+                    if (m1.ub.default == TRUE) {
+                        return(paste0("m1.ub (set to max. observed outcome, ",
+                                      m1.ub, ", by default)"))
+                    } else {
+                        return(paste0("m1.ub (set to ",
+                                      m1.ub, ")"))
+                    }
+                }
+                if (x %in% mbobj$ubteseq) return("mte.ub")
+                if (x %in% mbobj$mono0seq) {
+                    if (m0.inc == TRUE) return("m0.inc (set to TRUE)")
+                    if (m0.dec == TRUE) return("m0.dec (set to TRUE)")
+                }
+                if (x %in% mbobj$mono1seq) {
+                    if (m1.inc == TRUE) return("m1.inc (set to TRUE)")
+                    if (m1.dec == TRUE) return("m1.dec (set to TRUE)")
+                }
+                if (x %in% mbobj$monomteseq) {
+                    if (mte.inc == TRUE) return("mte.inc (set to TRUE)")
+                    if (mte.dec == TRUE) return("mte.dec (set to TRUE)")
+                }
+            })
+
             stop(gsub("\\s+", " ",
-                      "No feasible solution to minimizing violation of
+                      paste0("No feasible solution to minimizing violation of
                       observational equivalence. The model may be mispecified.
-                      Consider altering the specifications for the MTRs.\n"))
+                      Consider altering the specifications for the MTRs.
+                      Infeasible specifications include: ",
+                      paste(unique(violateType), collapse = ", "), ".\n")))
         }
 
         if (obseq.tol > 0) {
