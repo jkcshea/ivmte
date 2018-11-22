@@ -34,15 +34,17 @@ ivmte <- function(bootstraps = 0,
         bootFailIndex <- NULL
 
         while (b <= bootstraps) {
-            bdata <- data[sample(seq(1, nrow(data)),
+            bids  <- sample(seq(1, nrow(data)),
                                  size = nrow(data),
-                                 replace = TRUE), ]
+                                 replace = TRUE)
+            bdata <- data[bids, ]           
+            
             bootCall <- modcall(call,
                                 newcall = ivmte.estimate,
                                 dropargs = c("bootstraps", "data", "noisy"),
                                 newargs = list(data = quote(bdata),
                                                noisy = FALSE))
-
+            
             bootEstimate <- try(eval(bootCall), silent = TRUE)
             if (is.list(bootEstimate)) {
                 teEstimates  <- c(teEstimates, bootEstimate$te)
@@ -66,10 +68,9 @@ ivmte <- function(bootstraps = 0,
                 bootFailIndex <- unique(c(bootFailIndex, b))
                 bootFailNote <- paste0(": resample ",
                                        bootFailN)
-
             }
         }
-
+        
         if (length(bootFailIndex) > 0) {
             warning(gsub("\\s+", " ",
                          paste0("Bootstrap iteration(s) ",
@@ -140,7 +141,9 @@ ivmte <- function(bootstraps = 0,
                       prop.ci1.90 = t(propci190),
                       prop.ci1.95 = t(propci195),
                       prop.ci2.90 = t(propci290),
-                      prop.ci2.95 = t(propci295))))
+                      prop.ci2.95 = t(propci295),
+                      bootstraps = bootstraps,
+                      failedBootstraps = length(bootFailIndex))))
 
     } else if (point == FALSE) {
         stop("Bootstraps can only be applied if 'point == TRUE'.")
@@ -2039,7 +2042,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     ids <- unique(gmmMat[, 1])
     gmmCompN <- ncol(gmmMat) - 2
-
+   
     if (gmmCompN > length(sset)) {
         stop(gsub("\\s+", " ",
                   paste0("System is underidentified: excluding
@@ -2053,14 +2056,17 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     }
 
     gmmMat <- gmmMat[, -c(1, 2)]
-    yMat   <- yMat[, -c(1, 2)]
-
+    yMat   <- yMat[, -c(1, 2)] 
+    
     ## Perform iterative estimation
     theta <- rep(0, ncol(gmmMat))
     i <- 1
     diff <- Inf
 
     if (itermax > 2) warning("Itermax is capped at 2.")
+
+    ## print("rank of gmmMat")
+    ## print(qr(gmmMat)$rank)
 
     ## itermax is capped at 2, although it can be increased to
     ## correspond to iterated FGLS
@@ -2096,9 +2102,15 @@ gmmEstimate <- function(sset, gstar0, gstar1,
             })
             emat <- Reduce("+", emat) / N
             emat <- (emat + t(emat)) / 2
-
+          
+            ## print("rank of error matrix")
+            ## print(qr(emat)$rank)
+            
             ematInv <- solve(emat)
             ematInv <- (ematInv + t(ematInv)) / 2
+
+            ## print("this is the inverse of the matrix")
+            ## print(ematInv)
         }
 
         diff <- sqrt(sum((thetaNew - theta) ^ 2))
