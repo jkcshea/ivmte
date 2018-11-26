@@ -124,30 +124,39 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
 
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
-
+    
     ## Update MTR formulas to include all terms that interact with
     ## splines. This is required for generating the matrices to impose
     ## monotoncity and bounds. The terms that interact wtih the
     ## splines, but do not enter into the MTRs on their own, will be
     ## removed in the function genmonoboundA.
-    if (!is.null(m0)) {
+    
+    if (!is.null(m0) & length(terms_mtr0) > 0) {
         m0 <- update(m0, as.formula(paste("~ . +",
                                           paste(unique(terms_mtr0),
                                                 collapse = " + "))))
     } else {
-        m0 <- as.formula(paste("~",
-                               paste(unique(terms_mtr0),
-                                     collapse = " + ")))
+        if (length(terms_mtr0) > 0) {
+            m0 <- as.formula(paste("~",
+                                   paste(unique(terms_mtr0),
+                                         collapse = " + ")))
+        } else {
+            m0 <- as.formula("~ 1")
+        }
     }
 
-    if (!is.null(m1)) {
+    if (!is.null(m1) & length(terms_mtr1) > 0) {
         m1 <- update(m1, as.formula(paste("~ . +",
                                           paste(unique(terms_mtr1),
                                                 collapse = " + "))))
     } else {
-        m1 <- as.formula(paste("~",
-                               paste(unique(terms_mtr1),
-                                     collapse = " + ")))
+        if (length(terms_mtr1) > 0) {
+            m1 <- as.formula(paste("~",
+                                   paste(unique(terms_mtr1),
+                                         collapse = " + ")))
+        } else {
+            m1 <- as.formula("~ 1")
+        }
     }
 
     ## Obtain name of unobservable variable
@@ -211,6 +220,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
     prevbound <- c(-Inf, Inf)
     existsolution <- FALSE
     audit_count <- 1
+    
     while (audit_count <= audit.max) {
         if (obseq.tol > 0 ) {
             cat("Audit count:", audit_count, "\n")
@@ -401,17 +411,21 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
         if (optstatus == 0) {
             existsolution <- FALSE
 
-            message(gsub("\\s+", " ",
-                         "Bounds extend to +/- infinity. Expanding grid..."))
-            message("")
-
             grid_index <- c(grid_index, a_grid_index)
             uvec <- c(uvec, a_uvec)
             audit_count <- audit_count + 1
-
+           
             if (audit_count <= audit.max) {
+                message(gsub("\\s+", " ",
+                             "Bounds extend to +/- infinity.
+                             Expanding grid..."))
+                message("")
                 next
             } else {
+                message(gsub("\\s+", " ",
+                             "Bounds extend to +/- infinity."))
+                message("")
+                
                 stop(gsub("\\s+", " ",
                           paste0("Estimation terminated: maximum number of
                           audits (audit.max = ", audit.max, ") reached, but
@@ -421,15 +435,17 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                           expansion of the grid in the audit procedure
                           (audit.nx, audit.nu). \n")))
             }
-        } else {
+        } else {           
             if (existsolution == FALSE) {
                 existsolution <- TRUE
                 prevbound <- c(lpresult$min, lpresult$max)
             } else {
-                if (((abs(lpresult$min - prevbound[1]) / prevbound[1]) <
+                
+                if ((abs((lpresult$min - prevbound[1]) / prevbound[1]) <
                      audit.tol) &
-                    ((abs(lpresult$max - prevbound[2]) / prevbound[2]) <
+                    (abs((lpresult$max - prevbound[2]) / prevbound[2]) <
                      audit.tol)) {
+                    
                     message(gsub("\\s+", " ",
                                  "Audit ending: change in bounds falls
                                  below tolerance level.\n"))

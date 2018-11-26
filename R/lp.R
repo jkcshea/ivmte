@@ -232,8 +232,8 @@ bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
         model <- list()
         model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1)
         model$rhs <- c(obseq.tol, lpobj$rhs)
-        model$ub    <- lpobj$ub
-        model$lb    <- lpobj$lb
+        model$ub  <- lpobj$ub
+        model$lb  <- lpobj$lb
 
         avec <- c(replicate(2 * lpobj$sn, 1),
                   replicate(lpobj$gn0 + lpobj$gn1, 0))
@@ -243,6 +243,9 @@ bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
         ## obtain lower and upper bounds
         if (lpsolver == "gurobi") {
 
+            ## print("this is the model")
+            ## print(model)
+            
             model$modelsense <- "min"
             minresult <- gurobi::gurobi(model, list(outputflag = 0))
             min <- minresult$objval
@@ -255,11 +258,11 @@ bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
             max <- maxresult$objval
             maxstatus <- 0
             if (maxresult$status == "OPTIMAL") maxstatus <- 1
-            maxoptx <- maxresult$x
+            maxoptx <- maxresult$x            
         }
         if (lpsolver == "Rcplex") {
-            model$sense[1] <- "L"
-
+            model$sense[1] <- "L" ## to satisfy minimal obs. equiv. deviation
+          
             minresult <- Rcplex::Rcplex(objsense = "min",
                                         cvec = model$obj,
                                         Amat = model$A,
@@ -285,6 +288,17 @@ bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
             max <- maxresult$obj
             maxstatus <- maxresult$status
             maxoptx   <- maxresult$xopt
+
+            ## Deal with cases where the bounds are contradictory,
+            ## which can occur when the target parameter is unbounded
+            if (min > max) {
+                min <- NULL
+                max <- NULL
+                minstatus <- 0
+                maxstatus <- 0
+                minoptx <- NULL
+                maxoptx <- NULL
+            }
         }
 
         if (lpsolver == "cplexAPI") {
@@ -381,11 +395,11 @@ bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
     names(maxg1) <- names(sset$gstar$g1)
 
     if (noisy) {
-        cat("Min status:", minstatus, "\n")
-        cat("Max status:", maxstatus, "\n")
-        cat("Bound: (", min, ",", max, ")\n")
+        message(paste0("Min status: ", minstatus, "\n"))
+        message(paste0("Max status: ", maxstatus, "\n"))
+        message(paste0("Bound: (", min, ", ", max, ")\n"))
     }
-
+    
     return(list(max = max,
                 maxg0 = maxg0,
                 maxg1 = maxg1,

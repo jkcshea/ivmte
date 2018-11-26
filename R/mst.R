@@ -882,7 +882,7 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
 
         m0 <- splinesobj[[1]]$formula
         m1 <- splinesobj[[2]]$formula
-
+        
         vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
                       all.vars(splinesobj[[2]]$formula))
 
@@ -1776,9 +1776,13 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
 
 
         stop("You need to reconstruct all the ssets and gstar objects if the bounds are so small that you switch to the the GMM estimate.")
-        gmmResult <- gmmEstimate(sset = sset, gstar0 = gstar0, gstar1
-        = gstar1, itermax = point.itermax, tol = point.tol, noisy =
-        noisy)
+
+        gmmResult <- gmmEstimate(sset = sset,
+                                 gstar0 = gstar0,
+                                 gstar1 = gstar1,
+                                 itermax = point.itermax,
+                                 tol = point.tol,
+                                 noisy = noisy)
 
         return(list(sset  = sset,
                     gstar = list(g0 = gstar0,
@@ -1792,7 +1796,7 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
                     mtr.vcov = gmmResult$vcov))
 
     } else {
-        cat("Bound: (", audit$min, ",", audit$max, ")\n")
+        message(paste0("Bound: (", audit$min, ", ", audit$max, ")\n"))
 
         ## include additional output material
         return(list(sset  = sset,
