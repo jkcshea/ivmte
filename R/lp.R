@@ -210,9 +210,10 @@ obseqmin.mst <- function(sset, lpobj, lpsolver) {
 #' @param sset a list containing the point estimates and gamma
 #'     components associated with each element in the S-set.
 #' @param lpobj A list of matrices and vectors defining an LP problem.
-#' @param obseq.tol tolerance level for how much more the solution is
-#'     permitted to violate observational equivalence of the IV-like
-#'     estimands.
+#' @param obseq.factor overall multiplicative factor for how much more
+#'     the solution is permitted to violate observational equivalence
+#'     of the IV-like estimands, i.e. \code{obseq.factor} will
+#'     multiply \code{minobseq} directly.
 #' @param noisy boolean, set to \code{TRUE} if optimization results
 #'     should be displayed.
 #' @param lpsolver string, name of the package used to solve the LP
@@ -224,14 +225,14 @@ obseqmin.mst <- function(sset, lpobj, lpsolver) {
 #'     problem that the optimizer solved.
 #'
 #' @export
-bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
+bound.mst <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
 
     if (lpsolver %in% c("gurobi", "Rcplex", "cplexAPI", "lpSolveAPI")) {
 
         ## define model
         model <- list()
         model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1)
-        model$rhs <- c(obseq.tol, lpobj$rhs)
+        model$rhs <- c(obseq.factor, lpobj$rhs)
         model$ub  <- lpobj$ub
         model$lb  <- lpobj$lb
 
@@ -243,9 +244,6 @@ bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
         ## obtain lower and upper bounds
         if (lpsolver == "gurobi") {
 
-            ## print("this is the model")
-            ## print(model)
-            
             model$modelsense <- "min"
             minresult <- gurobi::gurobi(model, list(outputflag = 0))
             min <- minresult$objval
@@ -258,7 +256,14 @@ bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
             max <- maxresult$objval
             maxstatus <- 0
             if (maxresult$status == "OPTIMAL") maxstatus <- 1
-            maxoptx <- maxresult$x            
+            maxoptx <- maxresult$x
+
+            ## print("mininmum result status")
+            ## print(minresult$status)
+
+            ## print("maximum result status")
+            ## print(maxresult$status)       
+            
         }
         if (lpsolver == "Rcplex") {
             model$sense[1] <- "L" ## to satisfy minimal obs. equiv. deviation
@@ -288,16 +293,24 @@ bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
             max <- maxresult$obj
             maxstatus <- maxresult$status
             maxoptx   <- maxresult$xopt
-
+            
             ## Deal with cases where the bounds are contradictory,
-            ## which can occur when the target parameter is unbounded
-            if (min > max) {
-                min <- NULL
-                max <- NULL
-                minstatus <- 0
-                maxstatus <- 0
-                minoptx <- NULL
-                maxoptx <- NULL
+            ## which can occur when the target parameter is
+            ## unbounded. However, this can potentially be a precision
+            ## issue, i.e. the min can exceed the max by a trivial
+            ## amount. You suspect this is a threshold problem, so you
+            ## allow for some tolerance.
+            if (min - max > 0) {            
+                if (round(min - max, 10) > 0) {
+                    min <- NULL
+                    max <- NULL
+                    minstatus <- 0
+                    maxstatus <- 0
+                    minoptx <- NULL
+                    maxoptx <- NULL
+                } else {
+                    max <- min
+                }
             }
         }
 
@@ -336,7 +349,7 @@ bound.mst <- function(g0, g1, sset, lpobj, obseq.tol, lpsolver, noisy = FALSE) {
         ## define model
         model <- list()
         model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1, -g0, -g1)
-        model$rhs <- c(obseq.tol, lpobj$rhs)
+        model$rhs <- c(obseq.factor, lpobj$rhs)
         model$sense <- c("<=", lpobj$sense)
 
         avec <- c(replicate(2 * lpobj$sn, 1),

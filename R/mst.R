@@ -3,7 +3,7 @@ ivmte <- function(bootstraps = 0,
                   treat, m0, m1, uname = u, target, target.weight0,
                   target.weight1, target.knots0 = NULL, target.knots1 = NULL,
                   late.Z, late.from, late.to, late.X,
-                  eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
+                  eval.X, genlate.lb, genlate.ub, obseq.tol = 0.05,
                   grid.nu = 20, grid.nx = 20, audit.nx = 2,
                   audit.nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
                   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
@@ -19,6 +19,9 @@ ivmte <- function(bootstraps = 0,
                             newargs = list(data = quote(data)))
 
     if (bootstraps == 0) {
+        ## print("available types")
+        ## print(table(data$type))
+        
         return(eval(estimateCall))
     } else if (point == TRUE & (bootstraps > 0) & (bootstraps %% 1 == 0)) {
 
@@ -37,7 +40,10 @@ ivmte <- function(bootstraps = 0,
             bids  <- sample(seq(1, nrow(data)),
                                  size = nrow(data),
                                  replace = TRUE)
-            bdata <- data[bids, ]           
+            bdata <- data[bids, ]
+
+            ## print("available types")
+            ## print(table(bdata$type))
             
             bootCall <- modcall(call,
                                 newcall = ivmte.estimate,
@@ -85,7 +91,7 @@ ivmte <- function(bootstraps = 0,
         ## Conf. int. 1: quantile method (same as percentile method)
         ci190 <- quantile(x = teEstimates, probs = c(0.05, 0.95), type = 1)
         ci195 <- quantile(x = teEstimates, probs = c(0.025, 0.975), type = 1)
-
+        
         mtrci190 <- apply(mtrEstimates, 1, quantile, probs = c(0.05, 0.95),
                           type = 1)
         mtrci195 <- apply(mtrEstimates, 1, quantile, probs = c(0.025, 0.975),
@@ -101,11 +107,11 @@ ivmte <- function(bootstraps = 0,
         ci295 <- origEstimate$te + c(qnorm(0.025), qnorm(0.975)) * bootSE
         names(ci290) <- c("5%", "95%")
         names(ci295) <- c("2.5%", "97.5%")
-
+        
         mtrci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), mtrSE),
-                          MARGIN = 2, origEstimate$te, FUN = "+")
+                          MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
         mtrci295 <- sweep(x = tcrossprod(c(qnorm(0.025), qnorm(0.975)), mtrSE),
-                          MARGIN = 2, origEstimate$te, FUN = "+")
+                          MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
 
         propci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), propSE),
                           MARGIN = 2, origEstimate$prop$model$coef, FUN = "+")
@@ -259,8 +265,8 @@ ivmte <- function(bootstraps = 0,
 #' @param obseq.tol threshold for violation of observational
 #'     equivalence. The threshold enters in multiplicatively. Thus, a
 #'     value of 0 corresponds to no violation of observational
-#'     equivalence, and the assumption that the model is correctly
-#'     specified.
+#'     equivalence other than statistical noise, and the assumption
+#'     that the model is correctly specified.
 #' @param grid.nu number of evenly spread points in the interval [0,
 #'     1] of the unobservable u used to form the grid for imposing
 #'     shape restrictions on the MTRs.
@@ -357,7 +363,7 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
                   treat, m0, m1, uname = u, target, target.weight0,
                   target.weight1, target.knots0 = NULL, target.knots1 = NULL,
                   late.Z, late.from, late.to, late.X,
-                  eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
+                  eval.X, genlate.lb, genlate.ub, obseq.tol = 0.05,
                   grid.nu = 20, grid.nx = 20, audit.nx = 2,
                   audit.nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
                   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
@@ -1159,6 +1165,8 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
                                         formula = substitute(propensity)))
     }
     pmodel <- eval(pcall)
+    ## print("pmodel")
+    ## print(pmodel)
 
     ##---------------------------
     ## 3. Generate target moments/gamma terms
@@ -1879,9 +1887,8 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     multiplier = sest$sw0[, j],
                                     subset = subset_index,
                                     means = FALSE)
-
-                ## print(paste("S-weight of", j, "th componnt from S set, d = 0"))
-                ## print(sest$sw0[, j])
+                print(paste("S-weight of", j, "th componnt from S set, d = 0"))
+                print(sest$sw0[, j])
             }
         } else {
             gs0 <- NULL
@@ -1901,8 +1908,8 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     multiplier = sest$sw1[, j],
                                     subset = subset_index,
                                     means = FALSE)
-                ## print(paste(j, "th componnt from S set, d = 1"))
-                ## print(sest$sw1[, j])
+                print(paste(j, "th componnt from S set, d = 1"))
+                print(sest$sw1[, j])
             }
 
             ## print("S-weight ratios, (d = 0) / (d = 1)")
@@ -2027,6 +2034,9 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     for (s in 1:length(sset)) {
 
+        print(paste("IV estimand", s))
+        print(mean(sset[[s]]$ys))
+        
         ids <- as.integer(rownames(sset[[s]]$g0))
 
         gmmAdd <- cbind(ids, s,
@@ -2069,9 +2079,13 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     if (itermax > 2) warning("Itermax is capped at 2.")
 
-    ## print("rank of gmmMat")
-    ## print(qr(gmmMat)$rank)
-
+    print("rank of gmmMat")
+    print(qr(gmmMat)$rank)
+    ## print("rank of gmmMat first entry")
+    ## print(qr(gmmMat[1:3, ])$rank)
+    ## print("gmmMat")
+    ## print(gmmMat)
+    
     ## itermax is capped at 2, although it can be increased to
     ## correspond to iterated FGLS
     while (i <= itermax & i <= 2 & diff > tol) {
@@ -2096,25 +2110,47 @@ gmmEstimate <- function(sset, gstar0, gstar1,
             thetaNew <- solve(olsA) %*% olsB
         }
 
+        print("X'X matrix")
+        print(t(gmmMat) %*% gmmMat)
+        
+        print("inverted X'X matrix")
+        print(solve(t(gmmMat) %*% gmmMat))
+
+        print("X'Y matrix")
+        print(t(gmmMat) %*% yMat)
+        
         errors <- yMat - gmmMat %*% thetaNew
 
         if (i <= (itermax - 1)) {
             emat <- lapply(ids, function(x) {
                 evec <- errors[as.integer(rownames(errors)) == x]
-                ## evec <- round(evec, 8)
+                ## print(evec)
+                evec <- round(evec, 8)
                 evec %*% t(evec)
             })
             emat <- Reduce("+", emat) / N
             emat <- (emat + t(emat)) / 2
-          
-            ## print("rank of error matrix")
-            ## print(qr(emat)$rank)
+
+            ## print("theta")
+            ## print(thetaNew)
+
+            ## print("ymat")
+            ## print(yMat)
+
+            ## print("fitted values")
+            ## print(gmmMat %*% thetaNew)
+
+            ## print("error vector")
+            ## print(c(errors))
             
+            print("rank of error matrix")
+            print(qr(emat)$rank)
+          
             ematInv <- solve(emat)
             ematInv <- (ematInv + t(ematInv)) / 2
 
-            ## print("this is the inverse of the matrix")
-            ## print(ematInv)
+            print("this is the inverse of the matrix")
+            print(ematInv)
         }
 
         diff <- sqrt(sum((thetaNew - theta) ^ 2))

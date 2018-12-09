@@ -95,7 +95,8 @@
 #'     estimands. The threshold multiplies the violation of the
 #'     observational equivalence, i.e. a threshold of 0 corresponds to
 #'     the assumption that the model is correctly specified, and that
-#'     there is no violation of observational equivalence.
+#'     any violation of observational equivalence is due to
+#'     statistical noise.
 #' @param lpsolver name of the linear programming package in R used to
 #'     obtain the bounds on the treatment effect.
 #' @return a list. Included in the list is the minimum violation of
@@ -118,7 +119,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                       m0.dec = FALSE, m0.inc = FALSE,
                       m1.dec = FALSE, m1.inc = FALSE,
                       mte.dec = FALSE, mte.inc = FALSE,
-                      sset, gstar0, gstar1, obseq.tol = 1, lpsolver) {
+                      sset, gstar0, gstar1, obseq.tol = 0.05, lpsolver) {
 
     call  <- match.call()
 
@@ -352,7 +353,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
                                g1 = gstar1,
                                sset = sset,
                                lpobj = lpobj,
-                               obseq.tol = minobseq$obj * obseq.tol,
+                               obseq.factor = minobseq$obj * (1 + obseq.tol),
                                lpsolver = lpsolver)
 
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
@@ -365,15 +366,16 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
             if (optstatus == 0) {
                 message(gsub("\\s+", " ",
                              "Unable to obtain bounds. Try setting obseq.tol
-                             to be greater than 0 to allow for violation of
-                             observational equivalence, or expanding the grid
+                             to be greater than 0 to allow for model
+                             misspecification, or expanding the grid
                              size for imposing the shape restrictions
                              (grid.nx, grid.nu). \n"))
             }
             warning(gsub("\\s+", " ",
-                         "Setting obseq.tol to 0 allows for no violation of
-                         observational equivalence. This assumes the model is
-                         correctly specified."))
+                         "Setting obseq.tol to 0 allows assumes that any
+                         violation of observational equivalence is due to
+                         statistical noise, and that the model is
+                         correctly specified. The audit procedure is skipped."))
             break
         }
 
