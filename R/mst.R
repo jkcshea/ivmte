@@ -1887,8 +1887,8 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     multiplier = sest$sw0[, j],
                                     subset = subset_index,
                                     means = FALSE)
-                print(paste("S-weight of", j, "th componnt from S set, d = 0"))
-                print(sest$sw0[, j])
+                ## print(paste("S-weight of", j, "th componnt from S set, d = 0"))
+                ## print(sest$sw0[, j])
             }
         } else {
             gs0 <- NULL
@@ -1908,8 +1908,8 @@ gensset.mst <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     multiplier = sest$sw1[, j],
                                     subset = subset_index,
                                     means = FALSE)
-                print(paste(j, "th componnt from S set, d = 1"))
-                print(sest$sw1[, j])
+                ## print(paste(j, "th componnt from S set, d = 1"))
+                ## print(sest$sw1[, j])
             }
 
             ## print("S-weight ratios, (d = 0) / (d = 1)")
@@ -2034,8 +2034,8 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     for (s in 1:length(sset)) {
 
-        print(paste("IV estimand", s))
-        print(mean(sset[[s]]$ys))
+        ## print(paste("IV estimand", s))
+        ## print(mean(sset[[s]]$ys))
         
         ids <- as.integer(rownames(sset[[s]]$g0))
 
@@ -2079,8 +2079,8 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     if (itermax > 2) warning("Itermax is capped at 2.")
 
-    print("rank of gmmMat")
-    print(qr(gmmMat)$rank)
+    ## print("rank of gmmMat")
+    ## print(qr(gmmMat)$rank)
     ## print("rank of gmmMat first entry")
     ## print(qr(gmmMat[1:3, ])$rank)
     ## print("gmmMat")
@@ -2110,14 +2110,14 @@ gmmEstimate <- function(sset, gstar0, gstar1,
             thetaNew <- solve(olsA) %*% olsB
         }
 
-        print("X'X matrix")
-        print(t(gmmMat) %*% gmmMat)
+        ## print("X'X matrix")
+        ## print(t(gmmMat) %*% gmmMat)
         
-        print("inverted X'X matrix")
-        print(solve(t(gmmMat) %*% gmmMat))
+        ## print("inverted X'X matrix")
+        ## print(solve(t(gmmMat) %*% gmmMat))
 
-        print("X'Y matrix")
-        print(t(gmmMat) %*% yMat)
+        ## print("X'Y matrix")
+        ## print(t(gmmMat) %*% yMat)
         
         errors <- yMat - gmmMat %*% thetaNew
 
@@ -2143,14 +2143,14 @@ gmmEstimate <- function(sset, gstar0, gstar1,
             ## print("error vector")
             ## print(c(errors))
             
-            print("rank of error matrix")
-            print(qr(emat)$rank)
+            ## print("rank of error matrix")
+            ## print(qr(emat)$rank)
           
             ematInv <- solve(emat)
             ematInv <- (ematInv + t(ematInv)) / 2
 
-            print("this is the inverse of the matrix")
-            print(ematInv)
+            ## print("this is the inverse of the matrix")
+            ## print(ematInv)
         }
 
         diff <- sqrt(sum((thetaNew - theta) ^ 2))
