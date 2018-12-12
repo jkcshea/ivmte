@@ -4,7 +4,8 @@
 \alias{genGamma.splines}
 \title{Generating the Gamma moments}
 \usage{
-genGamma.splines(distr, weight, zvars, u1s1, u0s1, u0s2, target = FALSE, ...)
+genGamma.splines(distr, weight, zvars, u1s1, u0s1, u0s2, target = FALSE,
+  ...)
 }
 \arguments{
 \item{distr}{data.frame, the distribution of the data.}

@@ -4,11 +4,14 @@
 \alias{audit.mst}
 \title{Audit procedure}
 \usage{
-audit.mst(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr0, terms_mtr1,
-  grid.Nu = 20, grid.Nx = 50, audit.Nx = 5, audit.Nu = 3,
-  audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
-  mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc, sset, gstar0,
-  gstar1, obseq.tol = 1, lpsolver)
+audit.mst(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr0,
+  terms_mtr1, grid.nu = 20, grid.nx = 50, audit.nx = 5,
+  audit.nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub,
+  m1.lb, m0.lb, m1.ub.default = FALSE, m0.ub.default = FALSE,
+  m1.lb.default = FALSE, m0.lb.default = FALSE, mte.ub, mte.lb,
+  m0.dec = FALSE, m0.inc = FALSE, m1.dec = FALSE, m1.inc = FALSE,
+  mte.dec = FALSE, mte.inc = FALSE, sset, gstar0, gstar1,
+  obseq.tol = 1, lpsolver)
 }
 \arguments{
 \item{data}{\code{data.frame} used to estimate the treatment
@@ -37,21 +40,6 @@ group.}
 \item{terms_mtr1}{all terms entering into the MTRs for treated
 group.}
 
-\item{grid.Nu}{number of evenly spread points in the interval [0,
-1] of the unobservable u used to form the grid for imposing
-shape restrictions on the MTRs.}
-
-\item{grid.Nx}{number of evenly spread points of the covariates to
-use to form the grid for imposing shape restrictions on the
-MTRs.}
-
-\item{audit.Nx}{number of points on the covariates space to audit
-in each iteration of the audit procedure.}
-
-\item{audit.Nu}{number of points in the interval [0, 1],
-corresponding to the normalized value of the unobservable term,
-to audit in each iteration of the audit procedure.}
-
 \item{audit.max}{maximum number of iterations in the audit
 procedure.}
 
@@ -71,6 +59,18 @@ group.}
 
 \item{m0.lb}{numeric value for lower bound on MTR for control
 group.}
+
+\item{m1.ub.default}{boolean, default set to TRUE. Indicator for
+whether the value assigned was by the user, or set by default.}
+
+\item{m0.ub.default}{boolean, default set to TRUE. Indicator for
+whether the value assigned was by the user, or set by default.}
+
+\item{m1.lb.default}{boolean, default set to TRUE. Indicator for
+whether the value assigned was by the user, or set by default.}
+
+\item{m0.lb.default}{boolean, default set to TRUE. Indicator for
+whether the value assigned was by the user, or set by default.}
 
 \item{mte.ub}{numeric value for upper bound on treatment effect
 paramter of interest.}
@@ -114,6 +114,21 @@ there is no violation of observational equivalence.}
 
 \item{lpsolver}{name of the linear programming package in R used to
 obtain the bounds on the treatment effect.}
+
+\item{grid.Nu}{number of evenly spread points in the interval [0,
+1] of the unobservable u used to form the grid for imposing
+shape restrictions on the MTRs.}
+
+\item{grid.Nx}{number of evenly spread points of the covariates to
+use to form the grid for imposing shape restrictions on the
+MTRs.}
+
+\item{audit.Nx}{number of points on the covariates space to audit
+in each iteration of the audit procedure.}
+
+\item{audit.Nu}{number of points in the interval [0, 1],
+corresponding to the normalized value of the unobservable term,
+to audit in each iteration of the audit procedure.}
 }
 \value{
 a list. Included in the list is the minimum violation of

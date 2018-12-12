@@ -4,8 +4,8 @@
 \alias{genboundA.mst}
 \title{Generating the LP constraint matrix for bounds}
 \usage{
-genboundA.mst(A0, A1, sset, gridobj, uname, m0.lb, m0.ub, m1.lb, m1.ub, mte.lb,
-  mte.ub)
+genboundA.mst(A0, A1, sset, gridobj, uname, m0.lb, m0.ub, m1.lb, m1.ub,
+  mte.lb, mte.ub)
 }
 \arguments{
 \item{A0}{the matrix of values from evaluating the MTR for control

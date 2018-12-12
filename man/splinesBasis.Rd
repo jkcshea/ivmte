@@ -4,8 +4,8 @@
 \alias{splinesBasis}
 \title{Evaluating splines basis functions}
 \usage{
-splinesBasis(x, knots, degree, intercept = TRUE, i, boundary.knots = c(0,
-  1))
+splinesBasis(x, knots, degree, intercept = TRUE, i,
+  boundary.knots = c(0, 1))
 }
 \arguments{
 \item{x}{vector, the values at which to evaluate the basis

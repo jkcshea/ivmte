@@ -4,7 +4,8 @@
 \alias{lpsetup.mst}
 \title{Constructing LP problem}
 \usage{
-lpsetup.mst(sset, mbA = NULL, mbs = NULL, mbrhs = NULL, lpsolver)
+lpsetup.mst(sset, mbA = NULL, mbs = NULL, mbrhs = NULL, lpsolver,
+  shape = TRUE)
 }
 \arguments{
 \item{sset}{List of IV-like estimates and the corresponding gamma
@@ -20,6 +21,15 @@ the LP problem.}
 
 \item{lpsolver}{string, name of the package used to solve the LP
 problem.}
+
+\item{shape}{boolean, default set to TRUE. Switch to determine
+whether or not to include shape restrictions in the LP problem.}
+
+\item{bdASeq}{integer vector, row indexes in the \code{mbA} object
+pertaining to boundedness restrictions.}
+
+\item{monoASeq}{integer vector, row indexes in the \code{mbA} object
+pertaining to monotonicity restrictions.}
 }
 \value{
 A list of matrices and vectors necessary to define an LP

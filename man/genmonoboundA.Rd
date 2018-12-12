@@ -4,9 +4,9 @@
 \alias{genmonoboundA}
 \title{Generating monotonicity and boundedness constraints}
 \usage{
-genmonoboundA(support, grid_index, uvec, splines, monov, uname, m0, m1, sset,
-  gstar0, gstar1, m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub, m0.dec, m0.inc,
-  m1.dec, m1.inc, mte.dec, mte.inc)
+genmonoboundA(support, grid_index, uvec, splines, monov, uname, m0, m1,
+  sset, gstar0, gstar1, m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub, m0.dec,
+  m0.inc, m1.dec, m1.inc, mte.dec, mte.inc)
 }
 \arguments{
 \item{support}{a matrix for the support of all variables that enter

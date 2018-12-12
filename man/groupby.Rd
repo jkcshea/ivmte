@@ -4,8 +4,8 @@
 \alias{groupby}
 \title{Auxiliary function: grouping rows in data}
 \usage{
-groupby(data, variables, groupname = ".mst.monog", countname = ".mst.monoc",
-  count = TRUE)
+groupby(data, variables, groupname = ".mst.monog",
+  countname = ".mst.monoc", count = TRUE)
 }
 \arguments{
 \item{data}{\code{data.frame} to which the function will assign
