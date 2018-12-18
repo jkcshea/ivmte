@@ -1352,9 +1352,10 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     }
 
     ## Keep only complete cases
-
-    varError <- allvars[! allvars[allvars != "intercept"] %in%
-                        colnames(data)]
+    varError <- allvars[! allvars %in% colnames(data)]
+    varError <- varError[varError != "intercept"]
+    ## varError <- allvars[! allvars[allvars != "intercept"] %in%
+    ##                     colnames(data)]
     if (length(varError) > 0) {
         varError <- paste0("The following variables are not contained
                           in the data set: ",
