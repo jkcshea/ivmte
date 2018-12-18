@@ -25,7 +25,7 @@ ivmte <- function(bootstraps = 0,
         return(eval(estimateCall))
     } else if (point == TRUE & (bootstraps > 0) & (bootstraps %% 1 == 0)) {
 
-        origEstimate <- eval(estimateCall)
+        origEstimate <- eval(estimateCall)W
 
         teEstimates  <- NULL
         mtrEstimates <- NULL
@@ -107,7 +107,10 @@ ivmte <- function(bootstraps = 0,
         ci295 <- origEstimate$te + c(qnorm(0.025), qnorm(0.975)) * bootSE
         names(ci290) <- c("5%", "95%")
         names(ci295) <- c("2.5%", "97.5%")
-        
+
+
+        ## beginning of testing
+
         mtrci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), mtrSE),
                           MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
         mtrci295 <- sweep(x = tcrossprod(c(qnorm(0.025), qnorm(0.975)), mtrSE),
@@ -129,7 +132,7 @@ ivmte <- function(bootstraps = 0,
 
         colnames(propci295) <- colnames(propci195)
         rownames(propci295) <- rownames(propci195)
-      
+
         return(c(origEstimate,
                  list(te.se  = bootSE,
                       mtr.se = mtrSE,
@@ -1165,8 +1168,6 @@ ivmte.estimate <- function(ivlike, data, subset, components, propensity, link,
                                         formula = substitute(propensity)))
     }
     pmodel <- eval(pcall)
-    ## print("pmodel")
-    ## print(pmodel)
 
     ##---------------------------
     ## 3. Generate target moments/gamma terms

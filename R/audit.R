@@ -270,7 +270,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
 
             minobseqAlt <- obseqmin.mst(sset, lpobjAlt, lpsolver)
             solVec <- minobseqAlt$result$x
-
+           
             ## Test for violations
             mbA <- mbobj$mbA
             negatepos <- which(mbobj$mbs == ">=")

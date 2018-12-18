@@ -122,8 +122,8 @@ obseqmin.mst <- function(sset, lpobj, lpsolver) {
         model$ub    <- lpobj$ub
         model$lb    <- lpobj$lb
 
-        ## result   <- gurobi::gurobi(model, list(outputflag = 0))
-        result   <- gurobi::gurobi(model)
+        result   <- gurobi::gurobi(model, list(outputflag = 0))
+        ## result   <- gurobi::gurobi(model)
         obseqmin <- result$objval
         optx     <- result$x
         status   <- result$status
