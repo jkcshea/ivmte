@@ -129,7 +129,7 @@ polylisteval <- function(polynomials, points) {
 #'     original monomials in the MTR; and a vector for the names of
 #'     each variable entering into the MTR (note \code{x^2 + x} has
 #'     only one term, \code{x}).
-polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
+polyparse <- function(formula, data, uname = u, as.function = FALSE) {
 
     ## update formula parsing
     formula <- Formula::as.Formula(formula)
@@ -139,7 +139,7 @@ polyparse.mst <- function(formula, data, uname = u, as.function = FALSE) {
     ## specifications correspond polynomial coefficients on u
     ## monomials
     data[[uname]] <- 1
-    dmat <- design.mst(formula, data)$X
+    dmat <- design(formula, data)$X
 
     ## Save original terms for reference as later
     oterms <- attr(terms(formula), "term.labels")
@@ -343,7 +343,7 @@ polyProduct <- function(poly1, poly2) {
 #'     Z] (i.e. only the integral with respect to u is performed).
 #'
 #' @export
-gengamma.mst <- function(monomials, lb, ub, multiplier = 1,
+gengamma <- function(monomials, lb, ub, multiplier = 1,
                          subset = NULL, means = TRUE) {
    
     exporder  <- monomials$exporder
@@ -706,7 +706,7 @@ uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 #'     which element of the list \code{splines} the column pertains
 #'     to. "[b]" will be an integer reflect which component of the
 #'     basis the column pertains to.
-genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
+genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
                                 subset, d = NULL, means = TRUE) {
 
     splines <- splines$splineslist
@@ -741,7 +741,7 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
                                                      paste(splines[[j]],
                                                            collapse = " + ")))
             }
-            nonSplinesDmat <- design.mst(nonSplineFormula,
+            nonSplinesDmat <- design(nonSplineFormula,
                                          data[subset, ])$X
 
             ## Spline integral matrices
@@ -819,7 +819,7 @@ genGammaSplines.mst <- function(splines, data, lb, ub, multiplier = 1,
 #'     be an integer indicating which element of the list
 #'     \code{splines} the column pertains to. "[b]" will be an integer
 #'     reflect which component of the basis the column pertains to.
-genBasisSplines.mst <- function(splines, x, d = NULL) {
+genBasisSplines <- function(splines, x, d = NULL) {
 
     if (is.null(splines)) {
         return(NULL)

@@ -12,12 +12,12 @@
 #'     first stage covariates, Z.
 #'
 #' @examples
-#' design.mst(formula = ey ~ d | z,
+#' design(formula = ey ~ d | z,
 #'            data = dtm,
 #'            subset = z %in% c(1, 2))
 #'
 #' @export
-design.mst <- function(formula, data, subset) {
+design <- function(formula, data, subset) {
 
     ## Set up model.frame() call
     if (missing(data)) data <- environment(formula)

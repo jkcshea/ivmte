@@ -35,17 +35,17 @@
 #' 
 #' @examples
 #' ## Declaring a probability model.
-#' propensity.mst(formula = d ~ z,
+#' propensity(formula = d ~ z,
 #'                data = dtm,
 #'                link = "linear")
 #'
 #' ## Declaring a variable to be used instead
-#' propensity.mst(formula = pz,
+#' propensity(formula = pz,
 #'                data = dtm,
 #'                link = "linear")
 #'
 #' @export
-propensity.mst <- function(formula, data, link = "linear", late.Z,
+propensity <- function(formula, data, link = "linear", late.Z,
                            late.X) {
 
     fname <- deparse(substitute(formula))

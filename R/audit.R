@@ -105,7 +105,7 @@
 #'     solving the LP problem.
 #'
 #' @export
-audit.mst <- function(data, uname, m0, m1, splinesobj,
+audit <- function(data, uname, m0, m1, splinesobj,
                       vars_mtr, terms_mtr0, terms_mtr1,
                       grid.nu = 20, grid.nx = 50,
                       audit.nx = 5, audit.nu = 3, audit.max = 5,
@@ -256,19 +256,19 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
         mbobj <- eval(monoboundAcall)
 
         ## Minimize violation of observational equivalence
-        lpobj <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
+        lpobj <- lpsetup(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
 
-        minobseq  <- obseqmin.mst(sset, lpobj, lpsolver)
+        minobseq  <- obseqmin(sset, lpobj, lpsolver)
 
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpSolve" && minobseq$status == 0) |
             (lpsolver == "lpSolveAPI" && minobseq$status == 0)) {
 
-            lpobjAlt <- lpsetup.mst(sset, mbobj$mbA, mbobj$mbs,
+            lpobjAlt <- lpsetup(sset, mbobj$mbA, mbobj$mbs,
                                     mbobj$mbrhs, lpsolver,
                                     shape = FALSE)
 
-            minobseqAlt <- obseqmin.mst(sset, lpobjAlt, lpsolver)
+            minobseqAlt <- obseqmin(sset, lpobjAlt, lpsolver)
             solVec <- minobseqAlt$result$x
            
             ## Test for violations
@@ -349,7 +349,7 @@ audit.mst <- function(data, uname, m0, m1, splinesobj,
 
         ## Obtain bounds
         message("Obtaining bounds...\n")
-        lpresult  <- bound.mst(g0 = gstar0,
+        lpresult  <- bound(g0 = gstar0,
                                g1 = gstar1,
                                sset = sset,
                                lpobj = lpobj,

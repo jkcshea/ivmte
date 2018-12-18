@@ -9,11 +9,11 @@
 #' @return list.
 #'
 #' @examples
-#' components <- lists.mst(d, x1, intercept)
-#' subsets <- lists.mst(, z %in% c(2, 4))
+#' components <- lists(d, x1, intercept)
+#' subsets <- lists(, z %in% c(2, 4))
 #'
 #' @export
-lists.mst <- function(...) {
+l <- function(...) {
     lists <- as.list(substitute(list(...)))
     return(lists[-1])
 }

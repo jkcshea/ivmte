@@ -45,7 +45,7 @@ restring <- function(vector, substitute = TRUE) {
 #' @param data \code{data.frame} on which the estimation is performed.
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
-wate1.mst <- function(data) {
+wate1 <- function(data) {
     return(list(lb = replicate(nrow(data), 0),
                 ub = replicate(nrow(data), 1),
                 mp = 1))
@@ -59,7 +59,7 @@ wate1.mst <- function(data) {
 #' @param propensity Vector of propensity to take up treatment.
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
-watt1.mst <- function(data, expd1, propensity) {
+watt1 <- function(data, expd1, propensity) {
     ## it is assumed that propensity will be a vector
     return(list(lb = replicate(nrow(data), 0),
                 ub = propensity,
@@ -75,7 +75,7 @@ watt1.mst <- function(data, expd1, propensity) {
 #' @param propensity Vector of propensity to take up treatment.
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
-watu1.mst <- function(data, expd0, propensity) {
+watu1 <- function(data, expd0, propensity) {
     return(list(lb = propensity,
                 ub = replicate(nrow(data), 1),
                 mp = 1 / expd0))
@@ -99,7 +99,7 @@ watu1.mst <- function(data, expd0, propensity) {
 #'     \code{X} variables on.
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
-wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
+wlate1 <- function(data, from, to, Z, model, X, eval.X) {
 
     ## Determine the type of model we are working with (data.frame
     ## vs. glm)
@@ -199,7 +199,7 @@ wlate1.mst <- function(data, from, to, Z, model, X, eval.X) {
 #' @param uub Numeric, upper bound of interval.
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
-wgenlate1.mst <- function(data, ulb, uub) {
+wgenlate1 <- function(data, ulb, uub) {
     return(list(lb = replicate(nrow(data), ulb),
                 ub = replicate(nrow(data), uub),
                 mp = 1 / (uub - ulb)))

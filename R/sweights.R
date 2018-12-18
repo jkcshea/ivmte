@@ -37,7 +37,7 @@ extractcols <- function(M, components) {
 #' @param treat Variable name for the treatment indicator.
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
-olsj.mst <- function(X, components, treat) {
+olsj <- function(X, components, treat) {
 
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
@@ -71,7 +71,7 @@ olsj.mst <- function(X, components, treat) {
 #'     instrument dummy.
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
-wald.mst <- function(D, Z) {
+wald <- function(D, Z) {
 
     D <- D[, colnames(D) != "(Intercept)"]
     Z <- Z[, colnames(Z) != "(Intercept)"]
@@ -95,7 +95,7 @@ wald.mst <- function(D, Z) {
 #' @param treat Variable name for the treatment indicator.
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
-ivj.mst <- function(X, Z, components, treat) {
+ivj <- function(X, Z, components, treat) {
 
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
@@ -134,7 +134,7 @@ ivj.mst <- function(X, Z, components, treat) {
 #' @param treat Variable name for the treatment indicator.
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
-tsls.mst <- function(X, Z, components, treat) {
+tsls <- function(X, Z, components, treat) {
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"

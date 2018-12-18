@@ -42,7 +42,7 @@ tukeydist <- function(x, data) {
 #' @return a list containing the grid used in the audit; a vector
 #'     mapping the elements in the support of the covariates to
 #'     \code{index}.
-gengrid.mst <- function(index, xsupport, usupport, uname) {
+gengrid <- function(index, xsupport, usupport, uname) {
 
     subsupport <- xsupport[index, ]
     if (is.null(dim(subsupport))) {
@@ -98,7 +98,7 @@ gengrid.mst <- function(index, xsupport, usupport, uname) {
 #'     vector of inequalities, and the RHS vector in the inequality
 #'     constraint. The objects pertain only to the boundedness
 #'     constraints declared by the user.
-genboundA.mst <- function(A0, A1, sset, gridobj, uname,
+genboundA <- function(A0, A1, sset, gridobj, uname,
                           m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub) {
 
     sn <- length(sset)
@@ -268,7 +268,7 @@ genboundA.mst <- function(A0, A1, sset, gridobj, uname,
 #' This function takes in the matrix of values of the MTR evaluated
 #' over the grid generated for the audit procedure. The grid is
 #' ordered according to the covariates first, and then by the
-#' unobservables (this is done in by \code{\link{genmonoA.mst}}). This
+#' unobservables (this is done in by \code{\link{genmonoA}}). This
 #' function takes the first difference of the unobservables within
 #' each set of values for the covariates. This is sufficient to
 #' generate the monotonicity constraint matrix.
@@ -323,7 +323,7 @@ diffA <- function(A, monogrid, sn, d, ndcols) {
 #' monotonicity constraints declared by the user. It also stacks the
 #' RHS vector associated with the monotonicity constraints, and stacks
 #' the vector of inequalities. It is called by the wrapper function
-#' \code{genmonoA.mst}.
+#' \code{genmonoA}.
 #' @param A0 the matrix of values from evaluating the MTR for control
 #'     observations over the grid generated to perform the audit. This
 #'     matrix will be incorporated into the final constraint matrix
@@ -356,7 +356,7 @@ diffA <- function(A, monogrid, sn, d, ndcols) {
 #'     vector of inequalities, and the RHS vector in the inequality
 #'     constraint. The objects pertain only to the monotonicity
 #'     constraints declared by the user.
-stackA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
+stackA <- function(A0, A1, sset, monogrid, gstar0, gstar1,
                          m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
                          mte.inc) {
 
@@ -484,7 +484,7 @@ stackA.mst <- function(A0, A1, sset, monogrid, gstar0, gstar1,
 #' @return constraint matrix for the LP problem. The matrix pertains
 #'     only to the monotonicity conditions on the MTR and MTE declared
 #'     by the user.
-genmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
+genmonoA <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                              m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
                              mte.inc, monov) {
 
@@ -533,7 +533,7 @@ genmonoA.mst <- function(A0, A1, sset, gridobj, gstar0, gstar1,
 
     call <- match.call(expand.dots = FALSE)
     monoAcall <- modcall(call,
-                         newcall = stackA.mst,
+                         newcall = stackA,
                          keepargs = arglist,
                          newargs = list(A0 = quote(A0),
                                         A1 = quote(A1),
@@ -675,29 +675,29 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         gridobj <- list(grid = grid,
                         map  = replicate(length(uvec), 1))
     } else {
-        gridobj <- gengrid.mst(grid_index,
+        gridobj <- gengrid(grid_index,
                                support,
                                uvec,
                                uname)
     }
 
     if (is.null(splines[[1]]) & is.null(splines[[2]])) {
-        A0 <- design.mst(formula = m0, data = gridobj$grid)$X
-        A1 <- design.mst(formula = m1, data = gridobj$grid)$X
+        A0 <- design(formula = m0, data = gridobj$grid)$X
+        A1 <- design(formula = m1, data = gridobj$grid)$X
     } else {
         m0 <- update(m0, as.formula(paste("~ . +", uname)))
         m1 <- update(m1, as.formula(paste("~ . +", uname)))
 
-        A0 <- design.mst(formula = m0, data = gridobj$grid)$X
-        A1 <- design.mst(formula = m1, data = gridobj$grid)$X
+        A0 <- design(formula = m0, data = gridobj$grid)$X
+        A1 <- design(formula = m1, data = gridobj$grid)$X
 
         A0 <- cbind(A0, .grid.order = seq(1, nrow(A0)))
         A1 <- cbind(A1, .grid.order = seq(1, nrow(A1)))
 
-        basisList <- list(genBasisSplines.mst(splines = splines[[1]],
+        basisList <- list(genBasisSplines(splines = splines[[1]],
                                               x = uvec,
                                               d = 0),
-                          genBasisSplines.mst(splines = splines[[2]],
+                          genBasisSplines(splines = splines[[2]],
                                               x = uvec,
                                               d = 1))
 
@@ -787,7 +787,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                         "mte.lb", "mte.ub")
 
         boundAcall <- modcall(call,
-                              newcall = genboundA.mst,
+                              newcall = genboundA,
                               keepargs = boundlist,
                               newargs = list(A0 = quote(A0),
                                              A1 = quote(A1),
@@ -805,7 +805,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                        "m1.dec", "m1.inc",
                        "mte.dec", "mte.inc")
         monoAcall <- modcall(call,
-                             newcall = genmonoA.mst,
+                             newcall = genmonoA,
                              keepargs = monolist,
                              newargs = list(A0 = quote(A0),
                                             A1 = quote(A1),

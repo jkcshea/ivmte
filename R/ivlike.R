@@ -47,7 +47,7 @@ permute <- function(vector) {
 #'     that we want to include in the S-set of IV-like estimands.
 #' @param weights vector of weights.
 #' @return vector of select coefficient estimates.
-piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
+piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
     ## FIX: account for weights
 
     ## project regressors x on image of instruments z
@@ -88,13 +88,13 @@ piv.mst <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #'     estimates of the IV-like estimands.
 #'
 #' @examples
-#' ivlike.mst(ey ~ d | z,
+#' ivlike(ey ~ d | z,
 #'            data = dtm,
-#'            components = lists.mst(d),
+#'            components = lists(d),
 #'            treat = d,
 #'            list = FALSE)
 #' @export
-ivlike.mst <- function(formula, data, subset, components, treat,
+ivlike <- function(formula, data, subset, components, treat,
                          list = FALSE) {
 
     formula <- Formula::as.Formula(formula)
@@ -149,10 +149,10 @@ ivlike.mst <- function(formula, data, subset, components, treat,
     
     ## obtain design matrices
     if (list == TRUE) {
-        mf <- design.mst(formula, data)
+        mf <- design(formula, data)
     } else {
         mf <- eval(modcall(call,
-                           newcall = design.mst,
+                           newcall = design,
                            keepargs = c("formula", "subset"),
                            newargs = list(data = quote(data))))
     }
@@ -191,16 +191,16 @@ ivlike.mst <- function(formula, data, subset, components, treat,
 
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
-        bhat <- piv.mst(mf$Y, mf$X, mf$X, lmcomponents)
-        sweight <- olsj.mst(mf$X, components, treat)
+        bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents)
+        sweight <- olsj(mf$X, components, treat)
     } else {
         if (length(formula)[2] == 2 &
             dim(mf$X)[2] == dim(mf$Z)[2]) {
-            bhat <- piv.mst(mf$Y, mf$X, mf$Z, lmcomponents)
-            sweight <- ivj.mst(mf$X, mf$Z, components, treat)
+            bhat <- piv(mf$Y, mf$X, mf$Z, lmcomponents)
+            sweight <- ivj(mf$X, mf$Z, components, treat)
         } else if (length(formula)[2] == 2 & dim(mf$X)[2] < dim(mf$Z)[2]) {
-            bhat <- piv.mst(mf$Y, mf$X, mf$Z, lmcomponents)
-            sweight <- tsls.mst(mf$X, mf$Z, components, treat)
+            bhat <- piv(mf$Y, mf$X, mf$Z, lmcomponents)
+            sweight <- tsls(mf$X, mf$Z, components, treat)
         } else if (length(formula)[2] == 2 & dim(mf$X)[2] > dim(mf$Z)[2]) {
             stop(gsub("\\s+", " ",
                       paste0("More regressors than instruments in the following
