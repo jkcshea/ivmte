@@ -28,14 +28,33 @@
 #' Alternatively, point estimates can be obtained. Standard errors for
 #' point estimates can be constructed using the bootstrap.
 #'
-#' @param bootstraps integer, default set to 0.  
+#' @param bootstraps integer, default set to 0.
+#' @param bootstraps.m integer, default set to size of data
+#'     set. Determines the size of the subsample drawn from the
+#'     original data set when performing inference via the
+#'     bootstrap. This option applies only to the case of constructing
+#'     confidence intervals for treatment effect bounds, i.e. it does
+#'     not apply when \code{point = TRUE}.
+#' @param bootstraps.replace boolean, default set to \code{TRUE}. This
+#'     determines whether the resampling procedure used for inference
+#'     will sample with replacement.
+#' @param levels vector, real numbers between 0 and 1. Values
+#'     correspond to the level of the confidence intervals constructed
+#'     via bootstrap.
+#' @param ci.type character, default set to 'both'. Set to 'forward'
+#'     to construct the forward confidence interval for the treatment
+#'     effect bound. Set to 'backward' to construct the backward
+#'     confidence interval for the treatment effect bound. Set to
+#'     'both' to construct both types of confidence intervals.
+#' @param pvalue.tol numeric, default set to 1e-08. Tolerance level
+#'     for determining p-value of treatment effect bound.
 #' @param ivlike formula or vector of formulas used to specify the
 #'     regressions for the IV-like estimands.
 #' @param data \code{data.frame} used to estimate the treatment
 #'     effects.
 #' @param subset single subset condition or list of subset conditions
-#'     corresponding to each IV-like estimand. See
-#'     \code{\link{l}} on how to input the argument.
+#'     corresponding to each IV-like estimand. See \code{\link{l}} on
+#'     how to input the argument.
 #' @param components a list of vectors of the terms/components from
 #'     the regressions specifications we want to include in the set of
 #'     IV-like estimands. To select the intercept term, include in the
@@ -203,7 +222,9 @@
 #'     m1.dec = TRUE)
 #'
 #' @export
-ivmte <- function(bootstraps = 0,
+ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
+                  levels = c(0.99, 0.95, 0.90), ci.type = 'both',
+                  pvalue.tol = 1e-08,
                   ivlike, data, subset, components, propensity, link,
                   treat, m0, m1, uname = u, target, target.weight0,
                   target.weight1, target.knots0 = NULL, target.knots1 = NULL,
@@ -273,7 +294,6 @@ ivmte <- function(bootstraps = 0,
             }
         }
 
-        ## if (hasArg(components) & !is.null(components)) {
         if (userComponents) {
             if (class_list(components)) {
                 length_components <- length(components)
@@ -399,7 +419,7 @@ ivmte <- function(bootstraps = 0,
     }
 
     ##---------------------------
-    ## 3 Check numeric arguments and case completion
+    ## 3. Check numeric arguments and case completion
     ##---------------------------
 
     ## Variable and weight checks
@@ -588,17 +608,17 @@ ivmte <- function(bootstraps = 0,
 
     ## Audit checks
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
-        stop("Cannot set obseq.tol below 0.")
+        stop("Cannot set 'obseq.tol' below 0.")
     }
     if (!((grid.nu %% 1 == 0) & grid.nu >= 2)) {
         stop("grid.nu must be an integer greater than or equal to 2.")
     }
     if (!((grid.nx %% 1 == 0) & grid.nx >= 0)) {
-        stop("grid.nx must be an integer greater than or equal to 0.")
+        stop("'grid.nx' must be an integer greater than or equal to 0.")
     }
 
     if (!((audit.nx %% 1 == 0) & audit.nx > 0)) {
-        stop("audit.nx must be an integer greater than or equal to 1.")
+        stop("'audit.nx' must be an integer greater than or equal to 1.")
     }
 
 
@@ -612,65 +632,272 @@ ivmte <- function(bootstraps = 0,
         noshape = FALSE ## indicator for whether shape restrictions declared
 
         if (!((audit.nu %% 1 == 0) & audit.nu > 0) | audit.nu < 2) {
-            stop("audit.nu must be an integer greater than or equal to 2.")
+            stop("'audit.nu' must be an integer greater than or equal to 2.")
         }
-        
+
     } else {
 
         noshape = TRUE
 
         if (!((audit.nu %% 1 == 0) & audit.nu > 0)) {
-            stop("audit.nu must be an integer greater than or equal to 1.")
+            stop("'audit.nu' must be an integer greater than or equal to 1.")
         }
     }
 
     if (!((audit.max %% 1 == 0) & audit.max > 0)) {
-        stop("audit.max must be an integer greater than or equal to 1.")
+        stop("'audit.max' must be an integer greater than or equal to 1.")
     }
+
+    ## Bootstrap checks
+    if (bootstraps < 0 | bootstraps %% 1 != 0) {
+        stop("'bootstraps' must be an integer greater than or equal to 0.")
+    }
+
+    if (hasArg(bootstraps.m)) {
+        if (bootstraps.m < 0 | bootstraps.m %% 1 != 0) {
+            stop(gsub("\\s+", " ",
+                      "'bootstraps.m' must be an integer greater than or equal
+                      to 1."))
+        }
+    } else {
+        bootstraps.m <- nrow(data)
+    }
+
+    if (!is.logical(bootstraps.replace))
+        stop("'bootstraps.replace' must be TRUE or FALSE.")
+
+
+    if (max(levels) >= 1 | min(levels) <= 0) {
+        stop(gsub("\\s+", " ",
+                  "'levels' must be a vector of values strictly between 0 and
+                  1."))
+    }
+    levels <- sort(levels)
+
+
+    if (! ci.type %in% c("forward", "backward", "both")) {
+        stop(gsub("\\s+", " ",
+                  "'ci.types' selects the type of confidence intervals to be
+                  constructed for the treatment effect bound. It must be set to
+                  either 'forward', 'backward', or 'both'."))
+    }
+
 
     ##---------------------------
     ## 4. Implement estimates
     ##---------------------------
-    
+
     estimateCall <- modcall(call,
                             newcall = ivmte.estimate,
-                            dropargs = c("bootstraps", "data"),
+                            dropargs = c("bootstraps", "data",
+                                         "bootstraps.m",
+                                         "bootstraps.replace",
+                                         "levels", "ci.type"),
                             newargs = list(data = quote(data),
                                            subset = quote(subset),
                                            userComponents = userComponents,
                                            specCompWarn = specCompWarn))
 
-    if (point == FALSE) {
-        results <- eval(estimateCall)
+                            ## dropargs = c("bootstraps", "bootstraps.m",
+                            ##              "bootstraps.replace", "levels",
+                            ##              "ci.type", "data"),
 
-        if (abs(results$bound[2] - results$bound[1]) < point.tol &
+
+    ## "bootstraps.m", "bootstraps.replace", "levels", "ci.type",
+    ## Estimate bounds
+    if (point == FALSE) {
+        origEstimate <- eval(estimateCall)
+
+        if (abs(origEstimate$bound[2] - origEstimate$bound[1]) < point.tol &
             noshape == TRUE) {
-            
+
             message(gsub("\\s+", " ",
                          paste0("Width of bounds is narrower than 'point.tol',
                                 which is set to ", point.tol, ". Estimation
                                 under point identification will instead be
                                 performed.")))
-            
+
             estimateCall <-
                 modcall(call,
                         newcall = ivmte.estimate,
-                        dropargs = c("bootstraps", "data", "point"),
+                        dropargs = c("bootstraps", "data", "point",
+                                     "bootstraps.m",
+                                     "bootstraps.replace", "levels",
+                                     "ci.type"),
                         newargs = list(data = quote(data),
                                        subset = quote(subset),
                                        userComponents = userComponents,
                                        specCompWarn = specCompWarn,
                                        point = TRUE))
-            
+
             return(eval(estimateCall))
         } else {
-            return(results)
+            ## Estimate bounds without resampling
+            if (bootstraps == 0) {
+                return(origEstimate)
+            }
+            ## Estimate bounds with resampling
+            if (bootstraps > 0) {
+                boundEstimates <- NULL
+
+                b <- 1
+                bootFailN <- 0
+                bootFailNote <- ""
+                bootFailIndex <- NULL
+
+                while (b <= bootstraps) {
+                    bootIDs  <- sample(seq(1, nrow(data)),
+                                    size = nrow(data),
+                                    replace = TRUE)
+                    bdata <- data[bootIDs, ]
+
+                    bootCall <-
+                        modcall(call,
+                                newcall = ivmte.estimate,
+                                dropargs = c("bootstraps", "data",
+                                             "noisy", "bootstraps.m",
+                                             "bootstraps.replace",
+                                             "levels", "ci.type"),
+                                newargs = list(data = quote(bdata),
+                                               subset = quote(subset),
+                                               userComponents = userComponents,
+                                               specCompWarn = specCompWarn,
+                                               noisy = FALSE))
+
+                    bootEstimate <- try(eval(bootCall), silent = TRUE)
+                    if (is.list(bootEstimate)) {
+                        boundEstimates  <- rbind(boundEstimates,
+                                                 bootEstimate$bound)
+
+                        if (noisy == TRUE) {
+                            message(paste0("Bootstrap iteration ", b,
+                                           bootFailNote, "..."))
+                        }
+                        b <- b + 1
+                        bootFailN <- 0
+                        bootFailNote <- ""
+                    } else {
+                        if (noisy == TRUE) {
+                            message(paste0("Bootstrap iteration ", b,
+                                           bootFailNote,
+                                           " error, resampling..."))
+                        }
+                        bootFailN <- bootFailN + 1
+                        bootFailIndex <- unique(c(bootFailIndex, b))
+                        bootFailNote <- paste0(": resample ",
+                                               bootFailN)
+                    }
+                }
+
+                if (length(bootFailIndex) > 0) {
+                    warning(gsub("\\s+", " ",
+                                 paste0("Bootstrap iteration(s) ",
+                                        paste(bootFailIndex, collapse = ", "),
+                                        " failed. Failed bootstraps are
+                                        repeated.")))
+                }
+
+                ## Obtain standard errors of bounds
+                bootSE <- apply(boundEstimates, 2, sd)
+
+                ## Construct confidence intervals
+                if (ci.type == "backward" | ci.type == "forward") {
+                    ci <- boundCI(bound = origEstimate$bound,
+                                  bound.resamples = boundEstimates,
+                                  n = nrow(data),
+                                  m = bootstraps.m,
+                                  levels = levels,
+                                  type = ci.type)
+                }
+
+                if (ci.type == "both") {
+                    ci <- list()
+                    ci$backward <- boundCI(bound = origEstimate$bound,
+                                           bound.resamples = boundEstimates,
+                                           n = nrow(data),
+                                           m = bootstraps.m,
+                                           levels = levels,
+                                           type = "backward")
+
+                    ci$forward <- boundCI(bound = origEstimate$bound,
+                                          bound.resamples = boundEstimates,
+                                          n = nrow(data),
+                                          m = bootstraps.m,
+                                          levels = levels,
+                                          type = "forward")
+                }
+
+                ci <- boundCI(bound = origEstimate$bound,
+                              bound.resamples = boundEstimates,
+                              n = nrow(data),
+                              m = bootstraps.m,
+                              levels = levels,
+                              type = ci.type)
+                
+                ## Obtain p-value
+                if (ci.type == "backward") {
+                    pvalue <- boundPValue(ci = ci,
+                                          bound = origEstimate$bound,
+                                          bound.resamples = boundEstimates,
+                                          n = nrow(data),
+                                          m = bootstraps.m,
+                                          levels = levels,
+                                          type = "backward",
+                                          tol = pvalue.tol)
+                    names(pvalue) <- "backward"
+                }
+                
+                if (ci.type == "forward") {
+                    pvalue <- boundPValue(ci = ci,
+                                          bound = origEstimate$bound,
+                                          bound.resamples = boundEstimates,
+                                          n = nrow(data),
+                                          m = bootstraps.m,
+                                          levels = levels,
+                                          type = "forward",
+                                          tol = pvalue.tol)
+                    names(pvalue) <- "forward"
+                }
+                
+                if (ci.type == "both") {
+                    pvalue <- c(boundPValue(ci = ci$backward,
+                                            bound = origEstimate$bound,
+                                            bound.resamples = boundEstimates,
+                                            n = nrow(data),
+                                            m = bootstraps.m,
+                                            levels = levels,
+                                            type = "backward",
+                                            tol = pvalue.tol),
+                                boundPValue(ci = ci$forward,
+                                            bound = origEstimate$bound,
+                                            bound.resamples = boundEstimates,
+                                            n = nrow(data),
+                                            m = bootstraps.m,
+                                            levels = levels,
+                                            type = "forward",
+                                            tol = pvalue.tol))
+                    names(pvalue) <- c("backward", "forward")
+                }
+                
+                ## Return output
+                return(c(origEstimate,
+                         list(bound.se = bootSE,
+                              bound.bootstrap = boundEstimates,
+                              ci = ci,
+                              pvalue = pvalue,
+                              bootstraps = bootstraps,
+                              failedBootstraps = length(bootFailIndex))))
+            }
         }
     }
 
+    ## Point estimate  without resampling
     if (point == TRUE & bootstraps == 0) {
         return(eval(estimateCall))
-    } else if (point == TRUE & (bootstraps > 0) & (bootstraps %% 1 == 0)) {
+    }
+
+    ## Point estimate with resampling
+    if (point == TRUE & bootstraps > 0) {
 
         origEstimate <- eval(estimateCall)
 
@@ -684,14 +911,11 @@ ivmte <- function(bootstraps = 0,
         bootFailIndex <- NULL
 
         while (b <= bootstraps) {
-            bids  <- sample(seq(1, nrow(data)),
+            bootIDs  <- sample(seq(1, nrow(data)),
                                  size = nrow(data),
                                  replace = TRUE)
-            bdata <- data[bids, ]
+            bdata <- data[bootIDs, ]
 
-            ## print("available types")
-            ## print(table(bdata$type))
-            
             bootCall <- modcall(call,
                                 newcall = ivmte.estimate,
                                 dropargs = c("bootstraps", "data", "noisy"),
@@ -700,7 +924,7 @@ ivmte <- function(bootstraps = 0,
                                                userComponents = userComponents,
                                                specCompWarn = specCompWarn,
                                                noisy = FALSE))
-            
+
             bootEstimate <- try(eval(bootCall), silent = TRUE)
             if (is.list(bootEstimate)) {
                 teEstimates  <- c(teEstimates, bootEstimate$te)
@@ -726,7 +950,7 @@ ivmte <- function(bootstraps = 0,
                                        bootFailN)
             }
         }
-        
+
         if (length(bootFailIndex) > 0) {
             warning(gsub("\\s+", " ",
                          paste0("Bootstrap iteration(s) ",
@@ -741,7 +965,7 @@ ivmte <- function(bootstraps = 0,
         ## Conf. int. 1: quantile method (same as percentile method)
         ci190 <- quantile(x = teEstimates, probs = c(0.05, 0.95), type = 1)
         ci195 <- quantile(x = teEstimates, probs = c(0.025, 0.975), type = 1)
-        
+
         mtrci190 <- apply(mtrEstimates, 1, quantile, probs = c(0.05, 0.95),
                           type = 1)
         mtrci195 <- apply(mtrEstimates, 1, quantile, probs = c(0.025, 0.975),
@@ -752,14 +976,11 @@ ivmte <- function(bootstraps = 0,
         propci195 <- apply(propEstimates, 1, quantile, probs = c(0.025, 0.975),
                           type = 1)
 
-        ## Conf. int. 2: percentile, using Z statistics
+        ## Conf. int. 2: percentile method, using Z statistics
         ci290 <- origEstimate$te + c(qnorm(0.05), qnorm(0.95)) * bootSE
         ci295 <- origEstimate$te + c(qnorm(0.025), qnorm(0.975)) * bootSE
         names(ci290) <- c("5%", "95%")
         names(ci295) <- c("2.5%", "97.5%")
-
-
-        ## beginning of testing
 
         mtrci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), mtrSE),
                           MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
@@ -803,17 +1024,163 @@ ivmte <- function(bootstraps = 0,
                       prop.ci2.95 = t(propci295),
                       bootstraps = bootstraps,
                       failedBootstraps = length(bootFailIndex))))
-
-    } else if (point == FALSE) {
-        stop("Bootstraps can only be applied if 'point == TRUE'.")
-    } else {
-        stop("Bootstraps must be an integer.")
     }
 }
 
+#' Construct confidence intervals for treatment effects under partial
+#' identification
+#'
+#' This function constructs the forward and backward confidence
+#' intervals for the treatment effect under partial identification.
+#'
+#' @param bound vector, bound of the treatment effects under partial
+#'     identification.
+#' @param bound.resamples matrix, stacked bounds of the treatment
+#'     effects under partial identification. Each row corresponds to a
+#'     subset resampled from the original data set.
+#' @param n integer, size of original data set.
+#' @param m integer, size of resampled data sets.
+#' @param levels vector, real numbers between 0 and 1. Values
+#'     correspond to the level of the confidence intervals constructed
+#'     via bootstrap.
+#' @param type character. Set to 'forward' to construct the forward
+#'     confidence interval for the treatment effect bound. Set to
+#'     'backward' to construct the backward confidence interval for
+#'     the treatment effect bound. Set to 'both' to construct both
+#'     types of confidence intervals.
+#' @return if \code{type} is 'forward' or 'backward', then the
+#'     corresponding type of confidence interval for each level is
+#'     returned. The output is in the form of a matrix, with each row
+#'     corresponding to a level. If \code{type} is 'both', then a list
+#'     is returned. One element of the list is the matrix of backward
+#'     confidence intervals, and the other element of the list is the
+#'     matrix of forward confidence intervals.
+boundCI <- function(bound, bound.resamples, n, m, levels, type) {
 
-#' Single iteration of estimation procedure from Mogstad, Torgovitsky
-#' (2017)
+    if (type == "both") output <- list()
+    
+    ## Rescale and center bounds
+
+    boundLBmod <- sqrt(m) *
+        (bound.resamples[, 1] - bound[1])
+    boundUBmod <- sqrt(m) *
+        (bound.resamples[, 2] - bound[2])
+
+    ## Construct backward confidence interval
+    if (type %in% c('backward', 'both')) {
+        backwardCI <- cbind(bound[1] +
+                            (1 / sqrt(n)) *
+                            quantile(boundLBmod,
+                                     0.5 * (1 - levels),
+                                     type = 1),
+                            bound[2] +
+                            (1 / sqrt(n)) *
+                            quantile(boundUBmod,
+                                     0.5 * (1 + levels),
+                                     type = 1))
+
+        colnames(backwardCI) <- c("lb.backward", "ub.backward")
+        rownames(backwardCI) <- levels
+
+        if (type == "both") output$backward <- backwardCI
+        if (type == "backward") output <- backwardCI
+    }
+
+    ## Construct forward confidence interval
+    if (type %in% c('forward', 'both')) {
+        forwardCI <- cbind(bound[1] -
+                           (1 / sqrt(n)) *
+                           quantile(boundLBmod,
+                                    0.5 * (1 + levels),
+                                    type = 1),
+                           bound[2] -
+                           (1 / sqrt(n)) *
+                           quantile(boundUBmod,
+                                    0.5 * (1 - levels),
+                                    type = 1))
+
+        colnames(forwardCI) <- c("lb.forward", "ub.forward")
+        rownames(forwardCI) <- levels
+     
+        if (type == "both") output$forward <- forwardCI
+        if (type == "forward") output <- forwardCI
+    }
+
+    return(output)
+}
+
+#' Construct p-values for treatment effects under partial
+#' identification
+#'
+#' This function estimates the p-value for the treatment effect under
+#' partial identification. p-values corresponding to forward and
+#' backward confidence intervals can be returned.
+#'
+#' @param ci matrix or list. If \code{type} is set to 'forward' or
+#'     'backward', then \code{ci} should be a matrix of forward or
+#'     backward confidence intervals corresponding to the levels
+#'     declared in the option \code{levels}. If \code{type} is set to
+#'     'both', then \code{ci} should be a list of two elements. One
+#'     element is a matrix of forward confidence intervals, and the
+#'     other element is a matrix of backward confidence intervals.
+#' @param bound vector, bound of the treatment effects under partial
+#'     identification.
+#' @param bound.resamples matrix, stacked bounds of the treatment
+#'     effects under partial identification. Each row corresponds to a
+#'     subset resampled from the original data set.
+#' @param n integer, size of original data set.
+#' @param m integer, size of resampled data sets.
+#' @param levels vector, real numbers between 0 and 1. Values
+#'     correspond to the level of the confidence intervals constructed
+#'     via bootstrap.
+#' @param type character. Set to 'forward' to construct the forward
+#'     confidence interval for the treatment effect bound. Set to
+#'     'backward' to construct the backward confidence interval for
+#'     the treatment effect bound. Set to 'both' to construct both
+#'     types of confidence intervals.
+#' @param tol numeric, default set to 1e-08. The p-value is
+#'     constructed by iteratively adjusting the confidence level to
+#'     find a confidence interval that does not contain 0. When the
+#'     adjustment of the confidence level falls below \code{tol}, no
+#'     further iterations are performed.
+#' @return If \code{type} is 'forward' or 'backward', a scalar p-value
+#'     corresponding to the type of confidence interval is
+#'     returned. If \code{type} is 'both', a vector of p-values
+#'     corresponding to the forward and backward confidence intervals
+#'     is returned.
+boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
+                        type, tol = 1e-08) {
+
+    ci <- rbind(c(bound[1], bound[1]), ci, c(-Inf, Inf))
+    rownames(ci) <- c(0, levels, 1)
+
+    inVec <- apply(ci, 1, function(x) 0 > x[1] & 0 < x[2])
+
+    lbPos <- which(sapply(seq(1, length(inVec) - 1), function(x) {
+        inVec[x] == inVec[x + 1]
+    }) == FALSE)
+
+    levelLB <- c(0, levels, 1)[lbPos]
+    levelUB <- c(0, levels, 1)[lbPos + 1]
+
+    while (levelUB - levelLB > tol) {
+        
+        midpoint <- 0.5 * (levelLB + levelUB)
+        
+        newCI <- boundCI(bound, bound.resamples, n = 1000, m = 1000,
+                         levels = midpoint, type = "backward")
+        
+        if (0 > newCI[1] & 0 < newCI[2]) {
+            levelUB <- midpoint
+        } else {
+            levelLB <- midpoint
+        }
+    }
+    return(1 - levelLB)
+}
+
+#' Single iteration of estimation procedure from Mogstad, Torgovitsky,
+#' Santos (2018)
 #'
 #' This function estimates bounds on treatment effect parameters,
 #' following the procedure described in Mogstad, Torgovitsky
@@ -1116,7 +1483,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
 
         m0 <- splinesobj[[1]]$formula
         m1 <- splinesobj[[2]]$formula
-        
+
         vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
                       all.vars(splinesobj[[2]]$formula))
 
@@ -2007,8 +2374,8 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                 propensity = pmodel,
                 bound = c(audit$min, audit$max),
                 lpresult =  audit$lpresult,
-                poly0 = pm0,
-                poly1 = pm1,
+                ## poly0 = pm0,
+                ## poly1 = pm1,
                 auditgrid = audit$gridobj,
                 minobseq = audit$minobseq,
                 splinesdict = list(splinesobj[[1]]$splinesdict,
@@ -2103,7 +2470,7 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         } else {
             gs1 <- NULL
         }
-        
+
         if (means == TRUE) {
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
                                              data = data,
@@ -2216,7 +2583,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     yMat   <- NULL
 
     for (s in 1:length(sset)) {
-       
+
         ids <- as.integer(rownames(sset[[s]]$g0))
 
         gmmAdd <- cbind(ids, s,
@@ -2236,7 +2603,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     ids <- unique(gmmMat[, 1])
     gmmCompN <- ncol(gmmMat) - 2
-   
+
     if (gmmCompN > length(sset)) {
         stop(gsub("\\s+", " ",
                   paste0("System is underidentified: excluding
@@ -2250,15 +2617,15 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     }
 
     gmmMat <- gmmMat[, -c(1, 2)]
-    yMat   <- yMat[, -c(1, 2)] 
-    
+    yMat   <- yMat[, -c(1, 2)]
+
     ## Perform iterative estimation
     theta <- rep(0, ncol(gmmMat))
     i <- 1
     diff <- Inf
 
     if (itermax > 2) warning("Itermax is capped at 2.")
-    
+
     ## itermax is capped at 2, although it can be increased to
     ## correspond to iterated FGLS
     while (i <= itermax & i <= 2 & diff > tol) {
@@ -2282,7 +2649,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
             thetaNew <- solve(olsA) %*% olsB
         }
-        
+
         errors <- yMat - gmmMat %*% thetaNew
 
         if (i <= (itermax - 1)) {
@@ -2294,7 +2661,7 @@ gmmEstimate <- function(sset, gstar0, gstar1,
             })
             emat <- Reduce("+", emat) / N
             emat <- (emat + t(emat)) / 2
-          
+
             ematInv <- solve(emat)
             ematInv <- (ematInv + t(ematInv)) / 2
         }
