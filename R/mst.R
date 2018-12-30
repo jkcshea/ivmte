@@ -682,708 +682,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                   either 'forward', 'backward', or 'both'."))
     }
 
-
     ##---------------------------
-    ## 4. Implement estimates
-    ##---------------------------
-
-    estimateCall <- modcall(call,
-                            newcall = ivmte.estimate,
-                            dropargs = c("bootstraps", "data",
-                                         "bootstraps.m",
-                                         "bootstraps.replace",
-                                         "levels", "ci.type"),
-                            newargs = list(data = quote(data),
-                                           subset = quote(subset),
-                                           userComponents = userComponents,
-                                           specCompWarn = specCompWarn))
-
-                            ## dropargs = c("bootstraps", "bootstraps.m",
-                            ##              "bootstraps.replace", "levels",
-                            ##              "ci.type", "data"),
-
-
-    ## "bootstraps.m", "bootstraps.replace", "levels", "ci.type",
-    ## Estimate bounds
-    if (point == FALSE) {
-        origEstimate <- eval(estimateCall)
-
-        if (abs(origEstimate$bound[2] - origEstimate$bound[1]) < point.tol &
-            noshape == TRUE) {
-
-            message(gsub("\\s+", " ",
-                         paste0("Width of bounds is narrower than 'point.tol',
-                                which is set to ", point.tol, ". Estimation
-                                under point identification will instead be
-                                performed.")))
-
-            estimateCall <-
-                modcall(call,
-                        newcall = ivmte.estimate,
-                        dropargs = c("bootstraps", "data", "point",
-                                     "bootstraps.m",
-                                     "bootstraps.replace", "levels",
-                                     "ci.type"),
-                        newargs = list(data = quote(data),
-                                       subset = quote(subset),
-                                       userComponents = userComponents,
-                                       specCompWarn = specCompWarn,
-                                       point = TRUE))
-
-            return(eval(estimateCall))
-        } else {
-            ## Estimate bounds without resampling
-            if (bootstraps == 0) {
-                return(origEstimate)
-            }
-            ## Estimate bounds with resampling
-            if (bootstraps > 0) {
-                boundEstimates <- NULL
-
-                b <- 1
-                bootFailN <- 0
-                bootFailNote <- ""
-                bootFailIndex <- NULL
-
-                while (b <= bootstraps) {
-                    bootIDs  <- sample(seq(1, nrow(data)),
-                                    size = nrow(data),
-                                    replace = TRUE)
-                    bdata <- data[bootIDs, ]
-
-                    bootCall <-
-                        modcall(call,
-                                newcall = ivmte.estimate,
-                                dropargs = c("bootstraps", "data",
-                                             "noisy", "bootstraps.m",
-                                             "bootstraps.replace",
-                                             "levels", "ci.type"),
-                                newargs = list(data = quote(bdata),
-                                               subset = quote(subset),
-                                               userComponents = userComponents,
-                                               specCompWarn = specCompWarn,
-                                               noisy = FALSE))
-
-                    bootEstimate <- try(eval(bootCall), silent = TRUE)
-                    if (is.list(bootEstimate)) {
-                        boundEstimates  <- rbind(boundEstimates,
-                                                 bootEstimate$bound)
-
-                        if (noisy == TRUE) {
-                            message(paste0("Bootstrap iteration ", b,
-                                           bootFailNote, "..."))
-                        }
-                        b <- b + 1
-                        bootFailN <- 0
-                        bootFailNote <- ""
-                    } else {
-                        if (noisy == TRUE) {
-                            message(paste0("Bootstrap iteration ", b,
-                                           bootFailNote,
-                                           " error, resampling..."))
-                        }
-                        bootFailN <- bootFailN + 1
-                        bootFailIndex <- unique(c(bootFailIndex, b))
-                        bootFailNote <- paste0(": resample ",
-                                               bootFailN)
-                    }
-                }
-
-                if (length(bootFailIndex) > 0) {
-                    warning(gsub("\\s+", " ",
-                                 paste0("Bootstrap iteration(s) ",
-                                        paste(bootFailIndex, collapse = ", "),
-                                        " failed. Failed bootstraps are
-                                        repeated.")))
-                }
-
-                ## Obtain standard errors of bounds
-                bootSE <- apply(boundEstimates, 2, sd)
-
-                ## Construct confidence intervals
-                if (ci.type == "backward" | ci.type == "forward") {
-                    ci <- boundCI(bound = origEstimate$bound,
-                                  bound.resamples = boundEstimates,
-                                  n = nrow(data),
-                                  m = bootstraps.m,
-                                  levels = levels,
-                                  type = ci.type)
-                }
-
-                if (ci.type == "both") {
-                    ci <- list()
-                    ci$backward <- boundCI(bound = origEstimate$bound,
-                                           bound.resamples = boundEstimates,
-                                           n = nrow(data),
-                                           m = bootstraps.m,
-                                           levels = levels,
-                                           type = "backward")
-
-                    ci$forward <- boundCI(bound = origEstimate$bound,
-                                          bound.resamples = boundEstimates,
-                                          n = nrow(data),
-                                          m = bootstraps.m,
-                                          levels = levels,
-                                          type = "forward")
-                }
-
-                ci <- boundCI(bound = origEstimate$bound,
-                              bound.resamples = boundEstimates,
-                              n = nrow(data),
-                              m = bootstraps.m,
-                              levels = levels,
-                              type = ci.type)
-                
-                ## Obtain p-value
-                if (ci.type == "backward") {
-                    pvalue <- boundPValue(ci = ci,
-                                          bound = origEstimate$bound,
-                                          bound.resamples = boundEstimates,
-                                          n = nrow(data),
-                                          m = bootstraps.m,
-                                          levels = levels,
-                                          type = "backward",
-                                          tol = pvalue.tol)
-                    names(pvalue) <- "backward"
-                }
-                
-                if (ci.type == "forward") {
-                    pvalue <- boundPValue(ci = ci,
-                                          bound = origEstimate$bound,
-                                          bound.resamples = boundEstimates,
-                                          n = nrow(data),
-                                          m = bootstraps.m,
-                                          levels = levels,
-                                          type = "forward",
-                                          tol = pvalue.tol)
-                    names(pvalue) <- "forward"
-                }
-                
-                if (ci.type == "both") {
-                    pvalue <- c(boundPValue(ci = ci$backward,
-                                            bound = origEstimate$bound,
-                                            bound.resamples = boundEstimates,
-                                            n = nrow(data),
-                                            m = bootstraps.m,
-                                            levels = levels,
-                                            type = "backward",
-                                            tol = pvalue.tol),
-                                boundPValue(ci = ci$forward,
-                                            bound = origEstimate$bound,
-                                            bound.resamples = boundEstimates,
-                                            n = nrow(data),
-                                            m = bootstraps.m,
-                                            levels = levels,
-                                            type = "forward",
-                                            tol = pvalue.tol))
-                    names(pvalue) <- c("backward", "forward")
-                }
-                
-                ## Return output
-                return(c(origEstimate,
-                         list(bound.se = bootSE,
-                              bound.bootstrap = boundEstimates,
-                              ci = ci,
-                              pvalue = pvalue,
-                              bootstraps = bootstraps,
-                              failedBootstraps = length(bootFailIndex))))
-            }
-        }
-    }
-
-    ## Point estimate  without resampling
-    if (point == TRUE & bootstraps == 0) {
-        return(eval(estimateCall))
-    }
-
-    ## Point estimate with resampling
-    if (point == TRUE & bootstraps > 0) {
-
-        origEstimate <- eval(estimateCall)
-
-        teEstimates  <- NULL
-        mtrEstimates <- NULL
-        propEstimates <- NULL
-
-        b <- 1
-        bootFailN <- 0
-        bootFailNote <- ""
-        bootFailIndex <- NULL
-
-        while (b <= bootstraps) {
-            bootIDs  <- sample(seq(1, nrow(data)),
-                                 size = nrow(data),
-                                 replace = TRUE)
-            bdata <- data[bootIDs, ]
-
-            bootCall <- modcall(call,
-                                newcall = ivmte.estimate,
-                                dropargs = c("bootstraps", "data", "noisy"),
-                                newargs = list(data = quote(bdata),
-                                               subset = quote(subset),
-                                               userComponents = userComponents,
-                                               specCompWarn = specCompWarn,
-                                               noisy = FALSE))
-
-            bootEstimate <- try(eval(bootCall), silent = TRUE)
-            if (is.list(bootEstimate)) {
-                teEstimates  <- c(teEstimates, bootEstimate$te)
-                mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
-                propEstimates <- cbind(propEstimates,
-                                       bootEstimate$propensity$model$coef)
-
-                if (noisy == TRUE) {
-                    message(paste0("Bootstrap iteration ", b, bootFailNote,
-                                   "..."))
-                }
-                b <- b + 1
-                bootFailN <- 0
-                bootFailNote <- ""
-            } else {
-                if (noisy == TRUE) {
-                    message(paste0("Bootstrap iteration ", b, bootFailNote,
-                                   " error, resampling..."))
-                }
-                bootFailN <- bootFailN + 1
-                bootFailIndex <- unique(c(bootFailIndex, b))
-                bootFailNote <- paste0(": resample ",
-                                       bootFailN)
-            }
-        }
-
-        if (length(bootFailIndex) > 0) {
-            warning(gsub("\\s+", " ",
-                         paste0("Bootstrap iteration(s) ",
-                                paste(bootFailIndex, collapse = ", "),
-                                " failed. Failed bootstraps are repeated.")))
-        }
-
-        bootSE <- sd(teEstimates)
-        mtrSE  <- apply(mtrEstimates, 1, sd)
-        propSE  <- apply(propEstimates, 1, sd)
-
-        ## Conf. int. 1: quantile method (same as percentile method)
-        ci190 <- quantile(x = teEstimates, probs = c(0.05, 0.95), type = 1)
-        ci195 <- quantile(x = teEstimates, probs = c(0.025, 0.975), type = 1)
-
-        mtrci190 <- apply(mtrEstimates, 1, quantile, probs = c(0.05, 0.95),
-                          type = 1)
-        mtrci195 <- apply(mtrEstimates, 1, quantile, probs = c(0.025, 0.975),
-                          type = 1)
-
-        propci190 <- apply(propEstimates, 1, quantile, probs = c(0.05, 0.95),
-                          type = 1)
-        propci195 <- apply(propEstimates, 1, quantile, probs = c(0.025, 0.975),
-                          type = 1)
-
-        ## Conf. int. 2: percentile method, using Z statistics
-        ci290 <- origEstimate$te + c(qnorm(0.05), qnorm(0.95)) * bootSE
-        ci295 <- origEstimate$te + c(qnorm(0.025), qnorm(0.975)) * bootSE
-        names(ci290) <- c("5%", "95%")
-        names(ci295) <- c("2.5%", "97.5%")
-
-        mtrci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), mtrSE),
-                          MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
-        mtrci295 <- sweep(x = tcrossprod(c(qnorm(0.025), qnorm(0.975)), mtrSE),
-                          MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
-
-        propci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), propSE),
-                          MARGIN = 2, origEstimate$prop$model$coef, FUN = "+")
-        propci295 <- sweep(x = tcrossprod(c(qnorm(0.025), qnorm(0.975)), propSE),
-                          MARGIN = 2, origEstimate$prop$model$coef, FUN = "+")
-
-        colnames(mtrci290) <- colnames(mtrci190)
-        rownames(mtrci290) <- rownames(mtrci190)
-
-        colnames(mtrci295) <- colnames(mtrci195)
-        rownames(mtrci295) <- rownames(mtrci195)
-
-        colnames(propci290) <- colnames(propci190)
-        rownames(propci290) <- rownames(propci190)
-
-        colnames(propci295) <- colnames(propci195)
-        rownames(propci295) <- rownames(propci195)
-
-        return(c(origEstimate,
-                 list(te.se  = bootSE,
-                      mtr.se = mtrSE,
-                      prop.se = propSE,
-                      te.bootstraps = teEstimates,
-                      mtr.bootstraps = t(mtrEstimates),
-                      te.ci1.90 = ci190,
-                      te.ci1.95 = ci195,
-                      te.ci2.90 = ci290,
-                      te.ci2.95 = ci295,
-                      mtr.ci1.90 = t(mtrci190),
-                      mtr.ci1.95 = t(mtrci195),
-                      mtr.ci2.90 = t(mtrci290),
-                      mtr.ci2.95 = t(mtrci295),
-                      prop.ci1.90 = t(propci190),
-                      prop.ci1.95 = t(propci195),
-                      prop.ci2.90 = t(propci290),
-                      prop.ci2.95 = t(propci295),
-                      bootstraps = bootstraps,
-                      failedBootstraps = length(bootFailIndex))))
-    }
-}
-
-#' Construct confidence intervals for treatment effects under partial
-#' identification
-#'
-#' This function constructs the forward and backward confidence
-#' intervals for the treatment effect under partial identification.
-#'
-#' @param bound vector, bound of the treatment effects under partial
-#'     identification.
-#' @param bound.resamples matrix, stacked bounds of the treatment
-#'     effects under partial identification. Each row corresponds to a
-#'     subset resampled from the original data set.
-#' @param n integer, size of original data set.
-#' @param m integer, size of resampled data sets.
-#' @param levels vector, real numbers between 0 and 1. Values
-#'     correspond to the level of the confidence intervals constructed
-#'     via bootstrap.
-#' @param type character. Set to 'forward' to construct the forward
-#'     confidence interval for the treatment effect bound. Set to
-#'     'backward' to construct the backward confidence interval for
-#'     the treatment effect bound. Set to 'both' to construct both
-#'     types of confidence intervals.
-#' @return if \code{type} is 'forward' or 'backward', then the
-#'     corresponding type of confidence interval for each level is
-#'     returned. The output is in the form of a matrix, with each row
-#'     corresponding to a level. If \code{type} is 'both', then a list
-#'     is returned. One element of the list is the matrix of backward
-#'     confidence intervals, and the other element of the list is the
-#'     matrix of forward confidence intervals.
-boundCI <- function(bound, bound.resamples, n, m, levels, type) {
-
-    if (type == "both") output <- list()
-    
-    ## Rescale and center bounds
-
-    boundLBmod <- sqrt(m) *
-        (bound.resamples[, 1] - bound[1])
-    boundUBmod <- sqrt(m) *
-        (bound.resamples[, 2] - bound[2])
-
-    ## Construct backward confidence interval
-    if (type %in% c('backward', 'both')) {
-        backwardCI <- cbind(bound[1] +
-                            (1 / sqrt(n)) *
-                            quantile(boundLBmod,
-                                     0.5 * (1 - levels),
-                                     type = 1),
-                            bound[2] +
-                            (1 / sqrt(n)) *
-                            quantile(boundUBmod,
-                                     0.5 * (1 + levels),
-                                     type = 1))
-
-        colnames(backwardCI) <- c("lb.backward", "ub.backward")
-        rownames(backwardCI) <- levels
-
-        if (type == "both") output$backward <- backwardCI
-        if (type == "backward") output <- backwardCI
-    }
-
-    ## Construct forward confidence interval
-    if (type %in% c('forward', 'both')) {
-        forwardCI <- cbind(bound[1] -
-                           (1 / sqrt(n)) *
-                           quantile(boundLBmod,
-                                    0.5 * (1 + levels),
-                                    type = 1),
-                           bound[2] -
-                           (1 / sqrt(n)) *
-                           quantile(boundUBmod,
-                                    0.5 * (1 - levels),
-                                    type = 1))
-
-        colnames(forwardCI) <- c("lb.forward", "ub.forward")
-        rownames(forwardCI) <- levels
-     
-        if (type == "both") output$forward <- forwardCI
-        if (type == "forward") output <- forwardCI
-    }
-
-    return(output)
-}
-
-#' Construct p-values for treatment effects under partial
-#' identification
-#'
-#' This function estimates the p-value for the treatment effect under
-#' partial identification. p-values corresponding to forward and
-#' backward confidence intervals can be returned.
-#'
-#' @param ci matrix or list. If \code{type} is set to 'forward' or
-#'     'backward', then \code{ci} should be a matrix of forward or
-#'     backward confidence intervals corresponding to the levels
-#'     declared in the option \code{levels}. If \code{type} is set to
-#'     'both', then \code{ci} should be a list of two elements. One
-#'     element is a matrix of forward confidence intervals, and the
-#'     other element is a matrix of backward confidence intervals.
-#' @param bound vector, bound of the treatment effects under partial
-#'     identification.
-#' @param bound.resamples matrix, stacked bounds of the treatment
-#'     effects under partial identification. Each row corresponds to a
-#'     subset resampled from the original data set.
-#' @param n integer, size of original data set.
-#' @param m integer, size of resampled data sets.
-#' @param levels vector, real numbers between 0 and 1. Values
-#'     correspond to the level of the confidence intervals constructed
-#'     via bootstrap.
-#' @param type character. Set to 'forward' to construct the forward
-#'     confidence interval for the treatment effect bound. Set to
-#'     'backward' to construct the backward confidence interval for
-#'     the treatment effect bound. Set to 'both' to construct both
-#'     types of confidence intervals.
-#' @param tol numeric, default set to 1e-08. The p-value is
-#'     constructed by iteratively adjusting the confidence level to
-#'     find a confidence interval that does not contain 0. When the
-#'     adjustment of the confidence level falls below \code{tol}, no
-#'     further iterations are performed.
-#' @return If \code{type} is 'forward' or 'backward', a scalar p-value
-#'     corresponding to the type of confidence interval is
-#'     returned. If \code{type} is 'both', a vector of p-values
-#'     corresponding to the forward and backward confidence intervals
-#'     is returned.
-boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
-                        type, tol = 1e-08) {
-
-    ci <- rbind(c(bound[1], bound[1]), ci, c(-Inf, Inf))
-    rownames(ci) <- c(0, levels, 1)
-
-    inVec <- apply(ci, 1, function(x) 0 > x[1] & 0 < x[2])
-
-    lbPos <- which(sapply(seq(1, length(inVec) - 1), function(x) {
-        inVec[x] == inVec[x + 1]
-    }) == FALSE)
-
-    levelLB <- c(0, levels, 1)[lbPos]
-    levelUB <- c(0, levels, 1)[lbPos + 1]
-
-    while (levelUB - levelLB > tol) {
-        
-        midpoint <- 0.5 * (levelLB + levelUB)
-        
-        newCI <- boundCI(bound, bound.resamples, n = 1000, m = 1000,
-                         levels = midpoint, type = "backward")
-        
-        if (0 > newCI[1] & 0 < newCI[2]) {
-            levelUB <- midpoint
-        } else {
-            levelLB <- midpoint
-        }
-    }
-    return(1 - levelLB)
-}
-
-#' Single iteration of estimation procedure from Mogstad, Torgovitsky,
-#' Santos (2018)
-#'
-#' This function estimates bounds on treatment effect parameters,
-#' following the procedure described in Mogstad, Torgovitsky
-#' (2017). Of the target parameters, the user can choose from the ATE,
-#' ATT, ATU, LATE, and generalized LATE. The user is required to
-#' provide a polynomial expression for the marginal treatment
-#' responses (MTR), as well as a set of regressions. By restricting
-#' the set of coefficients on each term of the MTRs to be consistent
-#' with the regression estimates, the function is able to restrict
-#' itself to a set of MTRs. The bounds on the treatment effect
-#' parameter correspond to finding coefficients on the MTRs that
-#' maximize their average difference.
-#'
-#' The estimation procedure relies on the propensity to take up
-#' treatment. The propensity scores can either be estimated as part of
-#' the estimation procedure, or the user can specify a variable in the
-#' data set already containing the propensity scores.
-#'
-#' Constraints on the shape of the MTRs and marginal treatment effects
-#' (MTE) can be imposed by the user, also. Specifically, bounds and
-#' monotonicity restrictions are permitted. These constraints are only
-#' enforced over a subset of the data. However, an audit procedure
-#' randomly selects points outside of this subset to determine whether
-#' or not the constraints hold. The user can specify how stringent
-#' this audit procedure is using the function arguments.
-#'
-#' @param ivlike formula or vector of formulas used to specify the
-#'     regressions for the IV-like estimands.
-#' @param data \code{data.frame} used to estimate the treatment
-#'     effects.
-#' @param subset single subset condition or list of subset conditions
-#'     corresponding to each IV-like estimand. See \code{\link{l}} on
-#'     how to input the argument.
-#' @param components a list of vectors of the terms/components from
-#'     the regressions specifications we want to include in the set of
-#'     IV-like estimands. To select the intercept term, include in the
-#'     vector of variable names, `intercept'. See \code{\link{l}} on
-#'     how to input the argument. If no components for a IV
-#'     specification are given, then all components from that IV
-#'     specification will be included.
-#' @param userComponents boolean, indicating if the components
-#'     submitted are by the user or not.
-#' @param specCompWarn boolean, set to FALSE by default. Set to
-#'     \code{TRUE} if an error message explaining that all components
-#'     were selected should be output.
-#' @param propensity formula or variable name corresponding to
-#'     propensity to take up treatment. If a formula is declared, then
-#'     the function estimates propensity score according to the
-#'     formula and link specified. If a variable name is declared,
-#'     then the corresponding column in the data is taken as the
-#'     vector of propensity scores.
-#' @param link name of link function to estimate propensity score. Can
-#'     be chosen from \code{linear}, \code{probit}, or \code{logit}.
-#' @param treat variable name for treatment indicator
-#' @param m0 one-sided formula for marginal treatment response
-#'     function for control group. Splines can also be incorporated
-#'     using the expression "uSplines(degree, knots, intercept)". The
-#'     'intercept' argument may be omitted, and is set to \code{TRUE}
-#'     by default.
-#' @param m1 one-sided formula for marginal treatment response
-#'     function for treated group. Splines can also be incorporated
-#'     using the expression "uSplines(degree, knots, intercept)". The
-#'     'intercept' argument may be omitted, and is set to \code{TRUE}
-#'     by default.
-#' @param uname variable name for unobservable used in declaring MTRs.
-#' @param target target parameter to be estimated. Currently function
-#'     allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
-#'     ("\code{atu}"), LATE ("\code{late}"), and generalized LATE
-#'     ("\code{genlate}").
-#' @param target.weight0 user-defined weight function for the control
-#'     group defining the target parameter. A list of functions can be
-#'     submitted if the weighting function is in fact a spline. The
-#'     arguments of the function should be variable names in
-#'     \code{data}. If the weight is constant across all observations,
-#'     then the user can instead submit the value of the weight
-#'     instead of a function.
-#' @param target.weight1 user-defined weight function for the treated
-#'     group defining the target parameter. A list of functions can be
-#'     submitted if the weighting function is in fact a spline. The
-#'     arguments of the function should be variable names in
-#'     \code{data}. If the weight is constant across all observations,
-#'     then the user can instead submit the value of the weight
-#'     instead of a function.
-#' @param target.knots0 user-defined set of functions defining the
-#'     knots associated with splines weights for the control
-#'     group. The arguments of the function should consist only of
-#'     variable names in \code{data}. If the knot is constant across
-#'     all observations, then the user can instead submit the value of
-#'     the weight instead of a function.
-#' @param target.knots1 user-defined set of functions defining the
-#'     knots associated with splines weights for the treated
-#'     group. The arguments of the function should be variable names
-#'     in \code{data}. If the knot is constant across all
-#'     observations, then the user can instead submit the value of the
-#'     weight instead of a function.
-#' @param late.Z vector of variable names used to define the LATE.
-#' @param late.from baseline set of values of Z used to define the
-#'     LATE.
-#' @param late.to comparison set of values of Z used to define the
-#'     LATE.
-#' @param late.X vector of variable names of covariates which we
-#'     condition on when defining the LATE.
-#' @param eval.X numeric vector of the values at which we condition
-#'     variables in \code{late.X} on when estimating the LATE.
-#' @param genlate.lb lower bound value of unobservable u for
-#'     estimating generalized LATE.
-#' @param genlate.ub upper bound value of unobservable u for
-#'     estimating generalized LATE.
-#' @param obseq.tol threshold for violation of observational
-#'     equivalence. The threshold enters in multiplicatively. Thus, a
-#'     value of 0 corresponds to no violation of observational
-#'     equivalence other than statistical noise, and the assumption
-#'     that the model is correctly specified.
-#' @param grid.nu number of evenly spread points in the interval [0,
-#'     1] of the unobservable u used to form the grid for imposing
-#'     shape restrictions on the MTRs.
-#' @param grid.nx number of evenly spread points of the covariates to
-#'     use to form the grid for imposing shape restrictions on the
-#'     MTRs.
-#' @param audit.nx number of points on the covariates space to audit
-#'     in each iteration of the audit procedure.
-#' @param audit.nu number of points in the interval [0, 1],
-#'     corresponding to the normalized value of the unobservable term,
-#'     to audit in each iteration of the audit procedure.
-#' @param audit.max maximum number of iterations in the audit
-#'     procedure.
-#' @param audit.tol tolerance for determining when to end the audit
-#'     procedure.
-#' @param m1.ub numeric value for upper bound on MTR for treated
-#'     group. By default, this will be set to the largest value of the
-#'     observed outcome in the estimation sample.
-#' @param m0.ub numeric value for upper bound on MTR for control
-#'     group. By default, this will be set to the largest value of the
-#'     observed outcome in the estimation sample.
-#' @param m1.lb numeric value for lower bound on MTR for treated
-#'     group. By default, this will be set to the smallest value of
-#'     the observed outcome in the estimation sample.
-#' @param m0.lb numeric value for lower bound on MTR for control
-#'     group. By default, this will be set to the smallest value of
-#'     the observed outcome in the estimation sample.
-#' @param mte.ub numeric value for upper bound on treatment effect
-#'     paramter of interest.
-#' @param mte.lb numeric value for lower bound on treatment effect
-#'     paramter of interest.
-#' @param m0.dec logical, equal to TRUE if we want MTR for control
-#'     group to be weakly monotone decreasing.
-#' @param m0.inc logical, equal to TRUE if we want MTR for control
-#'     group to be weakly monotone increasing.
-#' @param m1.dec logical, equal to TRUE if we want MTR for treated
-#'     group to be weakly monotone decreasing.
-#' @param m1.inc logical, equal to TRUE if we want MTR for treated
-#'     group to be weakly monotone increasing.
-#' @param mte.dec logical, equal to TRUE if we want the MTE to be
-#'     weakly monotone decreasing.
-#' @param mte.inc logical, equal to TRUE if we want the MTE to be
-#'     weakly monotone decreasing.
-#' @param lpsolver name of the linear programming package in R used to
-#'     obtain the bounds on the treatment effect.
-#' @param point boolean, default set to \code{FALSE}. Set to
-#'     \code{TRUE} if it is believed that the treatment effects are
-#'     point identified. If set to \code{TRUE}, then a GMM procedure
-#'     is implemented to estimate the treatment effects. Shape
-#'     constraints on the MTRs will be ignored under point
-#'     identification.
-#' @param point.tol scalar, set default at 1-e08. Tolerance for bounds
-#'     before automatically switchingto case of point
-#'     identification. So if the estimated bounds are narrower than
-#'     \code{point.tol}, and no shape restrictions are declared, the
-#'     function instead provides a point estimate of the treatment
-#'     effect. The output would be the same as if \code{point} was set
-#'     to \code{TRUE}.
-#' @param point.itermax integer, default of 2. Maximum number of
-#'     iterations allowed for GMM estimation under point
-#'     identification. So default estimate is the two-step GMM.
-#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
-#'     then messages are provided throughout the estimation
-#'     procedure. Set to \code{FALSE} to suppress all messages,
-#'     e.g. when performing the bootstrap.
-#' @return Returns a list of results from throughout the estimation
-#'     procedure. This includes all IV-like estimands; the propensity
-#'     score model; bounds on the treatment effect; the estimated
-#'     expectations of each term in the MTRs; the components and
-#'     results of the LP problem.
-ivmte.estimate <- function(ivlike, data, subset, components,
-                           userComponents, specCompWarn = FALSE,
-                           propensity, link, treat, m0, m1, uname = u,
-                           target, target.weight0, target.weight1,
-                           target.knots0 = NULL, target.knots1 = NULL,
-                           late.Z, late.from, late.to, late.X, eval.X,
-                           genlate.lb, genlate.ub, obseq.tol = 0.05,
-                           grid.nu = 20, grid.nx = 20, audit.nx = 2,
-                           audit.nu = 3, audit.max = 5,
-                           audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
-                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                           m1.dec, m1.inc, mte.dec, mte.inc,
-                           lpsolver = NULL, point = FALSE,
-                           point.itermax = 2, point.tol = 1e-08,
-                           noisy = TRUE) {
-
-    call <- match.call(expand.dots = FALSE)
-
-    ##---------------------------
-    ## 1. Restrict data to complete observations
+    ## 5. Restrict data to complete observations
     ##---------------------------
 
     ## Restrict data used for all parts of procedure to be the same.
@@ -1667,16 +967,21 @@ ivmte.estimate <- function(ivlike, data, subset, components,
         terms_propensity <- terms_propensity[!(terms_propensity %in% uterms) &
                                            !(terms_propensity == treat)]
         propensity <- paste(treat,
-                            paste(unique(terms_propensity),
+                            paste(unique(c("intercept", terms_propensity)),
                                   collapse = " + "),
                             sep = " ~ ")
+
+        propensity <- gsub("intercept", "1", propensity)
+
         propWarn <- paste("No propensity score formula or propensity score
                            variable name provided. By default, the function will
                            create a propensity score formula using all the
                            covariates in the IV-like specifications and the
                            MTRs. The propensity score formula generated is:",
                            propensity)
+
         warning(gsub("\\s+", " ", propWarn), call. = FALSE)
+
         propensity <- as.formula(propensity)
     }
 
@@ -1689,14 +994,6 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                         vars_weights,
                         vars_propensity))
     allvars <- allvars[allvars != deparse(substitute(uname))]
-
-    newpropensity <- unique(c(vars_formulas_x,
-                              vars_formulas_z,
-                              vars_mtr))
-
-    newpropensity <- newpropensity[(newpropensity !=
-                                    deparse(substitute(uname))) &
-                                   (newpropensity != treat)]
 
     comp_filler <- lapply(terms_formulas_x,
                           function(x) as.character(unstring(x)))
@@ -1721,8 +1018,6 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     ## Keep only complete cases
     varError <- allvars[! allvars %in% colnames(data)]
     varError <- varError[varError != "intercept"]
-    ## varError <- allvars[! allvars[allvars != "intercept"] %in%
-    ##                     colnames(data)]
     if (length(varError) > 0) {
         varError <- paste0("The following variables are not contained
                           in the data set: ",
@@ -1732,12 +1027,744 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     }
 
     data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
+
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
-    cdata <- data
 
     ##---------------------------
-    ## 2. Obtain propensity scores
+    ## 4. Implement estimates
+    ##---------------------------
+
+    estimateCall <- modcall(call,
+                            newcall = ivmte.estimate,
+                            dropargs = c("bootstraps", "data",
+                                         "bootstraps.m",
+                                         "bootstraps.replace",
+                                         "levels", "ci.type",
+                                         "treat", "propensity",
+                                         "components"),
+                            newargs = list(data = quote(data),
+                                           subset = quote(subset),
+                                           vars_y = quote(vars_y),
+                                           vars_mtr = quote(vars_mtr),
+                                           terms_mtr0 = quote(terms_mtr0),
+                                           terms_mtr1 = quote(terms_mtr1),
+                                           treat = quote(treat),
+                                           propensity = quote(propensity),
+                                           splinesobj = quote(splinesobj),
+                                           components = quote(components)))
+
+
+    ## "bootstraps.m", "bootstraps.replace", "levels", "ci.type",
+    ## Estimate bounds
+    if (point == FALSE) {
+        origEstimate <- eval(estimateCall)
+
+        if (abs(origEstimate$bound[2] - origEstimate$bound[1]) < point.tol &
+            noshape == TRUE) {
+
+            message(gsub("\\s+", " ",
+                         paste0("Width of bounds is narrower than 'point.tol',
+                                which is set to ", point.tol, ". Estimation
+                                under point identification will instead be
+                                performed.")))
+
+            estimateCall <-
+                modcall(call,
+                        newcall = ivmte.estimate,
+                        dropargs = c("bootstraps", "data", "point",
+                                     "bootstraps.m",
+                                     "bootstraps.replace", "levels",
+                                     "ci.type", "treat", "propensity",
+                                     "components"),
+                        newargs = list(data = quote(data),
+                                       subset = quote(subset),
+                                       point = TRUE,
+                                       vars_y = quote(vars_y),
+                                       vars_mtr = quote(vars_mtr),
+                                       terms_mtr0 = quote(terms_mtr0),
+                                       terms_mtr1 = quote(terms_mtr1),
+                                       treat = quote(treat),
+                                       propensity = quote(propensity),
+                                       splinesobj = quote(splinesobj),
+                                       components = quote(components)))
+
+            return(eval(estimateCall))
+        } else {
+            ## Estimate bounds without resampling
+            if (bootstraps == 0) {
+                return(origEstimate)
+            }
+            ## Estimate bounds with resampling
+            if (bootstraps > 0) {
+                boundEstimates <- NULL
+
+                b <- 1
+                bootFailN <- 0
+                bootFailNote <- ""
+                bootFailIndex <- NULL
+
+                while (b <= bootstraps) {
+                    bootIDs  <- sample(seq(1, nrow(data)),
+                                    size = nrow(data),
+                                    replace = TRUE)
+                    bdata <- data[bootIDs, ]
+
+                    bootCall <-
+                        modcall(call,
+                                newcall = ivmte.estimate,
+                                dropargs = c("bootstraps", "data",
+                                             "noisy", "bootstraps.m",
+                                             "bootstraps.replace",
+                                             "levels", "ci.type", "treat",
+                                             "propensity", "components"),
+                                newargs = list(data = quote(bdata),
+                                               subset = quote(subset),
+                                               noisy = FALSE,
+                                               vars_y = quote(vars_y),
+                                               vars_mtr = quote(vars_mtr),
+                                               terms_mtr0 = quote(terms_mtr0),
+                                               terms_mtr1 = quote(terms_mtr1),
+                                               treat = quote(treat),
+                                               propensity = quote(propensity),
+                                               splinesobj = quote(splinesobj),
+                                               components = quote(components)))
+
+                    bootEstimate <- try(eval(bootCall), silent = TRUE)
+                    if (is.list(bootEstimate)) {
+                        boundEstimates  <- rbind(boundEstimates,
+                                                 bootEstimate$bound)
+
+                        if (noisy == TRUE) {
+                            message(paste0("Bootstrap iteration ", b,
+                                           bootFailNote, "..."))
+                        }
+                        b <- b + 1
+                        bootFailN <- 0
+                        bootFailNote <- ""
+                    } else {
+                        if (noisy == TRUE) {
+                            message(paste0("Bootstrap iteration ", b,
+                                           bootFailNote,
+                                           " error, resampling..."))
+                        }
+                        bootFailN <- bootFailN + 1
+                        bootFailIndex <- unique(c(bootFailIndex, b))
+                        bootFailNote <- paste0(": resample ",
+                                               bootFailN)
+                    }
+                }
+
+                if (length(bootFailIndex) > 0) {
+                    warning(gsub("\\s+", " ",
+                                 paste0("Bootstrap iteration(s) ",
+                                        paste(bootFailIndex, collapse = ", "),
+                                        " failed. Failed bootstraps are
+                                        repeated.")))
+                }
+
+                ## Obtain standard errors of bounds
+                bootSE <- apply(boundEstimates, 2, sd)
+
+                ## Construct confidence intervals
+                if (ci.type == "backward" | ci.type == "forward") {
+                    ci <- boundCI(bound = origEstimate$bound,
+                                  bound.resamples = boundEstimates,
+                                  n = nrow(data),
+                                  m = bootstraps.m,
+                                  levels = levels,
+                                  type = ci.type)
+                }
+
+                if (ci.type == "both") {
+                    ci <- list()
+                    ci$backward <- boundCI(bound = origEstimate$bound,
+                                           bound.resamples = boundEstimates,
+                                           n = nrow(data),
+                                           m = bootstraps.m,
+                                           levels = levels,
+                                           type = "backward")
+
+                    ci$forward <- boundCI(bound = origEstimate$bound,
+                                          bound.resamples = boundEstimates,
+                                          n = nrow(data),
+                                          m = bootstraps.m,
+                                          levels = levels,
+                                          type = "forward")
+                }
+
+                ci <- boundCI(bound = origEstimate$bound,
+                              bound.resamples = boundEstimates,
+                              n = nrow(data),
+                              m = bootstraps.m,
+                              levels = levels,
+                              type = ci.type)
+
+                ## Obtain p-value
+                if (ci.type == "backward") {
+                    pvalue <- boundPValue(ci = ci,
+                                          bound = origEstimate$bound,
+                                          bound.resamples = boundEstimates,
+                                          n = nrow(data),
+                                          m = bootstraps.m,
+                                          levels = levels,
+                                          type = "backward",
+                                          tol = pvalue.tol)
+                    names(pvalue) <- "backward"
+                }
+
+                if (ci.type == "forward") {
+                    pvalue <- boundPValue(ci = ci,
+                                          bound = origEstimate$bound,
+                                          bound.resamples = boundEstimates,
+                                          n = nrow(data),
+                                          m = bootstraps.m,
+                                          levels = levels,
+                                          type = "forward",
+                                          tol = pvalue.tol)
+                    names(pvalue) <- "forward"
+                }
+
+                if (ci.type == "both") {
+                    pvalue <- c(boundPValue(ci = ci$backward,
+                                            bound = origEstimate$bound,
+                                            bound.resamples = boundEstimates,
+                                            n = nrow(data),
+                                            m = bootstraps.m,
+                                            levels = levels,
+                                            type = "backward",
+                                            tol = pvalue.tol),
+                                boundPValue(ci = ci$forward,
+                                            bound = origEstimate$bound,
+                                            bound.resamples = boundEstimates,
+                                            n = nrow(data),
+                                            m = bootstraps.m,
+                                            levels = levels,
+                                            type = "forward",
+                                            tol = pvalue.tol))
+                    names(pvalue) <- c("backward", "forward")
+                }
+
+                ## Return output
+                return(c(origEstimate,
+                         list(bound.se = bootSE,
+                              bound.bootstraps = boundEstimates,
+                              ci = ci,
+                              pvalue = pvalue,
+                              bootstraps = bootstraps,
+                              failed.bootstraps = length(bootFailIndex))))
+            }
+        }
+    }
+
+    ## Point estimate  without resampling
+    if (point == TRUE & bootstraps == 0) {
+        return(eval(estimateCall))
+    }
+
+    ## Point estimate with resampling
+    if (point == TRUE & bootstraps > 0) {
+
+        origEstimate <- eval(estimateCall)
+
+        teEstimates  <- NULL
+        mtrEstimates <- NULL
+        propEstimates <- NULL
+
+        b <- 1
+        bootFailN <- 0
+        bootFailNote <- ""
+        bootFailIndex <- NULL
+
+        while (b <= bootstraps) {
+            bootIDs  <- sample(seq(1, nrow(data)),
+                                 size = nrow(data),
+                                 replace = TRUE)
+            bdata <- data[bootIDs, ]
+
+            bootCall <- modcall(call,
+                                newcall = ivmte.estimate,
+                                dropargs = c("bootstraps", "data",
+                                             "noisy", "treat",
+                                             "propensity",
+                                             "components"),
+                                newargs = list(data = quote(bdata),
+                                               subset = quote(subset),
+                                               noisy = FALSE,
+                                               vars_y = quote(vars_y),
+                                               vars_mtr = quote(vars_mtr),
+                                               terms_mtr0 = quote(terms_mtr0),
+                                               terms_mtr1 = quote(terms_mtr1),
+                                               treat = quote(treat),
+                                               propensity = quote(propensity),
+                                               splinesobj = quote(splinesobj),
+                                               components = quote(components)))
+
+            bootEstimate <- try(eval(bootCall), silent = TRUE)
+            if (is.list(bootEstimate)) {
+                teEstimates  <- c(teEstimates, bootEstimate$te)
+                mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
+                propEstimates <- cbind(propEstimates,
+                                       bootEstimate$propensity$model$coef)
+
+                if (noisy == TRUE) {
+                    message(paste0("Bootstrap iteration ", b, bootFailNote,
+                                   "..."))
+                }
+                b <- b + 1
+                bootFailN <- 0
+                bootFailNote <- ""
+            } else {
+                if (noisy == TRUE) {
+                    message(paste0("Bootstrap iteration ", b, bootFailNote,
+                                   " error, resampling..."))
+                }
+                bootFailN <- bootFailN + 1
+                bootFailIndex <- unique(c(bootFailIndex, b))
+                bootFailNote <- paste0(": resample ",
+                                       bootFailN)
+            }
+        }
+
+        if (length(bootFailIndex) > 0) {
+            warning(gsub("\\s+", " ",
+                         paste0("Bootstrap iteration(s) ",
+                                paste(bootFailIndex, collapse = ", "),
+                                " failed. Failed bootstraps are repeated.")))
+        }
+
+        bootSE <- sd(teEstimates)
+        mtrSE  <- apply(mtrEstimates, 1, sd)
+        propSE  <- apply(propEstimates, 1, sd)
+
+        ## Conf. int. 1: quantile method (same as percentile method)
+        ci190 <- quantile(x = teEstimates, probs = c(0.05, 0.95), type = 1)
+        ci195 <- quantile(x = teEstimates, probs = c(0.025, 0.975), type = 1)
+
+        mtrci190 <- apply(mtrEstimates, 1, quantile, probs = c(0.05, 0.95),
+                          type = 1)
+        mtrci195 <- apply(mtrEstimates, 1, quantile, probs = c(0.025, 0.975),
+                          type = 1)
+
+        propci190 <- apply(propEstimates, 1, quantile, probs = c(0.05, 0.95),
+                          type = 1)
+        propci195 <- apply(propEstimates, 1, quantile, probs = c(0.025, 0.975),
+                          type = 1)
+
+        ## Conf. int. 2: percentile method, using Z statistics
+        ci290 <- origEstimate$te + c(qnorm(0.05), qnorm(0.95)) * bootSE
+        ci295 <- origEstimate$te + c(qnorm(0.025), qnorm(0.975)) * bootSE
+        names(ci290) <- c("5%", "95%")
+        names(ci295) <- c("2.5%", "97.5%")
+
+        mtrci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), mtrSE),
+                          MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
+        mtrci295 <- sweep(x = tcrossprod(c(qnorm(0.025), qnorm(0.975)), mtrSE),
+                          MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
+
+        propci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), propSE),
+                          MARGIN = 2, origEstimate$prop$model$coef, FUN = "+")
+        propci295 <- sweep(x = tcrossprod(c(qnorm(0.025), qnorm(0.975)), propSE),
+                          MARGIN = 2, origEstimate$prop$model$coef, FUN = "+")
+
+        colnames(mtrci290) <- colnames(mtrci190)
+        rownames(mtrci290) <- rownames(mtrci190)
+
+        colnames(mtrci295) <- colnames(mtrci195)
+        rownames(mtrci295) <- rownames(mtrci195)
+
+        colnames(propci290) <- colnames(propci190)
+        rownames(propci290) <- rownames(propci190)
+
+        colnames(propci295) <- colnames(propci195)
+        rownames(propci295) <- rownames(propci195)
+
+        return(c(origEstimate,
+                 list(te.se  = bootSE,
+                      mtr.se = mtrSE,
+                      prop.se = propSE,
+                      te.bootstraps = teEstimates,
+                      mtr.bootstraps = t(mtrEstimates),
+                      te.ci1.90 = ci190,
+                      te.ci1.95 = ci195,
+                      te.ci2.90 = ci290,
+                      te.ci2.95 = ci295,
+                      mtr.ci1.90 = t(mtrci190),
+                      mtr.ci1.95 = t(mtrci195),
+                      mtr.ci2.90 = t(mtrci290),
+                      mtr.ci2.95 = t(mtrci295),
+                      prop.ci1.90 = t(propci190),
+                      prop.ci1.95 = t(propci195),
+                      prop.ci2.90 = t(propci290),
+                      prop.ci2.95 = t(propci295),
+                      bootstraps = bootstraps,
+                      failed.bootstraps = length(bootFailIndex))))
+    }
+}
+
+#' Construct confidence intervals for treatment effects under partial
+#' identification
+#'
+#' This function constructs the forward and backward confidence
+#' intervals for the treatment effect under partial identification.
+#'
+#' @param bound vector, bound of the treatment effects under partial
+#'     identification.
+#' @param bound.resamples matrix, stacked bounds of the treatment
+#'     effects under partial identification. Each row corresponds to a
+#'     subset resampled from the original data set.
+#' @param n integer, size of original data set.
+#' @param m integer, size of resampled data sets.
+#' @param levels vector, real numbers between 0 and 1. Values
+#'     correspond to the level of the confidence intervals constructed
+#'     via bootstrap.
+#' @param type character. Set to 'forward' to construct the forward
+#'     confidence interval for the treatment effect bound. Set to
+#'     'backward' to construct the backward confidence interval for
+#'     the treatment effect bound. Set to 'both' to construct both
+#'     types of confidence intervals.
+#' @return if \code{type} is 'forward' or 'backward', then the
+#'     corresponding type of confidence interval for each level is
+#'     returned. The output is in the form of a matrix, with each row
+#'     corresponding to a level. If \code{type} is 'both', then a list
+#'     is returned. One element of the list is the matrix of backward
+#'     confidence intervals, and the other element of the list is the
+#'     matrix of forward confidence intervals.
+boundCI <- function(bound, bound.resamples, n, m, levels, type) {
+
+    if (type == "both") output <- list()
+
+    ## Rescale and center bounds
+
+    boundLBmod <- sqrt(m) *
+        (bound.resamples[, 1] - bound[1])
+    boundUBmod <- sqrt(m) *
+        (bound.resamples[, 2] - bound[2])
+
+    ## Construct backward confidence interval
+    if (type %in% c('backward', 'both')) {
+        backwardCI <- cbind(bound[1] +
+                            (1 / sqrt(n)) *
+                            quantile(boundLBmod,
+                                     0.5 * (1 - levels),
+                                     type = 1),
+                            bound[2] +
+                            (1 / sqrt(n)) *
+                            quantile(boundUBmod,
+                                     0.5 * (1 + levels),
+                                     type = 1))
+
+        colnames(backwardCI) <- c("lb.backward", "ub.backward")
+        rownames(backwardCI) <- levels
+
+        if (type == "both") output$backward <- backwardCI
+        if (type == "backward") output <- backwardCI
+    }
+
+    ## Construct forward confidence interval
+    if (type %in% c('forward', 'both')) {
+        forwardCI <- cbind(bound[1] -
+                           (1 / sqrt(n)) *
+                           quantile(boundLBmod,
+                                    0.5 * (1 + levels),
+                                    type = 1),
+                           bound[2] -
+                           (1 / sqrt(n)) *
+                           quantile(boundUBmod,
+                                    0.5 * (1 - levels),
+                                    type = 1))
+
+        colnames(forwardCI) <- c("lb.forward", "ub.forward")
+        rownames(forwardCI) <- levels
+
+        if (type == "both") output$forward <- forwardCI
+        if (type == "forward") output <- forwardCI
+    }
+
+    return(output)
+}
+
+#' Construct p-values for treatment effects under partial
+#' identification
+#'
+#' This function estimates the p-value for the treatment effect under
+#' partial identification. p-values corresponding to forward and
+#' backward confidence intervals can be returned.
+#'
+#' @param ci matrix or list. If \code{type} is set to 'forward' or
+#'     'backward', then \code{ci} should be a matrix of forward or
+#'     backward confidence intervals corresponding to the levels
+#'     declared in the option \code{levels}. If \code{type} is set to
+#'     'both', then \code{ci} should be a list of two elements. One
+#'     element is a matrix of forward confidence intervals, and the
+#'     other element is a matrix of backward confidence intervals.
+#' @param bound vector, bound of the treatment effects under partial
+#'     identification.
+#' @param bound.resamples matrix, stacked bounds of the treatment
+#'     effects under partial identification. Each row corresponds to a
+#'     subset resampled from the original data set.
+#' @param n integer, size of original data set.
+#' @param m integer, size of resampled data sets.
+#' @param levels vector, real numbers between 0 and 1. Values
+#'     correspond to the level of the confidence intervals constructed
+#'     via bootstrap.
+#' @param type character. Set to 'forward' to construct the forward
+#'     confidence interval for the treatment effect bound. Set to
+#'     'backward' to construct the backward confidence interval for
+#'     the treatment effect bound. Set to 'both' to construct both
+#'     types of confidence intervals.
+#' @param tol numeric, default set to 1e-08. The p-value is
+#'     constructed by iteratively adjusting the confidence level to
+#'     find a confidence interval that does not contain 0. When the
+#'     adjustment of the confidence level falls below \code{tol}, no
+#'     further iterations are performed.
+#' @return If \code{type} is 'forward' or 'backward', a scalar p-value
+#'     corresponding to the type of confidence interval is
+#'     returned. If \code{type} is 'both', a vector of p-values
+#'     corresponding to the forward and backward confidence intervals
+#'     is returned.
+boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
+                        type, tol = 1e-08) {
+
+    ci <- rbind(c(bound[1], bound[1]), ci, c(-Inf, Inf))
+    rownames(ci) <- c(0, levels, 1)
+
+    inVec <- apply(ci, 1, function(x) 0 > x[1] & 0 < x[2])
+
+    lbPos <- which(sapply(seq(1, length(inVec) - 1), function(x) {
+        inVec[x] == inVec[x + 1]
+    }) == FALSE)
+
+    levelLB <- c(0, levels, 1)[lbPos]
+    levelUB <- c(0, levels, 1)[lbPos + 1]
+
+    while (levelUB - levelLB > tol) {
+
+        midpoint <- 0.5 * (levelLB + levelUB)
+
+        newCI <- boundCI(bound, bound.resamples, n = 1000, m = 1000,
+                         levels = midpoint, type = "backward")
+
+        if (0 > newCI[1] & 0 < newCI[2]) {
+            levelUB <- midpoint
+        } else {
+            levelLB <- midpoint
+        }
+    }
+    return(1 - levelLB)
+}
+
+#' Single iteration of estimation procedure from Mogstad, Torgovitsky,
+#' Santos (2018)
+#'
+#' This function estimates bounds on treatment effect parameters,
+#' following the procedure described in Mogstad, Torgovitsky
+#' (2017). Of the target parameters, the user can choose from the ATE,
+#' ATT, ATU, LATE, and generalized LATE. The user is required to
+#' provide a polynomial expression for the marginal treatment
+#' responses (MTR), as well as a set of regressions. By restricting
+#' the set of coefficients on each term of the MTRs to be consistent
+#' with the regression estimates, the function is able to restrict
+#' itself to a set of MTRs. The bounds on the treatment effect
+#' parameter correspond to finding coefficients on the MTRs that
+#' maximize their average difference.
+#'
+#' The estimation procedure relies on the propensity to take up
+#' treatment. The propensity scores can either be estimated as part of
+#' the estimation procedure, or the user can specify a variable in the
+#' data set already containing the propensity scores.
+#'
+#' Constraints on the shape of the MTRs and marginal treatment effects
+#' (MTE) can be imposed by the user, also. Specifically, bounds and
+#' monotonicity restrictions are permitted. These constraints are only
+#' enforced over a subset of the data. However, an audit procedure
+#' randomly selects points outside of this subset to determine whether
+#' or not the constraints hold. The user can specify how stringent
+#' this audit procedure is using the function arguments.
+#'
+#' @param ivlike formula or vector of formulas used to specify the
+#'     regressions for the IV-like estimands.
+#' @param data \code{data.frame} used to estimate the treatment
+#'     effects.
+#' @param subset single subset condition or list of subset conditions
+#'     corresponding to each IV-like estimand. See \code{\link{l}} on
+#'     how to input the argument.
+#' @param components a list of vectors of the terms/components from
+#'     the regressions specifications we want to include in the set of
+#'     IV-like estimands. To select the intercept term, include in the
+#'     vector of variable names, `intercept'. See \code{\link{l}} on
+#'     how to input the argument. If no components for a IV
+#'     specification are given, then all components from that IV
+#'     specification will be included.
+#' @param propensity formula or variable name corresponding to
+#'     propensity to take up treatment. If a formula is declared, then
+#'     the function estimates propensity score according to the
+#'     formula and link specified. If a variable name is declared,
+#'     then the corresponding column in the data is taken as the
+#'     vector of propensity scores.
+#' @param link name of link function to estimate propensity score. Can
+#'     be chosen from \code{linear}, \code{probit}, or \code{logit}.
+#' @param treat variable name for treatment indicator.
+#' @param m0 one-sided formula for marginal treatment response
+#'     function for control group. Splines can also be incorporated
+#'     using the expression "uSplines(degree, knots, intercept)". The
+#'     'intercept' argument may be omitted, and is set to \code{TRUE}
+#'     by default.
+#' @param m1 one-sided formula for marginal treatment response
+#'     function for treated group. Splines can also be incorporated
+#'     using the expression "uSplines(degree, knots, intercept)". The
+#'     'intercept' argument may be omitted, and is set to \code{TRUE}
+#'     by default.
+#' @param vars_y character, variable name of observed outcome variable.
+#' @param vars_mtr character, vector of variables entering into
+#'     \code{m0} and \code{m1}.
+#' @param terms_mtr0 character, vector of terms entering into
+#'     \code{m0}.
+#' @param terms_mtr1 character, vector of terms entering into
+#'     \code{m1}.
+#' @param splinesobj list of spline components in the MTRs for treated
+#'     and control groups. Spline terms are extracted using
+#'     \code{\link{removeSplines}}.
+#' @param uname variable name for unobservable used in declaring MTRs.
+#' @param target target parameter to be estimated. Currently function
+#'     allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
+#'     ("\code{atu}"), LATE ("\code{late}"), and generalized LATE
+#'     ("\code{genlate}").
+#' @param target.weight0 user-defined weight function for the control
+#'     group defining the target parameter. A list of functions can be
+#'     submitted if the weighting function is in fact a spline. The
+#'     arguments of the function should be variable names in
+#'     \code{data}. If the weight is constant across all observations,
+#'     then the user can instead submit the value of the weight
+#'     instead of a function.
+#' @param target.weight1 user-defined weight function for the treated
+#'     group defining the target parameter. A list of functions can be
+#'     submitted if the weighting function is in fact a spline. The
+#'     arguments of the function should be variable names in
+#'     \code{data}. If the weight is constant across all observations,
+#'     then the user can instead submit the value of the weight
+#'     instead of a function.
+#' @param target.knots0 user-defined set of functions defining the
+#'     knots associated with splines weights for the control
+#'     group. The arguments of the function should consist only of
+#'     variable names in \code{data}. If the knot is constant across
+#'     all observations, then the user can instead submit the value of
+#'     the weight instead of a function.
+#' @param target.knots1 user-defined set of functions defining the
+#'     knots associated with splines weights for the treated
+#'     group. The arguments of the function should be variable names
+#'     in \code{data}. If the knot is constant across all
+#'     observations, then the user can instead submit the value of the
+#'     weight instead of a function.
+#' @param late.Z vector of variable names used to define the LATE.
+#' @param late.from baseline set of values of Z used to define the
+#'     LATE.
+#' @param late.to comparison set of values of Z used to define the
+#'     LATE.
+#' @param late.X vector of variable names of covariates which we
+#'     condition on when defining the LATE.
+#' @param eval.X numeric vector of the values at which we condition
+#'     variables in \code{late.X} on when estimating the LATE.
+#' @param genlate.lb lower bound value of unobservable u for
+#'     estimating generalized LATE.
+#' @param genlate.ub upper bound value of unobservable u for
+#'     estimating generalized LATE.
+#' @param obseq.tol threshold for violation of observational
+#'     equivalence. The threshold enters in multiplicatively. Thus, a
+#'     value of 0 corresponds to no violation of observational
+#'     equivalence other than statistical noise, and the assumption
+#'     that the model is correctly specified.
+#' @param grid.nu number of evenly spread points in the interval [0,
+#'     1] of the unobservable u used to form the grid for imposing
+#'     shape restrictions on the MTRs.
+#' @param grid.nx number of evenly spread points of the covariates to
+#'     use to form the grid for imposing shape restrictions on the
+#'     MTRs.
+#' @param audit.nx number of points on the covariates space to audit
+#'     in each iteration of the audit procedure.
+#' @param audit.nu number of points in the interval [0, 1],
+#'     corresponding to the normalized value of the unobservable term,
+#'     to audit in each iteration of the audit procedure.
+#' @param audit.max maximum number of iterations in the audit
+#'     procedure.
+#' @param audit.tol tolerance for determining when to end the audit
+#'     procedure.
+#' @param m1.ub numeric value for upper bound on MTR for treated
+#'     group. By default, this will be set to the largest value of the
+#'     observed outcome in the estimation sample.
+#' @param m0.ub numeric value for upper bound on MTR for control
+#'     group. By default, this will be set to the largest value of the
+#'     observed outcome in the estimation sample.
+#' @param m1.lb numeric value for lower bound on MTR for treated
+#'     group. By default, this will be set to the smallest value of
+#'     the observed outcome in the estimation sample.
+#' @param m0.lb numeric value for lower bound on MTR for control
+#'     group. By default, this will be set to the smallest value of
+#'     the observed outcome in the estimation sample.
+#' @param mte.ub numeric value for upper bound on treatment effect
+#'     paramter of interest.
+#' @param mte.lb numeric value for lower bound on treatment effect
+#'     paramter of interest.
+#' @param m0.dec logical, equal to TRUE if we want MTR for control
+#'     group to be weakly monotone decreasing.
+#' @param m0.inc logical, equal to TRUE if we want MTR for control
+#'     group to be weakly monotone increasing.
+#' @param m1.dec logical, equal to TRUE if we want MTR for treated
+#'     group to be weakly monotone decreasing.
+#' @param m1.inc logical, equal to TRUE if we want MTR for treated
+#'     group to be weakly monotone increasing.
+#' @param mte.dec logical, equal to TRUE if we want the MTE to be
+#'     weakly monotone decreasing.
+#' @param mte.inc logical, equal to TRUE if we want the MTE to be
+#'     weakly monotone decreasing.
+#' @param lpsolver name of the linear programming package in R used to
+#'     obtain the bounds on the treatment effect.
+#' @param point boolean, default set to \code{FALSE}. Set to
+#'     \code{TRUE} if it is believed that the treatment effects are
+#'     point identified. If set to \code{TRUE}, then a GMM procedure
+#'     is implemented to estimate the treatment effects. Shape
+#'     constraints on the MTRs will be ignored under point
+#'     identification.
+#' @param point.tol scalar, set default at 1-e08. Tolerance for bounds
+#'     before automatically switchingto case of point
+#'     identification. So if the estimated bounds are narrower than
+#'     \code{point.tol}, and no shape restrictions are declared, the
+#'     function instead provides a point estimate of the treatment
+#'     effect. The output would be the same as if \code{point} was set
+#'     to \code{TRUE}.
+#' @param point.itermax integer, default of 2. Maximum number of
+#'     iterations allowed for GMM estimation under point
+#'     identification. So default estimate is the two-step GMM.
+#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
+#'     then messages are provided throughout the estimation
+#'     procedure. Set to \code{FALSE} to suppress all messages,
+#'     e.g. when performing the bootstrap.
+#' @return Returns a list of results from throughout the estimation
+#'     procedure. This includes all IV-like estimands; the propensity
+#'     score model; bounds on the treatment effect; the estimated
+#'     expectations of each term in the MTRs; the components and
+#'     results of the LP problem.
+ivmte.estimate <- function(ivlike, data, subset, components,
+                           propensity, link, treat, m0, m1,
+                           vars_y, vars_mtr, terms_mtr0, terms_mtr1,
+                           splinesobj, uname = u,
+                           target, target.weight0, target.weight1,
+                           target.knots0 = NULL, target.knots1 = NULL,
+                           late.Z, late.from, late.to, late.X, eval.X,
+                           genlate.lb, genlate.ub, obseq.tol = 0.05,
+                           grid.nu = 20, grid.nx = 20, audit.nx = 2,
+                           audit.nu = 3, audit.max = 5,
+                           audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
+                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
+                           m1.dec, m1.inc, mte.dec, mte.inc,
+                           lpsolver = NULL, point = FALSE,
+                           point.itermax = 2, point.tol = 1e-08,
+                           noisy = TRUE) {
+
+    call <- match.call(expand.dots = FALSE)
+
+    ##---------------------------
+    ## 1. Obtain propensity scores
     ##---------------------------
 
     if (noisy == TRUE) {
@@ -1750,20 +1777,20 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                          newcall = propensity,
                          keepargs = c("link", "late.Z", "late.X"),
                          dropargs = "propensity",
-                         newargs = list(data = quote(cdata),
+                         newargs = list(data = quote(data),
                                         formula = propensity))
     } else {
         pcall <- modcall(call,
                          newcall = propensity,
                          keepargs = c("link", "late.Z", "late.X"),
                          dropargs = "propensity",
-                         newargs = list(data = quote(cdata),
+                         newargs = list(data = quote(data),
                                         formula = substitute(propensity)))
     }
     pmodel <- eval(pcall)
 
     ##---------------------------
-    ## 3. Generate target moments/gamma terms
+    ## 2. Generate target moments/gamma terms
     ##---------------------------
 
     xindex0 <- NULL
@@ -1780,7 +1807,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                           newcall = polyparse,
                           keepargs = c("uname"),
                           newargs = list(formula = m0,
-                                         data = quote(cdata)))
+                                         data = quote(data)))
     } else {
         m0call <- NULL
     }
@@ -1790,23 +1817,25 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                           newcall = polyparse,
                           keepargs = c("uname"),
                           newargs = list(formula = m1,
-                                         data = quote(cdata)))
+                                         data = quote(data)))
     } else {
         m1call <- NULL
     }
 
+
     ## Generate target weights
+
     if (hasArg(target)) {
         if (target == "ate") {
-            w1 <- wate1(cdata)
+            w1 <- wate1(data)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "att") {
-            w1 <- watt1(cdata, mean(cdata[[treat]]), pmodel$phat)
+            w1 <- watt1(data, mean(data[[treat]]), pmodel$phat)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "atu") {
-            w1 <- watu1(cdata, 1 - mean(cdata[[treat]]), pmodel$phat)
+            w1 <- watu1(data, 1 - mean(data[[treat]]), pmodel$phat)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "late") {
@@ -1814,12 +1843,12 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                 late.X <- NULL
                 eval.X <- NULL
             }
-            w1 <- wlate1(cdata, late.from, late.to, substitute(late.Z),
+            w1 <- wlate1(data, late.from, late.to, substitute(late.Z),
                              pmodel$model, substitute(late.X), eval.X)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "genlate") {
-            w1 <- wgenlate1(cdata, genlate.lb, genlate.ub)
+            w1 <- wgenlate1(data, genlate.lb, genlate.ub)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else {
@@ -1865,7 +1894,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
 
         if (point == FALSE) {
             gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
-                                                data = cdata,
+                                                data = data,
                                                 lb = w0$lb,
                                                 ub = w0$ub,
                                                 multiplier = w0$mp,
@@ -1873,7 +1902,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
             gstarSpline0 <- gstarSplineObj0$gamma
 
             gstarSplineObj1 <- genGammaSplines(splines = splinesobj[[2]],
-                                                data = cdata,
+                                                data = data,
                                                 lb = w1$lb,
                                                 ub = w1$ub,
                                                 multiplier = w1$mp,
@@ -1881,7 +1910,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
             gstarSpline1 <- gstarSplineObj1$gamma
         } else {
             gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
-                                                data = cdata,
+                                                data = data,
                                                 lb = w0$lb,
                                                 ub = w0$ub,
                                                 multiplier = w0$mp,
@@ -1893,7 +1922,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                             rep(-1, length(xindex0) - length(uexporder0)))
 
             gstarSplineObj1 <- genGammaSplines(splines = splinesobj[[2]],
-                                                data = cdata,
+                                                data = data,
                                                 lb = w1$lb,
                                                 ub = w1$ub,
                                                 multiplier = w1$mp,
@@ -1986,25 +2015,25 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                     wKnotVarsU <- formalArgs(target.knots[[i + 1]])
 
                     if (wKnotVarsL[1] == "...") {
-                        lb <- unlist(lapply(X = seq(1, nrow(cdata)),
+                        lb <- unlist(lapply(X = seq(1, nrow(data)),
                                             FUN = funEval,
                                             fun = target.knots[[i]]))
                     } else {
-                        lb <- unlist(lapply(X = split(cdata[, wKnotVarsL],
-                                                      seq(1, nrow(cdata))),
+                        lb <- unlist(lapply(X = split(data[, wKnotVarsL],
+                                                      seq(1, nrow(data))),
                                             FUN = funEval,
                                             fun = target.knots[[i]],
                                             argnames = wKnotVarsL))
                     }
 
                     if (wKnotVarsU[1] == "...") {
-                        ub <- unlist(lapply(X = seq(1, nrow(cdata)),
+                        ub <- unlist(lapply(X = seq(1, nrow(data)),
                                             FUN = funEval,
                                             fun = target.knots[[i + 1]]))
 
                     } else {
-                        ub <- unlist(lapply(X = split(cdata[, wKnotVarsU],
-                                                      seq(1, nrow(cdata))),
+                        ub <- unlist(lapply(X = split(data[, wKnotVarsU],
+                                                      seq(1, nrow(data))),
                                             FUN = funEval,
                                             fun = target.knots[[i + 1]],
                                             argnames = wKnotVarsU))
@@ -2013,12 +2042,12 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                     wValVars  <- formalArgs(target.weight[[i]])
 
                     if (wValVars[1] == "...") {
-                        weights <- unlist(lapply(X = seq(1, nrow(cdata)),
+                        weights <- unlist(lapply(X = seq(1, nrow(data)),
                                                  FUN = funEval,
                                                  fun = target.weight[[i]]))
                     } else {
-                        weights <- unlist(lapply(X = split(cdata[, wValVars],
-                                                           seq(1, nrow(cdata))),
+                        weights <- unlist(lapply(X = split(data[, wValVars],
+                                                           seq(1, nrow(data))),
                                                  FUN = funEval,
                                                  fun = target.weight[[i]],
                                                  argnames = wValVars))
@@ -2068,25 +2097,25 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                     wKnotVarsU <- formalArgs(target.knots[[i + 1]])
 
                     if (wKnotVarsL[1] == "...") {
-                        lb <- unlist(lapply(X = seq(1, nrow(cdata)),
+                        lb <- unlist(lapply(X = seq(1, nrow(data)),
                                             FUN = funEval,
                                             fun = target.knots[[i]]))
                     } else {
-                        lb <- unlist(lapply(X = split(cdata[, wKnotVarsL],
-                                                      seq(1, nrow(cdata))),
+                        lb <- unlist(lapply(X = split(data[, wKnotVarsL],
+                                                      seq(1, nrow(data))),
                                             FUN = funEval,
                                             fun = target.knots[[i]],
                                             argnames = wKnotVarsL))
                     }
 
                     if (wKnotVarsU[1] == "...") {
-                        ub <- unlist(lapply(X = seq(1, nrow(cdata)),
+                        ub <- unlist(lapply(X = seq(1, nrow(data)),
                                             FUN = funEval,
                                             fun = target.knots[[i + 1]]))
 
                     } else {
-                        ub <- unlist(lapply(X = split(cdata[, wKnotVarsU],
-                                                      seq(1, nrow(cdata))),
+                        ub <- unlist(lapply(X = split(data[, wKnotVarsU],
+                                                      seq(1, nrow(data))),
                                             FUN = funEval,
                                             fun = target.knots[[i + 1]],
                                             argnames = wKnotVarsU))
@@ -2095,12 +2124,12 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                     wValVars  <- formalArgs(target.weight[[i]])
 
                     if (wValVars[1] == "...") {
-                        weights <- unlist(lapply(X = seq(1, nrow(cdata)),
+                        weights <- unlist(lapply(X = seq(1, nrow(data)),
                                                  FUN = funEval,
                                                  fun = target.weight[[i]]))
                     } else {
-                        weights <- unlist(lapply(X = split(cdata[, wValVars],
-                                                           seq(1, nrow(cdata))),
+                        weights <- unlist(lapply(X = split(data[, wValVars],
+                                                           seq(1, nrow(data))),
                                                  FUN = funEval,
                                                  fun = target.weight[[i]],
                                                  argnames = wValVars))
@@ -2109,7 +2138,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                     if (point == FALSE) {
                         gammaSplines <- gammaSplines +
                             genGammaSplines(splines = noSplineMtr,
-                                                data = cdata,
+                                                data = data,
                                                 lb = lb,
                                                 ub = ub,
                                                 multiplier = weights,
@@ -2117,7 +2146,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                     } else {
                         gammaSplines <- gammaSplines +
                             genGammaSplines(splines = noSplineMtr,
-                                                data = cdata,
+                                                data = data,
                                                 lb = lb,
                                                 ub = ub,
                                                 multiplier = weights,
@@ -2141,7 +2170,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     }
 
     ##---------------------------
-    ## 4. Generate moments/gamma terms for IV-like estimands
+    ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
 
     if (noisy == TRUE) {
@@ -2162,7 +2191,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                        keepargs = c("subset"),
                        newargs = list(formula = ivlike,
                                       treat = quote(treat),
-                                      data = quote(cdata),
+                                      data = quote(data),
                                       components = components))
 
         sest <- eval(scall)
@@ -2178,7 +2207,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
         ## Generate moments (gammas) corresponding to IV-like
         ## estimands
         if (point == FALSE) {
-            setobj <- gensset(data = cdata,
+            setobj <- gensset(data = data,
                                   sset = sset,
                                   sest = sest,
                                   splinesobj = splinesobj,
@@ -2190,7 +2219,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                                   subset_index = subset_index,
                                   noisy = noisy)
         } else {
-            setobj <- gensset(data = cdata,
+            setobj <- gensset(data = data,
                                   sset = sset,
                                   sest = sest,
                                   splinesobj = splinesobj,
@@ -2240,7 +2269,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
             ncomponents <- length(sest$betas)
             pmodobj <- pmodel$phat[subset_index]
             if (point == FALSE) {
-                setobj <- gensset(data = cdata,
+                setobj <- gensset(data = data,
                                       sset = sset,
                                       sest = sest,
                                       splinesobj = splinesobj,
@@ -2252,7 +2281,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                                       subset_index = subset_index,
                                       noisy = noisy)
             } else {
-                setobj <- gensset(data = cdata,
+                setobj <- gensset(data = data,
                                       sset = sset,
                                       sest = sest,
                                       splinesobj = splinesobj,
@@ -2299,7 +2328,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     }
 
     ##---------------------------
-    ## 5. Define constraint matrices using the audit
+    ## 4. Define constraint matrices using the audit
     ##---------------------------
 
     if (noisy == TRUE) {
@@ -2319,7 +2348,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     audit_call <- modcall(call,
                           newcall = audit,
                           keepargs = audit.args,
-                          newargs = list(data = quote(cdata),
+                          newargs = list(data = quote(data),
                                          m0   = quote(m0),
                                          m1   = quote(m1),
                                          splinesobj = quote(splinesobj),
@@ -2333,7 +2362,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
 
     ## Impose default upper and lower bounds on m0 and m1
     if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
-        maxy <- max(cdata[, vars_y])
+        maxy <- max(data[, vars_y])
         if (!hasArg(m1.ub)) {
             audit_call <- modcall(audit_call,
                                   newargs = list(m1.ub = maxy,
@@ -2346,7 +2375,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
         }
     }
     if (!hasArg(m1.lb) | !hasArg(m0.lb)) {
-        miny <- min(cdata[, vars_y])
+        miny <- min(data[, vars_y])
         if (!hasArg(m1.lb)) {
             audit_call <- modcall(audit_call,
                                   newargs = list(m1.lb = miny,
@@ -2360,7 +2389,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     }
 
     ##---------------------------
-    ## 6. Obtain the bounds
+    ## 5. Obtain the bounds
     ##---------------------------
 
     audit <- eval(audit_call)
