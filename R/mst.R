@@ -213,19 +213,19 @@
 #'                  ey ~ d | factor(z))
 #' jvec <- l(d, d, d, d)
 #' svec <- l(, , , z %in% c(2, 4))
-#'
-#' mst(ivlike = ivlikespecs,
-#'     data = dtm,
-#'     components = jvec,
-#'     propensity = pz,
-#'     subset = svec,
-#'     m0 = ~  u + u ^ 2,
-#'     m1 = ~  u + u ^ 2,
-#'     uname = u,
-#'     target = "att",
-#'     m0.dec = TRUE,
-#'     m1.dec = TRUE)
-#'
+#' 
+#' ivmte(ivlike = ivlikespecs,
+#'       data = dtm,
+#'       components = jvec,
+#'       propensity = d ~ z,
+#'       subset = svec,
+#'       m0 = ~  u + u ^ 2,
+#'       m1 = ~  u + u ^ 2,
+#'       uname = u,
+#'       target = "att",
+#'       m0.dec = TRUE,
+#'       m1.dec = TRUE,
+#'       bootstraps = 5)
 #' @export
 ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'both',
@@ -688,7 +688,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
     }
 
     ##---------------------------
-    ## 5. Restrict data to complete observations
+    ## 4. Restrict data to complete observations
     ##---------------------------
 
     ## Restrict data used for all parts of procedure to be the same.
@@ -883,6 +883,18 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                 treat <- ptreat
             }
 
+
+            if (length(Formula::as.Formula(propensity))[1] == 0 &&
+                length(all.vars(propensity)) > 1) {
+                stop(gsub("\\s+", " ",
+                          paste0("'propensity' argument must either be a
+                          two-sided formula (if the propensity score is to be
+                          estimated from the data), or a one-sided formula
+                          containing a single variable on the RHS (where the
+                          variable listed is included in the data, and
+                          corresponds to propensity scores.")))
+            }
+
         } else {
 
             if (! deparse(substitute(propensity)) %in% colnames(data)) {
@@ -921,6 +933,17 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
             }
 
             propensity <- deparse(substitute(propensity))
+            propensity <- Formula::as.Formula(paste("~", propensity))
+
+            if (length(all.vars(propensity)) > 1) {
+                stop(gsub("\\s+", " ",
+                          paste0("'propensity' argument must either be a
+                          two-sided formula (if the propensity score is to be
+                          estimated from the data), or a one-sided formula
+                          containing a single variable on the RHS (where the
+                          variable listed is included in the data, and
+                          corresponds to propensity scores.")))
+            }
         }        
     } else {
         ## Determine treatment variable
@@ -1039,7 +1062,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
     rownames(data) <- as.character(seq(1, nrow(data)))
 
     ##---------------------------
-    ## 4. Implement estimates
+    ## 5. Implement estimates
     ##---------------------------
 
     estimateCall <- modcall(call,
@@ -1795,22 +1818,36 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     }
     
     ## Estimate propensity scores
-    if (class_formula(propensity)) {        
-        pcall <- modcall(call,
-                         newcall = propensity,
-                         keepargs = c("link", "late.Z", "late.X"),
-                         dropargs = "propensity",
-                         newargs = list(data = quote(data),
-                                        formula = propensity))
-    } else {
-        pcall <- modcall(call,
-                         newcall = propensity,
-                         keepargs = c("link", "late.Z", "late.X"),
-                         dropargs = "propensity",
-                         newargs = list(data = quote(data),
-                                        formula = propensity))
-    }
+
+    ## ORIGINAL -------------------------------------
+    ## if (class_formula(propensity)) {        
+    ##     pcall <- modcall(call,
+    ##                      newcall = propensity,
+    ##                      keepargs = c("link", "late.Z", "late.X"),
+    ##                      dropargs = "propensity",
+    ##                      newargs = list(data = quote(data),
+    ##                                     formula = propensity))
+    ## } else {
+    ##     pcall <- modcall(call,
+    ##                      newcall = propensity,
+    ##                      keepargs = c("link", "late.Z", "late.X"),
+    ##                      dropargs = "propensity",
+    ##                      newargs = list(data = quote(data),
+    ##                                     formula = propensity))
+    ## }
+    ## pmodel <- eval(pcall)
+    ## EXPERIMIENTING --------------------------------
+
+    pcall <- modcall(call,
+                     newcall = propensity,
+                     keepargs = c("link", "late.Z", "late.X"),
+                     dropargs = "propensity",
+                     newargs = list(data = quote(data),
+                                    formula = propensity))
     pmodel <- eval(pcall)
+    
+    ## END EXPERIMETN---------------------------------
+    
 
     ##---------------------------
     ## 2. Generate target moments/gamma terms

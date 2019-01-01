@@ -48,11 +48,12 @@
 propensity <- function(formula, data, link = "linear", late.Z,
                            late.X) {
 
-    fname <- deparse(substitute(formula))
-
-    ## If formula is provided, estimate propensity score accordingly
-    if (class_formula(as.formula(fname))) {
-
+    formula <- Formula::as.Formula(formula)
+   
+    ## If two-sided formula is provided, estimate propensity score
+    ## accordingly
+    if (length(formula)[1] == 1 & length(formula)[2] == 1) {
+        
         ## obtain design matrix
         if (link == "linear") prop <-  lm(formula, data)
         if (link == "logit")  prop <- glm(formula,
@@ -67,11 +68,29 @@ propensity <- function(formula, data, link = "linear", late.Z,
         phat[which(phat < 0)] <- 0
         phat[which(phat > 1)] <- 1
         return(list(model = prop, phat = phat))
-    } else {
+        
+    } else if (length(formula)[1] == 0 & length(formula)[2] == 1) {
+        
+        ## If one-sided formula is provided, containing only one
+        ## variable, then that variable is the proepnsity score
 
-        ## If variable name is provided, check if it is indeed a
-        ## propensity score
-        phat <- data[[formula]]
+        ## Check that only one variable is submitted. This variable is
+        ## the one in the data containing the propensity scores
+        if (length(all.vars(formula)) > 1) {
+            stop(gsub("\\s+", " ",
+                      paste0("'formula' argument characterizing the
+                      propensity score model must either be a two sided
+                      formula (if the propensity score is to be estimated from
+                      the data), or a one-sided formula containing a single
+                      variable on the RHS (where the variable listed is included
+                      in the data, and corresponds to propensity scores.")))
+        }
+
+        pname <- all.vars(formula)
+
+        ## Check that the variable is indeed a proepnsity,
+        ## i.e. bounded between 0 and 1
+        phat <- data[[pname]]
 
         names(phat) <- rownames(data)
 
@@ -96,7 +115,7 @@ propensity <- function(formula, data, link = "linear", late.Z,
                                                    substitute = FALSE)
             if(!hasArg(late.X)) late.X <- NULL
 
-            model <- unique(data[, c(late.X, late.Z, formula)])
+            model <- unique(data[, c(late.X, late.Z, pname)])
 
             ## There should be no duplicate (X, Z)s in the model
             ## (i.e. for each set of (X, Z), there should only be one
@@ -109,5 +128,13 @@ propensity <- function(formula, data, link = "linear", late.Z,
            }
         }
         return(list(model = model, phat = phat))
+    } else {
+        stop(gsub("\\s+", " ",
+                  paste0("'formula' argument characterizing the
+                  propensity score model must either be a two sided formula
+                  (if the propensity score is to be estimated from the data),
+                  or a one-sided formula containing a single variable on the RHS
+                  (where the variable listed is included in the data, and
+                  corresponds to propensity scores.")))
     }
 }
