@@ -919,7 +919,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
             } else {
                 stop("Treatment variable indeterminable.")
             }
-        }
+
+            propensity <- deparse(substitute(propensity))
+        }        
     } else {
         ## Determine treatment variable
         if (hasArg(treat)) {
@@ -989,7 +991,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
 
         propensity <- as.formula(propensity)
     }
-
+    
     ## Remove unobserved variable from list
     allvars <- unique(c(vars_y,
                         vars_formulas_x,
@@ -1048,9 +1050,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                                          "subset",
                                          "levels", "ci.type",
                                          "treat", "propensity",
-                                         "components"),
+                                         "components", "lpsolver"),
                             newargs = list(data = quote(data),
                                            subset = quote(subset),
+                                           lpsolver = quote(lpsolver),
                                            vars_y = quote(vars_y),
                                            vars_mtr = quote(vars_mtr),
                                            terms_mtr0 = quote(terms_mtr0),
@@ -1063,9 +1066,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
 
     ## "bootstraps.m", "bootstraps.replace", "levels", "ci.type",
     ## Estimate bounds
-    if (point == FALSE) {
-        origEstimate <- eval(estimateCall)
+    if (point == FALSE) {        
 
+        origEstimate <- eval(estimateCall)
+        
         if (abs(origEstimate$bound[2] - origEstimate$bound[1]) < point.tol &
             noshape == TRUE) {
 
@@ -1083,9 +1087,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                                      "bootstraps.replace", "subset",
                                      "levels",
                                      "ci.type", "treat", "propensity",
-                                     "components"),
+                                     "components", "lpsolver"),
                         newargs = list(data = quote(data),
                                        subset = quote(subset),
+                                       lpsolver = quote(lpsolver),
                                        point = TRUE,
                                        vars_y = quote(vars_y),
                                        vars_mtr = quote(vars_mtr),
@@ -1125,9 +1130,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                                              "bootstraps.replace",
                                              "subset", "levels", "ci.type",
                                              "treat",
-                                             "propensity", "components"),
+                                             "propensity", "components",
+                                             "lpsolver"),
                                 newargs = list(data = quote(bdata),
                                                subset = quote(subset),
+                                               lpsolver = quote(lpsolver),
                                                noisy = FALSE,
                                                vars_y = quote(vars_y),
                                                vars_mtr = quote(vars_mtr),
@@ -1296,9 +1303,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                                              "noisy", "treat",
                                              "subset",
                                              "propensity",
-                                             "components"),
+                                             "components",
+                                             "lpsolver"),
                                 newargs = list(data = quote(bdata),
                                                subset = quote(subset),
+                                               lpsolver = quote(lpsolver),
                                                noisy = FALSE,
                                                vars_y = quote(vars_y),
                                                vars_mtr = quote(vars_mtr),
@@ -1784,9 +1793,9 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Obtaining propensity scores...\n")
     }
-
+    
     ## Estimate propensity scores
-    if (class_formula(propensity)) {
+    if (class_formula(propensity)) {        
         pcall <- modcall(call,
                          newcall = propensity,
                          keepargs = c("link", "late.Z", "late.X"),
@@ -1799,7 +1808,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                          keepargs = c("link", "late.Z", "late.X"),
                          dropargs = "propensity",
                          newargs = list(data = quote(data),
-                                        formula = substitute(propensity)))
+                                        formula = propensity))
     }
     pmodel <- eval(pcall)
 

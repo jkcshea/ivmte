@@ -32,7 +32,7 @@
 #'     set to be used as the propensity score, then a
 #'     \code{data.frame} containing the propensity score for each
 #'     value of the covariates in the probability model is returned.
-#' 
+#'
 #' @examples
 #' ## Declaring a probability model.
 #' propensity(formula = d ~ z,
@@ -52,6 +52,7 @@ propensity <- function(formula, data, link = "linear", late.Z,
 
     ## If formula is provided, estimate propensity score accordingly
     if (class_formula(as.formula(fname))) {
+
         ## obtain design matrix
         if (link == "linear") prop <-  lm(formula, data)
         if (link == "logit")  prop <- glm(formula,
@@ -67,16 +68,20 @@ propensity <- function(formula, data, link = "linear", late.Z,
         phat[which(phat > 1)] <- 1
         return(list(model = prop, phat = phat))
     } else {
+
         ## If variable name is provided, check if it is indeed a
         ## propensity score
-        phat <- data[[fname]]
+        phat <- data[[formula]]
+
         names(phat) <- rownames(data)
 
         if (max(phat) > 1 | min(phat) < 0) {
             stop('Provided propensity scores are not between 0 and 1.')
         }
+
         model <- NULL
-        if (hasArg(late.Z)) {            
+
+        if (hasArg(late.Z)) {
             ## Generate a matrix of propensity scores corresponding to
             ## each X and Z---this only works if the X and Z are
             ## declared for the LATE variables.
@@ -86,12 +91,12 @@ propensity <- function(formula, data, link = "linear", late.Z,
             } else {
                 late.Z <- deparse(substitute(late.Z))
             }
-            
+
             if(hasArg(late.X))  late.X <- restring(substitute(late.X),
                                                    substitute = FALSE)
             if(!hasArg(late.X)) late.X <- NULL
-            
-            model <- unique(data[, c(late.X, late.Z, fname)])
+
+            model <- unique(data[, c(late.X, late.Z, formula)])
 
             ## There should be no duplicate (X, Z)s in the model
             ## (i.e. for each set of (X, Z), there should only be one
