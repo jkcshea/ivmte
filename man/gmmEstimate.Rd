@@ -9,7 +9,7 @@ gmmEstimate(sset, gstar0, gstar1, itermax = 2, tol = 1e-08,
 }
 \arguments{
 \item{sset}{a list of lists constructed from the function
-\link{gensset.mst}. Each inner list should include a
+\link{gensset}. Each inner list should include a
 coefficient corresponding to a term in an IV specification, a
 matrix of the estimates of the gamma moments conditional on (X,
 Z) for d = 0, and a matrix of the estimates of the gamma

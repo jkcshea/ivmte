@@ -2,12 +2,14 @@
 % Please edit documentation in R/mst.R
 \name{ivmte.estimate}
 \alias{ivmte.estimate}
-\title{Estimation procedure from Mogstad, Torgovitsky (2017)}
+\title{Single iteration of estimation procedure from Mogstad, Torgovitsky,
+Santos (2018)}
 \usage{
 ivmte.estimate(ivlike, data, subset, components, propensity, link, treat,
-  m0, m1, uname = u, target, target.weight0, target.weight1,
+  m0, m1, vars_y, vars_mtr, terms_mtr0, terms_mtr1, splinesobj,
+  uname = u, target, target.weight0, target.weight1,
   target.knots0 = NULL, target.knots1 = NULL, late.Z, late.from,
-  late.to, late.X, eval.X, genlate.lb, genlate.ub, obseq.tol = 1,
+  late.to, late.X, eval.X, genlate.lb, genlate.ub, obseq.tol = 0.05,
   grid.nu = 20, grid.nx = 20, audit.nx = 2, audit.nu = 3,
   audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
   mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
@@ -22,15 +24,21 @@ regressions for the IV-like estimands.}
 effects.}
 
 \item{subset}{single subset condition or list of subset conditions
-corresponding to each IV-like estimand. See
-\code{\link{lists.mst}} on how to input the argument.}
+corresponding to each IV-like estimand. The input must be
+logical. See \code{\link{l}} on how to input the argument. If
+the user wishes to select specific rows, construct a binary
+variable in the data set, and set the condition to use only
+those observations for which the binary variable is 1, e.g. the
+binary variable is \code{use}, and the subset condition is
+\code{use == 1}.}
 
 \item{components}{a list of vectors of the terms/components from
 the regressions specifications we want to include in the set of
 IV-like estimands. To select the intercept term, include in the
-vector of variable names, `intercept'. See
-\code{\link{lists.mst}} on how to input the argument. If no
-argument is provided, then}
+vector of variable names, `intercept'. See \code{\link{l}} on
+how to input the argument. If no components for a IV
+specification are given, then all components from that IV
+specification will be included.}
 
 \item{propensity}{formula or variable name corresponding to
 propensity to take up treatment. If a formula is declared, then
@@ -42,7 +50,7 @@ vector of propensity scores.}
 \item{link}{name of link function to estimate propensity score. Can
 be chosen from \code{linear}, \code{probit}, or \code{logit}.}
 
-\item{treat}{variable name for treatment indicator}
+\item{treat}{variable name for treatment indicator.}
 
 \item{m0}{one-sided formula for marginal treatment response
 function for control group. Splines can also be incorporated
@@ -55,6 +63,21 @@ function for treated group. Splines can also be incorporated
 using the expression "uSplines(degree, knots, intercept)". The
 'intercept' argument may be omitted, and is set to \code{TRUE}
 by default.}
+
+\item{vars_y}{character, variable name of observed outcome variable.}
+
+\item{vars_mtr}{character, vector of variables entering into
+\code{m0} and \code{m1}.}
+
+\item{terms_mtr0}{character, vector of terms entering into
+\code{m0}.}
+
+\item{terms_mtr1}{character, vector of terms entering into
+\code{m1}.}
+
+\item{splinesobj}{list of spline components in the MTRs for treated
+and control groups. Spline terms are extracted using
+\code{\link{removeSplines}}.}
 
 \item{uname}{variable name for unobservable used in declaring MTRs.}
 
@@ -116,8 +139,8 @@ estimating generalized LATE.}
 \item{obseq.tol}{threshold for violation of observational
 equivalence. The threshold enters in multiplicatively. Thus, a
 value of 0 corresponds to no violation of observational
-equivalence, and the assumption that the model is correctly
-specified.}
+equivalence other than statistical noise, and the assumption
+that the model is correctly specified.}
 
 \item{grid.nu}{number of evenly spread points in the interval [0,
 1] of the unobservable u used to form the grid for imposing
@@ -240,25 +263,4 @@ enforced over a subset of the data. However, an audit procedure
 randomly selects points outside of this subset to determine whether
 or not the constraints hold. The user can specify how stringent
 this audit procedure is using the function arguments.
-}
-\examples{
-ivlikespecs <- c(ey ~ d | z,
-                 ey ~ d | factor(z),
-                 ey ~ d,
-                 ey ~ d | factor(z))
-jvec <- lists.mst(d, d, d, d)
-svec <- lists.mst(, , , z \%in\% c(2, 4))
-
-mst(ivlike = ivlikespecs,
-    data = dtm,
-    components = jvec,
-    propensity = pz,
-    subset = svec,
-    m0 = ~  u + u ^ 2,
-    m1 = ~  u + u ^ 2,
-    uname = u,
-    target = "att",
-    m0.dec = TRUE,
-    m1.dec = TRUE)
-
 }
