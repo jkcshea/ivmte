@@ -101,8 +101,7 @@ ivlike <- function(formula, data, subset, components, treat,
    
     call <- match.call(expand.dots = FALSE)
 
-    ## TESTING --------------------
-    ## select components
+    ## Select components
     if (list == TRUE) {
         if (!is.character(components)) {
             components <- deparse(components)
@@ -112,7 +111,6 @@ ivlike <- function(formula, data, subset, components, treat,
         components <- paste0("c(",
                             paste(components, collapse = ", "),
                             ")")
-
     }
 
     ## Covert components into a vector of strings
@@ -145,8 +143,6 @@ ivlike <- function(formula, data, subset, components, treat,
     lmcomponents <- components
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
     
-    ## END TESTING --------------------
-    
     ## obtain design matrices
     if (list == TRUE) {
         mf <- design(formula, data)
@@ -158,36 +154,6 @@ ivlike <- function(formula, data, subset, components, treat,
     }
 
     instrumented <- !is.null(mf$Z)
-
-    ## ORIGINAL--------
-    ## ## select components
-    ## if (list == TRUE) {
-    ##     if (!is.character(components)) {
-    ##         components <- deparse(components)
-    ##     }
-    ## } else {
-    ##     components <- (unlist(lapply(components, deparse)))
-    ##     components <- paste0("c(",
-    ##                         paste(components, collapse = ", "),
-    ##                         ")")
-
-    ## }
-
-    ## if (components == "NULL") {
-    ##     components <- treat
-    ## } else {
-    ##     if (substr(components, 1, 2) == "c(" &
-    ##         substr(components, nchar(components), nchar(components)) == ")"){
-    ##         components   <- substr(components, 3, nchar(components) - 1)
-    ##         lmcomponents <- gsub("intercept", "(Intercept)", components)
-
-    ##         components   <- strsplit(components, ", ")[[1]]
-    ##         lmcomponents <- strsplit(lmcomponents, ", ")[[1]]
-    ##     } else {
-    ##         lmcomponents <- components
-    ##     }
-    ## }
-    ## END ORIGINAL--------
 
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {

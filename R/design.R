@@ -22,7 +22,8 @@ design <- function(formula, data, subset) {
     ## Set up model.frame() call
     if (missing(data)) data <- environment(formula)
     mf <- match.call()
-    m  <- match(c("formula", "data", "subset", "na.action", "weights", "offset"),
+    m  <- match(c("formula", "data", "subset",
+                  "na.action", "weights", "offset"),
                 names(mf), 0)
     mf <- mf[c(1, m)]
     mf$drop.unused.levels <- TRUE

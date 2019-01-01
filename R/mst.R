@@ -53,8 +53,13 @@
 #' @param data \code{data.frame} used to estimate the treatment
 #'     effects.
 #' @param subset single subset condition or list of subset conditions
-#'     corresponding to each IV-like estimand. See \code{\link{l}} on
-#'     how to input the argument.
+#'     corresponding to each IV-like estimand. The input must be
+#'     logical. See \code{\link{l}} on how to input the argument. If
+#'     the user wishes to select specific rows, construct a binary
+#'     variable in the data set, and set the condition to use only
+#'     those observations for which the binary variable is 1, e.g. the
+#'     binary variable is \code{use}, and the subset condition is
+#'     \code{use == 1}.
 #' @param components a list of vectors of the terms/components from
 #'     the regressions specifications we want to include in the set of
 #'     IV-like estimands. To select the intercept term, include in the
@@ -1040,6 +1045,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                             dropargs = c("bootstraps", "data",
                                          "bootstraps.m",
                                          "bootstraps.replace",
+                                         "subset",
                                          "levels", "ci.type",
                                          "treat", "propensity",
                                          "components"),
@@ -1074,7 +1080,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                         newcall = ivmte.estimate,
                         dropargs = c("bootstraps", "data", "point",
                                      "bootstraps.m",
-                                     "bootstraps.replace", "levels",
+                                     "bootstraps.replace", "subset",
+                                     "levels",
                                      "ci.type", "treat", "propensity",
                                      "components"),
                         newargs = list(data = quote(data),
@@ -1116,7 +1123,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                                 dropargs = c("bootstraps", "data",
                                              "noisy", "bootstraps.m",
                                              "bootstraps.replace",
-                                             "levels", "ci.type", "treat",
+                                             "subset", "levels", "ci.type",
+                                             "treat",
                                              "propensity", "components"),
                                 newargs = list(data = quote(bdata),
                                                subset = quote(subset),
@@ -1286,6 +1294,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                                 newcall = ivmte.estimate,
                                 dropargs = c("bootstraps", "data",
                                              "noisy", "treat",
+                                             "subset",
                                              "propensity",
                                              "components"),
                                 newargs = list(data = quote(bdata),
@@ -1587,8 +1596,13 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #' @param data \code{data.frame} used to estimate the treatment
 #'     effects.
 #' @param subset single subset condition or list of subset conditions
-#'     corresponding to each IV-like estimand. See \code{\link{l}} on
-#'     how to input the argument.
+#'     corresponding to each IV-like estimand. The input must be
+#'     logical. See \code{\link{l}} on how to input the argument. If
+#'     the user wishes to select specific rows, construct a binary
+#'     variable in the data set, and set the condition to use only
+#'     those observations for which the binary variable is 1, e.g. the
+#'     binary variable is \code{use}, and the subset condition is
+#'     \code{use == 1}.
 #' @param components a list of vectors of the terms/components from
 #'     the regressions specifications we want to include in the set of
 #'     IV-like estimands. To select the intercept term, include in the
