@@ -336,16 +336,16 @@ gendist_mosquito <- function() {
     p3 <- 0.48
     p4 <- 0.78
 
-    dt <- data.table::data.table(i  = rep(seq(1, subN), 4),
-                                 z  = rep(c(1, 2, 3, 4), each = subN),
-                                 pz = rep(c(p1, p2, p3, p4), each = subN))
+    dt <- data.frame(i  = rep(seq(1, subN), 4),
+                     z  = rep(c(1, 2, 3, 4), each = subN),
+                     pz = rep(c(p1, p2, p3, p4), each = subN))
     
     ## Assign treatment
-    dt[, d := 0]
-    dt[z == 1 & i <= 12, d := 1]
-    dt[z == 2 & i <= 29, d := 1]
-    dt[z == 3 & i <= 48, d := 1]
-    dt[z == 4 & i <= 78, d := 1]
+    dt$d <- 0
+    dt[dt$z == 1 & dt$i <= 12, "d"] <- 1
+    dt[dt$z == 2 & dt$i <= 29, "d"] <- 1
+    dt[dt$z == 3 & dt$i <= 48, "d"] <- 1
+    dt[dt$z == 4 & dt$i <= 78, "d"] <- 1
 
     ## Now construct Y as E[Y | X, D, Z]
     plist <- polyparse(~ u + I(u ^ 2), data = dt, uname = u)
@@ -363,9 +363,9 @@ gendist_mosquito <- function() {
     m0coef <- c(0.9, -1.1, 0.3)
     m1coef <- c(0.35, -0.3, -0.05)
 
-    dt[, ey0 := plist0 %*% m0coef]
-    dt[, ey1 := plist1 %*% m1coef]
-    dt[, ey  := d * ey1 + (1 - d) * ey0]
+    dt$ey0 <- plist0 %*% m0coef
+    dt$ey1 <- plist1 %*% m1coef
+    dt$ey  <- dt$d * dt$ey1 + (1 - dt$d) * dt$ey0
 
     ## Convert data back into data.frame
     dtm <- data.frame(dt)
@@ -494,7 +494,9 @@ gendist_covariates <- function() {
     ## them to make it easier to work with. I will make sure that they sum
     ## to 1.
     dtc$f <- round(dtc$f, 2)
-    print(sum(dtc$f)) ## so we are 0.02 over, need to subtract those from two
+    sum(dtc$f) ## Sum of rounded densities is 1.02. Adjust the
+               ## densities so they sum to 1.
+
     dtc[dtc$x1 == 1 & dtc$x2 == 1 & dtc$z1 == 0 & dtc$z2 == 1, "f"] <-
         dtc[dtc$x1 == 1 & dtc$x2 == 1 & dtc$z1 == 0 & dtc$z2 == 1, "f"] - 0.01
     dtc[dtc$x1 == 1 & dtc$x2 == 3 & dtc$z1 == 1 & dtc$z2 == 3, "f"] <-
