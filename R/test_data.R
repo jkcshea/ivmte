@@ -348,13 +348,13 @@ gendist_mosquito <- function() {
     dt[z == 4 & i <= 78, d := 1]
 
     ## Now construct Y as E[Y | X, D, Z]
-    plist <- polyparse.mst(~ u + I(u ^ 2), data = dt, uname = u)
-    plist0 <- gengamma.mst(plist,
+    plist <- polyparse(~ u + I(u ^ 2), data = dt, uname = u)
+    plist0 <- genGamma(plist,
                            lb = dt$pz,
                            ub = 1,
                            multiplier = 1 / (1 - dt$pz),
                            means = FALSE)
-    plist1 <- gengamma.mst(plist,
+    plist1 <- genGamma(plist,
                            lb = 0,
                            ub = dt$pz,
                            multiplier = 1 / dt$pz,
@@ -380,7 +380,9 @@ gendist_mosquito <- function() {
 #' have already integrated over the unobservable terms U, where U | X,
 #' Z ~ Unif[0, 1].
 #' 
-#' @return data.frame.
+#' @return a list of two data.frame objects. One is the distribution
+#'     of the simulated data, the other is the full simulated data
+#'     set.
 gendist_covariates <- function() {
 
     set.seed(1)
@@ -389,10 +391,10 @@ gendist_covariates <- function() {
     supp_x2 <- c(1, 2, 3)
     supp_z1 <- c(0, 1)
     supp_z2 <- c(1, 2, 3)
-
-    dtc <- data.table::data.table(expand.grid(supp_x1, supp_x2,
+    
+    dtc <- data.frame(expand.grid(supp_x1, supp_x2,
                                   supp_z1, supp_z2))
-
+    
     colnames(dtc) <- c("x1", "x2", "z1", "z2")
 
     ## Generate propensity scores
@@ -401,9 +403,11 @@ gendist_covariates <- function() {
     g2 <- 0.2
     g3 <- -1
     g4 <- 0.3
-    dtc[, latent := g0 + g1 * x1 + g2 * x2 + g3 * z1 + g4 * z2]
-    dtc[, p := round(1 / (1 + exp(-latent)), 2)]
-
+    
+    dtc$latent <- g0 + g1 * dtc$x1 + g2 * dtc$x2 +
+        g3 * dtc$z1 + g4 * dtc$z2
+    dtc$p <- round(1 / (1 + exp(-dtc$latent)), 2)
+    
     ## Generate the counterfactual outcomes Note: the code is prepared
     ## such that the polynomials are all in terms of u. Thus, terms which
     ## have u components with the same power are all grouped together.
@@ -413,19 +417,19 @@ gendist_covariates <- function() {
     ## m1 = 0.5 + 0.2 * x1 - 0.1 * x1 * x2 - 0.02 * u +
     ##        0.3 * x1 * u - 0.05 * x2 * u^2
 
-    plist0 <- polyparse.mst(~ x1 + I(x2 * u) + I(x2 * u^2),
+    plist0 <- polyparse(~ x1 + I(x2 * u) + I(x2 * u^2),
                             data = dtc,
                             uname = u)
-    plist1 <- polyparse.mst(~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
+    plist1 <- polyparse(~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
                             data = dtc,
                             uname = u)
 
-    glist0 <- gengamma.mst(plist0,
+    glist0 <- genGamma(plist0,
                            lb = dtc$p,
                            ub = 1,
                            multiplier = 1 / (1 - dtc$p),
                            means = FALSE)
-    glist1 <- gengamma.mst(plist1,
+    glist1 <- genGamma(plist1,
                            lb = 0,
                            ub = dtc$p,
                            multiplier = 1 / dtc$p,
@@ -433,11 +437,10 @@ gendist_covariates <- function() {
 
     g0coef <- c(0.3, 0.4, -0.1, -0.2)
     g1coef <- c(0.5, 0.2, -0.1, -0.02, 0.3, -0.05)
-
-    dtc[, ey0 := glist0 %*% g0coef]
-    dtc[, ey1 := glist1 %*% g1coef]
-
-
+   
+    dtc$ey0 <- glist0 %*% g0coef
+    dtc$ey1 <- glist1 %*% g1coef
+    
     ## Generate distribution
 
     ## I want to generate the data to allow for correlation across the
@@ -446,48 +449,58 @@ gendist_covariates <- function() {
     ## distributions marginally, allowing for correlations to occur, and
     ## then normalize the distribution.
 
-    dtc[, f := 0]
+    dtc$f <- 0
+  
+    dtc[dtc$x1 == 0, "f"] <- dtc[dtc$x1 == 0, "f"] + 0.1
+    dtc[dtc$x1 == 1, "f"] <- dtc[dtc$x1 == 1, "f"] + 0.13
+    
+    dtc[dtc$x2 == 1, "f"] <- dtc[dtc$x2 == 1, "f"] + 0.05
+    dtc[dtc$x2 == 2, "f"] <- dtc[dtc$x2 == 2, "f"] + 0.1
+    dtc[dtc$x2 == 3, "f"] <- dtc[dtc$x2 == 3, "f"] + 0.01
+    
+    dtc[dtc$x1 == 0 & dtc$z1 == 1, "f"] <-
+        dtc[dtc$x1 == 0 & dtc$z1 == 1, "f"] - 0.03 
+    dtc[dtc$x1 == 0 & dtc$z2 == 2, "f"] <-
+        dtc[dtc$x1 == 0 & dtc$z2 == 2, "f"] - 0.01
+    dtc[dtc$x1 == 0 & dtc$z2 == 3, "f"] <-
+        dtc[dtc$x1 == 0 & dtc$z2 == 3, "f"] - 0.02
 
-    dtc[x1 == 0, f := f + 0.1]
-    dtc[x1 == 1, f := f + 0.13]
+    dtc[dtc$z1 == 1 & dtc$z2 == 2, "f"] <-
+        dtc[dtc$z1 == 1 & dtc$z2 == 2, "f"] + 0.02
+    dtc[dtc$z1 == 1 & dtc$z2 == 3, "f"] <-
+        dtc[dtc$z1 == 1 & dtc$z2 == 3, "f"] + 0.01
 
-    dtc[x2 == 1, f := f + 0.05]
-    dtc[x2 == 2, f := f + 0.1]
-    dtc[x2 == 3, f := f + 0.01]
+    dtc[dtc$z2 == 2, "f"] <- dtc[dtc$z2 == 2, "f"] + 0.05
+    dtc[dtc$z2 == 3, "f"] <- dtc[dtc$z2 == 3, "f"] + 0.01
+    dtc[dtc$x2 == 2 & dtc$z2 == 2, "f"] <-
+        dtc[dtc$x2 == 2 & dtc$z2 == 2, "f"] + 0.01
+    dtc[dtc$x2 == 2 & dtc$z2 == 3, "f"] <-
+        dtc[dtc$x2 == 2 & dtc$z2 == 3, "f"] + 0.01
+    dtc[dtc$x2 == 3 & dtc$z2 == 2, "f"] <-
+        dtc[dtc$x2 == 3 & dtc$z2 == 2, "f"] + 0.02
+    dtc[dtc$x2 == 3 & dtc$z2 == 3, "f"] <-
+        dtc[dtc$x2 == 3 & dtc$z2 == 3, "f"] + 0.04
 
-    dtc[x1 == 0 & z1 == 1, f := f - 0.03]
-    dtc[x1 == 0 & z2 == 2, f := f - 0.01]
-    dtc[x1 == 0 & z2 == 3, f := f - 0.02]
-
-    dtc[z1 == 1 & z2 == 2, f := f + 0.02]
-    dtc[z1 == 1 & z2 == 3, f := f + 0.01]
-
-    dtc[z2 == 2, f := f + 0.05]
-    dtc[z2 == 3, f := f + 0.01]
-    dtc[x2 == 2 & z2 == 2, f := f + 0.01]
-    dtc[x2 == 2 & z2 == 3, f := f + 0.01]
-    dtc[x2 == 3 & z2 == 2, f := f + 0.02]
-    dtc[x2 == 3 & z2 == 3, f := f + 0.04]
-
-    dtc[, f := f / sum(f)]
-
-    ## Check distribution
-    length(unique(dtc$f))
-    dtc[, sum(f), by = x1]
-    dtc[, sum(f), by = x2]
-    dtc[, sum(f), by = z1]
-    dtc[, sum(f), by = z2]
-
+    dtc$f <- dtc$f / sum(dtc$f)
+    
+    ## Check distribution (requires data.table)
+    ## length(unique(dtc$f))
+    ## dtc[, sum(f), by = x1]
+    ## dtc[, sum(f), by = x2]
+    ## dtc[, sum(f), by = z1]
+    ## dtc[, sum(f), by = z2]
+    
     ## Since distributions were arbitrarily designed anyways, I will round
     ## them to make it easier to work with. I will make sure that they sum
     ## to 1.
-    dtc[, f := round(f, 2)]
-    sum(dtc$f) ## so we are 0.02 over, need to subtract those from two
-    dtc[x1 == 1 & x2 == 1 & z1 == 0 & z2 == 1, f := f - 0.01]
-    dtc[x1 == 1 & x2 == 3 & z1 == 1 & z2 == 3, f := f - 0.01]
-    dtc[, f := round(f, 2)]
-    sum(dtc$f)
-
+    dtc$f <- round(dtc$f, 2)
+    print(sum(dtc$f)) ## so we are 0.02 over, need to subtract those from two
+    dtc[dtc$x1 == 1 & dtc$x2 == 1 & dtc$z1 == 0 & dtc$z2 == 1, "f"] <-
+        dtc[dtc$x1 == 1 & dtc$x2 == 1 & dtc$z1 == 0 & dtc$z2 == 1, "f"] - 0.01
+    dtc[dtc$x1 == 1 & dtc$x2 == 3 & dtc$z1 == 1 & dtc$z2 == 3, "f"] <-
+        dtc[dtc$x1 == 1 & dtc$x2 == 3 & dtc$z1 == 1 & dtc$z2 == 3, "f"] - 0.01
+    dtc$f <- round(dtc$f, 2)
+    
     ## Expand data set according to distribution
 
     ## We multiply each row by 100 * (100 * f). The first 100 is so that
@@ -495,38 +508,64 @@ gendist_covariates <- function() {
     ## variable p. The (100 * f) is so that we can get the distribution of
     ## covariates to be according to f.
 
-    dtc[, multiplier := 100 * 100 * f]
+    ## dtc[, multiplier := 100 * 100 * f]
+    ## sum(dtc$multiplier)
+    ## multipler <- dtc$multiplier
+    ## dtcf <- dtc[rep(seq_len(nrow(dtc)), multiplier),]
+
+    dtc[, "multiplier"] <- 100 * 100 * dtc$f
     sum(dtc$multiplier)
-    multipler <- dtc$multiplier
-    dtcf <- dtc[rep(seq_len(nrow(dtc)), multiplier),]
+    multiplier <- dtc$multiplier
+    dtcf <- dtc[rep(seq_len(nrow(dtc)), multiplier), ]
 
     ## Check if the distribution of this data set matches that of what we
-    ## generated above
-    round(dtcf[, .N/nrow(dtcf), by = x1], 2) == round(dtc[, sum(f), by = x1], 2)
-    round(dtcf[, .N/nrow(dtcf), by = x2], 2) == round(dtc[, sum(f), by = x2], 2)
-    round(dtcf[, .N/nrow(dtcf), by = z1], 2) == round(dtc[, sum(f), by = z1], 2)
-    round(dtcf[, .N/nrow(dtcf), by = z2], 2) == round(dtc[, sum(f), by = z2], 2)
+    ## generated above (requires data.table)
+    ## round(dtcf[, .N/nrow(dtcf), by = x1], 2) == round(dtc[, sum(f), by = x1], 2)
+    ## round(dtcf[, .N/nrow(dtcf), by = x2], 2) == round(dtc[, sum(f), by = x2], 2)
+    ## round(dtcf[, .N/nrow(dtcf), by = z1], 2) == round(dtc[, sum(f), by = z1], 2)
+    ## round(dtcf[, .N/nrow(dtcf), by = z2], 2) == round(dtc[, sum(f), by = z2], 2)
 
     ## Now assign treatment
-    dtcf[, d := 0]
-    dtcf[, i := 1:.N, by = .(x1, x2, z1, z2)]
-    dtcf[, dcut := round(p * .N), by = .(x1, x2, z1, z2)]
-    dtcf[i <= dcut, d := 1]
-
+    dtcf$d <- 0
+    for (ix1 in supp_x1) {
+        for (ix2 in supp_x2) {
+            for (iz1 in supp_z1) {
+                for (iz2 in supp_z2) {
+                    N <- nrow(dtcf[dtcf$x1 == ix1 &
+                                   dtcf$x2 == ix2 &
+                                   dtcf$z1 == iz1 &
+                                   dtcf$z2 == iz2, ])
+                    dtcf[dtcf$x1 == ix1 &
+                         dtcf$x2 == ix2 &
+                         dtcf$z1 == iz1 &
+                         dtcf$z2 == iz2, "i"] <- seq(1, N)
+                    dtcf[dtcf$x1 == ix1 &
+                         dtcf$x2 == ix2 &
+                         dtcf$z1 == iz1 &
+                         dtcf$z2 == iz2, "dcut"] <-
+                        round(dtcf[dtcf$x1 == ix1 &
+                                   dtcf$x2 == ix2 &
+                                   dtcf$z1 == iz1 &
+                                   dtcf$z2 == iz2, "p"] * N)
+                }
+            }
+        }
+    }
+    dtcf[dtcf$i <= dtcf$dcut, "d"] <- 1
+    
     ## Check if empirical distribution differs from population
-    failed <- which(dtcf[, mean(d), by = .(x1, x2, z1, z2)]$V1 !=
-                    dtcf[, mean(p), by = .(x1, x2, z1, z2)]$V1)
-    ## print(failed) ## We want this list to be empty (i.e. a failure occurs
-    ## when the empirical distribution of treatment within
-    ## group differs from what is specified in the
-    ## population).
+    ## (requires data.table)
+
+    ## failed <- which(dtcf[, mean(d), by = .(x1, x2, z1, z2)]$V1 !=
+    ##                 dtcf[, mean(p), by = .(x1, x2, z1, z2)]$V1)
+    ## print(failed)
+
+    ## We want this list to be empty (i.e. a failure occurs when the
+    ## empirical distribution of treatment within group differs from
+    ## what is specified in the population).
 
     ## Assign outcomes
-    dtcf[, ey  := d * ey1 + (1 - d) * ey0]
-
-    ## Convert data back into data.frame
-    dtc  <- data.frame(dtc)
-    dtcf <- data.frame(dtcf)
+    dtcf$ey <- dtcf$d * dtcf$ey1 + (1 - dtcf$d) * dtcf$ey0
 
     return(list(data.full = dtcf,
                 data.dist = dtc))
@@ -590,7 +629,9 @@ gendist_covariates <- function() {
 #' The coefficient beta3, and the coefficients on the splines, will be
 #' defined below.
 #'
-#' @return data.frame.
+#' @return a list of two data.frame objects. One is the distribution
+#'     of the simulated data, the other is the full simulated data
+#'     set.
 gendist_splines <- function() {
 
     set.seed(10L)
@@ -681,7 +722,9 @@ gendist_splines <- function() {
 #' below will have already integrated over the # unobservable terms
 #' U, where U | X, Z ~ Unif[0, 1].
 #' 
-#' @return data.frame.
+#' @return a list of two data.frame objects. One is the distribution
+#'     of the simulated data, the other is the full simulated data
+#'     set.
 gendist_basic <- function() {
 
     set.seed(10L)
@@ -702,10 +745,10 @@ gendist_basic <- function() {
     ## m0 = 2 + x + 2 * u
     ## m1 = 6 + 5 * u^2
 
-    plist0 <- polyparse.mst(~ x + u,
+    plist0 <- polyparse(~ x + u,
                             data = dtb,
                             uname = u)
-    plist1 <- polyparse.mst(~ I(u^2),
+    plist1 <- polyparse(~ I(u^2),
                             data = dtb,
                             uname = u)
 
@@ -713,12 +756,12 @@ gendist_basic <- function() {
     ## which are analogous to E[m | u > p(X, Z)] and E[m | u < p(X,
     ## Z)]. This is why you include those multipliers: You're
     ## integrating with respect to a conditional distribution.
-    glist0 <- gengamma.mst(plist0,
+    glist0 <- genGamma(plist0,
                            lb = dtb$p,
                            ub = 1,
                            multiplier = 1 / (1 - dtb$p),
                            means = FALSE)
-    glist1 <- gengamma.mst(plist1,
+    glist1 <- genGamma(plist1,
                            lb = 0,
                            ub = dtb$p,
                            multiplier = 1 / dtb$p,
