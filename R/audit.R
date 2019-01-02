@@ -35,15 +35,15 @@
 #'     group.
 #' @param terms_mtr1 all terms entering into the MTRs for treated
 #'     group.
-#' @param grid.Nu number of evenly spread points in the interval [0,
+#' @param grid.nu number of evenly spread points in the interval [0,
 #'     1] of the unobservable u used to form the grid for imposing
 #'     shape restrictions on the MTRs.
-#' @param grid.Nx number of evenly spread points of the covariates to
+#' @param grid.nx number of evenly spread points of the covariates to
 #'     use to form the grid for imposing shape restrictions on the
 #'     MTRs.
-#' @param audit.Nx number of points on the covariates space to audit
+#' @param audit.nx number of points on the covariates space to audit
 #'     in each iteration of the audit procedure.
-#' @param audit.Nu number of points in the interval [0, 1],
+#' @param audit.nu number of points in the interval [0, 1],
 #'     corresponding to the normalized value of the unobservable term,
 #'     to audit in each iteration of the audit procedure.
 #' @param audit.max maximum number of iterations in the audit

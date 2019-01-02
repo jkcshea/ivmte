@@ -28,6 +28,8 @@
 #' Alternatively, point estimates can be obtained. Standard errors for
 #' point estimates can be constructed using the bootstrap.
 #'
+#' @import methods stats utils
+#' 
 #' @param bootstraps integer, default set to 0.
 #' @param bootstraps.m integer, default set to size of data
 #'     set. Determines the size of the subsample drawn from the
@@ -226,6 +228,7 @@
 #'       m0.dec = TRUE,
 #'       m1.dec = TRUE,
 #'       bootstraps = 5)
+#' 
 #' @export
 ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'both',
@@ -311,7 +314,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                 length_components <- 1
                 compList <- list()
                 compList[[1]] <- components
-                components <- complist
+                components <- compList
             }
         } else {
             length_components <- length_formula
@@ -1622,7 +1625,7 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #' randomly selects points outside of this subset to determine whether
 #' or not the constraints hold. The user can specify how stringent
 #' this audit procedure is using the function arguments.
-#'
+#' 
 #' @param ivlike formula or vector of formulas used to specify the
 #'     regressions for the IV-like estimands.
 #' @param data \code{data.frame} used to estimate the treatment
@@ -1923,9 +1926,9 @@ ivmte.estimate <- function(ivlike, data, subset, components,
             pm0 <- eval(as.call(m0call))
 
             if (point == FALSE) {
-                gstar0 <- gengamma(pm0, w0$lb, w0$ub, w0$mp)
+                gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
             } else {
-                gstar0 <- gengamma(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
+                gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
                 xindex0 <- c(xindex0, pm0$xindex)
                 uexporder0 <- c(uexporder0, pm0$exporder)
             }
@@ -1941,9 +1944,9 @@ ivmte.estimate <- function(ivlike, data, subset, components,
             pm1 <- eval(as.call(m1call))
 
             if (point == FALSE) {
-                gstar1 <- gengamma(pm1, w1$lb, w1$ub, w1$mp)
+                gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp)
             } else {
-                gstar1 <- gengamma(pm1, w1$lb, w1$ub, w1$mp, means = FALSE)
+                gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp, means = FALSE)
                 xindex1 <- c(xindex1, pm1$xindex)
                 uexporder1 <- c(uexporder1, pm1$exporder)
             }
@@ -2114,12 +2117,12 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                     }
 
                     if (point == FALSE) {
-                        gamma <- gamma + gengamma(pm,
+                        gamma <- gamma + genGamma(pm,
                                                       lb = lb,
                                                       ub = ub,
                                                       multiplier = weights)
                     } else {
-                        gamma <- gamma + gengamma(pm,
+                        gamma <- gamma + genGamma(pm,
                                                       lb = lb,
                                                       ub = ub,
                                                       multiplier = weights,
@@ -2524,13 +2527,13 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 
         if (!is.null(pm0)) {
             if (means == TRUE) {
-                gs0 <- gengamma(monomials = pm0,
+                gs0 <- genGamma(monomials = pm0,
                                     lb = pmodobj,
                                     ub = 1,
                                     multiplier = sest$sw0[, j],
                                     subset = subset_index)
             } else {
-                gs0 <- gengamma(monomials = pm0,
+                gs0 <- genGamma(monomials = pm0,
                                     lb = pmodobj,
                                     ub = 1,
                                     multiplier = sest$sw0[, j],
@@ -2543,13 +2546,13 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 
         if (!is.null(pm1)) {
             if (means == TRUE) {
-                gs1 <- gengamma(monomials = pm1,
+                gs1 <- genGamma(monomials = pm1,
                                     lb = 0,
                                     ub = pmodobj,
                                     multiplier = sest$sw1[, j],
                                     subset = subset_index)
             } else {
-                gs1 <- gengamma(monomials = pm1,
+                gs1 <- genGamma(monomials = pm1,
                                     lb = 0,
                                     ub = pmodobj,
                                     multiplier = sest$sw1[, j],

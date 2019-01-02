@@ -9,8 +9,8 @@
 #' @return list.
 #'
 #' @examples
-#' components <- lists(d, x1, intercept)
-#' subsets <- lists(, z %in% c(2, 4))
+#' components <- l(d, x1, intercept)
+#' subsets <- l(, z %in% c(2, 4))
 #'
 #' @export
 l <- function(...) {

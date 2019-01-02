@@ -11,13 +11,13 @@ gendist2(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8)
 individuals possessing each value of the instrument. So the
 total number of observations is subN * 2.}
 
-\item{pi1}{the probability of treatment for those with the
+\item{p1}{the probability of treatment for those with the
 instrument Z = 1.}
 
-\item{pi2}{the probability of treatment for those with the
+\item{p2}{the probability of treatment for those with the
 instrument Z = 2.}
 
-\item{p13}{the probability of treatment for those with the
+\item{p3}{the probability of treatment for those with the
 instrument Z = 3.}
 }
 \value{

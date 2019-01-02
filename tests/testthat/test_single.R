@@ -4,7 +4,7 @@ set.seed(10L)
 
 result <- ivmte(ivlike = ey ~ d + x1 + x2,
                 data = dtcf,
-                components = lists.mst(d, x1),
+                components = l(d, x1),
                 subset = z2 %in% c(2, 3),
                 propensity = d ~ x1 + x2 + z1 + z2,
                 link = "logit",
@@ -18,10 +18,10 @@ result <- ivmte(ivlike = ey ~ d + x1 + x2,
                 late.X = c(x1, x2),
                 eval.X = c(0, 1),
                 obseq.tol = 0.01,
-                grid.Nu = 5,
-                grid.Nx = 5,
-                audit.Nx = 5,
-                audit.Nu = 5)
+                grid.nu = 5,
+                grid.nx = 5,
+                audit.nx = 5,
+                audit.nu = 5)
 
 ##------------------------
 ## Implement test
@@ -88,10 +88,10 @@ dtc$s.ols.1.d <- unlist(lapply(dtc.x, s.ols3, d = 1, j = 2, exx = exx))
 dtc$s.ols.0.x1 <- unlist(lapply(dtc.x, s.ols3, d = 0, j = 3, exx = exx))
 dtc$s.ols.1.x1 <- unlist(lapply(dtc.x, s.ols3, d = 1, j = 3, exx = exx))
 
-g.ols.d  <- genGamma(subset(dtc, dtc$z2 %in% c(2, 3)),
+g.ols.d  <- genGammaTT(subset(dtc, dtc$z2 %in% c(2, 3)),
                       "s.ols.0.d",
                       "s.ols.1.d")
-g.ols.x1 <- genGamma(subset(dtc, dtc$z2 %in% c(2, 3)),
+g.ols.x1 <- genGammaTT(subset(dtc, dtc$z2 %in% c(2, 3)),
                       "s.ols.0.x1",
                       "s.ols.1.x1")
 
@@ -118,7 +118,7 @@ late.lb <- subset(dtc,
 dtc$w.late.1 <- 1 / (late.ub - late.lb)
 dtc$w.late.0 <- - dtc$w.late.1
 
-g.star.late <- genGamma(dtc,
+g.star.late <- genGammaTT(dtc,
                         "w.late.0",
                         "w.late.1",
                         lb = late.lb,

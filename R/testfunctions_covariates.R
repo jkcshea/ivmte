@@ -49,10 +49,10 @@ m.int <- function(ub, lb, coef){
            (coef[3]/3) * (ub^3 - lb^3))
 }
 
-#' Function to generate gamma moments
+#' Function to generate gamma moments for 'testthat'
 #' 
 #' This function generates the gamma moments from a population level
-#' data set.
+#' data set. This is specifically constructed to carry out tests.
 #' @param data data.table.
 #' @param s0 variable name (contained in the data) for the S-weight
 #'     used to generate the Gamma moments for the control group.
@@ -62,7 +62,7 @@ m.int <- function(ub, lb, coef){
 #' @param ub scalar, upper bound for integration.
 #' @return list, contains the vectors of the Gamma moments for control
 #'     and treated observations.
-genGamma <- function(data, s0, s1, lb, ub) {
+genGammaTT <- function(data, s0, s1, lb, ub) {
 
     ## Gammas for D = 0
     if (!hasArg(lb) | !hasArg(ub)) {

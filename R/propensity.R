@@ -13,8 +13,11 @@
 #' scores in the data conditioned on the set of covariates declared in
 #' \code{late.X} and \code{late.Z}.
 #'
-#' @param formula Formula characterizing probability model, or name of
-#'     variable in data set containing propensity scores.
+#' @param formula Formula characterizing probability model. If a
+#'     variable in the data already contains the propensity scores,
+#'     input the variable as a one-sided formula. For example, if the
+#'     variable \code{pz} contains the propensity score, input
+#'     \code{formula = ~ pz}.
 #' @param data \code{data.frame} with which to estimate the model.
 #' @param link Link function with which to estimate probability
 #'     model. Can be chosen from "linear", "logit", or "probit".
@@ -40,7 +43,7 @@
 #'                link = "linear")
 #'
 #' ## Declaring a variable to be used instead
-#' propensity(formula = pz,
+#' propensity(formula = ~ pz,
 #'                data = dtm,
 #'                link = "linear")
 #'

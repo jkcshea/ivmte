@@ -12,8 +12,8 @@ ivlike <- c(ey ~ d,
             ey ~ d + x1 + x2,
             ey ~ d + x1 + x2 | x1 + x2 + z1 + z2,
             ey ~ d | factor(z2))
-components <- lists.mst(d, d, c(d, x1, x2), d, d)
-subsets    <- lists.mst(, , z2 %in% c(2, 3), , z2 %in% c(2, 3))
+components <- l(d, d, c(d, x1, x2), d, d)
+subsets    <- l(, , z2 %in% c(2, 3), , z2 %in% c(2, 3))
 
 result <- ivmte(ivlike = ivlike,
                 data = dtcf,
@@ -27,10 +27,10 @@ result <- ivmte(ivlike = ivlike,
                 genlate.lb = 0.2,
                 genlate.ub = 0.7,
                 obseq.tol = 1.01,
-                grid.Nu = 3,
-                grid.Nx = 2,
-                audit.Nx = 1,
-                audit.Nu = 5,
+                grid.nu = 3,
+                grid.nx = 2,
+                audit.nx = 1,
+                audit.nu = 5,
                 m0.inc = TRUE,
                 m1.inc = TRUE,
                 mte.dec = TRUE,
@@ -164,7 +164,7 @@ dtc$s.ols1.1.d <- s.ols1.d(1, exx = ols1.exx)
 ## m0 = ~ x1 + I(x2 * u) + I(x2 * u^2),
 ## ols1.0.d.0 means "OLS specification 2. For D = 0. For variable
 ## "d". For term 0 in md."
-g.ols1 <- genGamma(dtc, "s.ols1.0.d", "s.ols1.1.d")
+g.ols1 <- genGammaTT(dtc, "s.ols1.0.d", "s.ols1.1.d")
 
 ##-------------------------
 ## Construct gamma terms for OLS, with single control
@@ -178,7 +178,7 @@ dtc$s.ols2.1.d <- sapply(dtc$x1, s.ols2.d,
                          d = 1,
                          exx = ols1.exx)
 
-g.ols2 <- genGamma(dtc, "s.ols2.0.d", "s.ols2.1.d")
+g.ols2 <- genGammaTT(dtc, "s.ols2.0.d", "s.ols2.1.d")
 
 ##-------------------------
 ## Construct gamma terms for OLS, with controls and subset
@@ -214,15 +214,15 @@ dtc$s.ols3.1.x2 <- unlist(lapply(dtc.x, s.ols3,
                                  j = 4,
                                  exx = ols2.exx))
 
-g.ols3.d  <- genGamma(subset(dtc, dtc$z2 %in% c(2, 3)),
-                      "s.ols3.0.d",
-                      "s.ols3.1.d")
-g.ols3.x1 <- genGamma(subset(dtc, dtc$z2 %in% c(2, 3)),
-                      "s.ols3.0.x1",
-                      "s.ols3.1.x1")
-g.ols3.x2 <- genGamma(subset(dtc, dtc$z2 %in% c(2, 3)),
-                      "s.ols3.0.x2",
-                      "s.ols3.1.x2")
+g.ols3.d  <- genGammaTT(subset(dtc, dtc$z2 %in% c(2, 3)),
+                        "s.ols3.0.d",
+                        "s.ols3.1.d")
+g.ols3.x1 <- genGammaTT(subset(dtc, dtc$z2 %in% c(2, 3)),
+                        "s.ols3.0.x1",
+                        "s.ols3.1.x1")
+g.ols3.x2 <- genGammaTT(subset(dtc, dtc$z2 %in% c(2, 3)),
+                        "s.ols3.0.x2",
+                        "s.ols3.1.x2")
 
 ## NOTE: the term for the constants are approximately 0, 1e-16.
 
@@ -241,7 +241,7 @@ dtc$s.tsls.1.d <- unlist(lapply(dtc.z, s.tsls,
                                 exz = tsls.exz,
                                 pi  = tsls.pi))
 
-g.tsls <- genGamma(dtc, "s.tsls.0.d", "s.tsls.1.d")
+g.tsls <- genGammaTT(dtc, "s.tsls.0.d", "s.tsls.1.d")
 
 ##-------------------------
 ## Construct gamma terms for simple Wald (i.e. one instrument)
@@ -262,7 +262,7 @@ dtc$s.wald.1.d <- sapply(dtc$z2, s.wald,
                          e.to   = ed.z2.3,
                          e.from = ed.z2.2)
 
-g.wald <- genGamma(dtc, "s.wald.0.d", "s.wald.1.d")
+g.wald <- genGammaTT(dtc, "s.wald.0.d", "s.wald.1.d")
 
 ##-------------------------
 ## Construct target gammas
@@ -275,11 +275,11 @@ wald.lb <- 0.2
 dtc$w.genlate.1 <- 1 / (wald.ub - wald.lb)
 dtc$w.genlate.0 <- - dtc$w.genlate.1
 
-g.star.genlate <- genGamma(dtc,
-                           "w.genlate.0",
-                           "w.genlate.1",
-                           lb = wald.lb,
-                           ub = wald.ub)
+g.star.genlate <- genGammaTT(dtc,
+                             "w.genlate.0",
+                             "w.genlate.1",
+                             lb = wald.lb,
+                             ub = wald.ub)
 
 ##-------------------------
 ## Test equivalence of Gamma terms

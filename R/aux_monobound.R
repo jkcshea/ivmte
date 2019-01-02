@@ -70,7 +70,7 @@ groupby <- function(data, variables, groupname = ".mst.monog",
 #'
 #' This function takes the a data set \code{data}. Assuming the data
 #' has a column with the name stored in the \code{group} argument
-#' indicating the groups (see \code{\link[mst]{groupby}}), and a
+#' indicating the groups (see \code{\link[ivmte]{groupby}}), and a
 #' column with the \code{count} variable that rank the elements in the
 #' group (data is assumed to be ordered by \code{(group, rank)}); this
 #' function returns a dummy indicator for each row in \code{data} that

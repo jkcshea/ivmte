@@ -29,19 +29,19 @@ term in the MTRs.}
 
 \item{m0}{one-sided formula for marginal treatment response
 function for the control group. The formula may differ from
-what the user originally input in \code{\link{mst}}, as the
+what the user originally input in \code{\link{ivmte}}, as the
 spline components should have been removed. This formula is
 simply a linear combination of all covariates that enter into
 the original \code{m0} declared by the user in
-\code{\link{mst}}.}
+\code{\link{ivmte}}.}
 
 \item{m1}{one-sided formula for marginal treatment response
 function for the treated group. The formula may differ from
-what the user originally input in \code{\link{mst}}, as the
+what the user originally input in \code{\link{ivmte}}, as the
 spline components should have been removed. This formula is
 simply a linear combination of all covariates that enter into
 the original \code{m1} declared by the user in
-\code{\link{mst}}.}
+\code{\link{ivmte}}.}
 
 \item{sset}{a list containing the point estimates and gamma
 components associated with each element in the S-set.}

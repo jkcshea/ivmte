@@ -78,10 +78,10 @@ wAtt <- function(z, d, ed) {
     1 / ed
 }
 
-#' Generating the Gamma moments
+#' Generating the Gamma moments for splines, for 'testthat'
 #'
 #' This function generates the Gamma moments for a given set of
-#' weights.
+#' weights. This funciton is written specifically for tests.
 #' @param distr data.frame, the distribution of the data.
 #' @param weight function, the S-function corresponding to a
 #'     particular IV-like estimand.
@@ -99,7 +99,7 @@ wAtt <- function(z, d, ed) {
 #' @param ... all other arguments that enter into \code{weight},
 #'     excluding the argument \code{d} for treatment indicator.
 #' @return vector, the Gamma moments associated with \code{weight}.
-genGamma.splines <- function(distr, weight, zvars, u1s1, u0s1, u0s2,
+genGamma.splinesTT <- function(distr, weight, zvars, u1s1, u0s1, u0s2,
                      target = FALSE, ...) {
     if (hasArg(zvars)) {
         zmat <- as.matrix(distr[, zvars])

@@ -88,11 +88,11 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #'     estimates of the IV-like estimands.
 #'
 #' @examples
-#' ivlike(ey ~ d | z,
-#'            data = dtm,
-#'            components = lists(d),
-#'            treat = d,
-#'            list = FALSE)
+#' ivlike(formula = ey ~ d | z,
+#'        data = dtm,
+#'        components = l(d),
+#'        treat = d,
+#'        list = FALSE)
 #' @export
 ivlike <- function(formula, data, subset, components, treat,
                          list = FALSE) {

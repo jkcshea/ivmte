@@ -10,7 +10,7 @@ ivlike <- c(ey ~ d,
             ey ~ d + x,
             ey ~ d + x | z + x)
 
-components <- lists.mst(c(intercept, d), d, c(d, x))
+components <- l(c(intercept, d), d, c(d, x))
 
 set.seed(10L)
 result <- ivmte(ivlike = ivlike,
@@ -30,10 +30,10 @@ result <- ivmte(ivlike = ivlike,
                 uname = u,
                 target = "att",
                 obseq.tol = 1.01,
-                grid.Nu = 3,
-                grid.Nx = 2,
-                audit.Nx = 1,
-                audit.Nu = 5,
+                grid.nu = 3,
+                grid.nx = 2,
+                audit.nx = 1,
+                audit.nu = 5,
                 m1.ub = 55,
                 m0.lb = 0,
                 mte.inc = TRUE)
@@ -156,61 +156,61 @@ u0s2 <- t(sapply(X = dts$p,
                  intercept = TRUE))
 
 ## Target Gamma terms
-gstar <- genGamma.splines(distr = dts,
-                          u1s1 = t1s1,
-                          u0s1 = t0s1,
-                          u0s2 = t0s2,
-                          weight = wAtt,
-                          ed = m[["p"]],
-                          target = TRUE)
+gstar <- genGamma.splinesTT(distr = dts,
+                            u1s1 = t1s1,
+                            u0s1 = t0s1,
+                            u0s2 = t0s2,
+                            weight = wAtt,
+                            ed = m[["p"]],
+                            target = TRUE)
 gstar$g0 <- - gstar$g0
 
 ## S-set Gamma terms
 
-g1 <- genGamma.splines(distr = dts,
-                       u1s1 = u1s1,
-                       u0s1 = u0s1,
-                       u0s2 = u0s2,
-                       weight = sOls,
-                       j = 1,
-                       exx = exx[1:2, 1:2])
+g1 <- genGamma.splinesTT(distr = dts,
+                         u1s1 = u1s1,
+                         u0s1 = u0s1,
+                         u0s2 = u0s2,
+                         weight = sOls,
+                         j = 1,
+                         exx = exx[1:2, 1:2])
 
-g2 <- genGamma.splines(distr = dts,
-                       u1s1 = u1s1,
-                       u0s1 = u0s1,
-                       u0s2 = u0s2,
-                       weight = sOls,
-                       j = 2,
-                       exx = exx[1:2, 1:2])
+g2 <- genGamma.splinesTT(distr = dts,
+                         u1s1 = u1s1,
+                         u0s1 = u0s1,
+                         u0s2 = u0s2,
+                         weight = sOls,
+                         j = 2,
+                         exx = exx[1:2, 1:2])
 
-g3 <- genGamma.splines(distr = dts,
-                       u1s1 = u1s1,
-                       u0s1 = u0s1,
-                       u0s2 = u0s2,
-                       zvars = "x",
-                       weight = sOls,
-                       j = 2,
-                       exx = exx)
+g3 <- genGamma.splinesTT(distr = dts,
+                         u1s1 = u1s1,
+                         u0s1 = u0s1,
+                         u0s2 = u0s2,
+                         zvars = "x",
+                         weight = sOls,
+                         j = 2,
+                         exx = exx)
 
-g4 <- genGamma.splines(distr = dts,
-                       u1s1 = u1s1,
-                       u0s1 = u0s1,
-                       u0s2 = u0s2,
-                       zvars = c("z", "x"),
-                       weight = sTsls,
-                       j = 2,
-                       exz = exz,
-                       pi = pi)
+g4 <- genGamma.splinesTT(distr = dts,
+                         u1s1 = u1s1,
+                         u0s1 = u0s1,
+                         u0s2 = u0s2,
+                         zvars = c("z", "x"),
+                         weight = sTsls,
+                         j = 2,
+                         exz = exz,
+                         pi = pi)
 
-g5 <- genGamma.splines(distr = dts,
-                       u1s1 = u1s1,
-                       u0s1 = u0s1,
-                       u0s2 = u0s2,
-                       zvars = c("z", "x"),
-                       weight = sTsls,
-                       j = 3,
-                       exz = exz,
-                       pi = pi)
+g5 <- genGamma.splinesTT(distr = dts,
+                         u1s1 = u1s1,
+                         u0s1 = u0s1,
+                         u0s2 = u0s2,
+                         zvars = c("z", "x"),
+                         weight = sTsls,
+                         j = 3,
+                         exz = exz,
+                         pi = pi)
 
 ##-------------------------
 ## Test equivalence of Gamma moments

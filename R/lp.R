@@ -16,10 +16,6 @@
 #'     the constraints in the LP problem.
 #' @param mbrhs Vector of constants used to define the constraints in
 #'     the LP problem.
-#' @param bdASeq integer vector, row indexes in the \code{mbA} object
-#'     pertaining to boundedness restrictions.
-#' @param monoASeq integer vector, row indexes in the \code{mbA} object
-#'     pertaining to monotonicity restrictions.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
 #' @param shape boolean, default set to TRUE. Switch to determine

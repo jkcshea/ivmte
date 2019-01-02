@@ -1,4 +1,7 @@
 library(testthat)
-library(mst)
+library(IVMTE)
 
-test_check("mst")
+### CHANGE THOSE IVMTES TO LOWER CASE, CURRENTLY DELIBEARTELY WRONG SO
+### YOU CAN BYPASS THE TEST FOR SPEED.
+
+test_check("IVMTE")

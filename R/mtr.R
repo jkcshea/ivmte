@@ -31,7 +31,10 @@ vecextract <- function(vector, position, truncation = 0) {
 #' This function takes in a first vector of coefficients, and a second
 #' vector declaring which univariate polynomial basis corresponds to
 #' each element ofexponents corresponding to each element of
-#'     \code{vector}.
+#' \code{vector}.
+#' @param vector numeric, a vector of coefficients in a polynomial.
+#' @param basis integer, a vector of the polynomial degrees
+#'     corresponding to the coefficients in \code{vector}
 #' @param zero logical, if \code{FALSE} then \code{vector} does not
 #'     include an element for the constant term. The vector
 #'     \code{basis} will need to be adjusted to account for this in
@@ -41,7 +44,7 @@ vecextract <- function(vector, position, truncation = 0) {
 #'     polynomial is returned.
 #' @return A list of monomials, in the form of the \code{polynom}
 #'     package.
-genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
+genmonomial <- function(vector, basis, zero = FALSE, as.function = FALSE) {
 
     if (length(basis) == 1 & typeof(basis) == "list") basis <- unlist(basis)
     if (!zero) basis <- basis + 1
@@ -73,7 +76,7 @@ genmono <- function(vector, basis, zero = FALSE, as.function = FALSE) {
 #'     order to generate the correct polynomial and monomials.
 #' @return A function in the form of the \code{polynom}
 #'     package.
-genpoly <- function(vector, basis, zero = FALSE) {
+genpolynomial <- function(vector, basis, zero = FALSE) {
     if (length(basis) == 1 & typeof(basis) == "list") basis <- unlist(basis)
     if (!zero) basis <- basis + 1
 
@@ -187,10 +190,6 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     }
 
     ## Determine which terms do not involve u
-    ## ORIGINAL ----------------
-    ## nonuterms    <- unlist(oterms[!seq(1, length(oterms)) %in% exptab[, 1]])
-    ## nonutermspos <- which(oterms %in% nonuterms)
-    ## TESTING -----------------
     if (length(oterms) > 0) {
         nonuterms    <- unlist(oterms[!seq(1, length(oterms)) %in% exptab[, 1]])
         nonutermspos <- which(oterms %in% nonuterms)        
@@ -230,12 +229,12 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     
     ## prepare monomials and their integrals
     polynomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                              genpoly,
+                              genpolynomial,
                               basis = exporder)
 
     if (as.function == FALSE) {
         monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                                genmono,
+                                genmonomial,
                                 basis = exporder)
 
         integral_list <- lapply(monomial_list,
@@ -244,7 +243,7 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         names(integral_list) <- rownames(data)
     } else {
         monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                                genmono,
+                                genmonomial,
                                 basis = exporder,
                                 as.function = TRUE)
 
@@ -343,7 +342,7 @@ polyProduct <- function(poly1, poly2) {
 #'     Z] (i.e. only the integral with respect to u is performed).
 #'
 #' @export
-gengamma <- function(monomials, lb, ub, multiplier = 1,
+genGamma <- function(monomials, lb, ub, multiplier = 1,
                          subset = NULL, means = TRUE) {
    
     exporder  <- monomials$exporder
@@ -694,6 +693,10 @@ uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 #' @param subset Subset condition used to select observations with
 #'     which to estimate gamma.
 #' @param d either 0 or 1, indicating the treatment status.
+#' @param means boolean, default set to \code{TRUE}. Set to
+#'     \code{TRUE} if estimates of the gamma moments should be
+#'     returned. Set to \code{FALSE} if the gamma estimates for each
+#'     observation should be returned.
 #' @return a matrix, corresponding to the splines being integrated
 #'     over the region specified by \code{lb} and \code{ub},
 #'     accounting for the interaction terms. The number of rows is
@@ -785,6 +788,7 @@ genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
             colnames(splinesGamma) <- splinesNames
             rownames(splinesGamma) <- gmmRownames
         }
+        
         ## return(splinesGamma)
         return(list(gamma = splinesGamma,
                     interactions = splinesInter))
