@@ -336,10 +336,10 @@ gendist_mosquito <- function() {
     p3 <- 0.48
     p4 <- 0.78
 
-    dt <- data.table(i  = rep(seq(1, subN), 4),
-                     z  = rep(c(1, 2, 3, 4), each = subN),
-                     pz = rep(c(p1, p2, p3, p4), each = subN))
-
+    dt <- data.table::data.table(i  = rep(seq(1, subN), 4),
+                                 z  = rep(c(1, 2, 3, 4), each = subN),
+                                 pz = rep(c(p1, p2, p3, p4), each = subN))
+    
     ## Assign treatment
     dt[, d := 0]
     dt[z == 1 & i <= 12, d := 1]
@@ -379,7 +379,7 @@ gendist_mosquito <- function() {
 #' function. This data includes covariates. The data generated will
 #' have already integrated over the unobservable terms U, where U | X,
 #' Z ~ Unif[0, 1].
-#'
+#' 
 #' @return data.frame.
 gendist_covariates <- function() {
 
@@ -391,7 +391,7 @@ gendist_covariates <- function() {
     supp_z2 <- c(1, 2, 3)
 
     dtc <- data.table::data.table(expand.grid(supp_x1, supp_x2,
-                                              supp_z1, supp_z2))
+                                  supp_z1, supp_z2))
 
     colnames(dtc) <- c("x1", "x2", "z1", "z2")
 
@@ -541,7 +541,7 @@ gendist_covariates <- function() {
 #' The distribution of the data is as follows
 #'
 #'        |     Z
-#'  X\Z   |  0     1
+#'  X/Z   |  0     1
 #' _______|___________
 #'     -1 | 0.1   0.1
 #'        |
@@ -680,7 +680,7 @@ gendist_splines <- function() {
 #' easily estimate a correctly specified model.  The data presented
 #' below will have already integrated over the # unobservable terms
 #' U, where U | X, Z ~ Unif[0, 1].
-#'
+#' 
 #' @return data.frame.
 gendist_basic <- function() {
 
@@ -709,10 +709,10 @@ gendist_basic <- function() {
                             data = dtb,
                             uname = u)
 
-    ## Remember that are generating E[m | D = 0] and E[m | D = 1], which
-    ## are analogous to E[m | u > p(X, Z)] and E[m | u < p(X, Z)]. This is
-    ## why you include those multipliers: You're integrating with respect
-    ## to a conditional distribution.
+    ## Remember that you are generating E[m | D = 0] and E[m | D = 1],
+    ## which are analogous to E[m | u > p(X, Z)] and E[m | u < p(X,
+    ## Z)]. This is why you include those multipliers: You're
+    ## integrating with respect to a conditional distribution.
     glist0 <- gengamma.mst(plist0,
                            lb = dtb$p,
                            ub = 1,

@@ -1822,35 +1822,13 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     
     ## Estimate propensity scores
 
-    ## ORIGINAL -------------------------------------
-    ## if (class_formula(propensity)) {        
-    ##     pcall <- modcall(call,
-    ##                      newcall = propensity,
-    ##                      keepargs = c("link", "late.Z", "late.X"),
-    ##                      dropargs = "propensity",
-    ##                      newargs = list(data = quote(data),
-    ##                                     formula = propensity))
-    ## } else {
-    ##     pcall <- modcall(call,
-    ##                      newcall = propensity,
-    ##                      keepargs = c("link", "late.Z", "late.X"),
-    ##                      dropargs = "propensity",
-    ##                      newargs = list(data = quote(data),
-    ##                                     formula = propensity))
-    ## }
-    ## pmodel <- eval(pcall)
-    ## EXPERIMIENTING --------------------------------
-
     pcall <- modcall(call,
                      newcall = propensity,
                      keepargs = c("link", "late.Z", "late.X"),
                      dropargs = "propensity",
                      newargs = list(data = quote(data),
                                     formula = propensity))
-    pmodel <- eval(pcall)
-    
-    ## END EXPERIMETN---------------------------------
-    
+    pmodel <- eval(pcall)   
 
     ##---------------------------
     ## 2. Generate target moments/gamma terms

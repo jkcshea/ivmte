@@ -24,6 +24,9 @@ Simulated.
 dtc
 }
 \description{
-The distribution from which \code{dtcf} was generated.
+The distribution from which \code{dtcf} was generated. This
+distribution set is defined in the (non-exported) command
+\code{gendist_covariates()}.  It is worth noting that the
+unobservable terms are alreayd integrated out.
 }
 \keyword{datasets}
