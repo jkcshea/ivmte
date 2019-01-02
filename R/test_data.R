@@ -517,8 +517,7 @@ gendist_covariates <- function() {
 
     dtc[, "multiplier"] <- 100 * 100 * dtc$f
     sum(dtc$multiplier)
-    multiplier <- dtc$multiplier
-    dtcf <- dtc[rep(seq_len(nrow(dtc)), multiplier), ]
+    dtcf <- dtc[rep(seq_len(nrow(dtc)), dtc$multiplier), ]
 
     ## Check if the distribution of this data set matches that of what we
     ## generated above (requires data.table)
@@ -734,14 +733,14 @@ gendist_basic <- function() {
     supp_x <- c(1, 2, 3)
     supp_z <- c(1, 2, 3, 4)
 
-    dtb <- data.table::data.table(expand.grid(supp_x, supp_z))
+    dtb <- data.frame(expand.grid(supp_x, supp_z))
     colnames(dtb) <- c("x", "z")
 
     ## Generate propensity scores
     g0 <- 0.2
     g1 <- -0.10
     g2 <- 0.2
-    dtb[, p := g0 + g1 * x + g2 * z]
+    dtb$p <- g0 + g1 * dtb$x + g2 * dtb$z
 
     ## Generate the counterfactual outcomes.
     ## m0 = 2 + x + 2 * u
@@ -772,9 +771,8 @@ gendist_basic <- function() {
     g0coef <- c(2, 1, 2)
     g1coef <- c(6, 5)
 
-    dtb[, ey0 := glist0 %*% g0coef]
-    dtb[, ey1 := glist1 %*% g1coef]
-
+    dtb$ey0 <- glist0 %*% g0coef
+    dtb$ey1 <- glist1 %*% g1coef   
 
     ## Generate distribution and expand data set
     p <- matrix(runif(12), ncol = 3)
@@ -785,30 +783,38 @@ gendist_basic <- function() {
                      0.01, 0.01, 0.16, 0.01),
                    ncol = 4)
 
-    dtb[, f := c(pmat)]
-    dtb[, multiplier := f * 1000]
+    dtb$f <- c(pmat)
+    dtb$multiplier <- dtb$f * 1000
 
-    ## Check treatment effect
-    sum(dtb$ey1 * dtb$f) - sum(dtb$ey0 * dtb$f)
-    sum(dtb[dtb$ey0 > dtb$ey1, f])
+    ## Check treatment effect (requires data.table)
+    ## sum(dtb$ey1 * dtb$f) - sum(dtb$ey0 * dtb$f)
+    ## sum(dtb[dtb$ey0 > dtb$ey1, f])
 
     ## Assign treatment
-    dtbf <- dtb[rep(seq_len(nrow(dtb)), multiplier), ]
-    dtbf[, d := 0]
-    dtbf[, i := 1:.N, by = .(x, z)]
-    dtbf[i <= round(p * multiplier), d := 1]
+    dtbf <- dtb[rep(seq_len(nrow(dtb)), dtb$multiplier), ]
+    dtbf$d <- 0
+    for (ix in supp_x) {
+        for (iz in supp_z) {
+            N <- nrow(dtbf[dtbf$x == ix &
+                           dtbf$z == iz, ])
+            dtbf[dtbf$x == ix &
+                 dtbf$z == iz, "i"] <- seq(1, N)
+            dtbf[dtbf$x == ix &
+                 dtbf$z == iz, "dcut"] <-
+                round(dtbf[dtbf$x == ix &
+                           dtbf$z == iz, "p"] * N)
+        }
+    }
+    dtbf[dtbf$i <= dtbf$dcut, "d"] <- 1
+    dtbf$dcut <- NULL
 
     ## Check if empirical distribution differs from population
-    failed <- which(round(dtbf[, mean(d), by = .(x, z)]$V1, 2) !=
-                    round(dtbf[, mean(p), by = .(x, z)]$V1, 2))
-    print(failed)
+    ## failed <- which(round(dtbf[, mean(d), by = .(x, z)]$V1, 2) !=
+    ##                 round(dtbf[, mean(p), by = .(x, z)]$V1, 2))
+    ## print(failed)
 
     ## Assign outcomes
-    dtbf[, ey  := d * ey1 + (1 - d) * ey0]
-
-    ## Convert data back into data.frame and save
-    dtb  <- data.frame(dtb)
-    dtbf <- data.frame(dtbf)
+    dtbf$ey <- dtbf$d * dtbf$ey1 + (1 - dtbf$d) * dtbf$ey0
 
     return(list(data.full = dtbf,
                 data.dist = dtb))

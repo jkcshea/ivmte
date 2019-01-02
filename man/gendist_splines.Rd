@@ -7,7 +7,9 @@
 gendist_splines()
 }
 \value{
-data.frame.
+a list of two data.frame objects. One is the distribution
+    of the simulated data, the other is the full simulated data
+    set.
 }
 \description{
 This code generates population level data to test the
