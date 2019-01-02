@@ -153,7 +153,7 @@
 #'   \item{f}{density}
 #'   \item{multiplier}{number of observations in the data set}
 #'   \item{d}{indicator for treatment (d = 1) versus control (d = 0) group}
-#'   \item{i}{counter for agent of each type}}
+#'   \item{i}{counter for agent of each type}
 #'   \item{ey}{the observed outcome}
 #' }
 #' @source Simulated.

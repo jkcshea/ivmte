@@ -4,7 +4,19 @@
 \name{dtbf}
 \alias{dtbf}
 \title{Basic data set}
-\format{An object of class \code{data.frame} with 1000 rows and 10 columns.}
+\format{A data frame with 1000 rows and 10 columns.
+\describe{
+  \item{x}{covariate}
+  \item{z}{instrument}
+  \item{p}{probability of treatment uptake}
+  \item{ey1}{counterfactual outcome when a recipient of treatment}
+  \item{ey0}{counterfactual outcome when not a recipient of treatment}
+  \item{f}{density}
+  \item{multiplier}{number of observations in the data set}
+  \item{d}{indicator for treatment (d = 1) versus control (d = 0) group}
+  \item{i}{counter for agent of each type}
+  \item{ey}{the observed outcome}
+}}
 \source{
 Simulated.
 }
