@@ -94,11 +94,11 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #'        treat = d,
 #'        list = FALSE)
 #' @export
-ivlike <- function(formula, data, subset, components, treat,
+ivestimate <- function(formula, data, subset, components, treat,
                          list = FALSE) {
 
     formula <- Formula::as.Formula(formula)
-   
+
     call <- match.call(expand.dots = FALSE)
 
     ## Select components
@@ -116,12 +116,12 @@ ivlike <- function(formula, data, subset, components, treat,
     ## Covert components into a vector of strings
     stringComp <- (substr(components, 1, 2) == "c(" &
         substr(components, nchar(components), nchar(components)) == ")")
-    
+
     if (stringComp){
         components   <- substr(components, 3, nchar(components) - 1)
         components   <- strsplit(components, ", ")[[1]]
     }
-   
+
     ## Some interactions may need to be relabled
     termsR <- attr(terms(formula), "term.labels")
 
@@ -134,7 +134,7 @@ ivlike <- function(formula, data, subset, components, treat,
                                   function(x) paste(x, collapse = ":")))
 
         correctPos <- which(varsPerm %in% termsR)
-        if (length(correctPos) > 0) {           
+        if (length(correctPos) > 0) {
             components[fail] <- varsPerm[correctPos]
         }
     }
@@ -142,7 +142,7 @@ ivlike <- function(formula, data, subset, components, treat,
     ## Generate the lmcomponents vector
     lmcomponents <- components
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
-    
+
     ## obtain design matrices
     if (list == TRUE) {
         mf <- design(formula, data)

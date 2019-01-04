@@ -2,7 +2,7 @@ context("Test estimation when only a single IV-like specification is provided.")
 
 set.seed(10L)
 
-result <- ivmte(ivlike = ey ~ d + x1 + x2,
+result <- ivmte(ivlike = ey ~ 1 +d + x1 + x2,
                 data = dtcf,
                 components = l(d, x1),
                 subset = z2 %in% c(2, 3),
@@ -208,7 +208,7 @@ minobseq <- gurobi::gurobi(modelO)$objval
 ## Obtain the bounds for the LATE
 ##-------------------------
 
-tolerance <- 0.01
+tolerance <- 1.01
 
 Atop <- c(replicate(ncol(Aextra), 1),
           replicate(ncol(A), 0))

@@ -29,7 +29,7 @@
 #' point estimates can be constructed using the bootstrap.
 #'
 #' @import methods stats utils
-#' 
+#'
 #' @param bootstraps integer, default set to 0.
 #' @param bootstraps.m integer, default set to size of data
 #'     set. Determines the size of the subsample drawn from the
@@ -215,7 +215,7 @@
 #'                  ey ~ d | factor(z))
 #' jvec <- l(d, d, d, d)
 #' svec <- l(, , , z %in% c(2, 4))
-#' 
+#'
 #' ivmte(ivlike = ivlikespecs,
 #'       data = dtm,
 #'       components = jvec,
@@ -228,7 +228,7 @@
 #'       m0.dec = TRUE,
 #'       m1.dec = TRUE,
 #'       bootstraps = 5)
-#' 
+#'
 #' @export
 ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'both',
@@ -408,6 +408,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                           "The subset condition is not logical.
                       Please change the condition to be logical."))
             }
+            subset <- list(substitute(subset))
         }
 
         specCompWarn <- FALSE
@@ -947,7 +948,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                           variable listed is included in the data, and
                           corresponds to propensity scores.")))
             }
-        }        
+        }
     } else {
         ## Determine treatment variable
         if (hasArg(treat)) {
@@ -1017,7 +1018,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
 
         propensity <- as.formula(propensity)
     }
-    
+
     ## Remove unobserved variable from list
     allvars <- unique(c(vars_y,
                         vars_formulas_x,
@@ -1092,10 +1093,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
 
     ## "bootstraps.m", "bootstraps.replace", "levels", "ci.type",
     ## Estimate bounds
-    if (point == FALSE) {        
+    if (point == FALSE) {
 
         origEstimate <- eval(estimateCall)
-        
+
         if (abs(origEstimate$bound[2] - origEstimate$bound[1]) < point.tol &
             noshape == TRUE) {
 
@@ -1625,7 +1626,7 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #' randomly selects points outside of this subset to determine whether
 #' or not the constraints hold. The user can specify how stringent
 #' this audit procedure is using the function arguments.
-#' 
+#'
 #' @param ivlike formula or vector of formulas used to specify the
 #'     regressions for the IV-like estimands.
 #' @param data \code{data.frame} used to estimate the treatment
@@ -1819,7 +1820,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Obtaining propensity scores...\n")
     }
-    
+
     ## Estimate propensity scores
 
     pcall <- modcall(call,
@@ -1828,7 +1829,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                      dropargs = "propensity",
                      newargs = list(data = quote(data),
                                     formula = propensity))
-    pmodel <- eval(pcall)   
+    pmodel <- eval(pcall)
 
     ##---------------------------
     ## 2. Generate target moments/gamma terms
@@ -1862,7 +1863,6 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     } else {
         m1call <- NULL
     }
-
 
     ## Generate target weights
 
@@ -2226,16 +2226,42 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     ## provided
     if (class_formula(ivlike)) {
 
-        ## Obtain coefficient estimates and S-weights
-        scall <- modcall(call,
-                       newcall = ivlike,
-                       keepargs = c("subset"),
-                       newargs = list(formula = ivlike,
-                                      treat = quote(treat),
-                                      data = quote(data),
-                                      components = components))
 
-        sest <- eval(scall)
+        ## Testing -------------------------------
+        if (hasArg(subset)) {
+            subset <- eval(subset[[1]], data)
+
+            scall <- modcall(call,
+                             newcall = ivestimate,
+                             keepargs = c("data", "components", "treat"),
+                             newargs = list(formula = ivlike,
+                                            subset = subset))
+
+            sest <- eval(scall)
+
+            ## sest <- ivestimate(formula = ivlike,
+            ##                    treat = quote(treat),
+            ##                    data = quote(data),
+            ##                    components = components,
+            ##                    subset = subset)
+            ## print(sest)
+            ## stop("end of test")
+        }
+        ## End testing ---------------------------
+
+        ## Obtain coefficient estimates and S-weights
+        ## Original -----------------------------
+        ## scall <- modcall(call,
+        ##                newcall = ivestimate,
+        ##                keepargs = c("subset"),
+        ##                newargs = list(formula = ivlike,
+        ##                               treat = quote(treat),
+        ##                               data = quote(data),
+        ##                               components = components))
+
+        ## sest <- eval(scall)
+        ## End original --------------------------
+
 
         ncomponents <- length(sest$betas)
 
@@ -2298,7 +2324,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
             ## Obtain coefficient estimates and S-weights
             ## corresponding to the IV-like estimands
             sdata <- data[eval(substitute(ssubset), data), ]
-            sest  <- ivlike(formula = sformula,
+            sest  <- ivestimate(formula = sformula,
                                 data = sdata,
                                 components = scomponent,
                                 treat = treat,

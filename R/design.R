@@ -18,24 +18,25 @@
 #'
 #' @export
 design <- function(formula, data, subset) {
-
+    
     ## Set up model.frame() call
     if (missing(data)) data <- environment(formula)
     mf <- match.call()
-    m  <- match(c("formula", "data", "subset",
-                  "na.action", "weights", "offset"),
+    m  <- match(c("formula", "data", "subset"),
                 names(mf), 0)
     mf <- mf[c(1, m)]
     mf$drop.unused.levels <- TRUE
-
+    
     ## Convert formula to Formula
     formula <- Formula::as.Formula(formula)
     onesided <- FALSE
+
     if (length(formula)[1] == 0L) onesided <- TRUE
 
     ## call model.frame()
     mf$formula <- formula
     mf[[1]] <- as.name("model.frame")
+    
     mf <- eval(mf, parent.frame())
 
     ## extract response, terms, model matrices
