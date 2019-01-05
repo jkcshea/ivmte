@@ -7,7 +7,7 @@
 ivmte(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
   levels = c(0.99, 0.95, 0.9), ci.type = "both", pvalue.tol = 1e-08,
   ivlike, data, subset, components, propensity, link, treat, m0, m1,
-  uname = u, target, target.weight0, target.weight1,
+  uname = u, target, target.weight0 = NULL, target.weight1 = NULL,
   target.knots0 = NULL, target.knots1 = NULL, late.Z, late.from,
   late.to, late.X, eval.X, genlate.lb, genlate.ub, obseq.tol = 0.05,
   grid.nu = 20, grid.nx = 20, audit.nx = 2, audit.nu = 3,
@@ -251,7 +251,7 @@ Returns a list of results from throughout the estimation
 \description{
 This function estimates bounds on treatment effect parameters,
 following the procedure described in Mogstad, Torgovitsky
-(2017). Of the target parameters, the user can choose from the ATE,
+(2017). Of the  parameters, the user can choose from the ATE,
 ATT, ATU, LATE, and generalized LATE. The user is required to
 provide a polynomial expression for the marginal treatment
 responses (MTR), as well as a set of regressions. By restricting

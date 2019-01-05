@@ -31,9 +31,9 @@ This function estimates the IV-like estimands, as well as generates
 the IV-like specifications.
 }
 \examples{
-ivlike(formula = ey ~ d | z,
-       data = dtm,
-       components = l(d),
-       treat = d,
-       list = FALSE)
+ivestimate(formula = ey ~ d | z,
+           data = dtm,
+           components = l(d),
+           treat = d,
+           list = FALSE)
 }

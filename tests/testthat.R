@@ -1,7 +1,4 @@
 library(testthat)
-library(IVMTE)
+library(ivmte)
 
-### CHANGE THOSE IVMTES TO LOWER CASE, CURRENTLY DELIBEARTELY WRONG SO
-### YOU CAN BYPASS THE TEST FOR SPEED.
-
-test_check("IVMTE")
+test_check("ivmte")
