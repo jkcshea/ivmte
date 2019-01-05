@@ -208,14 +208,14 @@ obtain the bounds on the treatment effect.}
 
 \item{point}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} if it is believed that the treatment effects are
-point identified. If set to \code{TRUE}, then a GMM procedure
+point identified. If set to \code{TRUE}, then a FGLS procedure
 is implemented to estimate the treatment effects. Shape
 constraints on the MTRs will be ignored under point
 identification.}
 
 \item{point.itermax}{integer, default of 2. Maximum number of
-iterations allowed for GMM estimation under point
-identification. So default estimate is the two-step GMM.}
+iterations allowed for FGLS estimation under point
+identification. So default estimate is the two-step FGLS.}
 
 \item{point.tol}{scalar, set default at 1-e08. Tolerance for bounds
 before automatically switchingto case of point

@@ -184,7 +184,7 @@
 #'     obtain the bounds on the treatment effect.
 #' @param point boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if it is believed that the treatment effects are
-#'     point identified. If set to \code{TRUE}, then a GMM procedure
+#'     point identified. If set to \code{TRUE}, then a FGLS procedure
 #'     is implemented to estimate the treatment effects. Shape
 #'     constraints on the MTRs will be ignored under point
 #'     identification.
@@ -196,8 +196,8 @@
 #'     effect. The output would be the same as if \code{point} was set
 #'     to \code{TRUE}.
 #' @param point.itermax integer, default of 2. Maximum number of
-#'     iterations allowed for GMM estimation under point
-#'     identification. So default estimate is the two-step GMM.
+#'     iterations allowed for FGLS estimation under point
+#'     identification. So default estimate is the two-step FGLS.
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
@@ -236,7 +236,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   pvalue.tol = 1e-08, ivlike, data, subset,
                   components, propensity, link, treat, m0, m1,
                   uname = u, target, target.weight0 = NULL,
-                  target.weight1 = NULL, target.knots0 = NULL,
+                  target.weight1, target.knots0,
                   target.knots1 = NULL, late.Z, late.from, late.to,
                   late.X, eval.X, genlate.lb, genlate.ub,
                   obseq.tol = 0.05, grid.nu = 20, grid.nx = 20,
@@ -439,7 +439,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
     }
 
-    if (hasArg(target)) {
+    if (hasArg(target)) {      
+        
         if (! target %in% c("ate", "att", "atu", "late", "genlate")) {
             stop(gsub("\\s+", " ",
                       "Specified target parameter is not recognized.
@@ -487,6 +488,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                       weight is provided. Please provide an input for 'target'
                       only, or for 'target.weight0' and 'target.weight1'."))
         }
+
+        target.weight0 <- NULL
+        target.weight1 <- NULL
+        
     } else {
         if (!(hasArg(target.weight0) & hasArg(target.weight1))) {
             stop(gsub("\\s+", " ",
@@ -1820,7 +1825,7 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     obtain the bounds on the treatment effect.
 #' @param point boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if it is believed that the treatment effects are
-#'     point identified. If set to \code{TRUE}, then a GMM procedure
+#'     point identified. If set to \code{TRUE}, then a FGLS procedure
 #'     is implemented to estimate the treatment effects. Shape
 #'     constraints on the MTRs will be ignored under point
 #'     identification.
@@ -1832,8 +1837,8 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     effect. The output would be the same as if \code{point} was set
 #'     to \code{TRUE}.
 #' @param point.itermax integer, default of 2. Maximum number of
-#'     iterations allowed for GMM estimation under point
-#'     identification. So default estimate is the two-step GMM.
+#'     iterations allowed for FGLS estimation under point
+#'     identification. So default estimate is the two-step FGLS.
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
@@ -2145,15 +2150,15 @@ ivmte.estimate <- function(ivlike, data, subset, components,
 
                     if (point == FALSE) {
                         gamma <- gamma + genGamma(pm,
-                                                      lb = lb,
-                                                      ub = ub,
-                                                      multiplier = weights)
+                                                  lb = lb,
+                                                  ub = ub,
+                                                  multiplier = weights)
                     } else {
                         gamma <- gamma + genGamma(pm,
-                                                      lb = lb,
-                                                      ub = ub,
-                                                      multiplier = weights,
-                                                      means = FALSE)
+                                                  lb = lb,
+                                                  ub = ub,
+                                                  multiplier = weights,
+                                                  means = FALSE)
                     }
                 }
 
@@ -2401,12 +2406,12 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                   formulas."))
     }
 
-    ## Prepare GMM estimate estimate if `point' agument is set to TRUE
+    ## Prepare FGLS estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
 
-        ## Obtain GMM estimate
+        ## Obtain FGLS estimate
 
-        gmmResult <- gmmEstimate(sset = sset,
+        fglsResult <- fglsEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
                                  itermax = point.itermax,
@@ -2417,8 +2422,8 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                     gstar = list(g0 = gstar0,
                                  g1 = gstar1),
                     propensity = pmodel,
-                    te = gmmResult$te,
-                    mtr.coef = gmmResult$coef))
+                    te = fglsResult$te,
+                    mtr.coef = fglsResult$coef))
     }
 
     ##---------------------------
@@ -2666,12 +2671,12 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
     return(list(sset = sset, scount = scount))
 }
 
-#' GMM estimate of TE under point identification
+#' FGLS estimate of TE under point identification
 #'
 #' If the user sets the argument \code{point = TRUE} in the function
 #' \code{ivmte}, then it is assumed that the treatment effect
 #' parameter is point identified. The observational equivalence
-#' condition is then set up as a GMM problem. Solving this GMM problem
+#' condition is then set up as a FGLS problem. Solving this FGLS problem
 #' recovers the coefficients on the MTR functions m0 and m1. Combining
 #' these coefficients with the target gamma moments allows us to
 #' estimate the target treatment effect.
@@ -2686,9 +2691,9 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #' @param gstar0 vector, the target gamma moments for d = 0.
 #' @param gstar1 vector, the target gamma moments for d = 1.
 #' @param itermax integer, maximum number of iterations allowed in the
-#'     iterative GMM process. By default this is set to 2 (two-step
-#'     GMM).
-#' @param tol tolerance level for iterative GMM to terminate.
+#'     iterative FGLS process. By default this is set to 2 (two-step
+#'     FGLS).
+#' @param tol tolerance level for iterative FGLS to terminate.
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
@@ -2699,21 +2704,21 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     \code{\link[stats]{optim}}), the coefficients on the MTR, and
 #'     the variance/covariance matrix of the MTR coefficient
 #'     estimates.
-gmmEstimate <- function(sset, gstar0, gstar1,
+fglsEstimate <- function(sset, gstar0, gstar1,
                         itermax = 2, tol = 1e-08, noisy = TRUE) {
 
-    gmmMat <- NULL
+    fglsMat <- NULL
     yMat   <- NULL
 
     for (s in 1:length(sset)) {
 
         ids <- as.integer(rownames(sset[[s]]$g0))
 
-        gmmAdd <- cbind(ids, s,
+        fglsAdd <- cbind(ids, s,
                         sset[[s]]$g0,
                         sset[[s]]$g1)
 
-        gmmMat <- rbind(gmmMat, gmmAdd)
+        fglsMat <- rbind(fglsMat, fglsAdd)
 
         yAdd <- cbind(ids, s, sset[[s]]$ys)
         yMat <- rbind(yMat, yAdd)
@@ -2721,17 +2726,17 @@ gmmEstimate <- function(sset, gstar0, gstar1,
 
     N <- length(ids)
 
-    gmmMat <- gmmMat[order(gmmMat[, 1], gmmMat[, 2]), ]
+    fglsMat <- fglsMat[order(fglsMat[, 1], fglsMat[, 2]), ]
     yMat   <- yMat[order(yMat[, 1], yMat[, 2]), ]
 
-    ids <- unique(gmmMat[, 1])
-    gmmCompN <- ncol(gmmMat) - 2
+    ids <- unique(fglsMat[, 1])
+    fglsCompN <- ncol(fglsMat) - 2
 
-    if (gmmCompN > length(sset)) {
+    if (fglsCompN > length(sset)) {
         stop(gsub("\\s+", " ",
                   paste0("System is underidentified: excluding
                          target moments, there are ",
-                         gmmCompN,
+                         fglsCompN,
                          " unknown parameters/MTR coefficients and ",
                          length(sset),
                          " moment conditions (defined by IV-like
@@ -2739,11 +2744,11 @@ gmmEstimate <- function(sset, gstar0, gstar1,
                          IV-like specifications, or modify m0 and m1.")))
     }
 
-    gmmMat <- gmmMat[, -c(1, 2)]
+    fglsMat <- fglsMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
-
+    
     ## Perform iterative estimation
-    theta <- rep(0, ncol(gmmMat))
+    theta <- rep(0, ncol(fglsMat))
     i <- 1
     diff <- Inf
 
@@ -2754,26 +2759,26 @@ gmmEstimate <- function(sset, gstar0, gstar1,
     while (i <= itermax & i <= 2 & diff > tol) {
 
         if (i == 1) {
-            thetaNew <- solve(t(gmmMat) %*% gmmMat) %*% t(gmmMat) %*% yMat
+            thetaNew <- solve(t(fglsMat) %*% fglsMat) %*% t(fglsMat) %*% yMat
         } else {
 
             olsA <- lapply(ids, function(x) {
-                gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
-                t(gmmi) %*% ematInv %*% gmmi
+                fglsi <- fglsMat[as.integer(rownames(fglsMat)) == x, ]
+                t(fglsi) %*% ematInv %*% fglsi
             })
             olsA <- Reduce("+", olsA)
 
             olsB <- lapply(ids, function(x) {
-                gmmi <- gmmMat[as.integer(rownames(gmmMat)) == x, ]
+                fglsi <- fglsMat[as.integer(rownames(fglsMat)) == x, ]
                 yvec <- yMat[as.integer(rownames(errors)) == x]
-                t(gmmi) %*% ematInv %*% yvec
+                t(fglsi) %*% ematInv %*% yvec
             })
             olsB <- Reduce("+", olsB)
 
             thetaNew <- solve(olsA) %*% olsB
         }
 
-        errors <- yMat - gmmMat %*% thetaNew
+        errors <- yMat - fglsMat %*% thetaNew
 
         if (i <= (itermax - 1)) {
             emat <- lapply(ids, function(x) {

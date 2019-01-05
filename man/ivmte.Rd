@@ -7,9 +7,9 @@
 ivmte(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
   levels = c(0.99, 0.95, 0.9), ci.type = "both", pvalue.tol = 1e-08,
   ivlike, data, subset, components, propensity, link, treat, m0, m1,
-  uname = u, target, target.weight0 = NULL, target.weight1 = NULL,
-  target.knots0 = NULL, target.knots1 = NULL, late.Z, late.from,
-  late.to, late.X, eval.X, genlate.lb, genlate.ub, obseq.tol = 0.05,
+  uname = u, target, target.weight0 = NULL, target.weight1,
+  target.knots0, target.knots1 = NULL, late.Z, late.from, late.to,
+  late.X, eval.X, genlate.lb, genlate.ub, obseq.tol = 0.05,
   grid.nu = 20, grid.nx = 20, audit.nx = 2, audit.nu = 3,
   audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
   mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
@@ -219,14 +219,14 @@ obtain the bounds on the treatment effect.}
 
 \item{point}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} if it is believed that the treatment effects are
-point identified. If set to \code{TRUE}, then a GMM procedure
+point identified. If set to \code{TRUE}, then a FGLS procedure
 is implemented to estimate the treatment effects. Shape
 constraints on the MTRs will be ignored under point
 identification.}
 
 \item{point.itermax}{integer, default of 2. Maximum number of
-iterations allowed for GMM estimation under point
-identification. So default estimate is the two-step GMM.}
+iterations allowed for FGLS estimation under point
+identification. So default estimate is the two-step FGLS.}
 
 \item{point.tol}{scalar, set default at 1-e08. Tolerance for bounds
 before automatically switchingto case of point
