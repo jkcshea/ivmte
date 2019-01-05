@@ -2,7 +2,7 @@
 #'
 #' This function estimates bounds on treatment effect parameters,
 #' following the procedure described in Mogstad, Torgovitsky
-#' (2017). Of the target parameters, the user can choose from the ATE,
+#' (2017). Of the  parameters, the user can choose from the ATE,
 #' ATT, ATU, LATE, and generalized LATE. The user is required to
 #' provide a polynomial expression for the marginal treatment
 #' responses (MTR), as well as a set of regressions. By restricting
@@ -230,20 +230,21 @@
 #'       bootstraps = 5)
 #'
 #' @export
-ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
+ivmte <- function(bootstraps = 0, bootstraps.m,
+                  bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'both',
-                  pvalue.tol = 1e-08,
-                  ivlike, data, subset, components, propensity, link,
-                  treat, m0, m1, uname = u, target, target.weight0,
-                  target.weight1, target.knots0 = NULL, target.knots1 = NULL,
-                  late.Z, late.from, late.to, late.X,
-                  eval.X, genlate.lb, genlate.ub, obseq.tol = 0.05,
-                  grid.nu = 20, grid.nx = 20, audit.nx = 2,
-                  audit.nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub,
-                  m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                  m1.dec, m1.inc, mte.dec, mte.inc, lpsolver = NULL,
-                  point = FALSE, point.itermax = 2,
-                  point.tol = 1e-08, noisy = TRUE) {
+                  pvalue.tol = 1e-08, ivlike, data, subset,
+                  components, propensity, link, treat, m0, m1,
+                  uname = u, target, target.weight0 = NULL,
+                  target.weight1 = NULL, target.knots0 = NULL,
+                  target.knots1 = NULL, late.Z, late.from, late.to,
+                  late.X, eval.X, genlate.lb, genlate.ub,
+                  obseq.tol = 0.05, grid.nu = 20, grid.nx = 20,
+                  audit.nx = 2, audit.nu = 3, audit.max = 5,
+                  audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
+                  mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
+                  mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
+                  point.itermax = 2, point.tol = 1e-08, noisy = TRUE) {
 
     call <- match.call(expand.dots = FALSE)
 
@@ -1071,14 +1072,25 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
 
     estimateCall <- modcall(call,
                             newcall = ivmte.estimate,
-                            dropargs = c("bootstraps", "data",
+                            dropargs = c("m0", "m1",
+                                         "bootstraps", "data",
                                          "bootstraps.m",
                                          "bootstraps.replace",
                                          "subset",
                                          "levels", "ci.type",
                                          "treat", "propensity",
-                                         "components", "lpsolver"),
-                            newargs = list(data = quote(data),
+                                         "components", "lpsolver",
+                                         "target.weight0", "target.weight1",
+                                         "target.knots0", "target.knots1"),
+                            newargs = list(m0 = quote(m0),
+                                           m1 = quote(m1),
+                                           target.weight0 =
+                                               quote(target.weight0),
+                                           target.weight1 =
+                                               quote(target.weight1),
+                                           target.knots0 = quote(target.knots0),
+                                           target.knots1 = quote(target.knots1),
+                                           data = quote(data),
                                            subset = quote(subset),
                                            lpsolver = quote(lpsolver),
                                            vars_y = quote(vars_y),
@@ -1109,13 +1121,24 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
             estimateCall <-
                 modcall(call,
                         newcall = ivmte.estimate,
-                        dropargs = c("bootstraps", "data", "point",
+                        dropargs = c("m0", "m1",
+                                     "bootstraps", "data", "point",
                                      "bootstraps.m",
                                      "bootstraps.replace", "subset",
                                      "levels",
                                      "ci.type", "treat", "propensity",
-                                     "components", "lpsolver"),
-                        newargs = list(data = quote(data),
+                                     "components", "lpsolver",
+                                     "target.weight0", "target.weight1",
+                                     "target.knots0", "target.knots0"),
+                        newargs = list(m0 = quote(m0),
+                                       m1 = quote(m1),
+                                       target.weight0 =
+                                           quote(target.weight0),
+                                       target.weight1 =
+                                           quote(target.weight1),
+                                       target.knots0 = quote(target.knots0),
+                                       target.knots1 = quote(target.knots1),
+                                       data = quote(data),
                                        subset = quote(subset),
                                        lpsolver = quote(lpsolver),
                                        point = TRUE,
@@ -1152,14 +1175,27 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
                     bootCall <-
                         modcall(call,
                                 newcall = ivmte.estimate,
-                                dropargs = c("bootstraps", "data",
+                                dropargs = c("m0", "m1",
+                                             "bootstraps", "data",
                                              "noisy", "bootstraps.m",
                                              "bootstraps.replace",
                                              "subset", "levels", "ci.type",
                                              "treat",
                                              "propensity", "components",
-                                             "lpsolver"),
-                                newargs = list(data = quote(bdata),
+                                             "lpsolver",
+                                             "target.weight0", "target.weight1",
+                                             "target.knots0", "target.knots1"),
+                                newargs = list(m0 = quote(m0),
+                                               m1 = quote(m1),
+                                               target.weight0 =
+                                                   quote(target.weight0),
+                                               target.weight1 =
+                                                   quote(target.weight1),
+                                               target.knots0 =
+                                                   quote(target.knots0),
+                                               target.knots1 =
+                                                   quote(target.knots1),
+                                               data = quote(bdata),
                                                subset = quote(subset),
                                                lpsolver = quote(lpsolver),
                                                noisy = FALSE,
@@ -1326,13 +1362,26 @@ ivmte <- function(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
 
             bootCall <- modcall(call,
                                 newcall = ivmte.estimate,
-                                dropargs = c("bootstraps", "data",
+                                dropargs = c("m0", "m1",
+                                             "bootstraps", "data",
                                              "noisy", "treat",
                                              "subset",
                                              "propensity",
                                              "components",
-                                             "lpsolver"),
-                                newargs = list(data = quote(bdata),
+                                             "lpsolver",
+                                             "target.weight0", "target.weight1",
+                                             "target.knots0", "target.knots1"),
+                                newargs = list(m0 = quote(m0),
+                                               m1 = quote(m1),
+                                               target.weight0 =
+                                                   quote(target.weight0),
+                                               target.weight1 =
+                                                   quote(target.weight1),
+                                               target.knots0 =
+                                                   quote(target.knots0),
+                                               target.knots1 =
+                                                   quote(target.knots1),
+                                               data = quote(bdata),
                                                subset = quote(subset),
                                                lpsolver = quote(lpsolver),
                                                noisy = FALSE,
@@ -2177,13 +2226,14 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                     }
 
                     if (point == FALSE) {
+
                         gammaSplines <- gammaSplines +
                             genGammaSplines(splines = noSplineMtr,
                                                 data = data,
                                                 lb = lb,
                                                 ub = ub,
                                                 multiplier = weights,
-                                                d = d)
+                                                d = d)$gamma
                     } else {
                         gammaSplines <- gammaSplines +
                             genGammaSplines(splines = noSplineMtr,
@@ -2192,7 +2242,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                                                 ub = ub,
                                                 multiplier = weights,
                                                 d = d,
-                                                means = FALSE)
+                                                means = FALSE)$gamma
                     }
                 }
                 assign(paste0("gstarSpline", d), gammaSplines)
@@ -2226,8 +2276,6 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     ## provided
     if (class_formula(ivlike)) {
 
-
-        ## Testing -------------------------------
         if (hasArg(subset)) {
             subset <- eval(subset[[1]], data)
 
@@ -2238,29 +2286,8 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                                             subset = subset))
 
             sest <- eval(scall)
-
-            ## sest <- ivestimate(formula = ivlike,
-            ##                    treat = quote(treat),
-            ##                    data = quote(data),
-            ##                    components = components,
-            ##                    subset = subset)
-            ## print(sest)
-            ## stop("end of test")
         }
-        ## End testing ---------------------------
 
-        ## Obtain coefficient estimates and S-weights
-        ## Original -----------------------------
-        ## scall <- modcall(call,
-        ##                newcall = ivestimate,
-        ##                keepargs = c("subset"),
-        ##                newargs = list(formula = ivlike,
-        ##                               treat = quote(treat),
-        ##                               data = quote(data),
-        ##                               components = components))
-
-        ## sest <- eval(scall)
-        ## End original --------------------------
 
 
         ncomponents <- length(sest$betas)
