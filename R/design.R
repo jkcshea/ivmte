@@ -21,24 +21,23 @@ design <- function(formula, data, subset) {
     
     ## Set up model.frame() call
     if (missing(data)) data <- environment(formula)
-    mf <- match.call()
-    m  <- match(c("formula", "data", "subset"),
-                names(mf), 0)
-    mf <- mf[c(1, m)]
-    mf$drop.unused.levels <- TRUE
-    
+
     ## Convert formula to Formula
     formula <- Formula::as.Formula(formula)
     onesided <- FALSE
 
     if (length(formula)[1] == 0L) onesided <- TRUE
 
-    ## call model.frame()
-    mf$formula <- formula
-    mf[[1]] <- as.name("model.frame")
+    call <- match.call()
+    design_call <- modcall(call,
+                           newcall = model.frame,
+                           keepargs = c("data",
+                                        "subset"),
+                           newargs = list(formula = formula,
+                                          drop.unused.levels = TRUE))
     
-    mf <- eval(mf, parent.frame())
-
+    mf <- eval(design_call, parent.frame())
+                               
     ## extract response, terms, model matrices
     if (onesided == FALSE) Y <- model.response(mf, "numeric")
     if (onesided == TRUE)  Y <- NULL
