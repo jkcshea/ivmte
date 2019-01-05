@@ -439,8 +439,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
     }
 
-    if (hasArg(target)) {      
-        
+    if (hasArg(target)) {
+
         if (! target %in% c("ate", "att", "atu", "late", "genlate")) {
             stop(gsub("\\s+", " ",
                       "Specified target parameter is not recognized.
@@ -491,7 +491,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
         target.weight0 <- NULL
         target.weight1 <- NULL
-        
+
     } else {
         if (!(hasArg(target.weight0) & hasArg(target.weight1))) {
             stop(gsub("\\s+", " ",
@@ -1108,7 +1108,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                            components = quote(components)))
 
 
-    ## "bootstraps.m", "bootstraps.replace", "levels", "ci.type",
     ## Estimate bounds
     if (point == FALSE) {
 
@@ -1226,6 +1225,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         bootFailN <- 0
                         bootFailNote <- ""
                     } else {
+                       
                         if (noisy == TRUE) {
                             message(paste0("Bootstrap iteration ", b,
                                            bootFailNote,
@@ -1889,23 +1889,20 @@ ivmte.estimate <- function(ivlike, data, subset, components,
     ## 2. Generate target moments/gamma terms
     ##---------------------------
 
-    xindex0 <- NULL
-    xindex1 <- NULL
-    uexporder0 <- NULL
-    uexporder1 <- NULL
-
     if (noisy == TRUE) {
         message("Generating target moments...\n")
     }
 
+    ## Parse polynomials
     if (!is.null(m0)) {
         m0call <- modcall(call,
                           newcall = polyparse,
                           keepargs = c("uname"),
                           newargs = list(formula = m0,
                                          data = quote(data)))
+        pm0 <- eval(as.call(m0call))
     } else {
-        m0call <- NULL
+        pm0 <- NULL
     }
 
     if (!is.null(m1)) {
@@ -1914,356 +1911,48 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                           keepargs = c("uname"),
                           newargs = list(formula = m1,
                                          data = quote(data)))
+        pm1 <- eval(as.call(m1call))
     } else {
-        m1call <- NULL
+        pm1 <- NULL
     }
 
-    ## Generate target weights
+    ## Generate target weights    
+    if (is.null(target.weight0) & is.null(target.weight1)) {
+        gentargetcall <- modcall(call,
+                                 newcall = gentarget,
+                                 keepargs = c("treat", "m1", "m0",
+                                              "target", "late.Z",
+                                              "late.from", "late.to",
+                                              "late.X", "eval.X",
+                                              "genlate.lb",
+                                              "genlate.ub",
+                                              "uname", "splinesobj",
+                                              "point", "noisy"),
+                                 dropargs = "data",
+                                 newargs = list(data = quote(data),
+                                                pmodobj = pmodel,
+                                                pm0 = quote(pm0),
+                                                pm1 = quote(pm1)))
 
-    if (hasArg(target)) {
-        if (target == "ate") {
-            w1 <- wate1(data)
-            w0 <- w1
-            w0$mp <- -1 * w0$mp
-        } else if (target == "att") {
-            w1 <- watt1(data, mean(data[[treat]]), pmodel$phat)
-            w0 <- w1
-            w0$mp <- -1 * w0$mp
-        } else if (target == "atu") {
-            w1 <- watu1(data, 1 - mean(data[[treat]]), pmodel$phat)
-            w0 <- w1
-            w0$mp <- -1 * w0$mp
-        } else if (target == "late") {
-            if (!hasArg(late.X)) {
-                late.X <- NULL
-                eval.X <- NULL
-            }
-            w1 <- wlate1(data, late.from, late.to, substitute(late.Z),
-                             pmodel$model, substitute(late.X), eval.X)
-            w0 <- w1
-            w0$mp <- -1 * w0$mp
-        } else if (target == "genlate") {
-            w1 <- wgenlate1(data, genlate.lb, genlate.ub)
-            w0 <- w1
-            w0$mp <- -1 * w0$mp
-        } else {
-            stop("Unrecognized target parameter.")
-        }
-
-        ## Integrate m0 and m1 functions
-        if (!is.null(m0)) {
-            if (noisy == TRUE) {
-                message("    Integrating terms for control group...\n")
-            }
-            pm0 <- eval(as.call(m0call))
-
-            if (point == FALSE) {
-                gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
-            } else {
-                gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
-                xindex0 <- c(xindex0, pm0$xindex)
-                uexporder0 <- c(uexporder0, pm0$exporder)
-            }
-        } else {
-            gstar0 <- NULL
-            pm0 <- NULL
-        }
-
-        if (!is.null(m1)) {
-            if (noisy == TRUE) {
-                message("    Integrating terms for treated group...\n")
-            }
-            pm1 <- eval(as.call(m1call))
-
-            if (point == FALSE) {
-                gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp)
-            } else {
-                gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp, means = FALSE)
-                xindex1 <- c(xindex1, pm1$xindex)
-                uexporder1 <- c(uexporder1, pm1$exporder)
-            }
-        } else {
-            gstar1 <- NULL
-            pm1 <- NULL
-        }
-
-        if (point == FALSE) {
-            gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
-                                                data = data,
-                                                lb = w0$lb,
-                                                ub = w0$ub,
-                                                multiplier = w0$mp,
-                                                d = 0)
-            gstarSpline0 <- gstarSplineObj0$gamma
-
-            gstarSplineObj1 <- genGammaSplines(splines = splinesobj[[2]],
-                                                data = data,
-                                                lb = w1$lb,
-                                                ub = w1$ub,
-                                                multiplier = w1$mp,
-                                                d = 1)
-            gstarSpline1 <- gstarSplineObj1$gamma
-        } else {
-            gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
-                                                data = data,
-                                                lb = w0$lb,
-                                                ub = w0$ub,
-                                                multiplier = w0$mp,
-                                                d = 0,
-                                                means = FALSE)
-            gstarSpline0 <- gstarSplineObj0$gamma
-            xindex0 <- c(xindex0, gstarSplineObj0$interactions)
-            uexporder0 <- c(uexporder0,
-                            rep(-1, length(xindex0) - length(uexporder0)))
-
-            gstarSplineObj1 <- genGammaSplines(splines = splinesobj[[2]],
-                                                data = data,
-                                                lb = w1$lb,
-                                                ub = w1$ub,
-                                                multiplier = w1$mp,
-                                                d = 1,
-                                                means = FALSE)
-            gstarSpline1 <- gstarSplineObj1$gamma
-            xindex1 <- c(xindex1, gstarSplineObj1$interactions)
-            uexporder1 <- c(uexporder1,
-                            rep(-1, length(xindex1) - length(uexporder1)))
-        }
     } else {
-
-        ## Convert fixed/numeric weights into functions
-        if (is.numeric(target.weight0)) {
-            target.weight0 <- sapply(target.weight0, constructConstant)
-        } else {
-            numeric <- which(unlist(lapply(target.weight0, is.numeric)))
-            target.weight0[numeric] <- sapply(unlist(target.weight0[numeric]),
-                                              constructConstant)
-        }
-
-        if (is.numeric(target.weight1)) {
-            target.weight1 <- sapply(target.weight1, constructConstant)
-        } else {
-            numeric <- which(unlist(lapply(target.weight1, is.numeric)))
-            target.weight1[numeric] <- sapply(unlist(target.weight1[numeric]),
-                                              constructConstant)
-        }
-
-        ## Convert fixed/numeric knots into functions
-        if (!is.null(target.knots0)) {
-            if (is.numeric(target.knots0)) {
-                target.knots0 <- sapply(target.knots0, constructConstant)
-            } else {
-                numeric <- which(unlist(lapply(target.knots0, is.numeric)))
-                target.knots0[numeric] <- sapply(unlist(target.knots0[numeric]),
-                                                 constructConstant)
-            }
-        }
-
-        if (!is.null(target.knots1)) {
-            if (is.numeric(target.knots1)) {
-                target.knots1 <- sapply(target.knots1, constructConstant)
-            } else {
-                numeric <- which(unlist(lapply(target.knots1, is.numeric)))
-                target.knots1[numeric] <- sapply(unlist(target.knots1[numeric]),
-                                                 constructConstant)
-            }
-        }
-
-        for (d in 0:1) {
-
-            mtr <- get(paste0("m", d))
-
-            ## Include end points
-            splitFirst <- function(...) {
-                0
-            }
-
-            splitLast <- function(...) {
-                1
-            }
-
-            target.knots <- c(splitFirst,
-                              get(paste0("target.knots", d)),
-                              splitLast)
-
-            target.weight <- get(paste0("target.weight", d))
-
-            ## Integrate non-splines terms
-
-            if (!is.null(mtr)) {
-                if (noisy == TRUE) {
-                    if (d == 0) {
-                        message(
-                      "    Integrating non-spline terms for control group...\n")
-                    } else {
-                        message(
-                      "    Integrating non-spline terms for treated group...\n")
-                    }
-                }
-
-                pm <- eval(as.call(get(paste0("m", d, "call"))))
-
-                gamma <- rep(0, length(pm$terms))
-
-                for(i in 1:length(target.weight)) {
-
-                    wKnotVarsL <- formalArgs(target.knots[[i]])
-                    wKnotVarsU <- formalArgs(target.knots[[i + 1]])
-
-                    if (wKnotVarsL[1] == "...") {
-                        lb <- unlist(lapply(X = seq(1, nrow(data)),
-                                            FUN = funEval,
-                                            fun = target.knots[[i]]))
-                    } else {
-                        lb <- unlist(lapply(X = split(data[, wKnotVarsL],
-                                                      seq(1, nrow(data))),
-                                            FUN = funEval,
-                                            fun = target.knots[[i]],
-                                            argnames = wKnotVarsL))
-                    }
-
-                    if (wKnotVarsU[1] == "...") {
-                        ub <- unlist(lapply(X = seq(1, nrow(data)),
-                                            FUN = funEval,
-                                            fun = target.knots[[i + 1]]))
-
-                    } else {
-                        ub <- unlist(lapply(X = split(data[, wKnotVarsU],
-                                                      seq(1, nrow(data))),
-                                            FUN = funEval,
-                                            fun = target.knots[[i + 1]],
-                                            argnames = wKnotVarsU))
-                    }
-
-                    wValVars  <- formalArgs(target.weight[[i]])
-
-                    if (wValVars[1] == "...") {
-                        weights <- unlist(lapply(X = seq(1, nrow(data)),
-                                                 FUN = funEval,
-                                                 fun = target.weight[[i]]))
-                    } else {
-                        weights <- unlist(lapply(X = split(data[, wValVars],
-                                                           seq(1, nrow(data))),
-                                                 FUN = funEval,
-                                                 fun = target.weight[[i]],
-                                                 argnames = wValVars))
-                    }
-
-                    if (point == FALSE) {
-                        gamma <- gamma + genGamma(pm,
-                                                  lb = lb,
-                                                  ub = ub,
-                                                  multiplier = weights)
-                    } else {
-                        gamma <- gamma + genGamma(pm,
-                                                  lb = lb,
-                                                  ub = ub,
-                                                  multiplier = weights,
-                                                  means = FALSE)
-                    }
-                }
-
-                assign(paste0("gstar", d), gamma)
-                assign(paste0("pm", d), pm)
-            } else {
-                assign(paste0("gstar", d), NULL)
-                assign(paste0("pm", d), NULL)
-            }
-
-            ## Integrate splines terms
-            if (noisy == TRUE) {
-                if (d == 0) {
-                    message(
-                        "    Integrating spline terms for control group...\n")
-                } else {
-                    message(
-                        "    Integrating spline terms for treated group...\n")
-                }
-            }
-
-            noSplineMtr <- splinesobj[[d + 1]]
-
-            if (!is.null(noSplineMtr$splineslist)) {
-
-                gammaSplines <- 0
-
-                for (i in 1:length(target.weight)) {
-
-                    wKnotVarsL <- formalArgs(target.knots[[i]])
-                    wKnotVarsU <- formalArgs(target.knots[[i + 1]])
-
-                    if (wKnotVarsL[1] == "...") {
-                        lb <- unlist(lapply(X = seq(1, nrow(data)),
-                                            FUN = funEval,
-                                            fun = target.knots[[i]]))
-                    } else {
-                        lb <- unlist(lapply(X = split(data[, wKnotVarsL],
-                                                      seq(1, nrow(data))),
-                                            FUN = funEval,
-                                            fun = target.knots[[i]],
-                                            argnames = wKnotVarsL))
-                    }
-
-                    if (wKnotVarsU[1] == "...") {
-                        ub <- unlist(lapply(X = seq(1, nrow(data)),
-                                            FUN = funEval,
-                                            fun = target.knots[[i + 1]]))
-
-                    } else {
-                        ub <- unlist(lapply(X = split(data[, wKnotVarsU],
-                                                      seq(1, nrow(data))),
-                                            FUN = funEval,
-                                            fun = target.knots[[i + 1]],
-                                            argnames = wKnotVarsU))
-                    }
-
-                    wValVars  <- formalArgs(target.weight[[i]])
-
-                    if (wValVars[1] == "...") {
-                        weights <- unlist(lapply(X = seq(1, nrow(data)),
-                                                 FUN = funEval,
-                                                 fun = target.weight[[i]]))
-                    } else {
-                        weights <- unlist(lapply(X = split(data[, wValVars],
-                                                           seq(1, nrow(data))),
-                                                 FUN = funEval,
-                                                 fun = target.weight[[i]],
-                                                 argnames = wValVars))
-                    }
-
-                    if (point == FALSE) {
-
-                        gammaSplines <- gammaSplines +
-                            genGammaSplines(splines = noSplineMtr,
-                                                data = data,
-                                                lb = lb,
-                                                ub = ub,
-                                                multiplier = weights,
-                                                d = d)$gamma
-                    } else {
-                        gammaSplines <- gammaSplines +
-                            genGammaSplines(splines = noSplineMtr,
-                                                data = data,
-                                                lb = lb,
-                                                ub = ub,
-                                                multiplier = weights,
-                                                d = d,
-                                                means = FALSE)$gamma
-                    }
-                }
-                assign(paste0("gstarSpline", d), gammaSplines)
-            } else {
-                assign(paste0("gstarSpline", d), NULL)
-            }
-        }
+        gentargetcall <- modcall(call,
+                                 newcall = gentarget,
+                                 keepargs = c("treat", "m1", "m0",
+                                              "target.weight0",
+                                              "target.weight1",
+                                              "target.knots0", "target.knots1",
+                                              "uname", "splinesobj",
+                                              "point", "noisy"),
+                                 dropargs = "data",
+                                 newargs = list(data = quote(data),
+                                                pmodobj = pmodel,
+                                                pm0 = quote(pm0),
+                                                pm1 = quote(pm1)))
     }
 
-    if (point == FALSE) {
-        gstar0 <- c(gstar0, gstarSpline0)
-        gstar1 <- c(gstar1, gstarSpline1)
-    } else {
-        gstar0 <- cbind(gstar0, gstarSpline0)
-        gstar1 <- cbind(gstar1, gstarSpline1)
-    }
+    targetGammas <- eval(gentargetcall)
+    gstar0 <- targetGammas$gstar0
+    gstar1 <- targetGammas$gstar1
 
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
@@ -2292,8 +1981,6 @@ ivmte.estimate <- function(ivlike, data, subset, components,
 
             sest <- eval(scall)
         }
-
-
 
         ncomponents <- length(sest$betas)
 
@@ -2508,6 +2195,457 @@ ivmte.estimate <- function(ivlike, data, subset, components,
                 minobseq = audit$minobseq,
                 splinesdict = list(splinesobj[[1]]$splinesdict,
                                    splinesobj[[2]]$splinesdict)))
+}
+
+
+
+#' Generating LP moments for IV-like estimands
+#'
+#' This function takes in the IV estimate and its IV-like
+#' specification, and generates a list containing the corresponding
+#' point estimate, and the corresponding moments (gammas) that will
+#' enter into the constraint matrix of the LP problem.
+#'
+#' @param treat variable name for treatment indicator
+#' @param m0 one-sided formula for marginal treatment response
+#'     function for control group. Splines can also be incorporated
+#'     using the expression "uSplines(degree, knots, intercept)". The
+#'     'intercept' argument may be omitted, and is set to \code{TRUE}
+#'     by default.
+#' @param m1 one-sided formula for marginal treatment response
+#'     function for treated group. Splines can also be incorporated
+#'     using the expression "uSplines(degree, knots, intercept)". The
+#'     'intercept' argument may be omitted, and is set to \code{TRUE}
+#'     by default.
+#' @param uname variable name for unobservable used in declaring MTRs
+#' @param target target parameter to be estimated. Currently function
+#'     allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
+#'     ("\code{atu}"), LATE ("\code{late}"), and generalized LATE
+#'     ("\code{genlate}").
+#' @param target.weight0 user-defined weight function for the control
+#'     group defining the target parameter. A list of functions can be
+#'     submitted if the weighting function is in fact a spline. The
+#'     arguments of the function should be variable names in
+#'     \code{data}. If the weight is constant across all observations,
+#'     then the user can instead submit the value of the weight
+#'     instead of a function.
+#' @param target.weight1 user-defined weight function for the treated
+#'     group defining the target parameter. A list of functions can be
+#'     submitted if the weighting function is in fact a spline. The
+#'     arguments of the function should be variable names in
+#'     \code{data}. If the weight is constant across all observations,
+#'     then the user can instead submit the value of the weight
+#'     instead of a function.
+#' @param target.knots0 user-defined set of functions defining the
+#'     knots associated with splines weights for the control
+#'     group. The arguments of the function should consist only of
+#'     variable names in \code{data}. If the knot is constant across
+#'     all observations, then the user can instead submit the value of
+#'     the weight instead of a function.
+#' @param target.knots1 user-defined set of functions defining the
+#'     knots associated with splines weights for the treated
+#'     group. The arguments of the function should be variable names
+#'     in \code{data}. If the knot is constant across all
+#'     observations, then the user can instead submit the value of the
+#'     weight instead of a function.
+#' @param late.Z vector of variable names used to define the LATE.
+#' @param late.from baseline set of values of Z used to define the
+#'     LATE.
+#' @param late.to comparison set of values of Z used to define the
+#'     LATE.
+#' @param late.X vector of variable names of covariates which we
+#'     condition on when defining the LATE.
+#' @param eval.X numeric vector of the values at which we condition
+#'     variables in \code{late.X} on when estimating the LATE.
+#' @param genlate.lb lower bound value of unobservable u for
+#'     estimating generalized LATE.
+#' @param genlate.ub upper bound value of unobservable u for
+#'     estimating generalized LATE.
+#' @param data \code{data.frame} used to estimate the treatment
+#'     effects.
+#' @param splinesobj list of spline components in the MTRs for treated
+#'     and control groups. Spline terms are extracted using
+#'     \code{\link{removeSplines}}.
+#' @param pmodobj A vector of propensity scores.
+#' @param pm0 A list of the monomials in the MTR for d = 0.
+#' @param pm1 A list of the monomials in the MTR for d = 1.
+#' @param point boolean, set to \code{FALSE} by default. \code{point}
+#'     refers to whether the partial or point identification is
+#'     desired. If set to \code{FALSE}, then the gamma moments are
+#'     returned, i.e. sample averages are taken. If set to
+#'     \code{TRUE}, then no sample averages are taken, and a matrix is
+#'     returned. The sample average of each column of the matrix
+#'     corresponds to a particular gamma moment.
+#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
+#'     then messages are provided throughout the estimation
+#'     procedure. Set to \code{FALSE} to suppress all messages,
+#'     e.g. when performing the bootstrap.
+#' @return A list containing either the vectors of gamma moments for
+#'     \code{D = 0} and \code{D = 1}, or a matrix of individual gamma
+#'     values for \code{D = 0} and \code{D = 1}. Additoinally, two
+#'     vectors are returned. \code{xindex0} and \code{xindex1} list
+#'     the variables that interact with the unobservable \code{u} in
+#'     \code{m0} and \code{m1}. \code{uexporder0} and
+#'     \code{uexporder1} lists the exponents of the unobservable
+#'     \code{u} in each term it appears in.
+gentarget <- function(treat, m0, m1, uname, target,
+                      target.weight0, target.weight1,
+                      target.knots0, target.knots1,
+                      late.Z, late.from, late.to, late.X,
+                      eval.X, genlate.lb, genlate.ub,
+                      data, splinesobj, pmodobj, pm0, pm1,
+                      point = FALSE, noisy = TRUE) {
+    
+    xindex0 <- NULL
+    xindex1 <- NULL
+    uexporder0 <- NULL
+    uexporder1 <- NULL
+   
+    if (hasArg(target)) {
+        if (target == "ate") {
+            w1 <- wate1(data)
+            w0 <- w1
+            w0$mp <- -1 * w0$mp
+        } else if (target == "att") {
+            w1 <- watt1(data, mean(data[[treat]]), pmodobj$phat)
+            w0 <- w1
+            w0$mp <- -1 * w0$mp
+        } else if (target == "atu") {
+            w1 <- watu1(data, 1 - mean(data[[treat]]), pmodobj$phat)
+            w0 <- w1
+            w0$mp <- -1 * w0$mp
+        } else if (target == "late") {
+            if (!hasArg(late.X)) {
+                late.X <- NULL
+                eval.X <- NULL
+            }
+            w1 <- wlate1(data, late.from, late.to, substitute(late.Z),
+                         pmodobj$model, substitute(late.X), eval.X)
+            w0 <- w1
+            w0$mp <- -1 * w0$mp
+        } else if (target == "genlate") {
+            w1 <- wgenlate1(data, genlate.lb, genlate.ub)
+            w0 <- w1
+            w0$mp <- -1 * w0$mp
+        } else {
+            stop("Unrecognized target parameter.")
+        }
+
+        ## Integrate m0 and m1 functions
+        if (!is.null(m0)) {
+            if (noisy == TRUE) {
+                message("    Integrating terms for control group...\n")
+            }
+            if (point == FALSE) {
+                gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
+            } else {
+                gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
+                xindex0 <- c(xindex0, pm0$xindex)
+                uexporder0 <- c(uexporder0, pm0$exporder)
+            }
+        } else {
+            gstar0 <- NULL
+        }
+
+        if (!is.null(m1)) {
+            if (noisy == TRUE) {
+                message("    Integrating terms for treated group...\n")
+            }
+            if (point == FALSE) {
+                gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp)
+            } else {
+                gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp, means = FALSE)
+                xindex1 <- c(xindex1, pm1$xindex)
+                uexporder1 <- c(uexporder1, pm1$exporder)
+            }
+        } else {
+            gstar1 <- NULL
+        }
+
+        if (point == FALSE) {
+            gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
+                                               data = data,
+                                               lb = w0$lb,
+                                               ub = w0$ub,
+                                               multiplier = w0$mp,
+                                               d = 0)
+            gstarSpline0 <- gstarSplineObj0$gamma
+
+            gstarSplineObj1 <- genGammaSplines(splines = splinesobj[[2]],
+                                               data = data,
+                                               lb = w1$lb,
+                                               ub = w1$ub,
+                                               multiplier = w1$mp,
+                                               d = 1)
+            gstarSpline1 <- gstarSplineObj1$gamma
+        } else {
+            gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
+                                               data = data,
+                                               lb = w0$lb,
+                                               ub = w0$ub,
+                                               multiplier = w0$mp,
+                                               d = 0,
+                                               means = FALSE)
+            gstarSpline0 <- gstarSplineObj0$gamma
+            xindex0 <- c(xindex0, gstarSplineObj0$interactions)
+            uexporder0 <- c(uexporder0,
+                            rep(-1, length(xindex0) - length(uexporder0)))
+
+            gstarSplineObj1 <- genGammaSplines(splines = splinesobj[[2]],
+                                               data = data,
+                                               lb = w1$lb,
+                                               ub = w1$ub,
+                                               multiplier = w1$mp,
+                                               d = 1,
+                                               means = FALSE)
+            gstarSpline1 <- gstarSplineObj1$gamma
+            xindex1 <- c(xindex1, gstarSplineObj1$interactions)
+            uexporder1 <- c(uexporder1,
+                            rep(-1, length(xindex1) - length(uexporder1)))
+        }
+    } else {
+        
+        ## Convert fixed/numeric weights into functions
+        if (is.numeric(target.weight0)) {
+            target.weight0 <- sapply(target.weight0, constructConstant)
+        } else {
+            numeric <- which(unlist(lapply(target.weight0, is.numeric)))
+            target.weight0[numeric] <- sapply(unlist(target.weight0[numeric]),
+                                              constructConstant)
+        }
+
+        if (is.numeric(target.weight1)) {
+            target.weight1 <- sapply(target.weight1, constructConstant)
+        } else {
+            numeric <- which(unlist(lapply(target.weight1, is.numeric)))
+            target.weight1[numeric] <- sapply(unlist(target.weight1[numeric]),
+                                              constructConstant)
+        }
+
+        ## Convert fixed/numeric knots into functions
+        if (!is.null(target.knots0)) {
+            if (is.numeric(target.knots0)) {
+                target.knots0 <- sapply(target.knots0, constructConstant)
+            } else {
+                numeric <- which(unlist(lapply(target.knots0, is.numeric)))
+                target.knots0[numeric] <- sapply(unlist(target.knots0[numeric]),
+                                                 constructConstant)
+            }
+        }
+
+        if (!is.null(target.knots1)) {
+            if (is.numeric(target.knots1)) {
+                target.knots1 <- sapply(target.knots1, constructConstant)
+            } else {
+                numeric <- which(unlist(lapply(target.knots1, is.numeric)))
+                target.knots1[numeric] <- sapply(unlist(target.knots1[numeric]),
+                                                 constructConstant)
+            }
+        }
+
+        for (d in 0:1) {
+
+            mtr <- get(paste0("m", d))
+
+            ## Include end points
+            splitFirst <- function(...) {
+                0
+            }
+
+            splitLast <- function(...) {
+                1
+            }
+
+            target.knots <- c(splitFirst,
+                              get(paste0("target.knots", d)),
+                              splitLast)
+
+            target.weight <- get(paste0("target.weight", d))
+
+            ## Integrate non-splines terms
+
+            if (!is.null(mtr)) {
+                if (noisy == TRUE) {
+                    if (d == 0) {
+                        message(
+                            "    Integrating non-spline terms for control group...\n")
+                    } else {
+                        message(
+                            "    Integrating non-spline terms for treated group...\n")
+                    }
+                }
+
+                pm <- get(paste0("pm", d))
+
+                gamma <- rep(0, length(pm$terms))
+
+                for(i in 1:length(target.weight)) {
+
+                    wKnotVarsL <- formalArgs(target.knots[[i]])
+                    wKnotVarsU <- formalArgs(target.knots[[i + 1]])
+
+                    if (wKnotVarsL[1] == "...") {
+                        lb <- unlist(lapply(X = seq(1, nrow(data)),
+                                            FUN = funEval,
+                                            fun = target.knots[[i]]))
+                    } else {
+                        lb <- unlist(lapply(X = split(data[, wKnotVarsL],
+                                                      seq(1, nrow(data))),
+                                            FUN = funEval,
+                                            fun = target.knots[[i]],
+                                            argnames = wKnotVarsL))
+                    }
+
+                    if (wKnotVarsU[1] == "...") {
+                        ub <- unlist(lapply(X = seq(1, nrow(data)),
+                                            FUN = funEval,
+                                            fun = target.knots[[i + 1]]))
+
+                    } else {
+                        ub <- unlist(lapply(X = split(data[, wKnotVarsU],
+                                                      seq(1, nrow(data))),
+                                            FUN = funEval,
+                                            fun = target.knots[[i + 1]],
+                                            argnames = wKnotVarsU))
+                    }
+
+                    wValVars  <- formalArgs(target.weight[[i]])
+
+                    if (wValVars[1] == "...") {
+                        weights <- unlist(lapply(X = seq(1, nrow(data)),
+                                                 FUN = funEval,
+                                                 fun = target.weight[[i]]))
+                    } else {
+                        weights <- unlist(lapply(X = split(data[, wValVars],
+                                                           seq(1, nrow(data))),
+                                                 FUN = funEval,
+                                                 fun = target.weight[[i]],
+                                                 argnames = wValVars))
+                    }
+
+                    if (point == FALSE) {
+                        gamma <- gamma + genGamma(pm,
+                                                  lb = lb,
+                                                  ub = ub,
+                                                  multiplier = weights)
+                    } else {
+                        gamma <- gamma + genGamma(pm,
+                                                  lb = lb,
+                                                  ub = ub,
+                                                  multiplier = weights,
+                                                  means = FALSE)
+                    }
+                }
+
+                assign(paste0("gstar", d), gamma)
+                assign(paste0("pm", d), pm)
+            } else {
+                assign(paste0("gstar", d), NULL)
+                assign(paste0("pm", d), NULL)
+            }
+
+            ## Integrate splines terms
+            if (noisy == TRUE) {
+                if (d == 0) {
+                    message(
+                        "    Integrating spline terms for control group...\n")
+                } else {
+                    message(
+                        "    Integrating spline terms for treated group...\n")
+                }
+            }
+
+            noSplineMtr <- splinesobj[[d + 1]]
+
+            if (!is.null(noSplineMtr$splineslist)) {
+
+                gammaSplines <- 0
+
+                for (i in 1:length(target.weight)) {
+
+                    wKnotVarsL <- formalArgs(target.knots[[i]])
+                    wKnotVarsU <- formalArgs(target.knots[[i + 1]])
+
+                    if (wKnotVarsL[1] == "...") {
+                        lb <- unlist(lapply(X = seq(1, nrow(data)),
+                                            FUN = funEval,
+                                            fun = target.knots[[i]]))
+                    } else {
+                        lb <- unlist(lapply(X = split(data[, wKnotVarsL],
+                                                      seq(1, nrow(data))),
+                                            FUN = funEval,
+                                            fun = target.knots[[i]],
+                                            argnames = wKnotVarsL))
+                    }
+
+                    if (wKnotVarsU[1] == "...") {
+                        ub <- unlist(lapply(X = seq(1, nrow(data)),
+                                            FUN = funEval,
+                                            fun = target.knots[[i + 1]]))
+
+                    } else {
+                        ub <- unlist(lapply(X = split(data[, wKnotVarsU],
+                                                      seq(1, nrow(data))),
+                                            FUN = funEval,
+                                            fun = target.knots[[i + 1]],
+                                            argnames = wKnotVarsU))
+                    }
+
+                    wValVars  <- formalArgs(target.weight[[i]])
+
+                    if (wValVars[1] == "...") {
+                        weights <- unlist(lapply(X = seq(1, nrow(data)),
+                                                 FUN = funEval,
+                                                 fun = target.weight[[i]]))
+                    } else {
+                        weights <- unlist(lapply(X = split(data[, wValVars],
+                                                           seq(1, nrow(data))),
+                                                 FUN = funEval,
+                                                 fun = target.weight[[i]],
+                                                 argnames = wValVars))
+                    }
+
+                    if (point == FALSE) {
+
+                        gammaSplines <- gammaSplines +
+                            genGammaSplines(splines = noSplineMtr,
+                                            data = data,
+                                            lb = lb,
+                                            ub = ub,
+                                            multiplier = weights,
+                                            d = d)$gamma
+                    } else {
+                        gammaSplines <- gammaSplines +
+                            genGammaSplines(splines = noSplineMtr,
+                                            data = data,
+                                            lb = lb,
+                                            ub = ub,
+                                            multiplier = weights,
+                                            d = d,
+                                            means = FALSE)$gamma
+                    }
+                }
+                assign(paste0("gstarSpline", d), gammaSplines)
+            } else {
+                assign(paste0("gstarSpline", d), NULL)
+            }
+        }
+    }
+
+    if (point == FALSE) {
+        gstar0 <- c(gstar0, gstarSpline0)
+        gstar1 <- c(gstar1, gstarSpline1)
+    } else {
+        gstar0 <- cbind(gstar0, gstarSpline0)
+        gstar1 <- cbind(gstar1, gstarSpline1)
+    }
+
+    return(list(gstar0 = gstar0,
+                gstar1 = gstar1,
+                xindex0 = xindex0,
+                xindex1 = xindex1,
+                uexporder0 = uexporder0,
+                uexporder1 = uexporder1))
 }
 
 
@@ -2746,7 +2884,7 @@ fglsEstimate <- function(sset, gstar0, gstar1,
 
     fglsMat <- fglsMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
-    
+
     ## Perform iterative estimation
     theta <- rep(0, ncol(fglsMat))
     i <- 1
