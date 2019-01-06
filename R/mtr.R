@@ -157,7 +157,7 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     ## Find monomials of degree 1 ('degree' is with respect to u)
     u_pos <- lapply(nterms, whichforlist, obj = uname)
     u_pos <- which(u_pos > 0)
-    
+
     ## Find monomials of degree exceeding 1, and determine their degree
     trunc_nterms <- lapply(nterms, substr, 0, nchar(uname) + 1)
     uexp_pos     <- lapply(trunc_nterms, whichforlist, obj = paste0(uname, "^"))
@@ -173,7 +173,7 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     } else {
         exptab1 <- cbind(u_pos, 1)
     }
-    
+
     if (deggtr2) {
         uexp <- as.numeric(mapply(vecextract,
                                   nterms[uexp_pos],
@@ -192,13 +192,12 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     ## Determine which terms do not involve u
     if (length(oterms) > 0) {
         nonuterms    <- unlist(oterms[!seq(1, length(oterms)) %in% exptab[, 1]])
-        nonutermspos <- which(oterms %in% nonuterms)        
+        nonutermspos <- which(oterms %in% nonuterms)
     } else {
         nonuterms    <- NULL
         nonutermspos <- NULL
     }
-    ## END TESTING -------------
-    
+
     if (length(nonuterms) > 0) {
         exptab0 <- cbind(nonutermspos, replicate(length(nonutermspos), 0))
     } else {
@@ -207,7 +206,7 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     exptab <- rbind(exptab0, exptab)
 
     if (!is.null(dim(exptab))) exptab <- exptab[order(exptab[, 1]), ]
-    
+
     if (is.matrix(exptab)) {
         exporder <- exptab[, 2]
         colnames(exptab) <- c("term", "degree")
@@ -218,7 +217,7 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         exporder <- NULL
     }
     names(exporder) <- NULL
-    
+
     ## generate matrix with monomial coefficients
     if ("(Intercept)" %in% colnames(dmat)) {
         exporder <- c(0, exporder)
@@ -226,7 +225,7 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     }
 
     polymat <- as.matrix(dmat[, oterms])
-    
+
     ## prepare monomials and their integrals
     polynomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
                               genpolynomial,
@@ -344,7 +343,7 @@ polyProduct <- function(poly1, poly2) {
 #' @export
 genGamma <- function(monomials, lb, ub, multiplier = 1,
                          subset = NULL, means = TRUE) {
-   
+
     exporder  <- monomials$exporder
     integrals <- monomials$ilist
 
@@ -361,7 +360,7 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
 
     monoeval <- t(mapply(polylisteval, integrals, ub)) -
         t(mapply(polylisteval, integrals, lb))
-    
+
     termsN <- length(integrals[[1]])
     if (termsN == 1) monoeval <- t(monoeval)
 
@@ -377,7 +376,7 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
                       FUN = "*")
 
     if (means) {
-        
+
         if (is.matrix(preGamma)) {
             gstar <- colMeans(preGamma)
         } else {
@@ -788,7 +787,7 @@ genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
             colnames(splinesGamma) <- splinesNames
             rownames(splinesGamma) <- gmmRownames
         }
-        
+
         ## return(splinesGamma)
         return(list(gamma = splinesGamma,
                     interactions = splinesInter))

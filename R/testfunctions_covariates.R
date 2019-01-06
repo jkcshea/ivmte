@@ -43,7 +43,7 @@ symat <- function(values) {
 #' @param lb scalar, lower bound of the integral.
 #' @param coef vector, polynomial coefficients.
 #' @return scalar.
-m.int <- function(ub, lb, coef){
+mInt <- function(ub, lb, coef){
   return(coef[1] * (ub - lb) +
            (coef[2]/2) * (ub^2 - lb^2) +
            (coef[3]/3) * (ub^3 - lb^3))
@@ -68,13 +68,13 @@ genGammaTT <- function(data, s0, s1, lb, ub) {
     if (!hasArg(lb) | !hasArg(ub)) {
         data$g.0.d.0 <- (1 - data$p) * data[, s0]
         data$g.0.d.1 <- (1 - data$p) * data$x1 * data[, s0]
-        data$g.0.d.2 <- m.int(1, data$p, c(0, 1, 0)) * data$x2 * data[, s0]
-        data$g.0.d.3 <- m.int(1, data$p, c(0, 0, 1)) * data$x2 * data[, s0]
+        data$g.0.d.2 <- mInt(1, data$p, c(0, 1, 0)) * data$x2 * data[, s0]
+        data$g.0.d.3 <- mInt(1, data$p, c(0, 0, 1)) * data$x2 * data[, s0]
     } else {
         data$g.0.d.0 <- (ub - lb) * data[, s0]
         data$g.0.d.1 <- (ub - lb) * data$x1 * data[, s0]
-        data$g.0.d.2 <- m.int(ub, lb, c(0, 1, 0)) * data$x2 * data[, s0]
-        data$g.0.d.3 <- m.int(ub, lb, c(0, 0, 1)) * data$x2 * data[, s0]        
+        data$g.0.d.2 <- mInt(ub, lb, c(0, 1, 0)) * data$x2 * data[, s0]
+        data$g.0.d.3 <- mInt(ub, lb, c(0, 0, 1)) * data$x2 * data[, s0]        
     }
 
     g.0.d.0 <- popmean(~ 0 + g.0.d.0, data)
@@ -87,16 +87,16 @@ genGammaTT <- function(data, s0, s1, lb, ub) {
         data$g.1.d.0 <- data$p * data[, s1]
         data$g.1.d.1 <- data$p * data$x1 * data[, s1]
         data$g.1.d.2 <- data$p * data$x1 * data$x2 * data[, s1]
-        data$g.1.d.3 <- m.int(data$p, 0, c(0, 1, 0)) * data[, s1]
-        data$g.1.d.4 <- m.int(data$p, 0, c(0, 1, 0)) * data$x1 * data[, s1]
-        data$g.1.d.5 <- m.int(data$p, 0, c(0, 0, 1)) * data$x2 * data[, s1]
+        data$g.1.d.3 <- mInt(data$p, 0, c(0, 1, 0)) * data[, s1]
+        data$g.1.d.4 <- mInt(data$p, 0, c(0, 1, 0)) * data$x1 * data[, s1]
+        data$g.1.d.5 <- mInt(data$p, 0, c(0, 0, 1)) * data$x2 * data[, s1]
     } else {
         data$g.1.d.0 <- (ub - lb) * data[, s1]
         data$g.1.d.1 <- (ub - lb) * data$x1 * data[, s1]
         data$g.1.d.2 <- (ub - lb) * data$x1 * data$x2 * data[, s1]
-        data$g.1.d.3 <- m.int(ub, lb, c(0, 1, 0)) * data[, s1]
-        data$g.1.d.4 <- m.int(ub, lb, c(0, 1, 0)) * data$x1 * data[, s1]
-        data$g.1.d.5 <- m.int(ub, lb, c(0, 0, 1)) * data$x2 * data[, s1]
+        data$g.1.d.3 <- mInt(ub, lb, c(0, 1, 0)) * data[, s1]
+        data$g.1.d.4 <- mInt(ub, lb, c(0, 1, 0)) * data$x1 * data[, s1]
+        data$g.1.d.5 <- mInt(ub, lb, c(0, 0, 1)) * data$x2 * data[, s1]
     }
 
     g.1.d.0 <- popmean(~ 0 + g.1.d.0, data)
@@ -118,7 +118,7 @@ genGammaTT <- function(data, s0, s1, lb, ub) {
 #' @param d 0 or 1, indicating treatment or control.
 #' @param exx the matrix E[XX']
 #' @return scalar.
-s.ols1.d <- function(d, exx) {
+sOls1d <- function(d, exx) {
     if (d == 1) return(as.numeric(t(c(0, 1)) %*% solve(exx[1:2, 1:2])
                                   %*% c(1, 1)))
     if (d == 0) return(as.numeric(t(c(0, 1)) %*% solve(exx[1:2, 1:2])
@@ -133,7 +133,7 @@ s.ols1.d <- function(d, exx) {
 #' @param d 0 or 1, indicating treatment or control.
 #' @param exx the matrix E[XX']
 #' @return scalar.
-s.ols2.d <- function(x, d, exx) {
+sOls2d <- function(x, d, exx) {
     if (d == 1) return(as.numeric(t(c(0, 1, 0)) %*% solve(exx[1:3, 1:3])
                                   %*% c(1, 1, x)))
     if (d == 0) return(as.numeric(t(c(0, 1, 0)) %*% solve(exx[1:3, 1:3])
@@ -150,7 +150,7 @@ s.ols2.d <- function(x, d, exx) {
 #'     constructing the IV-like weight for.
 #' @param exx the matrix E[XX']
 #' @return scalar.
-s.ols3 <- function(x, d, j, exx) {
+sOls3 <- function(x, d, j, exx) {
     cvec    <- replicate(4, 0)
     cvec[j] <- 1
 
@@ -167,7 +167,7 @@ s.ols3 <- function(x, d, j, exx) {
 #' @param exz the matrix E[XZ']
 #' @param pi the matrix E[XZ']E[ZZ']^{-1}
 #' @return scalar.
-s.tsls <- function(z, j, exz, pi) {
+sTsls <- function(z, j, exz, pi) {
     cvec    <- replicate(4, 0)
     cvec[j] <- 1
 
@@ -189,6 +189,6 @@ s.tsls <- function(z, j, exz, pi) {
 #' @param e.from E[D | Z = z], where z is the value of the instrument the
 #'     agent is switching from.
 #' @return scalar.
-s.wald <- function(z, p.to, p.from, e.to, e.from) {
+sWald <- function(z, p.to, p.from, e.to, e.from) {
     return(((z == 3) / p.to - (z == 2) / p.from) /  (e.to - e.from))
 }

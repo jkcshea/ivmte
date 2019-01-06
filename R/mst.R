@@ -292,7 +292,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## 2. Check format of `formula', `subset', and `component' inputs
     ##---------------------------
 
-    if (class_list(ivlike)) {
+    if (classList(ivlike)) {
 
         ## Convert formula, components, and subset inputs into lists
         length_formula <- length(ivlike)
@@ -305,7 +305,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
 
         if (userComponents) {
-            if (class_list(components)) {
+            if (classList(components)) {
                 length_components <- length(components)
                 if (length_components == length_formula) {
                     specCompWarn <- TRUE
@@ -718,35 +718,35 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     terms_mtr0       <- c()
     terms_mtr1       <- c()
 
-    if (class_formula(ivlike)) {
-        vars_formulas_x <- get_xz(ivlike)
-        vars_formulas_z <- get_xz(ivlike, inst = TRUE)
+    if (classFormula(ivlike)) {
+        vars_formulas_x <- getXZ(ivlike)
+        vars_formulas_z <- getXZ(ivlike, inst = TRUE)
         vars_y <- all.vars(ivlike)[1]
         terms_formulas <- attr(terms(Formula::as.Formula(ivlike)),
                                "term.labels")
-    } else if (class_list(ivlike)) {
-        if(!min(unlist(lapply(ivlike, class_formula)))) {
+    } else if (classList(ivlike)) {
+        if(!min(unlist(lapply(ivlike, classFormula)))) {
             stop(gsub("\\s+", " ",
                       "Not all elements in list of formulas are specified
                       correctly."))
         } else {
             vars_formulas_x <- unlist(lapply(ivlike,
-                                             get_xz,
+                                             getXZ,
                                              inst = FALSE))
             vars_formulas_z <- unlist(lapply(ivlike,
-                                             get_xz,
+                                             getXZ,
                                              inst = TRUE))
 
             vars_y <- unique(unlist(lapply(ivlike,
                                            function(x) all.vars(x)[[1]])))
 
             terms_formulas_x <- lapply(ivlike,
-                                       get_xz,
+                                       getXZ,
                                        inst = FALSE,
                                        terms = TRUE)
 
             terms_formulas_z <- lapply(ivlike,
-                                       get_xz,
+                                       getXZ,
                                        inst = TRUE,
                                        terms = TRUE)
 
@@ -767,7 +767,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
         vnames <- colnames(data)
 
-        if (class_list(subset)) {
+        if (classList(subset)) {
             svec <- paste(unlist(lapply(subset, deparse)), collapse = " ")
         } else {
             svec <- deparse(substitute(subset))
@@ -788,7 +788,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ## Collect list of all terms used in MTRs
-    if (class_formula(m1) & class_formula(m0)) {
+    if (classFormula(m1) & classFormula(m0)) {
         if(length(Formula::as.Formula(m0))[1] != 0 |
            length(Formula::as.Formula(m1))[1] != 0) {
             stop("m0 and m1 must be one-sided formulas.")
@@ -867,7 +867,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## Collect list of all terms used in propensity formula
 
     if (hasArg(propensity)) {
-        if (class_formula(propensity)) {
+        if (classFormula(propensity)) {
             ptreat <- all.vars(propensity)[1]
             vars_propensity <- all.vars(propensity)
 
@@ -1077,7 +1077,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ##---------------------------
 
     estimateCall <- modcall(call,
-                            newcall = ivmte.estimate,
+                            newcall = ivmteEstimate,
                             dropargs = c("m0", "m1",
                                          "bootstraps", "data",
                                          "bootstraps.m",
@@ -1125,7 +1125,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
             estimateCall <-
                 modcall(call,
-                        newcall = ivmte.estimate,
+                        newcall = ivmteEstimate,
                         dropargs = c("m0", "m1",
                                      "bootstraps", "data", "point",
                                      "bootstraps.m",
@@ -1179,7 +1179,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
                     bootCall <-
                         modcall(call,
-                                newcall = ivmte.estimate,
+                                newcall = ivmteEstimate,
                                 dropargs = c("m0", "m1",
                                              "bootstraps", "data",
                                              "noisy", "bootstraps.m",
@@ -1367,7 +1367,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             bdata <- data[bootIDs, ]
 
             bootCall <- modcall(call,
-                                newcall = ivmte.estimate,
+                                newcall = ivmteEstimate,
                                 dropargs = c("m0", "m1",
                                              "bootstraps", "data",
                                              "noisy", "treat",
@@ -1849,7 +1849,7 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     score model; bounds on the treatment effect; the estimated
 #'     expectations of each term in the MTRs; the components and
 #'     results of the LP problem.
-ivmte.estimate <- function(ivlike, data, subset, components,
+ivmteEstimate <- function(ivlike, data, subset, components,
                            propensity, link, treat, m0, m1,
                            vars_y, vars_mtr, terms_mtr0, terms_mtr1,
                            splinesobj, uname = u,
@@ -1969,7 +1969,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
 
     ## Construct `sset' object when a single IV-like specification is
     ## provided
-    if (class_formula(ivlike)) {
+    if (classFormula(ivlike)) {
 
         if (hasArg(subset)) {
             subset <- eval(subset[[1]], data)
@@ -2025,7 +2025,7 @@ ivmte.estimate <- function(ivlike, data, subset, components,
         sset <- setobj$sset
         scount <- setobj$scount
 
-    } else if (class_list(ivlike)) {
+    } else if (classList(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
 

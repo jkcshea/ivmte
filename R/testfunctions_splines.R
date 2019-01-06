@@ -31,7 +31,7 @@ splineInt <- function(ub, lb, knots, degree, intercept = FALSE) {
 #'     constructing the IV-like weight for.
 #' @param exx matrix corresponding to E[XX'].
 #' @return scalar.
-sOls <- function(x = NULL, d, j, exx) {
+sOlsSplines <- function(x = NULL, d, j, exx) {
     if (!is.na(x)) {
         cvec    <- replicate((length(x) + 2), 0)
         cvec[j] <- 1
@@ -57,7 +57,7 @@ sOls <- function(x = NULL, d, j, exx) {
 #' @param pi matrix, corresponds to E[XZ']E[ZZ']^{-1}, the first stage
 #'     regression.
 #' @return scalar.
-sTsls <- function(z, d, j, exz, pi) {
+sTslsSplines <- function(z, d, j, exz, pi) {
     cvec    <- replicate(nrow(exz), 0)
     cvec[j] <- 1
     
@@ -74,7 +74,7 @@ sTsls <- function(z, d, j, exz, pi) {
 #'     function; included to exploit apply()).
 #' @param ed scalar, unconditional probability of taking up treatment.
 #' @return scalar.
-wAtt <- function(z, d, ed) {
+wAttSplines <- function(z, d, ed) {
     1 / ed
 }
 
@@ -99,7 +99,7 @@ wAtt <- function(z, d, ed) {
 #' @param ... all other arguments that enter into \code{weight},
 #'     excluding the argument \code{d} for treatment indicator.
 #' @return vector, the Gamma moments associated with \code{weight}.
-genGamma.splinesTT <- function(distr, weight, zvars, u1s1, u0s1, u0s2,
+genGammaSplinesTT <- function(distr, weight, zvars, u1s1, u0s1, u0s2,
                      target = FALSE, ...) {
     if (hasArg(zvars)) {
         zmat <- as.matrix(distr[, zvars])

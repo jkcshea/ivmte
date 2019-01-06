@@ -26,7 +26,7 @@ gendist1 <- function(subN = 5, p1 = 0.4, p2 = 0.6) {
     ## Now construct Y as E[Y | X, D, Z]
     ## m0 = 1 + u
     ## m1 = 1 + u
-    plist <- polyparse(~ u, data = dt, uname = u)
+    plist <- polyparse(~ u, data = dt)
     plist0 <- genGamma(plist,
                        lb = dt$p,
                        ub = 1,
@@ -134,7 +134,7 @@ gendist2 <- function(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8) {
     ## Now construct Y as E[Y | X, D, Z]
     ## m0 = 1 + u
     ## m1 = 1 + u
-    plist <- polyparse(~ u, data = dt, uname = u)
+    plist <- polyparse(~ u, data = dt)
     plist0 <- genGamma(plist,
                        lb = dt$p,
                        ub = 1,
@@ -185,7 +185,7 @@ gendist3 <- function(subN = 5, p1 = 0.4, p2 = 0.6) {
     dt[dt$z == 2 & dt$i <= (p2 * subN), "d"] <- 1
 
     ## Now construct Y as E[Y | X, D, Z]
-    plist <- polyparse(~ 0 + 1, data = dt, uname = u)
+    plist <- polyparse(~ 0 + 1, data = dt)
     plist0 <- genGamma(plist,
                        lb = dt$p,
                        ub = 1,
@@ -293,7 +293,7 @@ gendist4 <- function(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8) {
     dt[dt$z == 3 & dt$i <= (p3 * subN), "d"] <- 1
 
     ## Now construct Y as E[Y | X, D, Z]
-    plist <- polyparse(~ 0 + 1, data = dt, uname = u)
+    plist <- polyparse(~ 0 + 1, data = dt)
     plist0 <- genGamma(plist,
                        lb = dt$p,
                        ub = 1,
@@ -325,7 +325,7 @@ gendist4 <- function(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8) {
 #' example.
 #' 
 #' @return data.frame.
-gendist_mosquito <- function() {
+gendistMosquito <- function() {
 
     set.seed(1)
 
@@ -348,7 +348,7 @@ gendist_mosquito <- function() {
     dt[dt$z == 4 & dt$i <= 78, "d"] <- 1
 
     ## Now construct Y as E[Y | X, D, Z]
-    plist <- polyparse(~ u + I(u ^ 2), data = dt, uname = u)
+    plist <- polyparse(~ u + I(u ^ 2), data = dt)
     plist0 <- genGamma(plist,
                            lb = dt$pz,
                            ub = 1,
@@ -383,7 +383,7 @@ gendist_mosquito <- function() {
 #' @return a list of two data.frame objects. One is the distribution
 #'     of the simulated data, the other is the full simulated data
 #'     set.
-gendist_covariates <- function() {
+gendistCovariates <- function() {
 
     set.seed(1)
 
@@ -418,11 +418,9 @@ gendist_covariates <- function() {
     ##        0.3 * x1 * u - 0.05 * x2 * u^2
 
     plist0 <- polyparse(~ x1 + I(x2 * u) + I(x2 * u^2),
-                            data = dtc,
-                            uname = u)
+                            data = dtc)
     plist1 <- polyparse(~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
-                            data = dtc,
-                            uname = u)
+                            data = dtc)
 
     glist0 <- genGamma(plist0,
                            lb = dtc$p,
@@ -633,7 +631,7 @@ gendist_covariates <- function() {
 #' @return a list of two data.frame objects. One is the distribution
 #'     of the simulated data, the other is the full simulated data
 #'     set.
-gendist_splines <- function() {
+gendistSplines <- function() {
 
     set.seed(10L)
 
@@ -726,7 +724,7 @@ gendist_splines <- function() {
 #' @return a list of two data.frame objects. One is the distribution
 #'     of the simulated data, the other is the full simulated data
 #'     set.
-gendist_basic <- function() {
+gendistBasic <- function() {
 
     set.seed(10L)
 
@@ -747,11 +745,9 @@ gendist_basic <- function() {
     ## m1 = 6 + 5 * u^2
 
     plist0 <- polyparse(~ x + u,
-                            data = dtb,
-                            uname = u)
+                            data = dtb)
     plist1 <- polyparse(~ I(u^2),
-                            data = dtb,
-                            uname = u)
+                            data = dtb)
 
     ## Remember that you are generating E[m | D = 0] and E[m | D = 1],
     ## which are analogous to E[m | u > p(X, Z)] and E[m | u < p(X,

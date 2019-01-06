@@ -157,8 +157,8 @@ test_that("IV-like estimates", {
 ##-------------------------
 
 ## Generate weights
-dtc$s.ols1.0.d <- s.ols1.d(0, exx = ols1.exx)
-dtc$s.ols1.1.d <- s.ols1.d(1, exx = ols1.exx)
+dtc$s.ols1.0.d <- sOls1d(0, exx = ols1.exx)
+dtc$s.ols1.1.d <- sOls1d(1, exx = ols1.exx)
 
 ## Gammas for D = 0
 ## m0 = ~ x1 + I(x2 * u) + I(x2 * u^2),
@@ -171,10 +171,10 @@ g.ols1 <- genGammaTT(dtc, "s.ols1.0.d", "s.ols1.1.d")
 ##-------------------------
 
 ## Generate weights
-dtc$s.ols2.0.d <- sapply(dtc$x1, s.ols2.d,
+dtc$s.ols2.0.d <- sapply(dtc$x1, sOls2d,
                          d = 0,
                          exx = ols1.exx)
-dtc$s.ols2.1.d <- sapply(dtc$x1, s.ols2.d,
+dtc$s.ols2.1.d <- sapply(dtc$x1, sOls2d,
                          d = 1,
                          exx = ols1.exx)
 
@@ -187,29 +187,29 @@ g.ols2 <- genGammaTT(dtc, "s.ols2.0.d", "s.ols2.1.d")
 ## Generate weights
 dtc.x <- split(as.matrix(dtc[, c("x1", "x2")]), seq(1, nrow(dtc)))
 
-dtc$s.ols3.0.d <- unlist(lapply(dtc.x, s.ols3,
+dtc$s.ols3.0.d <- unlist(lapply(dtc.x, sOls3,
                                 d = 0,
                                 j = 2,
                                 exx = ols2.exx))
-dtc$s.ols3.1.d <- unlist(lapply(dtc.x, s.ols3,
+dtc$s.ols3.1.d <- unlist(lapply(dtc.x, sOls3,
                                 d = 1,
                                 j = 2,
                                 exx = ols2.exx))
 
-dtc$s.ols3.0.x1 <- unlist(lapply(dtc.x, s.ols3,
+dtc$s.ols3.0.x1 <- unlist(lapply(dtc.x, sOls3,
                                  d = 0,
                                  j = 3,
                                  exx = ols2.exx))
-dtc$s.ols3.1.x1 <- unlist(lapply(dtc.x, s.ols3,
+dtc$s.ols3.1.x1 <- unlist(lapply(dtc.x, sOls3,
                                  d = 1,
                                  j = 3,
                                  exx = ols2.exx))
 
-dtc$s.ols3.0.x2 <- unlist(lapply(dtc.x, s.ols3,
+dtc$s.ols3.0.x2 <- unlist(lapply(dtc.x, sOls3,
                                  d = 0,
                                  j = 4,
                                  exx = ols2.exx))
-dtc$s.ols3.1.x2 <- unlist(lapply(dtc.x, s.ols3,
+dtc$s.ols3.1.x2 <- unlist(lapply(dtc.x, sOls3,
                                  d = 1,
                                  j = 4,
                                  exx = ols2.exx))
@@ -232,11 +232,11 @@ g.ols3.x2 <- genGammaTT(subset(dtc, dtc$z2 %in% c(2, 3)),
 
 ## Generate weights
 dtc.z <- split(as.matrix(dtc[, c("z1", "z2", "x1", "x2")]), seq(1, nrow(dtc)))
-dtc$s.tsls.0.d <- unlist(lapply(dtc.z, s.tsls,
+dtc$s.tsls.0.d <- unlist(lapply(dtc.z, sTsls,
                                 j = 2,
                                 exz = tsls.exz,
                                 pi  = tsls.pi))
-dtc$s.tsls.1.d <- unlist(lapply(dtc.z, s.tsls,
+dtc$s.tsls.1.d <- unlist(lapply(dtc.z, sTsls,
                                 j = 2,
                                 exz = tsls.exz,
                                 pi  = tsls.pi))
@@ -251,12 +251,12 @@ p.z2.2 <- sum(subset(dtc, dtc$z2 == 2)$f)
 p.z2.3 <- sum(subset(dtc, dtc$z2 == 3)$f)
 
 ## Generate weights
-dtc$s.wald.0.d <- sapply(dtc$z2, s.wald,
+dtc$s.wald.0.d <- sapply(dtc$z2, sWald,
                          p.to   = p.z2.3,
                          p.from = p.z2.2,
                          e.to   = ed.z2.3,
                          e.from = ed.z2.2)
-dtc$s.wald.1.d <- sapply(dtc$z2, s.wald,
+dtc$s.wald.1.d <- sapply(dtc$z2, sWald,
                          p.to   = p.z2.3,
                          p.from = p.z2.2,
                          e.to   = ed.z2.3,

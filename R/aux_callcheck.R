@@ -37,7 +37,7 @@ argstring <- function(string) {
 #' suppressed.
 #' @param obj the object to be checked.
 #' @return boolean expression.
-class_formula <- function(obj) {
+classFormula <- function(obj) {
     suppressWarnings(try(class(obj), silent = TRUE) == "formula")
 }
 
@@ -47,7 +47,7 @@ class_formula <- function(obj) {
 #' suppressed.
 #' @param obj the object to be checked.
 #' @return boolean expression.
-class_list <- function(obj) {
+classList <- function(obj) {
     suppressWarnings(try(class(obj), silent = TRUE) == "list")
 }
 
@@ -62,7 +62,7 @@ class_list <- function(obj) {
 #' @param terms boolean expression, set to TRUE if the terms in the
 #'     formula \code{fm} should be returned instead of the variable
 #'     names.
-get_xz <- function(fm, inst = FALSE, terms = FALSE) {
+getXZ <- function(fm, inst = FALSE, terms = FALSE) {
     fm <- Formula::as.Formula(fm)
     if (length(fm)[2] == 1) {
         if (terms == FALSE) {

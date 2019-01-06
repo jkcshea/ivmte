@@ -83,11 +83,11 @@ fit <- glm(d ~ x1 + x2 + z1 + z2, family = binomial(link = "logit"),
            data = dtcf)
 dtc$p <- predict(fit, dtc, type = "response")
 
-dtc$s.ols.0.d <- unlist(lapply(dtc.x, s.ols3, d = 0, j = 2, exx = exx))
-dtc$s.ols.1.d <- unlist(lapply(dtc.x, s.ols3, d = 1, j = 2, exx = exx))
+dtc$s.ols.0.d <- unlist(lapply(dtc.x, sOls3, d = 0, j = 2, exx = exx))
+dtc$s.ols.1.d <- unlist(lapply(dtc.x, sOls3, d = 1, j = 2, exx = exx))
 
-dtc$s.ols.0.x1 <- unlist(lapply(dtc.x, s.ols3, d = 0, j = 3, exx = exx))
-dtc$s.ols.1.x1 <- unlist(lapply(dtc.x, s.ols3, d = 1, j = 3, exx = exx))
+dtc$s.ols.0.x1 <- unlist(lapply(dtc.x, sOls3, d = 0, j = 3, exx = exx))
+dtc$s.ols.1.x1 <- unlist(lapply(dtc.x, sOls3, d = 1, j = 3, exx = exx))
 
 g.ols.d  <- genGammaTT(subset(dtc, dtc$z2 %in% c(2, 3)),
                       "s.ols.0.d",
