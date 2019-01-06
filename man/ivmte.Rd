@@ -297,6 +297,7 @@ ivmte(ivlike = ivlikespecs,
       target = "att",
       m0.dec = TRUE,
       m1.dec = TRUE,
-      bootstraps = 5)
+      bootstraps = 5,
+      lpsolver = "lpSolveAPI")
 
 }
