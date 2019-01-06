@@ -227,7 +227,8 @@
 #'       target = "att",
 #'       m0.dec = TRUE,
 #'       m1.dec = TRUE,
-#'       bootstraps = 5)
+#'       bootstraps = 5,
+#'       lpsolver = "lpSolveAPI")
 #'
 #' @export
 ivmte <- function(bootstraps = 0, bootstraps.m,

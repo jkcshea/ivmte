@@ -21,7 +21,8 @@ result <- ivmte(ivlike = ey ~ 1 +d + x1 + x2,
                 grid.nu = 5,
                 grid.nx = 5,
                 audit.nx = 5,
-                audit.nu = 5)
+                audit.nu = 5,
+                lpsolver = "lpSolveAPI")
 
 ##------------------------
 ## Implement test
@@ -172,7 +173,7 @@ b1zeroes <- matrix(0, ncol = ncol(mono1), nrow = nrow(grid))
 m0bound <- cbind(Bzeroes, mono0, b1zeroes)
 m1bound <- cbind(Bzeroes, b0zeroes, mono1)
 
-## Construct full Gurobi model
+## Construct full Gurobi/lpSolveAPI model
 modelO <- list()
 modelO$obj <- c(replicate(ncol(Aextra), 1),
                 replicate(ncol(A), 0))
@@ -201,8 +202,13 @@ modelO$lb <- c(replicate(ncol(Aextra), 0),
                 replicate(ncol(A), -Inf))
 
 ## Minimize observational equivalence deviation
-modelO$modelsense <- "min"
-minobseq <- gurobi::gurobi(modelO)$objval
+
+## Code for Gurobi:
+## modelO$modelsense <- "min"
+## minobseq <- gurobi::gurobi(modelO)$objval
+
+## Code for lpSolveAPI
+minobseq <- runLpSolveAPI(modelO, 'min')$objval
 
 ##-------------------------
 ## Obtain the bounds for the LATE
@@ -229,10 +235,16 @@ modelF$lb <- c(replicate(ncol(Aextra), 0),
                replicate(ncol(mono0) + ncol(mono1), -Inf))
 
 ## Find bounds with threshold
-modelF$modelsense <- "min"
-minLate <- gurobi::gurobi(modelF)
-modelF$modelsense <- "max"
-maxLate <- gurobi::gurobi(modelF)
+
+## Code for Gurobi:
+## modelF$modelsense <- "min"
+## minLate <- gurobi::gurobi(modelF)
+## modelF$modelsense <- "max"
+## maxLate <- gurobi::gurobi(modelF)
+
+## Code for lpSolveAPI
+minLate <- runLpSolveAPI(modelF, 'min')
+maxLate <- runLpSolveAPI(modelF, 'max')
 
 bound <- c(minLate$objval, maxLate$objval)
 

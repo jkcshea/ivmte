@@ -253,12 +253,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
             maxstatus <- 0
             if (maxresult$status == "OPTIMAL") maxstatus <- 1
             maxoptx <- maxresult$x
-
-            ## print("mininmum result status")
-            ## print(minresult$status)
-
-            ## print("maximum result status")
-            ## print(maxresult$status)       
             
         }
         if (lpsolver == "Rcplex") {
@@ -326,6 +320,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         }
 
         if (lpsolver == "lpSolveAPI") {
+            
             minresult <- runLpSolveAPI(model, 'min')
 
             min       <- minresult$objval

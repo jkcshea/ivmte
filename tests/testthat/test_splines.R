@@ -36,7 +36,8 @@ result <- ivmte(ivlike = ivlike,
                 audit.nu = 5,
                 m1.ub = 55,
                 m0.lb = 0,
-                mte.inc = TRUE)
+                mte.inc = TRUE,
+                lpsolver = "lpSolveAPI")
 
 ##-------------------------
 ## Perform tests
@@ -319,7 +320,7 @@ bOrder <- c(sapply(seq(0, length(uGrid) - 1),
 m0bound <- cbind(Bzeroes, mono0[bOrder, ], b1zeroes)
 m1bound <- cbind(Bzeroes, b0zeroes, mono1[bOrder, ])
 
-## Construct full Gurobi model
+## Construct full Gurobi/lpSolveAPI model
 modelO <- list()
 modelO$obj <- c(replicate(ncol(Aextra), 1),
                 replicate(ncol(monoA0) + ncol(monoA1), 0))
@@ -351,8 +352,9 @@ modelO$lb <- c(replicate(ncol(Aextra), 0),
                replicate(ncol(monoA0) + ncol(monoA1), -Inf))
 
 ## Minimize observational equivalence deviation
-modelO$modelsense <- "min"
-minobseq <- gurobi::gurobi(modelO)$objval
+## modelO$modelsense <- "min"
+## minobseq <- gurobi::gurobi(modelO)$objval
+minobseq <- runLpSolveAPI(modelO, 'min')$objval
 
 ##-------------------------
 ## Obtain the bounds for the ATT
@@ -379,10 +381,15 @@ modelF$lb <- c(replicate(ncol(Aextra), 0),
                replicate(ncol(mono0) + ncol(mono1), -Inf))
 
 ## Find bounds with threshold
-modelF$modelsense <- "min"
-minAtt <- gurobi::gurobi(modelF)
-modelF$modelsense <- "max"
-maxAtt <- gurobi::gurobi(modelF)
+
+## Code for Gurobi:
+## modelF$modelsense <- "min"
+## minAtt <- gurobi::gurobi(modelF)
+## modelF$modelsense <- "max"
+## maxAtt <- gurobi::gurobi(modelF)
+
+minAtt <- runLpSolveAPI(modelF, 'min')
+maxAtt <- runLpSolveAPI(modelF, 'max')
 
 bound <- c(minAtt$objval, maxAtt$objval)
 
@@ -445,7 +452,8 @@ resultAlt <- ivmte(ivlike = ivlike,
                    audit.nu = 5,
                    m1.ub = 55,
                    m0.lb = 0,
-                   mte.inc = TRUE)
+                   mte.inc = TRUE,
+                   lpsolver = "lpSolveAPI")
 
 ##------------------------
 ## Reconstruct target gamma moments
