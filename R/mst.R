@@ -1,3 +1,5 @@
+utils::globalVariables("u")
+
 #' Estimation procedure from Mogstad, Torgovitsky (2017)
 #'
 #' This function estimates bounds on treatment effect parameters,
@@ -1226,7 +1228,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         bootFailN <- 0
                         bootFailNote <- ""
                     } else {
-                       
+
                         if (noisy == TRUE) {
                             message(paste0("Bootstrap iteration ", b,
                                            bootFailNote,
@@ -1917,7 +1919,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         pm1 <- NULL
     }
 
-    ## Generate target weights    
+    ## Generate target weights
     if (is.null(target.weight0) & is.null(target.weight1)) {
         gentargetcall <- modcall(call,
                                  newcall = gentarget,
@@ -2296,12 +2298,12 @@ gentarget <- function(treat, m0, m1, uname, target,
                       eval.X, genlate.lb, genlate.ub,
                       data, splinesobj, pmodobj, pm0, pm1,
                       point = FALSE, noisy = TRUE) {
-    
+
     xindex0 <- NULL
     xindex1 <- NULL
     uexporder0 <- NULL
     uexporder1 <- NULL
-   
+
     if (hasArg(target)) {
         if (target == "ate") {
             w1 <- wate1(data)
@@ -2405,7 +2407,7 @@ gentarget <- function(treat, m0, m1, uname, target,
                             rep(-1, length(xindex1) - length(uexporder1)))
         }
     } else {
-        
+
         ## Convert fixed/numeric weights into functions
         if (is.numeric(target.weight0)) {
             target.weight0 <- sapply(target.weight0, constructConstant)
