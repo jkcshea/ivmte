@@ -6,7 +6,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' unstring(c("a", "b"))
+#' ivmte::unstring(c("a", "b"))
 #' }
 unstring <- function(vector) {
     vector <- parse(text = paste0("c(", paste(vector, collapse = ", "), ")"))
@@ -28,8 +28,8 @@ unstring <- function(vector) {
 #' \dontrun{
 #' a <- 4
 #' b <- 5
-#' restring(c(a, b), substitute = TRUE)
-#' restring(c(a, b), substitute = FALSE)
+#' ivmte::restring(c(a, b), substitute = TRUE)
+#' ivmte::restring(c(a, b), substitute = FALSE)
 #' }
 restring <- function(vector, substitute = TRUE) {
     if (substitute == TRUE)  vector <- deparse(substitute(vector))

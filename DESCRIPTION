@@ -12,8 +12,7 @@ Authors@R: c(person("Alexander",
 Maintainer: Joshua Shea <jkcshea@uchicago.edu>
 Description: Functions for implementing the estimation
 	     procedure from
-             Mogstad, Santos, and Torgovitsky (2018),
-	     Econometrica, Vol. 86, No. 5.
+             Mogstad, Santos, and Torgovitsky (2018) <doi:10.3982/ECTA15463>.
 	     Inference may be performed via resampling.
 	     Example data sets are also included.
 	     If 'gurobi' is the preferred package for solving linear
@@ -40,7 +39,7 @@ Suggests:
 	lpSolve (>= 5.6.13),
 	lpSolveAPI (>= 3.4.4),
 	testthat (>= 2.0.0),
-	data.table (>= 1.11.2),
+	data.table (>= 1.11.2,)
 	splines2 (>= 0.2.8),
 	Matrix
 License: GPL-2 | GPL-3

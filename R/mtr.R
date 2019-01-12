@@ -406,7 +406,7 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
 #'
 #' @examples
 #' \dontrun{
-#' Below is an example of how to declare a spline component.
+#' ## Below is an example of how to declare a spline component.
 #' m0 = ~ x1 + x1 : uSplines(degree = 2,
 #'                           knots = c(0.2, 0.4)) +
 #'             x2 : uSplines(degree = 2,
@@ -603,21 +603,21 @@ removeSplines <- function(formula) {
 #'     a basis defined by the degrees and knots.
 #'
 #' @examples
-#' \dontrun{
-#' Since the splines are declared as part of the MTR, you will need
-#' to have parsed out the spline command. Thus, this command will be
-#' called via eval(parse(text = .)). In the examples below, the
-#' commands are parsed from the object \code{splineslist} generated
-#' by \code{\link[MST]{removeSplines}}. The names of the elements in
-#' the list are the spline commands, and the elements themselves are
-#' the terms that interact with the splines.
+#' ## \dontrun{
+#' ## Since the splines are declared as part of the MTR, you will need
+#' ## to have parsed out the spline command. Thus, this command will be
+#' ## called via eval(parse(text = .)). In the examples below, the
+#' ## commands are parsed from the object \code{splineslist} generated
+#' ## by \code{\link[MST]{removeSplines}}. The names of the elements in
+#' ## the list are the spline commands, and the elements themselves are
+#' ## the terms that interact with the splines.
 #'
 #' eval(parse(text = gsub("uSplines\\(",
-#'                        "uSplinesInt(x = x, ",
+#'                        "ivmte::uSplinesInt(x = x, ",
 #'                        names(splineslist)[1])))
 #'
 #' eval(parse(text = gsub("uSplines\\(",
-#'                        "uSplinesInt(x = x, ",
+#'                        "ivmte::uSplinesInt(x = x, ",
 #'                         names(splineslist)[2])))
 #' }
 uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
@@ -647,20 +647,20 @@ uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
 #'
 #' @examples
 #' \dontrun{
-#' Since the splines are declared as part of the MTR, you will need
-#' to have parsed out the spline command. Thus, this command will be
-#' called via eval(parse(text = .)). In the examples below, the
-#' commands are parsed from the object \code{splineslist} generated
-#' by \code{\link[MST]{removeSplines}}. The names of the elements in
-#' the list are the spline commands, and the elements themselves are
-#' the terms that interact with the splines.
+#' ## Since the splines are declared as part of the MTR, you will need
+#' ## to have parsed out the spline command. Thus, this command will be
+#' ## called via eval(parse(text = .)). In the examples below, the
+#' ## commands are parsed from the object \code{splineslist} generated
+#' ## by \code{\link[MST]{removeSplines}}. The names of the elements in
+#' ## the list are the spline commands, and the elements themselves are
+#' ## the terms that interact with the splines.
 #'
 #' eval(parse(text = gsub("uSplines\\(",
-#'                        "uSplinesBasis(x = x, ",
+#'                        "ivmte::uSplinesBasis(x = x, ",
 #'                         names(splineslist)[1])))
 #'
 #' eval(parse(text = gsub("uSplines\\(",
-#'                        "uSplinesBasis(x = x, ",
+#'                        "ivmte::uSplinesBasis(x = x, ",
 #'                        names(splineslist)[2])))
 #' }
 uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
