@@ -20,6 +20,6 @@ expression containing variable names.
 }
 \examples{
 \dontrun{
-unstring(c("a", "b"))
+ivmte::unstring(c("a", "b"))
 }
 }

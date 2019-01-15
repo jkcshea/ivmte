@@ -28,7 +28,7 @@ into a vector of strings.
 \dontrun{
 a <- 4
 b <- 5
-restring(c(a, b), substitute = TRUE)
-restring(c(a, b), substitute = FALSE)
+ivmte::restring(c(a, b), substitute = TRUE)
+ivmte::restring(c(a, b), substitute = FALSE)
 }
 }

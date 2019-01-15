@@ -48,7 +48,7 @@
 #'                link = "linear")
 #'
 #' @export
-propensity <- function(formula, data, link = "linear", late.Z,
+propensity <- function(formula, data, link = "logit", late.Z,
                            late.X) {
 
     formula <- Formula::as.Formula(formula)

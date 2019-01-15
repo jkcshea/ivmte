@@ -603,7 +603,7 @@ removeSplines <- function(formula) {
 #'     a basis defined by the degrees and knots.
 #'
 #' @examples
-#' ## \dontrun{
+#' \dontrun{
 #' ## Since the splines are declared as part of the MTR, you will need
 #' ## to have parsed out the spline command. Thus, this command will be
 #' ## called via eval(parse(text = .)). In the examples below, the

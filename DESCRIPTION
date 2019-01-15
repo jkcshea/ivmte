@@ -1,5 +1,5 @@
 Package: ivmte
-Title: Implements Estimation Procedure from Mogstad, Santos, Torgovitsky (2018)
+Title: Instrumental Variables: Extrapolation by Marginal Treatment Effects
 Version: 1.0.0
 Authors@R: c(person("Alexander",
 		    "Torgovitsky",
@@ -10,20 +10,26 @@ Authors@R: c(person("Alexander",
 		    email = "jkcshea@uchicago.edu",
 		    role = c("aut", "cre")))
 Maintainer: Joshua Shea <jkcshea@uchicago.edu>
-Description: Functions for implementing the estimation
-	     procedure from
-             Mogstad, Santos, and Torgovitsky (2018) <doi:10.3982/ECTA15463>.
-	     Inference may be performed via resampling.
-	     Example data sets are also included.
-	     If 'gurobi' is the preferred package for solving linear
-	     programming problems, the Gurobi API
-	     and R package can be obtained from
-	     <http://www.gurobi.com/index>. If 'Rcplex' or
-	     'cplexAPI' is the desired package for solving linear
-	     programming problems, the CPLEX API can be obtained from
-	     <https://www.ibm.com/analytics/cplex-optimizer>.
-	     The R packages 'Rcplex' and 'cplexAPI' can be installed
-	     using mainstream repositories.
+Description: The marginal treatment effect was introduced by Heckman and
+    Vytlacil (2005) <doi:10.1111/j.1468-0262.2005.00594.x> to provide a
+    choice-theoretic interpretation to instrumental variables models that
+    maintain the monotonicity condition of Imbens and Angrist (1994)
+    <doi:10.2307/2951620>. This interpretation can be used to extrapolate from
+    the compliers to estimate treatment effects for other subpopulations. This
+    package provides a flexible set of methods for conducting this
+    extrapolation. It allows for parametric or nonparametric sieve estimation,
+    and allows the user to maintain shape restrictions such as monotonicity. The
+    package operates in the general framework developed by Mogstad, Santos and
+    Torgovitsky (2018) <doi:10.3982/ECTA15463>, and accommodates either point
+    identification or partial identification (bounds). In the partially
+    identified case, bounds are computed using linear programming. Support for
+    three linear programming solvers is provided. Gurobi and the Gurobi R API
+    can be obtained from <http://www.gurobi.com/index>. CPLEX can be obtained
+    from <https://www.ibm.com/analytics/cplex-optimizer>. CPLEX R APIs 'Rcplex'
+    and 'cplexAPI' are available from CRAN. The lp_solve library is freely
+    available from <http://lpsolve.sourceforge.net/5.5/>, and is included when
+    installing either of its R APIs, 'lpSolve' or 'lpSolveAPI', which are
+    available from CRAN.
 Depends: R (>= 3.4.0)
 Imports:
 	polynom (>= 1.3-9),
@@ -39,7 +45,7 @@ Suggests:
 	lpSolve (>= 5.6.13),
 	lpSolveAPI (>= 3.4.4),
 	testthat (>= 2.0.0),
-	data.table (>= 1.11.2,)
+	data.table (>= 1.11.2),
 	splines2 (>= 0.2.8),
 	Matrix
 License: GPL-2 | GPL-3

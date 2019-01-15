@@ -30,20 +30,20 @@ moments.
 }
 \examples{
 \dontrun{
-Since the splines are declared as part of the MTR, you will need
-to have parsed out the spline command. Thus, this command will be
-called via eval(parse(text = .)). In the examples below, the
-commands are parsed from the object \\code{splineslist} generated
-by \\code{\\link[MST]{removeSplines}}. The names of the elements in
-the list are the spline commands, and the elements themselves are
-the terms that interact with the splines.
+## Since the splines are declared as part of the MTR, you will need
+## to have parsed out the spline command. Thus, this command will be
+## called via eval(parse(text = .)). In the examples below, the
+## commands are parsed from the object \\code{splineslist} generated
+## by \\code{\\link[MST]{removeSplines}}. The names of the elements in
+## the list are the spline commands, and the elements themselves are
+## the terms that interact with the splines.
 
 eval(parse(text = gsub("uSplines\\\\(",
-                       "uSplinesInt(x = x, ",
+                       "ivmte::uSplinesInt(x = x, ",
                        names(splineslist)[1])))
 
 eval(parse(text = gsub("uSplines\\\\(",
-                       "uSplinesInt(x = x, ",
+                       "ivmte::uSplinesInt(x = x, ",
                         names(splineslist)[2])))
 }
 }
