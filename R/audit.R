@@ -125,13 +125,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
-    
+
     ## Update MTR formulas to include all terms that interact with
     ## splines. This is required for generating the matrices to impose
     ## monotoncity and bounds. The terms that interact wtih the
     ## splines, but do not enter into the MTRs on their own, will be
     ## removed in the function genmonoboundA.
-    
+
     if (!is.null(m0) & length(terms_mtr0) > 0) {
         m0 <- update(m0, as.formula(paste("~ . +",
                                           paste(unique(terms_mtr0),
@@ -221,7 +221,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
     prevbound <- c(-Inf, Inf)
     existsolution <- FALSE
     audit_count <- 1
-    
+
     while (audit_count <= audit.max) {
         if (obseq.tol > 0 ) {
             cat("Audit count:", audit_count, "\n")
@@ -270,7 +270,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
             minobseqAlt <- obseqmin(sset, lpobjAlt, lpsolver)
             solVec <- minobseqAlt$result$x
-           
+
             ## Test for violations
             mbA <- mbobj$mbA
             negatepos <- which(mbobj$mbs == ">=")
@@ -416,7 +416,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             grid_index <- c(grid_index, a_grid_index)
             uvec <- c(uvec, a_uvec)
             audit_count <- audit_count + 1
-           
+
             if (audit_count <= audit.max) {
                 message(gsub("\\s+", " ",
                              "Bounds extend to +/- infinity.
@@ -427,7 +427,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 message(gsub("\\s+", " ",
                              "Bounds extend to +/- infinity."))
                 message("")
-                
+
                 stop(gsub("\\s+", " ",
                           paste0("Estimation terminated: maximum number of
                           audits (audit.max = ", audit.max, ") reached, but
@@ -437,17 +437,17 @@ audit <- function(data, uname, m0, m1, splinesobj,
                           expansion of the grid in the audit procedure
                           (audit.nx, audit.nu). \n")))
             }
-        } else {           
+        } else {
             if (existsolution == FALSE) {
                 existsolution <- TRUE
                 prevbound <- c(lpresult$min, lpresult$max)
             } else {
-                
+
                 if ((abs((lpresult$min - prevbound[1]) / prevbound[1]) <
                      audit.tol) &
                     (abs((lpresult$max - prevbound[2]) / prevbound[2]) <
                      audit.tol)) {
-                    
+
                     message(gsub("\\s+", " ",
                                  "Audit ending: change in bounds falls
                                  below tolerance level.\n"))

@@ -249,7 +249,7 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
                m0ubs, m1ubs, teubs)
     bdrhs <- c(m0lb,  m1lb,  telb,
                m0ub,  m1ub,  teub)
-    
+
     return(list(A = bdA,
                 sense = bds,
                 rhs = bdrhs,
@@ -387,7 +387,8 @@ stackA <- function(A0, A1, sset, monogrid, gstar0, gstar1,
     ## Generate the constraint matrices ("A" in Gurobi)
     ## corresponding to the monotonicity constraints
     ## A matrix for monotonicity of m0
-    if (hasArg(m0.inc) | hasArg(m0.dec)) {
+    if ((hasArg(m0.inc) && m0.inc == TRUE) |
+        (hasArg(m0.dec) && m0.dec == TRUE)) {
         monoA0 <- diffA(A0, monogrid, sn, 0, length(gstar1))
         mono0z <- replicate(nrow(monoA0), 0)
         colnames(monoA0) <- namesA
@@ -395,7 +396,8 @@ stackA <- function(A0, A1, sset, monogrid, gstar0, gstar1,
         countseq <- countseq + nrow(monoA0)
     }
     ## A matrix for monotonicity of m1
-    if (hasArg(m1.inc) | hasArg(m1.dec)) {
+    if ((hasArg(m1.inc) && m1.inc == TRUE) |
+        (hasArg(m1.dec) && m1.dec == TRUE)) {
         monoA1 <- diffA(A1, monogrid, sn, 1, length(gstar0))
         mono1z <- replicate(nrow(monoA1), 0)
         colnames(monoA1) <- namesA
@@ -403,7 +405,8 @@ stackA <- function(A0, A1, sset, monogrid, gstar0, gstar1,
         countseq <- countseq + nrow(monoA1)
     }
     ## A matrix for monotonicity of m1 - m0
-    if (hasArg(mte.inc) | hasArg(mte.dec)) {
+    if ((hasArg(mte.inc) && mte.inc == TRUE) |
+        (hasArg(mte.dec) && mte.dec == TRUE)) {
         monoAte <- diffA(A1, monogrid, sn, 1, length(gstar0)) -
             diffA(A0, monogrid, sn, 0, length(gstar1))
         monotez <- replicate(nrow(monoAte), 0)
@@ -774,7 +777,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     mono0seq <- NULL
     mono1seq <- NULL
     monomteseq <- NULL
-    
+
     ## generate matrices for imposing bounds on m0 and m1 and
     ## treatment effects
     if (hasArg(m0.lb) | hasArg(m0.ub) |
@@ -817,7 +820,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         monoA <- eval(monoAcall)
     }
 
-    ## Update bound sequence counts        
+    ## Update bound sequence counts
     if (!is.null(bdA$lb0seq)) lb0seq <- bdA$lb0seq
     if (!is.null(bdA$lb1seq)) lb1seq <- bdA$lb1seq
     if (!is.null(bdA$lbteseq)) lbteseq <- bdA$lbteseq
@@ -825,11 +828,11 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     if (!is.null(bdA$ub1seq)) ub1seq <- bdA$ub1seq
     if (!is.null(bdA$ubteseq)) ubteseq <- bdA$ubteseq
 
-    ## Update monotonicity sequence counts        
+    ## Update monotonicity sequence counts
     if (!is.null(monoA$mono0seq)) mono0seq <- monoA$mono0seq
     if (!is.null(monoA$mono1seq)) mono1seq <- monoA$mono1seq
     if (!is.null(monoA$monoteseq)) monomteseq <- monoA$monoteseq
-    
+
     output <- combinemonobound(bdA, monoA)
     output$gridobj <- gridobj
     output$lb0seq  <- lb0seq
@@ -841,7 +844,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
 
     boundLength <- length(lb0seq) + length(lb1seq) + length(lbteseq) +
         length(ub0seq) + length(ub1seq) + length(ubteseq)
-    
+
     output$mono0seq <- mono0seq + boundLength
     output$mono1seq <- mono1seq + boundLength
     output$monomteseq <- monomteseq + boundLength
