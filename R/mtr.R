@@ -132,6 +132,24 @@ polylisteval <- function(polynomials, points) {
 #'     original monomials in the MTR; and a vector for the names of
 #'     each variable entering into the MTR (note \code{x^2 + x} has
 #'     only one term, \code{x}).
+#'
+#' @examples
+#' ## Declare MTR functions
+#' formula1 = ~ 1 + u
+#' formula0 = ~ 1 + u
+#'
+#' ## Construct MTR polynomials
+#' polynomials0 <- polyparse(formula = formula0,
+#'                           data = dtm,
+#'                           uname = u,
+#'                           as.function = FALSE)
+#' 
+#' polynomials1 <- polyparse(formula = formula0,
+#'                           data = dtm,
+#'                           uname = u,
+#'                           as.function = FALSE)
+#'  
+#' @export
 polyparse <- function(formula, data, uname = u, as.function = FALSE) {
 
     ## update formula parsing
@@ -339,6 +357,27 @@ polyProduct <- function(poly1, poly2) {
 #'     returns a matrix, where each row corresponds to an observation,
 #'     and each column corresponds to an additive term in E[md | D, X,
 #'     Z] (i.e. only the integral with respect to u is performed).
+#'
+#' @examples
+#' ## Declare MTR formula
+#' formula0 = ~ 1 + u
+#'
+#' ## Construct MTR polynomials
+#' polynomials0 <- polyparse(formula = formula0,
+#'                 data = dtm,
+#'                 uname = u,
+#'                 as.function = FALSE)
+#'
+#' ## Construct propensity score model
+#' propensityObj <- propensity(formula = d ~ z,
+#'                             data = dtm,
+#'                             link = "linear")
+#'
+#' ## Generate gamma moments, with S-weight equal to its default value
+#' ## of 1
+#' genGamma(monomials = polynomials0,
+#'          lb = 0,
+#'          ub = propensityObj$phat)
 #'
 #' @export
 genGamma <- function(monomials, lb, ub, multiplier = 1,

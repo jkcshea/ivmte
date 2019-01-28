@@ -1920,6 +1920,11 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     }
 
     ## Generate target weights
+    if (!hasArg(target.weight0) & !hasArg(target.weight1)) {
+        target.weight0 <- NULL
+        target.weight1 <- NULL
+    }
+
     if (is.null(target.weight0) & is.null(target.weight1)) {
         gentargetcall <- modcall(call,
                                  newcall = gentarget,
@@ -2291,6 +2296,44 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 #'     \code{m0} and \code{m1}. \code{uexporder0} and
 #'     \code{uexporder1} lists the exponents of the unobservable
 #'     \code{u} in each term it appears in.
+#'
+#' @examples
+#' ## Declare MTR functions
+#' formula1 = ~ 1 + u
+#' formula0 = ~ 1 + u
+#' splinesList = list(removeSplines(formula0), removeSplines(formula1))
+#'
+#' ## Declare propensity score model
+#' propensityObj <- propensity(formula = d ~ z,
+#'                             data = dtm,
+#'                             link = "linear")
+#'
+#' ## Construct MTR polynomials
+#' polynomials0 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#'
+#' polynomials1 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#'
+#' ## Generate target gamma moments
+#' gentarget(treat = "d",
+#'           m0 = ~ 1 + u,
+#'           m1 = ~ 1 + u,
+#'           uname = u,
+#'           target = "atu",
+#'           data = dtm,
+#'           splinesobj = splinesList,
+#'           pmodobj = propensityObj,
+#'           pm0 = polynomials0,
+#'           pm1 = polynomials1,
+#'           point = FALSE)
+#'
+#'
+#' @export
 gentarget <- function(treat, m0, m1, uname, target,
                       target.weight0, target.weight1,
                       target.knots0, target.knots1,
@@ -2693,9 +2736,62 @@ gentarget <- function(treat, m0, m1, uname, target,
 #'     e.g. when performing the bootstrap.
 #' @return A list containing the point estimate for the IV regression,
 #'     and the expectation of each monomial term in the MTR.
+#'
+#' @examples
+#' ## Declare empty list to be updated (in the event multiple IV like
+#' ## specifications are provided)
+#' sSet <- list()
+#'
+#' ## Declare MTR formulas
+#' formula1 = ~ 1 + u
+#' formula0 = ~ 1 + u
+#'
+#' ## Construct object that separates out non-spline components of MTR
+#' ## formulas from the spline components. The MTR functions are
+#' ## obtained from this object by the function 'gensset'.
+#' splinesList = list(removeSplines(formula0), removeSplines(formula1))
+#'
+#' ## Construct MTR polynomials
+#' polynomials0 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#'
+#' polynomials1 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#'
+#' ## Generate propensity score model
+#' propensityObj <- propensity(formula = d ~ z,
+#'                             data = dtm,
+#'                             link = "linear")
+#'
+#' ## Generate IV estimates
+#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#'                           data = dtm,
+#'                           components = l(d),
+#'                           treat = d,
+#'                           list = FALSE)
+#'
+#' ## Construct S-set, which contains the coefficients and weights
+#' ## coresponding to various IV-like estimands
+#' gensset(data = dtm,
+#'         sset = sSet,
+#'         sest = ivEstimates,
+#'         splinesobj = splinesList,
+#'         pmodobj = propensityObj$phat,
+#'         pm0 = polynomials0,
+#'         pm1 = polynomials1,
+#'         ncomponents = 1,
+#'         scount = 1)
+#'
+#' @export
 gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         ncomponents, scount, subset_index, means = TRUE,
                         yvar, dvar, noisy = TRUE) {
+
+    if (!hasArg(subset_index)) subset_index <- NULL
 
     for (j in 1:ncomponents) {
         if (noisy == TRUE) {
@@ -2845,6 +2941,77 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     \code{\link[stats]{optim}}), the coefficients on the MTR, and
 #'     the variance/covariance matrix of the MTR coefficient
 #'     estimates.
+#'
+#' @examples
+#' ## Declare empty list to be updated (in the event multiple IV like
+#' ## specifications are provided
+#' sSet <- list()
+#'
+#' ## Declar MTR formulas
+#' formula1 = ~ 0 + u
+#' formula0 = ~ 0 + u
+#'
+#' ## Construct object that separates out non-spline components of MTR
+#' ## formulas from the spline components. The MTR functions are
+#' ## obtained from this object by the function 'gensset'.
+#' splinesList = list(removeSplines(formula0), removeSplines(formula1))
+#'
+#' ## Construct MTR polynomials
+#' polynomials0 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#' polynomials1 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#'
+#' ## Generate propensity score model
+#' propensityObj <- propensity(formula = d ~ z,
+#'                             data = dtm,
+#'                             link = "linear")
+#'
+#' ## Generate IV estimates
+#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#'                           data = dtm,
+#'                           components = l(intercept, d),
+#'                           treat = d,
+#'                           list = FALSE)
+#'
+#' ## Generate target gamma moments
+#' targetGamma <- gentarget(treat = "d",
+#'                          m0 = ~ 1 + u,
+#'                          m1 = ~ 1 + u,
+#'                          uname = u,
+#'                          target = "atu",
+#'                          data = dtm,
+#'                          splinesobj = splinesList,
+#'                          pmodobj = propensityObj,
+#'                          pm0 = polynomials0,
+#'                          pm1 = polynomials1,
+#'                          point = TRUE)
+#'
+#' ## Construct S-st. which contains the coefficients and weights
+#' ## corresponding to various IV-like estimands
+#' sSet <- gensset(data = dtm,
+#'                 sset = sSet,
+#'                 sest = ivEstimates,
+#'                 splinesobj = splinesList,
+#'                 pmodobj = propensityObj$phat,
+#'                 pm0 = polynomials0,
+#'                 pm1 = polynomials1,
+#'                 ncomponents = 2,
+#'                 scount = 1,
+#'                 yvar = "ey",
+#'                 dvar = "d",
+#'                 means = FALSE)
+#'
+#' ## Obtain point estimates using FGLS
+#' fglsEstimate(sset = sSet$sset,
+#'              gstar0 = targetGamma$gstar0,
+#'              gstar1 = targetGamma$gstar1)
+#'
+#' @export
 fglsEstimate <- function(sset, gstar0, gstar1,
                         itermax = 2, tol = 1e-08, noisy = TRUE) {
 
@@ -2888,7 +3055,7 @@ fglsEstimate <- function(sset, gstar0, gstar1,
     fglsMat <- fglsMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
 
-    ## Perform iterative estimation
+    #' Perform iterative estimation
     theta <- rep(0, ncol(fglsMat))
     i <- 1
     diff <- Inf

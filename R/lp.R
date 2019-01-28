@@ -23,6 +23,60 @@
 #' @return A list of matrices and vectors necessary to define an LP
 #'     problem for Gurobi.
 #'
+#' @examples
+#' ## Declare empty list to be updated (in the event multiple IV like
+#' ## specifications are provided
+#' sSet <- list()
+#'
+#' ## Declare MTR formulas
+#' formula1 = ~ 1 + u
+#' formula0 = ~ 1 + u
+#'
+#' ## Construct object that separates out non-spline components of MTR
+#' ## formulas from the spline components. The MTR functions are
+#' ## obtained from this object by the function 'gensset'.
+#' splinesList = list(removeSplines(formula0), removeSplines(formula1))
+#'
+#' ## Construct MTR polynomials
+#' polynomials0 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#' polynomials1 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#'
+#' ## Generate propensity score model
+#' propensityObj <- propensity(formula = d ~ z,
+#'                             data = dtm,
+#'                             link = "linear")
+#'
+#' ## Generate target gamma moments
+#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#'                           data = dtm,
+#'                           components = l(intercept, d),
+#'                           treat = d,
+#'                           list = FALSE)
+#'
+#' ## Construct S-set, which contains the coefficients and weights
+#' ## corresponding to various IV-like estimands
+#' sSet <- gensset(data = dtm,
+#'                 sset = sSet,
+#'                 sest = ivEstimates,
+#'                 splinesobj = splinesList,
+#'                 pmodobj = propensityObj$phat,
+#'                 pm0 = polynomials0,
+#'                 pm1 = polynomials1,
+#'                 ncomponents = 2,
+#'                 scount = 1,
+#'                 yvar = "ey",
+#'                 dvar = "d",
+#'                 means = TRUE)
+#'
+#' ## Construct the LP problem to be solved using lpSolveAPI
+#' lpsetup(sset = sSet$sset, lpsolver = "lpSolveAPI")
+#' 
 #' @export
 lpsetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
                         lpsolver, shape = TRUE) {
@@ -105,6 +159,93 @@ lpsetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
 #'     equivalence, the solution to the LP problem, and the status of
 #'     the solution.
 #'
+#' @examples
+#' ## Declare empty list to be updated (in the event multiple IV like
+#' ## specifications are provided
+#' sSet <- list()
+#'
+#' ## Declare MTR formulas
+#' formula1 = ~ 1 + u
+#' formula0 = ~ 1 + u
+#'
+#' ## Construct object that separates out non-spline components of MTR
+#' ## formulas from the spline components. The MTR functions are
+#' ## obtained from this object by the function 'gensset'.
+#' splinesList = list(removeSplines(formula0), removeSplines(formula1))
+#'
+#' ## Construct MTR polynomials
+#' polynomials0 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#' polynomials1 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#'
+#' ## Generate propensity score model
+#' propensityObj <- propensity(formula = d ~ z,
+#'                             data = dtm,
+#'                             link = "linear")
+#'
+#' ## Generate IV estimates
+#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#'                           data = dtm,
+#'                           components = l(intercept, d),
+#'                           treat = d,
+#'                           list = FALSE)
+#'
+#' ## Generate target gamma moments
+#' targetGamma <- gentarget(treat = "d",
+#'                          m0 = ~ 1 + u,
+#'                          m1 = ~ 1 + u,
+#'                          uname = u,
+#'                          target = "atu",
+#'                          data = dtm,
+#'                          splinesobj = splinesList,
+#'                          pmodobj = propensityObj,
+#'                          pm0 = polynomials0,
+#'                          pm1 = polynomials1,
+#'                          point = FALSE)
+#'
+#' ## Construct S-set. which contains the coefficients and weights
+#' ## corresponding to various IV-like estimands
+#' sSet <- gensset(data = dtm,
+#'                 sset = sSet,
+#'                 sest = ivEstimates,
+#'                 splinesobj = splinesList,
+#'                 pmodobj = propensityObj$phat,
+#'                 pm0 = polynomials0,
+#'                 pm1 = polynomials1,
+#'                 ncomponents = 2,
+#'                 scount = 1,
+#'                 yvar = "ey",
+#'                 dvar = "d",
+#'                 means = TRUE)
+#'
+#' ## Define additional upper- and lower-bound constraints for the LP
+#' ## problem
+#' A <- matrix(0, nrow = 22, ncol = 4)
+#' A <- cbind(A, rbind(cbind(1, seq(0, 1, 0.1)),
+#'                     matrix(0, nrow = 11, ncol = 2)))
+#' A <- cbind(A, rbind(matrix(0, nrow = 11, ncol = 2),
+#'                     cbind(1, seq(0, 1, 0.1))))
+#' 
+#' sense <- c(rep(">", 11), rep("<", 11))
+#' rhs <- c(rep(0.2, 11), rep(0.8, 11))
+#'
+#' ## Construct LP object to be interpreted and solved by lpSolveAPI
+#' lpObject <- lpsetup(sset = sSet$sset,
+#'                     mbA = A,
+#'                     mbs = sense,
+#'                     mbrhs = rhs,
+#'                     lpsolver = "lpSolveAPI")
+#'
+#' ## Estimate the bounds
+#' obseqmin(sset = sSet$sset,
+#'          lpobj = lpObject,
+#'          lpsolver = "lpSolveAPI")
+#' 
 #' @export
 obseqmin <- function(sset, lpobj, lpsolver) {
 
@@ -119,7 +260,6 @@ obseqmin <- function(sset, lpobj, lpsolver) {
         model$lb    <- lpobj$lb
 
         result   <- gurobi::gurobi(model, list(outputflag = 0))
-        ## result   <- gurobi::gurobi(model)
         obseqmin <- result$objval
         optx     <- result$x
         status   <- result$status
@@ -204,7 +344,10 @@ obseqmin <- function(sset, lpobj, lpsolver) {
 #' @param g1 set of expectations for each terms of the MTR for the
 #'     control group.
 #' @param sset a list containing the point estimates and gamma
-#'     components associated with each element in the S-set.
+#'     components associated with each element in the S-set. This
+#'     object is only used to determine the names of terms. If it is
+#'     no submitted, then no names are provided to the solution
+#'     vector.
 #' @param lpobj A list of matrices and vectors defining an LP problem.
 #' @param obseq.factor overall multiplicative factor for how much more
 #'     the solution is permitted to violate observational equivalence
@@ -220,6 +363,96 @@ obseqmin <- function(sset, lpobj, lpsolver) {
 #'     status to the maximization and minimization problems; the LP
 #'     problem that the optimizer solved.
 #'
+#' @examples
+#' ## Declare empty list to be updated (in the event multiple IV like
+#' ## specifications are provided
+#' sSet <- list()
+#'
+#' ## Declare MTR formulas
+#' formula1 = ~ 1 + u
+#' formula0 = ~ 1 + u
+#'
+#' ## Construct object that separates out non-spline components of MTR
+#' ## formulas from the spline components. The MTR functions are
+#' ## obtained from this object by the function 'gensset'.
+#' splinesList = list(removeSplines(formula0), removeSplines(formula1))
+#'
+#' ## Construct MTR polynomials
+#' polynomials0 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#' polynomials1 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#'
+#' ## Generate propensity score model
+#' propensityObj <- propensity(formula = d ~ z,
+#'                             data = dtm,
+#'                             link = "linear")
+#'
+#' ## Generate IV estimates
+#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#'                           data = dtm,
+#'                           components = l(intercept, d),
+#'                           treat = d,
+#'                           list = FALSE)
+#'
+#' ## Generate target gamma moments
+#' targetGamma <- gentarget(treat = "d",
+#'                          m0 = ~ 1 + u,
+#'                          m1 = ~ 1 + u,
+#'                          uname = u,
+#'                          target = "atu",
+#'                          data = dtm,
+#'                          splinesobj = splinesList,
+#'                          pmodobj = propensityObj,
+#'                          pm0 = polynomials0,
+#'                          pm1 = polynomials1,
+#'                          point = FALSE)
+#'
+#' ## Construct S-set. which contains the coefficients and weights
+#' ## corresponding to various IV-like estimands
+#' sSet <- gensset(data = dtm,
+#'                 sset = sSet,
+#'                 sest = ivEstimates,
+#'                 splinesobj = splinesList,
+#'                 pmodobj = propensityObj$phat,
+#'                 pm0 = polynomials0,
+#'                 pm1 = polynomials1,
+#'                 ncomponents = 2,
+#'                 scount = 1,
+#'                 yvar = "ey",
+#'                 dvar = "d",
+#'                 means = TRUE)
+#'
+#' ## Define additional upper- and lower-bound constraints for the LP
+#' ## problem
+#' A <- matrix(0, nrow = 22, ncol = 4)
+#' A <- cbind(A, rbind(cbind(1, seq(0, 1, 0.1)),
+#'                     matrix(0, nrow = 11, ncol = 2)))
+#' A <- cbind(A, rbind(matrix(0, nrow = 11, ncol = 2),
+#'                     cbind(1, seq(0, 1, 0.1))))
+#' 
+#' sense <- c(rep(">", 11), rep("<", 11))
+#' rhs <- c(rep(0.2, 11), rep(0.8, 11))
+#'
+#' ## Construct LP object to be interpreted and solved by lpSolveAPI
+#' lpObject <- lpsetup(sset = sSet$sset,
+#'                     mbA = A,
+#'                     mbs = sense,
+#'                     mbrhs = rhs,
+#'                     lpsolver = "lpSolveAPI")
+#'
+#' ## Estimate the bounds
+#' bound(g0 = targetGamma$gstar0,
+#'       g1 = targetGamma$gstar1,
+#'       sset = sSet$sset,
+#'       lpobj = lpObject,
+#'       obseq.factor = 1,
+#'       lpsolver = "lpSolveAPI")
+#' 
 #' @export
 bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
 
@@ -392,12 +625,14 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
     maxg1 <- maxoptx[(2 * lpobj$sn + lpobj$gn0 + 1) :
                      (2 * lpobj$sn + lpobj$gn0 + lpobj$gn1)]
 
-    names(ming0) <- names(sset$gstar$g0)
-    names(ming1) <- names(sset$gstar$g1)
+    if (hasArg(sset)) {
+        names(ming0) <- names(sset$gstar$g0)
+        names(ming1) <- names(sset$gstar$g1)
 
-    names(maxg0) <- names(sset$gstar$g0)
-    names(maxg1) <- names(sset$gstar$g1)
-
+        names(maxg0) <- names(sset$gstar$g0)
+        names(maxg1) <- names(sset$gstar$g1)
+    }
+    
     if (noisy) {
         message(paste0("Min status: ", minstatus, "\n"))
         message(paste0("Max status: ", maxstatus, "\n"))
