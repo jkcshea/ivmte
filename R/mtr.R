@@ -444,8 +444,7 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
 #'     covariates that were interacted with the \code{uSplines()} command.
 #'
 #' @examples
-#' \dontrun{
-#' ## Below is an example of how to declare a spline component.
+#' ## Declare and MTR with a sline component.
 #' m0 = ~ x1 + x1 : uSplines(degree = 2,
 #'                           knots = c(0.2, 0.4)) +
 #'             x2 : uSplines(degree = 2,
@@ -455,7 +454,11 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
 #'             uSplines(degree = 3,
 #'                      knots = c(0.2, 0.4),
 #'                      intercept = FALSE)
-#' }
+#'
+#' ## Now separate the spline component from the non-spline component
+#' removeSplines(m0)
+#' 
+#' @export
 removeSplines <- function(formula) {
 
     fterms <- attr(terms(formula), "term.labels")

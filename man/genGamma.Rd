@@ -43,3 +43,25 @@ If \code{means = TRUE}, then the function returns a vector
 This function generates the gamma objects defined in the paper,
 i.e. each additive term in E[md], where md is a MTR.
 }
+\examples{
+## Declare MTR formula
+formula0 = ~ 1 + u
+
+## Construct MTR polynomials
+polynomials0 <- polyparse(formula = formula0,
+                data = dtm,
+                uname = u,
+                as.function = FALSE)
+
+## Construct propensity score model
+propensityObj <- propensity(formula = d ~ z,
+                            data = dtm,
+                            link = "linear")
+
+## Generate gamma moments, with S-weight equal to its default value
+## of 1
+genGamma(monomials = polynomials0,
+         lb = 0,
+         ub = propensityObj$phat)
+
+}

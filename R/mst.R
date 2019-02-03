@@ -2947,7 +2947,7 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #' ## specifications are provided
 #' sSet <- list()
 #'
-#' ## Declar MTR formulas
+#' ## Declare MTR formulas
 #' formula1 = ~ 0 + u
 #' formula0 = ~ 0 + u
 #'
@@ -2991,7 +2991,7 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'                          pm1 = polynomials1,
 #'                          point = TRUE)
 #'
-#' ## Construct S-st. which contains the coefficients and weights
+#' ## Construct S-set. which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands
 #' sSet <- gensset(data = dtm,
 #'                 sset = sSet,
@@ -3055,7 +3055,7 @@ fglsEstimate <- function(sset, gstar0, gstar1,
     fglsMat <- fglsMat[, -c(1, 2)]
     yMat   <- yMat[, -c(1, 2)]
 
-    #' Perform iterative estimation
+    ## Perform iterative estimation
     theta <- rep(0, ncol(fglsMat))
     i <- 1
     diff <- Inf
