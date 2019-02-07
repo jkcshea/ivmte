@@ -53,7 +53,7 @@ formula0 = ~ 1 + u
 
 ## Construct object that separates out non-spline components of MTR
 ## formulas from the spline components. The MTR functions are
-## obtained from this object by the function 'gensset'.
+## obtained from this object by the function 'genSSet'.
 splinesList = list(removeSplines(formula0), removeSplines(formula1))
 
 ## Construct MTR polynomials
@@ -72,14 +72,14 @@ propensityObj <- propensity(formula = d ~ z,
                             link = "linear")
 
 ## Generate IV estimates
-ivEstimates <- ivestimate(formula = ey ~ d | z,
+ivEstimates <- ivEstimate(formula = ey ~ d | z,
                           data = dtm,
                           components = l(intercept, d),
                           treat = d,
                           list = FALSE)
 
 ## Generate target gamma moments
-targetGamma <- gentarget(treat = "d",
+targetGamma <- genTarget(treat = "d",
                          m0 = ~ 1 + u,
                          m1 = ~ 1 + u,
                          uname = u,
@@ -93,7 +93,7 @@ targetGamma <- gentarget(treat = "d",
 
 ## Construct S-set. which contains the coefficients and weights
 ## corresponding to various IV-like estimands
-sSet <- gensset(data = dtm,
+sSet <- genSSet(data = dtm,
                 sset = sSet,
                 sest = ivEstimates,
                 splinesobj = splinesList,
@@ -118,7 +118,7 @@ sense <- c(rep(">", 11), rep("<", 11))
 rhs <- c(rep(0.2, 11), rep(0.8, 11))
 
 ## Construct LP object to be interpreted and solved by lpSolveAPI
-lpObject <- lpsetup(sset = sSet$sset,
+lpObject <- lpSetup(sset = sSet$sset,
                     mbA = A,
                     mbs = sense,
                     mbrhs = rhs,

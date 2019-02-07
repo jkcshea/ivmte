@@ -9,7 +9,7 @@ fglsEstimate(sset, gstar0, gstar1, itermax = 2, tol = 1e-08,
 }
 \arguments{
 \item{sset}{a list of lists constructed from the function
-\link{gensset}. Each inner list should include a
+\link{genSSet}. Each inner list should include a
 coefficient corresponding to a term in an IV specification, a
 matrix of the estimates of the gamma moments conditional on (X,
 Z) for d = 0, and a matrix of the estimates of the gamma
@@ -60,7 +60,7 @@ formula0 = ~ 0 + u
 
 ## Construct object that separates out non-spline components of MTR
 ## formulas from the spline components. The MTR functions are
-## obtained from this object by the function 'gensset'.
+## obtained from this object by the function 'genSSet'.
 splinesList = list(removeSplines(formula0), removeSplines(formula1))
 
 ## Construct MTR polynomials
@@ -79,14 +79,14 @@ propensityObj <- propensity(formula = d ~ z,
                             link = "linear")
 
 ## Generate IV estimates
-ivEstimates <- ivestimate(formula = ey ~ d | z,
+ivEstimates <- ivEstimate(formula = ey ~ d | z,
                           data = dtm,
                           components = l(intercept, d),
                           treat = d,
                           list = FALSE)
 
 ## Generate target gamma moments
-targetGamma <- gentarget(treat = "d",
+targetGamma <- genTarget(treat = "d",
                          m0 = ~ 1 + u,
                          m1 = ~ 1 + u,
                          uname = u,
@@ -100,7 +100,7 @@ targetGamma <- gentarget(treat = "d",
 
 ## Construct S-set. which contains the coefficients and weights
 ## corresponding to various IV-like estimands
-sSet <- gensset(data = dtm,
+sSet <- genSSet(data = dtm,
                 sset = sSet,
                 sest = ivEstimates,
                 splinesobj = splinesList,

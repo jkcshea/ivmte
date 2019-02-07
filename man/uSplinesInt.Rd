@@ -29,7 +29,6 @@ declaring the MTRs. This is to be used when generating the gamma
 moments.
 }
 \examples{
-\dontrun{
 ## Since the splines are declared as part of the MTR, you will need
 ## to have parsed out the spline command. Thus, this command will be
 ## called via eval(parse(text = .)). In the examples below, the
@@ -38,12 +37,30 @@ moments.
 ## the list are the spline commands, and the elements themselves are
 ## the terms that interact with the splines.
 
+## Declare MTR function
+m0 = ~ x1 + x1 : uSplines(degree = 2,
+                          knots = c(0.2, 0.4)) +
+    x2 : uSplines(degree = 2,
+                  knots = c(0.2, 0.4)) +
+    x1 : x2 : uSplines(degree = 2,
+                       knots = c(0.2, 0.4)) +
+    uSplines(degree = 3,
+             knots = c(0.2, 0.4),
+             intercept = FALSE)
+
+## Separate the spline components from the MTR function
+splineslist <- removeSplines(m0)$splineslist
+
+## Delcare the points at which we wish to evaluate the integrals
+x <- seq(0, 1, 0.2)
+
+## Evaluate the splines integrals
 eval(parse(text = gsub("uSplines\\\\(",
-                       "ivmte::uSplinesInt(x = x, ",
+                       "ivmte:::uSplinesInt(x = x, ",
                        names(splineslist)[1])))
 
+
 eval(parse(text = gsub("uSplines\\\\(",
-                       "ivmte::uSplinesInt(x = x, ",
-                        names(splineslist)[2])))
-}
+                       "ivmte:::uSplinesInt(x = x, ",
+                       names(splineslist)[2])))
 }

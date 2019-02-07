@@ -1927,7 +1927,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 
     if (is.null(target.weight0) & is.null(target.weight1)) {
         gentargetcall <- modcall(call,
-                                 newcall = gentarget,
+                                 newcall = genTarget,
                                  keepargs = c("treat", "m1", "m0",
                                               "target", "late.Z",
                                               "late.from", "late.to",
@@ -1944,7 +1944,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 
     } else {
         gentargetcall <- modcall(call,
-                                 newcall = gentarget,
+                                 newcall = genTarget,
                                  keepargs = c("treat", "m1", "m0",
                                               "target.weight0",
                                               "target.weight1",
@@ -1982,7 +1982,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
             subset <- eval(subset[[1]], data)
 
             scall <- modcall(call,
-                             newcall = ivestimate,
+                             newcall = ivEstimate,
                              keepargs = c("data", "components", "treat"),
                              newargs = list(formula = ivlike,
                                             subset = subset))
@@ -2001,7 +2001,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         ## Generate moments (gammas) corresponding to IV-like
         ## estimands
         if (point == FALSE) {
-            setobj <- gensset(data = data,
+            setobj <- genSSet(data = data,
                                   sset = sset,
                                   sest = sest,
                                   splinesobj = splinesobj,
@@ -2013,7 +2013,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                   subset_index = subset_index,
                                   noisy = noisy)
         } else {
-            setobj <- gensset(data = data,
+            setobj <- genSSet(data = data,
                                   sset = sset,
                                   sest = sest,
                                   splinesobj = splinesobj,
@@ -2051,7 +2051,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
             ## Obtain coefficient estimates and S-weights
             ## corresponding to the IV-like estimands
             sdata <- data[eval(substitute(ssubset), data), ]
-            sest  <- ivestimate(formula = sformula,
+            sest  <- ivEstimate(formula = sformula,
                                 data = sdata,
                                 components = scomponent,
                                 treat = treat,
@@ -2063,7 +2063,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
             ncomponents <- length(sest$betas)
             pmodobj <- pmodel$phat[subset_index]
             if (point == FALSE) {
-                setobj <- gensset(data = data,
+                setobj <- genSSet(data = data,
                                       sset = sset,
                                       sest = sest,
                                       splinesobj = splinesobj,
@@ -2075,7 +2075,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                       subset_index = subset_index,
                                       noisy = noisy)
             } else {
-                setobj <- gensset(data = data,
+                setobj <- genSSet(data = data,
                                       sset = sset,
                                       sest = sest,
                                       splinesobj = splinesobj,
@@ -2320,7 +2320,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 #'                  as.function = FALSE)
 #'
 #' ## Generate target gamma moments
-#' gentarget(treat = "d",
+#' genTarget(treat = "d",
 #'           m0 = ~ 1 + u,
 #'           m1 = ~ 1 + u,
 #'           uname = u,
@@ -2334,7 +2334,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 #'
 #'
 #' @export
-gentarget <- function(treat, m0, m1, uname, target,
+genTarget <- function(treat, m0, m1, uname, target,
                       target.weight0, target.weight1,
                       target.knots0, target.knots1,
                       late.Z, late.from, late.to, late.X,
@@ -2748,7 +2748,7 @@ gentarget <- function(treat, m0, m1, uname, target,
 #'
 #' ## Construct object that separates out non-spline components of MTR
 #' ## formulas from the spline components. The MTR functions are
-#' ## obtained from this object by the function 'gensset'.
+#' ## obtained from this object by the function 'genSSet'.
 #' splinesList = list(removeSplines(formula0), removeSplines(formula1))
 #'
 #' ## Construct MTR polynomials
@@ -2768,7 +2768,7 @@ gentarget <- function(treat, m0, m1, uname, target,
 #'                             link = "linear")
 #'
 #' ## Generate IV estimates
-#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#' ivEstimates <- ivEstimate(formula = ey ~ d | z,
 #'                           data = dtm,
 #'                           components = l(d),
 #'                           treat = d,
@@ -2776,7 +2776,7 @@ gentarget <- function(treat, m0, m1, uname, target,
 #'
 #' ## Construct S-set, which contains the coefficients and weights
 #' ## coresponding to various IV-like estimands
-#' gensset(data = dtm,
+#' genSSet(data = dtm,
 #'         sset = sSet,
 #'         sest = ivEstimates,
 #'         splinesobj = splinesList,
@@ -2787,7 +2787,7 @@ gentarget <- function(treat, m0, m1, uname, target,
 #'         scount = 1)
 #'
 #' @export
-gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
+genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         ncomponents, scount, subset_index, means = TRUE,
                         yvar, dvar, noisy = TRUE) {
 
@@ -2918,7 +2918,7 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #' these coefficients with the target gamma moments allows us to
 #' estimate the target treatment effect.
 #' @param sset a list of lists constructed from the function
-#'     \link{gensset}. Each inner list should include a
+#'     \link{genSSet}. Each inner list should include a
 #'     coefficient corresponding to a term in an IV specification, a
 #'     matrix of the estimates of the gamma moments conditional on (X,
 #'     Z) for d = 0, and a matrix of the estimates of the gamma
@@ -2953,7 +2953,7 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'
 #' ## Construct object that separates out non-spline components of MTR
 #' ## formulas from the spline components. The MTR functions are
-#' ## obtained from this object by the function 'gensset'.
+#' ## obtained from this object by the function 'genSSet'.
 #' splinesList = list(removeSplines(formula0), removeSplines(formula1))
 #'
 #' ## Construct MTR polynomials
@@ -2972,14 +2972,14 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'                             link = "linear")
 #'
 #' ## Generate IV estimates
-#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#' ivEstimates <- ivEstimate(formula = ey ~ d | z,
 #'                           data = dtm,
 #'                           components = l(intercept, d),
 #'                           treat = d,
 #'                           list = FALSE)
 #'
 #' ## Generate target gamma moments
-#' targetGamma <- gentarget(treat = "d",
+#' targetGamma <- genTarget(treat = "d",
 #'                          m0 = ~ 1 + u,
 #'                          m1 = ~ 1 + u,
 #'                          uname = u,
@@ -2993,7 +2993,7 @@ gensset <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'
 #' ## Construct S-set. which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands
-#' sSet <- gensset(data = dtm,
+#' sSet <- genSSet(data = dtm,
 #'                 sset = sSet,
 #'                 sest = ivEstimates,
 #'                 splinesobj = splinesList,

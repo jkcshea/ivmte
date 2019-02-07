@@ -118,7 +118,7 @@
 #'
 #' ## Construct object that separates out non-spline components of MTR
 #' ## formulas from the spline components. The MTR functions are
-#' ## obtained from this object by the function 'gensset'
+#' ## obtained from this object by the function 'genSSet'
 #' splinesList = list(removeSplines(formula0), removeSplines(formula1))
 #'
 #' ## Construct MTR polynomials
@@ -138,14 +138,14 @@
 #'                             link = "linear")
 #'
 #' ## Generate IV estimates
-#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#' ivEstimates <- ivEstimate(formula = ey ~ d | z,
 #'                           data = dtm,
 #'                           components = l(intercept, d),
 #'                           treat = d,
 #'                           list = FALSE)
 #'
 #' ## Generate target gamma moments
-#' targetGamma <- gentarget(treat = "d",
+#' targetGamma <- genTarget(treat = "d",
 #'                          m0 = ~ 1 + u,
 #'                          m1 = ~ 1 + u,
 #'                          uname = u,
@@ -159,7 +159,7 @@
 #'
 #' ## Construct S-set, which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands
-#' sSet <- gensset(data = dtm,
+#' sSet <- genSSet(data = dtm,
 #'                 sset = sSet,
 #'                 sest = ivEstimates,
 #'                 splinesobj = splinesList,
@@ -343,19 +343,19 @@ audit <- function(data, uname, m0, m1, splinesobj,
         mbobj <- eval(monoboundAcall)
 
         ## Minimize violation of observational equivalence
-        lpobj <- lpsetup(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
+        lpobj <- lpSetup(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
 
-        minobseq  <- obseqmin(sset, lpobj, lpsolver)
+        minobseq  <- obsEqMin(sset, lpobj, lpsolver)
 
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpSolve" && minobseq$status == 0) |
             (lpsolver == "lpSolveAPI" && minobseq$status == 0)) {
 
-            lpobjAlt <- lpsetup(sset, mbobj$mbA, mbobj$mbs,
+            lpobjAlt <- lpSetup(sset, mbobj$mbA, mbobj$mbs,
                                     mbobj$mbrhs, lpsolver,
                                     shape = FALSE)
 
-            minobseqAlt <- obseqmin(sset, lpobjAlt, lpsolver)
+            minobseqAlt <- obsEqMin(sset, lpobjAlt, lpsolver)
             solVec <- minobseqAlt$result$x
 
             ## Test for violations

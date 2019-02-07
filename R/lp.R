@@ -34,7 +34,7 @@
 #'
 #' ## Construct object that separates out non-spline components of MTR
 #' ## formulas from the spline components. The MTR functions are
-#' ## obtained from this object by the function 'gensset'.
+#' ## obtained from this object by the function 'genSSet'.
 #' splinesList = list(removeSplines(formula0), removeSplines(formula1))
 #'
 #' ## Construct MTR polynomials
@@ -53,7 +53,7 @@
 #'                             link = "linear")
 #'
 #' ## Generate target gamma moments
-#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#' ivEstimates <- ivEstimate(formula = ey ~ d | z,
 #'                           data = dtm,
 #'                           components = l(intercept, d),
 #'                           treat = d,
@@ -61,7 +61,7 @@
 #'
 #' ## Construct S-set, which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands
-#' sSet <- gensset(data = dtm,
+#' sSet <- genSSet(data = dtm,
 #'                 sset = sSet,
 #'                 sest = ivEstimates,
 #'                 splinesobj = splinesList,
@@ -75,10 +75,10 @@
 #'                 means = TRUE)
 #'
 #' ## Construct the LP problem to be solved using lpSolveAPI
-#' lpsetup(sset = sSet$sset, lpsolver = "lpSolveAPI")
+#' lpSetup(sset = sSet$sset, lpsolver = "lpSolveAPI")
 #' 
 #' @export
-lpsetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
+lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
                         lpsolver, shape = TRUE) {
 
     ## determine lengths
@@ -170,7 +170,7 @@ lpsetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
 #'
 #' ## Construct object that separates out non-spline components of MTR
 #' ## formulas from the spline components. The MTR functions are
-#' ## obtained from this object by the function 'gensset'.
+#' ## obtained from this object by the function 'genSSet'.
 #' splinesList = list(removeSplines(formula0), removeSplines(formula1))
 #'
 #' ## Construct MTR polynomials
@@ -189,14 +189,14 @@ lpsetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
 #'                             link = "linear")
 #'
 #' ## Generate IV estimates
-#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#' ivEstimates <- ivEstimate(formula = ey ~ d | z,
 #'                           data = dtm,
 #'                           components = l(intercept, d),
 #'                           treat = d,
 #'                           list = FALSE)
 #'
 #' ## Generate target gamma moments
-#' targetGamma <- gentarget(treat = "d",
+#' targetGamma <- genTarget(treat = "d",
 #'                          m0 = ~ 1 + u,
 #'                          m1 = ~ 1 + u,
 #'                          uname = u,
@@ -210,7 +210,7 @@ lpsetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
 #'
 #' ## Construct S-set. which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands
-#' sSet <- gensset(data = dtm,
+#' sSet <- genSSet(data = dtm,
 #'                 sset = sSet,
 #'                 sest = ivEstimates,
 #'                 splinesobj = splinesList,
@@ -235,19 +235,19 @@ lpsetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
 #' rhs <- c(rep(0.2, 11), rep(0.8, 11))
 #'
 #' ## Construct LP object to be interpreted and solved by lpSolveAPI
-#' lpObject <- lpsetup(sset = sSet$sset,
+#' lpObject <- lpSetup(sset = sSet$sset,
 #'                     mbA = A,
 #'                     mbs = sense,
 #'                     mbrhs = rhs,
 #'                     lpsolver = "lpSolveAPI")
 #'
 #' ## Estimate the bounds
-#' obseqmin(sset = sSet$sset,
+#' obsEqMin(sset = sSet$sset,
 #'          lpobj = lpObject,
 #'          lpsolver = "lpSolveAPI")
 #' 
 #' @export
-obseqmin <- function(sset, lpobj, lpsolver) {
+obsEqMin <- function(sset, lpobj, lpsolver) {
 
     if (lpsolver == "gurobi") {
         model <- list()
@@ -374,7 +374,7 @@ obseqmin <- function(sset, lpobj, lpsolver) {
 #'
 #' ## Construct object that separates out non-spline components of MTR
 #' ## formulas from the spline components. The MTR functions are
-#' ## obtained from this object by the function 'gensset'.
+#' ## obtained from this object by the function 'genSSet'.
 #' splinesList = list(removeSplines(formula0), removeSplines(formula1))
 #'
 #' ## Construct MTR polynomials
@@ -393,14 +393,14 @@ obseqmin <- function(sset, lpobj, lpsolver) {
 #'                             link = "linear")
 #'
 #' ## Generate IV estimates
-#' ivEstimates <- ivestimate(formula = ey ~ d | z,
+#' ivEstimates <- ivEstimate(formula = ey ~ d | z,
 #'                           data = dtm,
 #'                           components = l(intercept, d),
 #'                           treat = d,
 #'                           list = FALSE)
 #'
 #' ## Generate target gamma moments
-#' targetGamma <- gentarget(treat = "d",
+#' targetGamma <- genTarget(treat = "d",
 #'                          m0 = ~ 1 + u,
 #'                          m1 = ~ 1 + u,
 #'                          uname = u,
@@ -414,7 +414,7 @@ obseqmin <- function(sset, lpobj, lpsolver) {
 #'
 #' ## Construct S-set. which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands
-#' sSet <- gensset(data = dtm,
+#' sSet <- genSSet(data = dtm,
 #'                 sset = sSet,
 #'                 sest = ivEstimates,
 #'                 splinesobj = splinesList,
@@ -439,7 +439,7 @@ obseqmin <- function(sset, lpobj, lpsolver) {
 #' rhs <- c(rep(0.2, 11), rep(0.8, 11))
 #'
 #' ## Construct LP object to be interpreted and solved by lpSolveAPI
-#' lpObject <- lpsetup(sset = sSet$sset,
+#' lpObject <- lpSetup(sset = sSet$sset,
 #'                     mbA = A,
 #'                     mbs = sense,
 #'                     mbrhs = rhs,
@@ -655,7 +655,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
 #' Running cplexAPI LP solver
 #'
 #' This function solves the LP problem using the cplexAPI package. The
-#' object generated by \code{\link{lpsetup}} is not compatible
+#' object generated by \code{\link{lpSetup}} is not compatible
 #' with the \code{cplexAPI} functions. This function adapts the object
 #' to solve the LP problem.
 #' @param lpobj list of matrices and vectors defining the linear
@@ -734,7 +734,7 @@ runCplexAPI <- function(lpobj, lpdir) {
 #' Running lpSolveAPI
 #'
 #' This function solves the LP problem using the \code{lpSolveAPI}
-#' package. The object generated by \code{\link{lpsetup}} is not
+#' package. The object generated by \code{\link{lpSetup}} is not
 #' compatible with the \code{lpSolveAPI} functions. This function
 #' adapts the object to solve the LP problem.
 #' @param lpobj list of matrices and vectors defining the linear

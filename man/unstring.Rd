@@ -19,7 +19,5 @@ Auxiliary function that converts a vector of strings into an
 expression containing variable names.
 }
 \examples{
-\dontrun{
-ivmte::unstring(c("a", "b"))
-}
+ivmte:::unstring(c("a", "b"))
 }
