@@ -113,6 +113,10 @@ ivEstimate <- function(formula, data, subset, components, treat,
                             ")")
     }
 
+    if (length(components > 1)) {
+        components <- gsub("\\s+", " ", Reduce(paste, components))
+    }
+
     ## Covert components into a vector of strings
     stringComp <- (substr(components, 1, 2) == "c(" &
         substr(components, nchar(components), nchar(components)) == ")")

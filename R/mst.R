@@ -1043,9 +1043,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Fill in components list if necessary
     if (userComponents) {
-        compMissing1 <- unlist(lapply(components, function(x) deparse(x) == ""))
+        compMissing1 <- unlist(lapply(components, function(x) {
+            Reduce(paste, deparse(x)) == ""
+        }))
         compMissing2 <- unlist(lapply(components, function(x) x == ""))
         compMissing <- as.logical(compMissing1 + compMissing2)
+
         if (sum(compMissing) > 0 & specCompWarn) {
             warning(gsub("\\s+", " ",
                          "Specifications without corresponding
@@ -1053,7 +1056,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                          constructing the S-set."),
                     call. = FALSE)
         }
-        components[compMissing] <- comp_filler[compMissing]
+
+        if (sum(compMissing) > 0) {
+            components[compMissing] <- comp_filler[compMissing]
+        }
     } else {
         components <- comp_filler
     }

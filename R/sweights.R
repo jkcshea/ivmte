@@ -55,7 +55,7 @@ olsj <- function(X, components, treat) {
     wvec1 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X1)
     wvec1 <- extractcols(t(wvec1), cpos)
     colnames(wvec1)  <- components
-        
+
     return(list(s0 = wvec0, s1 = wvec1))
 }
 
@@ -102,7 +102,7 @@ ivj <- function(X, Z, components, treat) {
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
     cpos <- which(colnames(X) %in% components)
     cposcheck <- which(!components %in% colnames(X))
-   
+
     if (length(cposcheck) > 0) {
         errornames  <- paste(components[cposcheck], collapse = ", ")
         matrixnames <- paste(colnames(X), collapse = ", ")

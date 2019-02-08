@@ -25,10 +25,10 @@ bX <- function(x, knots, i) {
 #' @param knots vector, the internal knots.
 #' @param i integer, the basis component to be evaluated.
 #' @param order integer, the order of the basis. Do not confuse this
-#'     with the degree of the splines, i.e. order = degree + 1. 
-#' @return scalar. 
+#'     with the degree of the splines, i.e. order = degree + 1.
+#' @return scalar.
 weights <- function(x, knots, i, order) {
-  
+
     if (knots[i] != knots[i + order - 1]) {
         (x - knots[i]) / (knots[i + order - 1] - knots[i])
     } else {
@@ -75,10 +75,8 @@ splineUpdate <- function(x, bmat, knots, i, current.order) {
     }
 
     if (dim(bmat)[1] == 1) return(bmat)
-   
-    ## print("THIS IS THE SEUQUENCE OF iS I WILL USE")
-    ## print(seq(i, (i + nrow(bmat) - 1)))
-    ## Update bmat      
+
+    ## Update bmat
     wmat <- as.matrix(sapply(x,
                              function(y) {
                                  sapply(X = seq(i, (i + nrow(bmat) - 1)),
@@ -86,11 +84,11 @@ splineUpdate <- function(x, bmat, knots, i, current.order) {
                                         x = y,
                                         knots = knots,
                                         order = current.order + 1)}))
-    
+
     bmat1 <- as.matrix(wmat * bmat)
     bmat2 <- as.matrix((1 - wmat) * bmat)
     bmat <- bmat1[-nrow(bmat), ] + bmat2[-1, ]
-    
+
     ## Impose recursion
     splineUpdate(x, bmat, knots, i, current.order + 1)
 }
@@ -117,10 +115,10 @@ splinesBasis <- function(x, knots, degree, intercept = TRUE, i,
     if (i > degree + length(knots) + intercept) {
         return(NA)
     }
-    else {   
+    else {
         knots <- sort(c(knots, boundary.knots[2], rep(boundary.knots, degree)))
         if(intercept == TRUE) knots <- c(boundary.knots[1], knots)
-        
+
         bmat <- as.matrix(sapply(x,
                                  function(y) {
                                      sapply(X = seq(i, i + degree),
@@ -155,7 +153,7 @@ splinesBasis <- function(x, knots, degree, intercept = TRUE, i,
 altDefSplinesBasis <- function(splineslist, j, l, v = 1) {
     cmd <- names(splineslist)[j]
     cmd <- gsub("uSplines\\(", "splinesBasis(x = u, i = l, ", cmd)
-    
+
     fun <- function(u) {
         v * eval(parse(text = cmd))
     }
