@@ -4,7 +4,7 @@
 \alias{ivj}
 \title{IV weights}
 \usage{
-ivj(X, Z, components, treat)
+ivj(X, Z, components, treat, order = NULL)
 }
 \arguments{
 \item{X}{Matrix of covariates, including the treatment indicator.}
@@ -15,6 +15,10 @@ ivj(X, Z, components, treat)
 S-weights for.}
 
 \item{treat}{Variable name for the treatment indicator.}
+
+\item{order}{integer, default set to \code{NULL}. This is simply an
+index of which IV-like specification the estimate corresponds
+to.}
 }
 \value{
 A list of two vectors: one is the weight for D = 0, the

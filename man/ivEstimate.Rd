@@ -4,7 +4,8 @@
 \alias{ivEstimate}
 \title{Obtaining IV-like specifications}
 \usage{
-ivEstimate(formula, data, subset, components, treat, list = FALSE)
+ivEstimate(formula, data, subset, components, treat, list = FALSE,
+  order = NULL)
 }
 \arguments{
 \item{formula}{formula to be estimated using OLS/IV.}
@@ -20,6 +21,10 @@ want to include in the set of IV-like estimands.}
 
 \item{list}{logical, set to TRUE if this function is being used to
 loop over a list of formulas.}
+
+\item{order}{integer, default set to \code{NULL}. This is simply an
+index of which IV-like specification the estimate corresponds
+to.}
 }
 \value{
 Returns a list containing the matrices of IV-like

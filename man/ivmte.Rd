@@ -61,10 +61,14 @@ binary variable is \code{use}, and the subset condition is
 \item{components}{a list of vectors of the terms/components from
 the regressions specifications we want to include in the set of
 IV-like estimands. To select the intercept term, include in the
-vector of variable names, `intercept'. See \code{\link{l}} on
-how to input the argument. If no components for a IV
-specification are given, then all components from that IV
-specification will be included.}
+vector of variable names, `intercept'. If the the factorized
+counterpart of a variable \code{x = 1, 2, 3} is included in the
+IV-like specifications via \code{factor(x)}, the user can
+select the coefficients for specific factors by declaring the
+components \code{factor(x)-1, factor(x)-2, factor(x)-3}. See
+\code{\link{l}} on how to input the argument. If no components
+for a IV specification are given, then all components from that
+IV specification will be included.}
 
 \item{propensity}{formula or variable name corresponding to
 propensity to take up treatment. If a formula is declared, then

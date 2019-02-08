@@ -67,10 +67,14 @@ utils::globalVariables("u")
 #' @param components a list of vectors of the terms/components from
 #'     the regressions specifications we want to include in the set of
 #'     IV-like estimands. To select the intercept term, include in the
-#'     vector of variable names, `intercept'. See \code{\link{l}} on
-#'     how to input the argument. If no components for a IV
-#'     specification are given, then all components from that IV
-#'     specification will be included.
+#'     vector of variable names, `intercept'. If the the factorized
+#'     counterpart of a variable \code{x = 1, 2, 3} is included in the
+#'     IV-like specifications via \code{factor(x)}, the user can
+#'     select the coefficients for specific factors by declaring the
+#'     components \code{factor(x)-1, factor(x)-2, factor(x)-3}. See
+#'     \code{\link{l}} on how to input the argument. If no components
+#'     for a IV specification are given, then all components from that
+#'     IV specification will be included.
 #' @param propensity formula or variable name corresponding to
 #'     propensity to take up treatment. If a formula is declared, then
 #'     the function estimates propensity score according to the
@@ -430,7 +434,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     call. = FALSE)
         }
     }
-
+   
     ##---------------------------
     ## 3. Check numeric arguments and case completion
     ##---------------------------
@@ -1063,7 +1067,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     } else {
         components <- comp_filler
     }
-
+   
     ## Keep only complete cases
     varError <- allvars[! allvars %in% colnames(data)]
     varError <- varError[varError != "intercept"]
@@ -1875,7 +1879,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                            noisy = TRUE) {
 
     call <- match.call(expand.dots = FALSE)
-
+    
     ##---------------------------
     ## 1. Obtain propensity scores
     ##---------------------------
@@ -2043,6 +2047,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         ## specifications are provided
 
         ## loop across IV specifications
+        ivlikeCounter <- 1
         for (i in 1:length(ivlike)) {
 
             sformula   <- ivlike[[i]]
@@ -2061,7 +2066,9 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                 data = sdata,
                                 components = scomponent,
                                 treat = treat,
-                                list = TRUE)
+                                list = TRUE,
+                                order = ivlikeCounter)
+            ivlikeCounter <- ivlikeCounter + 1
 
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands

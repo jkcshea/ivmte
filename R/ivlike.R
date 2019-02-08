@@ -48,7 +48,6 @@ permute <- function(vector) {
 #' @param weights vector of weights.
 #' @return vector of select coefficient estimates.
 piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
-    ## FIX: account for weights
 
     ## project regressors x on image of instruments z
     if (ncol(Z) < ncol(X)) {
@@ -66,6 +65,7 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
     } else {
         fit <- lm.wfit(Xhat, Y, weights)
     }
+
     return(fit$coefficients[lmcomponents])
 }
 
@@ -83,6 +83,9 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #' @param treat name of treatment indicator variable.
 #' @param list logical, set to TRUE if this function is being used to
 #'     loop over a list of formulas.
+#' @param order integer, default set to \code{NULL}. This is simply an
+#'     index of which IV-like specification the estimate corresponds
+#'     to.
 #' @return Returns a list containing the matrices of IV-like
 #'     specifications for \code{D = 0} and \code{D = 1}; and the
 #'     estimates of the IV-like estimands.
@@ -95,7 +98,7 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #'            list = FALSE)
 #' @export
 ivEstimate <- function(formula, data, subset, components, treat,
-                         list = FALSE) {
+                         list = FALSE, order = NULL) {
 
     formula <- Formula::as.Formula(formula)
 
@@ -113,9 +116,16 @@ ivEstimate <- function(formula, data, subset, components, treat,
                             ")")
     }
 
+    ## Address deparse byte limit
     if (length(components > 1)) {
         components <- gsub("\\s+", " ", Reduce(paste, components))
     }
+
+
+    ## Address factors whose values are listed, e.g. factor(x)-1,
+    ## factor(x)-2. General declaration of factors is dealt with
+    ## below.
+    components <- gsub(") - ", ")", components)
 
     ## Covert components into a vector of strings
     stringComp <- (substr(components, 1, 2) == "c(" &
@@ -126,9 +136,9 @@ ivEstimate <- function(formula, data, subset, components, treat,
         components   <- strsplit(components, ", ")[[1]]
     }
 
-    ## Some interactions may need to be relabled
+    ## Some interactions  may need  to be  relabled by  reordering the
+    ## order of the interaction
     termsR <- attr(terms(formula), "term.labels")
-
     failTerms <- which(!components %in% termsR)
 
     for(fail in failTerms) {
@@ -143,10 +153,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
         }
     }
 
-    ## Generate the lmcomponents vector
-    lmcomponents <- components
-    lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
-
     ## obtain design matrices
     if (list == TRUE) {
         mf <- design(formula, data)
@@ -159,6 +165,35 @@ ivEstimate <- function(formula, data, subset, components, treat,
 
     instrumented <- !is.null(mf$Z)
 
+    ## Address factors whose values are not listed
+    factorPos <- grep("factor(.)", components)
+    if (length(factorPos) > 0) {
+
+        factorVars <- components[factorPos]
+        factorPos <- sapply(factorVars,
+                            function(x) substr(x, nchar(x), nchar(x)) == ")")
+
+        factorVars <- factorVars[factorPos]
+        factorVarsGrep <- sapply(factorVars, function(x) {
+            x <- gsub("\\(", "\\\\\\(", x)
+            x <- gsub("\\)", "\\\\\\)", x)
+            x
+        })
+
+        xVars <- colnames(mf$X)
+
+        factorVarsPos <- sapply(factorVarsGrep, grep, x = xVars)
+        factorVarsFull <- lapply(factorVarsPos, function(x) xVars[x])
+
+        components <- c(components[! components %in% factorVars],
+                        unlist(factorVarsFull))
+        components <- unique(components)
+    }
+
+    ## Generate the lmcomponents vector
+    lmcomponents <- components
+    lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
+    
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
         bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents)
@@ -167,10 +202,10 @@ ivEstimate <- function(formula, data, subset, components, treat,
         if (length(formula)[2] == 2 &
             dim(mf$X)[2] == dim(mf$Z)[2]) {
             bhat <- piv(mf$Y, mf$X, mf$Z, lmcomponents)
-            sweight <- ivj(mf$X, mf$Z, components, treat)
+            sweight <- ivj(mf$X, mf$Z, components, treat, order)
         } else if (length(formula)[2] == 2 & dim(mf$X)[2] < dim(mf$Z)[2]) {
             bhat <- piv(mf$Y, mf$X, mf$Z, lmcomponents)
-            sweight <- tsls(mf$X, mf$Z, components, treat)
+            sweight <- tsls(mf$X, mf$Z, components, treat, order)
         } else if (length(formula)[2] == 2 & dim(mf$X)[2] > dim(mf$Z)[2]) {
             stop(gsub("\\s+", " ",
                       paste0("More regressors than instruments in the following
@@ -181,5 +216,10 @@ ivEstimate <- function(formula, data, subset, components, treat,
                       properly specified: ", deparse(formula), ".")))
         }
     }
+
+    if (!is.null(sweight$errorfactors)) {
+        bhat <- bhat[-which(lmcomponents %in% sweight$errorfactors)]
+    }
+    
     return(list(sw0 = sweight$s0, sw1 = sweight$s1, betas = bhat))
 }
