@@ -434,7 +434,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     call. = FALSE)
         }
     }
-   
+
     ##---------------------------
     ## 3. Check numeric arguments and case completion
     ##---------------------------
@@ -1067,7 +1067,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     } else {
         components <- comp_filler
     }
-   
+
     ## Keep only complete cases
     varError <- allvars[! allvars %in% colnames(data)]
     varError <- varError[varError != "intercept"]
@@ -1879,7 +1879,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                            noisy = TRUE) {
 
     call <- match.call(expand.dots = FALSE)
-    
+
     ##---------------------------
     ## 1. Obtain propensity scores
     ##---------------------------
@@ -1998,7 +1998,17 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                             subset = subset))
 
             sest <- eval(scall)
+        } else {
+            subset <- replicate(nrow(data), TRUE)
+            scall <- modcall(call,
+                             newcall = ivEstimate,
+                             keepargs = c("data", "components", "treat"),
+                             newargs = list(formula = ivlike,
+                                            subset = subset))
+
+            sest <- eval(scall)
         }
+
 
         ncomponents <- length(sest$betas)
 

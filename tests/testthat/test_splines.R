@@ -12,7 +12,6 @@ ivlike <- c(ey ~ d,
 
 components <- l(c(intercept, d), d, c(d, x))
 
-set.seed(10L)
 result <- ivmte(ivlike = ivlike,
                 data = dtsf,
                 components = components,
