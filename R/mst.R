@@ -1,34 +1,22 @@
 utils::globalVariables("u")
 
-#' Estimation procedure from Mogstad, Torgovitsky (2017)
+#' Instrumental Variables: Extrapolation by Marginal Treatment Effects
 #'
-#' This function estimates bounds on treatment effect parameters,
-#' following the procedure described in Mogstad, Torgovitsky
-#' (2017). Of the  parameters, the user can choose from the ATE,
-#' ATT, ATU, LATE, and generalized LATE. The user is required to
-#' provide a polynomial expression for the marginal treatment
-#' responses (MTR), as well as a set of regressions. By restricting
-#' the set of coefficients on each term of the MTRs to be consistent
-#' with the regression estimates, the function is able to restrict
-#' itself to a set of MTRs. The bounds on the treatment effect
-#' parameter correspond to finding coefficients on the MTRs that
-#' maximize their average difference.
+#' This function provides a general framework for using the marginal treatment
+#' effect (MTE) to extrapolate. The model is the same binary treatment
+#' instrumental variable (IV) model considered by
+#' \href{https://doi.org/10.2307/2951620}{Imbens and Angrist (1994)} and
+#' \href{https://doi.org/10.1111/j.1468-0262.2005.00594.x}{Heckman and Vytlacil
+#' (2005)}. The framework on which this function is based was developed by
+#' \href{https://doi.org/10.3982/ECTA15463}{Mogstad, Santos and Torgovitsky
+#' (2018)}. See also the recent survey paper on extrapolation in IV models by
+#' \href{https://doi.org/10.1146/annurev-economics-101617-041813}{Mogstad and
+#' Torgovitsky (2018)}.  A detailed description of the module and its features
+#' can be found in
+#' \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea and
+#' Torgovitsky (2019)}.
 #'
-#' The estimation procedure relies on the propensity to take up
-#' treatment. The propensity scores can either be estimated as part of
-#' the estimation procedure, or the user can specify a variable in the
-#' data set already containing the propensity scores.
 #'
-#' Constraints on the shape of the MTRs and marginal treatment effects
-#' (MTE) can be imposed by the user, also. Specifically, bounds and
-#' monotonicity restrictions are permitted. These constraints are only
-#' enforced over a subset of the data. However, an audit procedure
-#' randomly selects points outside of this subset to determine whether
-#' or not the constraints hold. The user can specify how stringent
-#' this audit procedure is using the function arguments.
-#'
-#' Alternatively, point estimates can be obtained. Standard errors for
-#' point estimates can be constructed using the bootstrap.
 #'
 #' @import methods stats utils
 #'
