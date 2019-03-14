@@ -298,6 +298,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## 2. Check format of `formula', `subset', and `component' inputs
     ##---------------------------
 
+    if (classFormula(ivlike)) {
+        ivlike <- c(ivlike)
+    }
+    
     if (classList(ivlike)) {
 
         ## Convert formula, components, and subset inputs into lists
@@ -728,8 +732,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         vars_formulas_x <- getXZ(ivlike)
         vars_formulas_z <- getXZ(ivlike, inst = TRUE)
         vars_y <- all.vars(ivlike)[1]
-        terms_formulas <- attr(terms(Formula::as.Formula(ivlike)),
-                               "term.labels")
+        ## terms_formulas <- attr(terms(Formula::as.Formula(ivlike)),
+        ##                        "term.labels")
+        terms_formulas_x <- getXZ(ivlike, terms = TRUE, inst = FALSE)
+        terms_formulas_z <- getXZ(ivlike, terms = TRUE, inst = TRUE)
+        
+        
     } else if (classList(ivlike)) {
         if(!min(unlist(lapply(ivlike, classFormula)))) {
             stop(gsub("\\s+", " ",
@@ -1042,8 +1050,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         vars_propensity))
     allvars <- allvars[allvars != deparse(substitute(uname))]
 
-    comp_filler <- lapply(terms_formulas_x,
-                          function(x) as.character(unstring(x)))
+    if (classFormula(ivlike)) {
+        comp_filler <- unstring(terms_formulas_x)
+    } else {
+        comp_filler <- lapply(terms_formulas_x,
+                              function(x) as.character(unstring(x)))
+    }
 
     ## Fill in components list if necessary
     if (userComponents) {
@@ -1065,9 +1077,14 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             components[compMissing] <- comp_filler[compMissing]
         }
     } else {
+        print("am i doing the comp filler?")
         components <- comp_filler
     }
 
+    print("componnets")
+    print(components)
+    ## stop("end of test")
+    
     ## Keep only complete cases
     varError <- allvars[! allvars %in% colnames(data)]
     varError <- varError[varError != "intercept"]

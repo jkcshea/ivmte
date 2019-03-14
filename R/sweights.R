@@ -18,12 +18,19 @@ genej <- function(pos, length) {
 #' @param M The matrix to extract from.
 #' @param components The vector of variable names.
 extractcols <- function(M, components) {
+    print("THIS IS THE MATRIX M")
+    print(head(M))
+
     n <- ncol(M)
     emat <- NULL
     for (pos in components) {
         e <- genej(pos, n)
         emat <- cbind(emat, e)
     }
+
+    print("THIS IS THE MATRIX emat")
+    print(head(emat))
+    
 
     return(M %*% emat)
 }
