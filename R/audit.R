@@ -310,15 +310,12 @@ audit <- function(data, uname, m0, m1, splinesobj,
     audit_count <- 1
 
     while (audit_count <= audit.max) {
-        if (obseq.tol > 0 ) {
-            cat("Audit count:", audit_count, "\n")
-            if (!noX) {
-                if (length(grid_resid) == 0) {
-                    message("Full support of covariates now included as grid.")
-                }
+
+        cat("Audit count:", audit_count, "\n")
+        if (!noX) {
+            if (length(grid_resid) == 0) {
+                message("Full support of covariates now included as grid.")
             }
-        } else {
-            message("\nSkipping audit procedure: obseq.tol set to 0. \n")
         }
 
         ## Generate all monotonicity and boundedness matrices for initial grid
@@ -429,10 +426,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
                       paste(unique(violateType), collapse = ", "), ".\n")))
         }
 
-        if (obseq.tol > 0) {
-            message(paste("Minimum observational equivalence deviation:",
-                          round(minobseq$obj, 6), "\n"))
-        }
+
+        message(paste("Minimum observational equivalence deviation:",
+                      round(minobseq$obj, 6), "\n"))
+        
 
         ## Obtain bounds
         message("Obtaining bounds...\n")
@@ -449,23 +446,15 @@ audit <- function(data, uname, m0, m1, splinesobj,
         optstatus <- min(c(lpresult$minstatus,
                            lpresult$maxstatus))
 
-        if (obseq.tol == 0) {
-            if (optstatus == 0) {
-                message(gsub("\\s+", " ",
-                             "Unable to obtain bounds. Try setting obseq.tol
-                             to be greater than 0 to allow for model
-                             misspecification, or expanding the grid
-                             size for imposing the shape restrictions
-                             (grid.nx, grid.nu). \n"))
-            }
-            warning(gsub("\\s+", " ",
-                         "Setting obseq.tol to 0 allows assumes that any
-                         violation of observational equivalence is due to
-                         statistical noise, and that the model is
-                         correctly specified. The audit procedure is skipped."))
-            break
+        if (obseq.tol == 0 & optstatus == 0) {
+            message(gsub("\\s+", " ",
+                         "Unable to obtain bounds. Try setting obseq.tol
+                          to be greater than 0 to allow for model
+                          misspecification, or expanding the grid
+                          size for imposing the shape restrictions
+                          (grid.nx, grid.nu). \n"))
         }
-
+        
         ## Generate a new grid for the audit
         a_uvec <- round(runif(audit.nu), 8)
 
