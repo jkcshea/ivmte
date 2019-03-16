@@ -81,6 +81,8 @@
 lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
                         lpsolver, shape = TRUE) {
 
+    lpsolver <- tolower(lpsolver)
+    
     ## determine lengths
     sn  <- length(sset)
     gn0 <- length(sset$s1$g0)
@@ -248,6 +250,8 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
 #' 
 #' @export
 obsEqMin <- function(sset, lpobj, lpsolver) {
+
+    lpsolver <- tolower(lpsolver)
 
     if (lpsolver == "gurobi") {
         model <- list()
@@ -456,9 +460,11 @@ obsEqMin <- function(sset, lpobj, lpsolver) {
 #' @export
 bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
 
-    if (tolower(lpsolver) %in% c("gurobi", "rcplex",
-                                 "cplexapi", "lpsolveapi")) {
-
+    lpsolver <- tolower(lpsolver)
+    
+    if (lpsolver %in% c("gurobi", "rcplex",
+                        "cplexapi", "lpsolveapi")) {
+        
         ## define model
         model <- list()
         model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1)

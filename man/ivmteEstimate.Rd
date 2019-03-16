@@ -5,15 +5,15 @@
 \title{Single iteration of estimation procedure from Mogstad, Torgovitsky,
 Santos (2018)}
 \usage{
-ivmteEstimate(ivlike, data, subset, components, propensity, link, treat,
-  m0, m1, vars_y, vars_mtr, terms_mtr0, terms_mtr1, splinesobj,
-  uname = u, target, target.weight0, target.weight1,
-  target.knots0 = NULL, target.knots1 = NULL, late.Z, late.from,
-  late.to, late.X, eval.X, genlate.lb, genlate.ub, obseq.tol = 0.05,
-  grid.nu = 20, grid.nx = 20, audit.nx = 2, audit.nu = 3,
-  audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
-  mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
-  lpsolver = NULL, point = FALSE, point.itermax = 2,
+ivmteEstimate(ivlike, data, subset, components, propensity,
+  link = "logit", treat, m0, m1, vars_y, vars_mtr, terms_mtr0,
+  terms_mtr1, splinesobj, uname = u, target, target.weight0,
+  target.weight1, target.knots0 = NULL, target.knots1 = NULL, late.Z,
+  late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
+  obseq.tol = 0.05, grid.nu = 20, grid.nx = 20, audit.nx = 2,
+  audit.nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub,
+  m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
+  mte.inc, lpsolver = NULL, point = FALSE, point.itermax = 2,
   point.tol = 1e-08, noisy = TRUE)
 }
 \arguments{
@@ -48,7 +48,8 @@ then the corresponding column in the data is taken as the
 vector of propensity scores.}
 
 \item{link}{name of link function to estimate propensity score. Can
-be chosen from \code{linear}, \code{probit}, or \code{logit}.}
+be chosen from \code{linear}, \code{probit}, or \code{logit}.
+Default is set to "logit".}
 
 \item{treat}{variable name for treatment indicator.}
 
@@ -64,7 +65,8 @@ using the expression "uSplines(degree, knots, intercept)". The
 'intercept' argument may be omitted, and is set to \code{TRUE}
 by default.}
 
-\item{vars_y}{character, variable name of observed outcome variable.}
+\item{vars_y}{character, variable name of observed outcome
+variable.}
 
 \item{vars_mtr}{character, vector of variables entering into
 \code{m0} and \code{m1}.}

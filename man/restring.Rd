@@ -5,7 +5,7 @@
 \title{Auxiliary function that converts an expression of variable names
 into a vector of strings.}
 \usage{
-restring(vector, substitute = TRUE)
+restring(vector, substitute = TRUE, command = "c")
 }
 \arguments{
 \item{vector}{An expression of a list of variable names.}
@@ -16,6 +16,10 @@ function. Note that this substitutes the argument of the
 function. If \code{substitute = FALSE}, then the function will
 instead treat the arguments as variables, and substitute in
 their values.}
+
+\item{command}{character, the name of the function defining the
+vector or list, e.g. "c", "list", "l". This let's the function
+determine how many characters in front to remove.}
 }
 \value{
 A vector of variable names (strings).

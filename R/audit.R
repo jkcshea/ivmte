@@ -210,6 +210,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
     
     call  <- match.call()
 
+    lpsolver <- tolower(lpsolver)
+    
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
 

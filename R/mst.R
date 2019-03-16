@@ -293,144 +293,145 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (hasArg(target))   target   <- tolower(target)
     if (hasArg(link))     link     <- tolower(link)
     if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
+
+    ## Convert ivlike formula into a list (i.e. a one-element list
+    ## with one formula), which is a more robust framework
+    if (classFormula(ivlike)) {
+        ivlike <- c(ivlike)
+    }
     
-    ## Check formulas
-    if (classList(ivlike)) {
+    ## Convert formula, components, and subset inputs into lists
+    length_formula <- length(ivlike)
 
-        ## Convert formula, components, and subset inputs into lists
-        length_formula <- length(ivlike)
-
-        userComponents <- FALSE
-        if (hasArg(components)) {
-            if (!is.null(components)) {
-                userComponents <- TRUE
-            }
+    userComponents <- FALSE
+    if (hasArg(components)) {
+        if (!is.null(components)) {
+            userComponents <- TRUE
         }
+    }
 
-        if (userComponents) {
-            if (classList(components)) {
-                length_components <- length(components)
-                if (length_components == length_formula) {
-                    specCompWarn <- TRUE
-                } else {
-                    specCompWarn <- FALSE
-                }
+    if (userComponents) {
+        length_components <- length(components)
+        if (length_formula > 1) {
+            ## When multiple formulas are declared, multiple
+            ## vectors of components should also be declared. If
+            ## not enouh vectors are declared, then 'specCompWarn'
+            ## ("special components warning") is set to TRUE,
+            ## which will inform the user that fomrulas without a
+            ## correpsonding components vector will include all
+            ## the second stage variables as components.
+            if (length_components == length_formula) {
+                specCompWarn <- TRUE
             } else {
-                length_components <- 1
-                compList <- list()
-                compList[[1]] <- components
-                components <- compList
+                specCompWarn <- FALSE
             }
         } else {
-            length_components <- length_formula
-            components <- as.list(replicate(length_formula, ""))
-            warning(gsub("\\s+", " ",
-                         "No list of components provided. All covariates in each
+            ## When a single formula is provided, then the list of
+            ## components should be treated as a single vector of
+            ## components.
+            specCompWarn <- FALSE
+            
+            components <- deparse(substitute(components))
+            components <- Reduce(paste, components)
+            components <- paste0("l(c",
+                                 substr(components, 2, nchar(components)),
+                                 ")")
+            components <- eval(parse(text = components))
+            length_components <- 1
+        }
+    } else {
+        length_components <- length_formula
+        components <- as.list(replicate(length_formula, ""))
+        warning(gsub("\\s+", " ",
+                     "No list of components provided. All covariates in each
                          IV-like specification will be included when
                          constructing each S-set."),
-                    call. = FALSE)
-        }
+                call. = FALSE)
+    }
 
-        if (length_formula > length_components & length_components > 0) {
-            warning(gsub("\\s+", " ",
-                         "List of components not the same length of list of
+    if (length_formula > length_components & length_components > 0) {
+        warning(gsub("\\s+", " ",
+                     "List of components not the same length of list of
                          IV-like specifications: more specifications than
                          component vectors. Specifications without corresponding
                          component vectors will include all covariates when
                          constructing the S-set."),
-                    call. = FALSE)
-            components[(length(components) + 1) : length(ivlike)] <- ""
-        }
+                call. = FALSE)
+        components[(length(components) + 1) : length(ivlike)] <- ""
+    }
 
-        if (length_formula < length_components) {
-            warning(gsub("\\s+", " ",
-                         "List of components not the same length of list of
+    if (length_formula < length_components) {
+        warning(gsub("\\s+", " ",
+                     "List of components not the same length of list of
                          IV-like specifications: more component vectors than
                          specifications. Component vectors without corresponding
                          specifications will be dropped."),
-                    call. = FALSE)
-            components <- components[1 : length(ivlike)]
+                call. = FALSE)
+        components <- components[1 : length(ivlike)]
+    }
+
+    ## Check the subset input---of the three lists that are input,
+    ## only this can be omitted by the user, in which case no
+    ## subsetting is used
+    if (hasArg(subset)) {
+
+        ## If subsetting is not a list, convert it to a list
+        if (!(classList(subset))) {
+            subset <- paste0("l(",
+                             deparse(substitute(subset)),
+                             ")")
+            subset <- eval(parse(text = subset))
+            
         }
 
-        ## Check the subset input---of the three lists that are input,
-        ## only this can be omitted by the user, in which case no
-        ## subsetting is used
-        if (hasArg(subset)) {
-            if (!class(subset) == "list") subset <- list(subset)
-
-            ## Check if all subseting conditions are logical
-            nonLogicSubset <- NULL
-            for (i in 1:length(ivlike)) {
-                if (subset[[i]] == "") {
-                    ssubset <- replicate(nrow(data), TRUE)
-                } else {
-                    ssubset <- subset[[i]]
-                }
-
-                if (!is.logical(head(eval(substitute(ssubset), data)))) {
-                    nonLogicSubset <- c(nonLogicSubset, i)
-                }
+        ## Check if all subseting conditions are logical
+        nonLogicSubset <- NULL
+        for (i in 1:length(ivlike)) {
+            if (subset[[i]] == "") {
+                ssubset <- replicate(nrow(data), TRUE)
+            } else {
+                ssubset <- subset[[i]]
             }
-            if (length(nonLogicSubset) > 0) {
-                stop(gsub("\\s+", " ",
-                          paste0("The conditions in the following
+
+            if (!is.logical(head(eval(substitute(ssubset), data)))) {
+                nonLogicSubset <- c(nonLogicSubset, i)
+            }
+        }
+        if (length(nonLogicSubset) > 0) {
+            stop(gsub("\\s+", " ",
+                      paste0("The conditions in the following
                       positions of the subset list are not
                       logical: ",
                       paste(nonLogicSubset, collapse = ", "),
                       ". Please change the conditions so they
                       are logical.")))
-            }
+        }
 
-            if(length(subset) < length_formula) {
-                warning(gsub("\\s+", " ",
-                             "List of subset conditions not the same length
+        if(length(subset) < length_formula) {
+            warning(gsub("\\s+", " ",
+                         "List of subset conditions not the same length
                               of list IV-like specifications: more
                               specifications than subsetting conditions.
                               Specifications without corresponding subset
                               conditions will include all observations."),
-                        call. = FALSE)
-                subset[length(subset) + 1 : length(ivlike)] <- ""
-            }
-            if(length(subset) > length_formula) {
-                warning(gsub("\\s+", " ",
-                             "List of subset conditions not the same length
+                    call. = FALSE)
+            subset[length(subset) + 1 : length(ivlike)] <- ""
+        }
+        if(length(subset) > length_formula) {
+            warning(gsub("\\s+", " ",
+                         "List of subset conditions not the same length
                               of list IV-like specifications: more subset
                               conditions than IV-like specifications.
                               Subset conditions without corresponding
                               specifications will be dropped."),
-                        call. = FALSE)
-                subset <- subset[1 : length(ivlike)]
-            }
-        } else {
-            ## if no subset input, then we construct it
-            subset <- as.list(replicate(length_formula, ""))
-        }
-
-    } else {
-        if (hasArg(subset)) {
-            if (!is.logical(head(eval(substitute(subset), data)))) {
-                stop(gsub("\\s+", " ",
-                          "The subset condition is not logical.
-                      Please change the condition to be logical."))
-            }
-            subset <- list(substitute(subset))
-        }
-
-        specCompWarn <- FALSE
-        if (hasArg(components)) {
-            userComponents <- TRUE
-            compString <- (unlist(lapply(components, deparse)))
-            components <- components[compString != ""]
-        } else {
-            userComponents <- FALSE
-            components <- as.list("")
-            warning(gsub("\\s+", " ",
-                         "No list of components provided. All covariates in each
-                         IV-like specification will be included when
-                         constructing each S-set."),
                     call. = FALSE)
+            subset <- subset[1 : length(ivlike)]
         }
+    } else {
+        ## if no subset input, then we construct it
+        subset <- as.list(replicate(length_formula, ""))
     }
+
 
     ##---------------------------
     ## 3. Check numeric arguments and case completion
@@ -721,17 +722,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     terms_mtr0       <- c()
     terms_mtr1       <- c()
 
-    if (classFormula(ivlike)) {
-        vars_formulas_x <- getXZ(ivlike)
-        vars_formulas_z <- getXZ(ivlike, inst = TRUE)
-        vars_y <- all.vars(ivlike)[1]
-        ## terms_formulas <- attr(terms(Formula::as.Formula(ivlike)),
-        ##                        "term.labels")
-        terms_formulas_x <- getXZ(ivlike, terms = TRUE, inst = FALSE)
-        terms_formulas_z <- getXZ(ivlike, terms = TRUE, inst = TRUE)
+    if (classList(ivlike)) {
         
-        
-    } else if (classList(ivlike)) {
         if(!min(unlist(lapply(ivlike, classFormula)))) {
             stop(gsub("\\s+", " ",
                       "Not all elements in list of formulas are specified
@@ -929,15 +921,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 treat <- deparse(substitute(treat))
                 vars_propensity <- c(vars_propensity,
                                       treat)
-            } else if (class(ivlike) == "formula") {
-                warning(gsub("\\s+", " ",
-                             "First independent variable of IV-like
-                             specification regression is selected as the
-                             treatment variable."),
-                        call. = FALSE)
-                treat <- all.vars(ivlike)[2]
-                vars_propensity <- c(vars_propensity,
-                                      treat)
             } else if (is.list(ivlike)) {
                 warning(gsub("\\s+", " ",
                              "First independent variable of first IV regression
@@ -968,12 +951,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         if (hasArg(treat)) {
             treat <- deparse(substitute(treat))
             vars_propensity <- treat
-        } else if (class(ivlike) == "formula") {
-            warning(gsub("\\s+", " ",
-                         "First independent variable of IV-like
-                             specification regression is selected as the
-                             treatment variable."))
-            treat <- all.vars(ivlike)[2]
         } else if (is.list(ivlike)) {
             warning(gsub("\\s+", " ",
                          "First independent variable of first IV regression
@@ -1042,22 +1019,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         vars_weights,
                         vars_propensity))
     allvars <- allvars[allvars != deparse(substitute(uname))]
-
-    if (classFormula(ivlike)) {
-        comp_filler <-
-            eval(parse(text = paste0("l(",
-                                     paste(terms_formulas_x,
-                                           collapse = ", "), ")")))
-    } else {
-        comp_filler <- lapply(terms_formulas_x,
-                              function(x) as.character(unstring(x)))
-    }
-
+   
+    comp_filler <- lapply(terms_formulas_x,
+                          function(x) as.character(unstring(x)))
+    
     ## Fill in components list if necessary
     if (userComponents) {
         compMissing1 <- unlist(lapply(components, function(x) {
             Reduce(paste, deparse(x)) == ""
         }))
+        
         compMissing2 <- unlist(lapply(components, function(x) x == ""))
         compMissing <- as.logical(compMissing1 + compMissing2)
 
@@ -1075,7 +1046,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     } else {
         components <- comp_filler
     }
-    
+
     ## Keep only complete cases
     varError <- allvars[! allvars %in% colnames(data)]
     varError <- varError[varError != "intercept"]
@@ -1890,6 +1861,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 
     call <- match.call(expand.dots = FALSE)
 
+    if (classFormula(ivlike)) ivlike <- c(ivlike)
+    
     ## Character arguments will be converted to lowercase
     if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
     if (hasArg(target))   target   <- tolower(target)
@@ -2001,75 +1974,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                     ## corresponding moments/gammas
     scount <- 1     ## counter for S-set constraints
 
-    ## Construct `sset' object when a single IV-like specification is
-    ## provided
-    if (classFormula(ivlike)) {
-
-        if (hasArg(subset)) {
-            subset <- eval(subset[[1]], data)
-
-            scall <- modcall(call,
-                             newcall = ivEstimate,
-                             keepargs = c("data", "components", "treat"),
-                             newargs = list(formula = ivlike,
-                                            subset = subset))
-
-            sest <- eval(scall)
-        } else {
-            subset <- replicate(nrow(data), TRUE)
-            scall <- modcall(call,
-                             newcall = ivEstimate,
-                             keepargs = c("data", "components", "treat"),
-                             newargs = list(formula = ivlike,
-                                            subset = subset))
-
-            sest <- eval(scall)
-        }
-
-
-        ncomponents <- length(sest$betas)
-
-        if (hasArg(subset)) {
-            subset_index <- rownames(data[eval(substitute(subset), data), ])
-        } else {
-            subset_index <- rownames(data)
-        }
-
-        ## Generate moments (gammas) corresponding to IV-like
-        ## estimands
-        if (point == FALSE) {
-            setobj <- genSSet(data = data,
-                                  sset = sset,
-                                  sest = sest,
-                                  splinesobj = splinesobj,
-                                  pmodobj = pmodel$phat[subset_index],
-                                  pm0 = pm0,
-                                  pm1 = pm1,
-                                  ncomponents = ncomponents,
-                                  scount = scount,
-                                  subset_index = subset_index,
-                                  noisy = noisy)
-        } else {
-            setobj <- genSSet(data = data,
-                                  sset = sset,
-                                  sest = sest,
-                                  splinesobj = splinesobj,
-                                  pmodobj = pmodel$phat[subset_index],
-                                  pm0 = pm0,
-                                  pm1 = pm1,
-                                  ncomponents = ncomponents,
-                                  scount = scount,
-                                  subset_index = subset_index,
-                                  means = FALSE,
-                                  yvar = vars_y,
-                                  dvar = treat,
-                                  noisy = noisy)
-        }
-
-        sset <- setobj$sset
-        scount <- setobj$scount
-
-    } else if (classList(ivlike)) {
+    if (classList(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
 

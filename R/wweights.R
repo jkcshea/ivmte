@@ -20,6 +20,9 @@ unstring <- function(vector) {
 #'     function. If \code{substitute = FALSE}, then the function will
 #'     instead treat the arguments as variables, and substitute in
 #'     their values.
+#' @param command character, the name of the function defining the
+#'     vector or list, e.g. "c", "list", "l". This let's the function
+#'     determine how many characters in front to remove.
 #' @return A vector of variable names (strings).
 #'
 #' @examples
@@ -27,10 +30,12 @@ unstring <- function(vector) {
 #' b <- 5
 #' ivmte:::restring(c(a, b), substitute = TRUE)
 #' ivmte:::restring(c(a, b), substitute = FALSE)
-restring <- function(vector, substitute = TRUE) {
+restring <- function(vector, substitute = TRUE, command = "c") {
+    startPoint <- nchar(command) + 2
+    
     if (substitute == TRUE)  vector <- deparse(substitute(vector))
     if (substitute == FALSE) vector <- deparse(vector)
-    vector <- substr(vector, 3, nchar(vector) - 1)
+    vector <- substr(vector, startPoint, nchar(vector) - 1)
     vector <- strsplit(vector, ", ")[[1]]
     return(vector)
 }
