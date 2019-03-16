@@ -298,9 +298,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## 2. Check format of `formula', `subset', and `component' inputs
     ##---------------------------
 
-    if (classFormula(ivlike)) {
-        ivlike <- c(ivlike)
-    }
+    ## if (classFormula(ivlike)) {
+    ##     ivlike <- c(ivlike)
+    ## }
     
     if (classList(ivlike)) {
 
@@ -1051,7 +1051,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     allvars <- allvars[allvars != deparse(substitute(uname))]
 
     if (classFormula(ivlike)) {
-        comp_filler <- unstring(terms_formulas_x)
+        comp_filler <-
+            eval(parse(text = paste0("l(",
+                                     paste(terms_formulas_x,
+                                           collapse = ", "), ")")))
     } else {
         comp_filler <- lapply(terms_formulas_x,
                               function(x) as.character(unstring(x)))
@@ -1077,13 +1080,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             components[compMissing] <- comp_filler[compMissing]
         }
     } else {
-        print("am i doing the comp filler?")
         components <- comp_filler
     }
-
-    print("componnets")
-    print(components)
-    ## stop("end of test")
     
     ## Keep only complete cases
     varError <- allvars[! allvars %in% colnames(data)]
