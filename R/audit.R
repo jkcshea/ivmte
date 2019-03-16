@@ -344,6 +344,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
         minobseq  <- obsEqMin(sset, lpobj, lpsolver)
 
+        ## Try to diagnose cases where the solution is
+        ## infeasible. Here, the problem is solved without any shape
+        ## restrictions. We then check if any of the lower and upper
+        ## bounds are violated, which is a likely cause for infeasible
+        ## solutions.
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpSolve" && minobseq$status == 0) |
             (lpsolver == "lpSolveAPI" && minobseq$status == 0)) {

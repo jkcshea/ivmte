@@ -104,15 +104,15 @@ utils::globalVariables("u")
 #' @param target.knots0 user-defined set of functions defining the
 #'     knots associated with splines weights for the control
 #'     group. The arguments of the function should consist only of
-#'     variable names in \code{data}. If the knot is constant across
-#'     all observations, then the user can instead submit the value of
-#'     the weight instead of a function.
+#'     variable names in \code{data}. If the knots are constant across
+#'     all observations, then the user can instead submit the vector
+#'     of knots instead of a function.
 #' @param target.knots1 user-defined set of functions defining the
 #'     knots associated with splines weights for the treated
 #'     group. The arguments of the function should be variable names
-#'     in \code{data}. If the knot is constant across all
-#'     observations, then the user can instead submit the value of the
-#'     weight instead of a function.
+#'     in \code{data}. If the knots are constant across
+#'     all observations, then the user can instead submit the vector
+#'     of knots instead of a function.
 #' @param late.Z vector of variable names used to define the LATE.
 #' @param late.from baseline set of values of Z used to define the
 #'     LATE.

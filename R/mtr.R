@@ -681,6 +681,15 @@ removeSplines <- function(formula) {
 #'                        names(splineslist)[2])))
 uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
 
+    ## Note: warning below is suppressed since it will be provided
+    ## when uSplinesBasis is run.
+    
+    if (any(knots < 0) || any(knots > 1)) {
+        stop(gsub("\\s+", " ",
+                  "When defining splines, each knot must be inside the 
+                   [0, 1] interval."))
+    }
+    
     splines2::ibs(x = x,
                   knots = knots,
                   degree = degree,
@@ -739,6 +748,13 @@ uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
 #'                        "ivmte:::uSplinesBasis(x = x, ",
 #'                        names(splineslist)[2])))
 uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
+
+    if (any(knots < 0) || any(knots > 1)) {
+        stop(gsub("\\s+", " ",
+                  "When defining splines, each knot must be inside the
+                   [0, 1] interval."))
+    }
+    
     splines2::bSpline(x = x,
                       knots = knots,
                       degree = degree,
