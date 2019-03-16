@@ -24,7 +24,6 @@ extractcols <- function(M, components) {
         e <- genej(pos, n)
         emat <- cbind(emat, e)
     }
-
     return(M %*% emat)
 }
 
