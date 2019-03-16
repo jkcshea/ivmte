@@ -70,7 +70,8 @@ utils::globalVariables("u")
 #'     then the corresponding column in the data is taken as the
 #'     vector of propensity scores.
 #' @param link name of link function to estimate propensity score. Can
-#'     be chosen from \code{linear}, \code{probit}, or \code{logit}.
+#'     be chosen from \code{linear}, \code{probit}, or
+#'     \code{logit}. Default is set to "logit".
 #' @param treat variable name for treatment indicator
 #' @param m0 one-sided formula for marginal treatment response
 #'     function for control group. Splines can also be incorporated
@@ -110,9 +111,9 @@ utils::globalVariables("u")
 #' @param target.knots1 user-defined set of functions defining the
 #'     knots associated with splines weights for the treated
 #'     group. The arguments of the function should be variable names
-#'     in \code{data}. If the knots are constant across
-#'     all observations, then the user can instead submit the vector
-#'     of knots instead of a function.
+#'     in \code{data}. If the knots are constant across all
+#'     observations, then the user can instead submit the vector of
+#'     knots instead of a function.
 #' @param late.Z vector of variable names used to define the LATE.
 #' @param late.from baseline set of values of Z used to define the
 #'     LATE.
@@ -229,7 +230,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'both',
                   pvalue.tol = 1e-08, ivlike, data, subset,
-                  components, propensity, link, treat, m0, m1,
+                  components, propensity, link = "logit", treat, m0, m1,
                   uname = u, target, target.weight0 = NULL,
                   target.weight1, target.knots0,
                   target.knots1 = NULL, late.Z, late.from, late.to,
@@ -247,6 +248,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## 1. Check linear programming dependencies
     ##---------------------------
 
+    if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
+    
     if (is.null(lpsolver)) {
         if (requireNamespace("gurobi", quietly = TRUE)) {
             lpsolver <- "gurobi"
@@ -267,10 +270,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
     } else {
         if (! lpsolver %in% c("gurobi",
-                              "Rcplex",
-                              "cplexAPI",
-                              "lpSolve",
-                              "lpSolveAPI")) {
+                              "rcplex",
+                              "cplexapi",
+                              "lpsolve",
+                              "lpsolveapi")) {
             stop(gsub("\\s+", " ",
                       paste0("Estimator is incompatible with linear programming
                              package '", lpsolver, "'. Please install one of the
@@ -283,9 +286,15 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ##---------------------------
-    ## 2. Check format of `formula', `subset', and `component' inputs
+    ## 2. Check format of non-numeric arguments
     ##---------------------------
 
+    ## Character arguments will be converted to lowercase
+    if (hasArg(target))   target   <- tolower(target)
+    if (hasArg(link))     link     <- tolower(link)
+    if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
+    
+    ## Check formulas
     if (classList(ivlike)) {
 
         ## Convert formula, components, and subset inputs into lists
@@ -1709,6 +1718,7 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     vector of propensity scores.
 #' @param link name of link function to estimate propensity score. Can
 #'     be chosen from \code{linear}, \code{probit}, or \code{logit}.
+#'     Default is set to "logit".
 #' @param treat variable name for treatment indicator.
 #' @param m0 one-sided formula for marginal treatment response
 #'     function for control group. Splines can also be incorporated
@@ -1720,7 +1730,8 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     using the expression "uSplines(degree, knots, intercept)". The
 #'     'intercept' argument may be omitted, and is set to \code{TRUE}
 #'     by default.
-#' @param vars_y character, variable name of observed outcome variable.
+#' @param vars_y character, variable name of observed outcome
+#'     variable.
 #' @param vars_mtr character, vector of variables entering into
 #'     \code{m0} and \code{m1}.
 #' @param terms_mtr0 character, vector of terms entering into
@@ -1850,7 +1861,7 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     expectations of each term in the MTRs; the components and
 #'     results of the LP problem.
 ivmteEstimate <- function(ivlike, data, subset, components,
-                           propensity, link, treat, m0, m1,
+                           propensity, link = "logit", treat, m0, m1,
                            vars_y, vars_mtr, terms_mtr0, terms_mtr1,
                            splinesobj, uname = u,
                            target, target.weight0, target.weight1,
@@ -1868,6 +1879,13 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 
     call <- match.call(expand.dots = FALSE)
 
+    ## Character arguments will be converted to lowercase
+    if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
+    if (hasArg(target))   target   <- tolower(target)
+    if (hasArg(link))     link     <- tolower(link)
+    if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
+
+    
     ##---------------------------
     ## 1. Obtain propensity scores
     ##---------------------------
@@ -2353,6 +2371,8 @@ genTarget <- function(treat, m0, m1, uname, target,
                       data, splinesobj, pmodobj, pm0, pm1,
                       point = FALSE, noisy = TRUE) {
 
+    if (hasArg(target)) target   <- tolower(target)
+    
     xindex0 <- NULL
     xindex1 <- NULL
     uexporder0 <- NULL

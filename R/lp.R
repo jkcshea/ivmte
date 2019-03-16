@@ -120,7 +120,7 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
     }
 
     ## Adjust for Rcplex
-    if (lpsolver == "Rcplex") {
+    if (lpsolver == "rcplex") {
         sense[sense == "<"]  <- "L"
         sense[sense == "<="] <- "L"
         sense[sense == ">"]  <- "G"
@@ -129,7 +129,7 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
     }
  
     ## Adjust for lpSolve (convert the object into one of x+/x-)
-    if (lpsolver == "lpSolve") {
+    if (lpsolver == "lpsolve") {
         obj <- c(obj, -obj[(sn * 2 + 1) : ncol(A)])
         A <- cbind(A, -A[, (sn * 2 + 1) : ncol(A)])
     }
@@ -265,7 +265,7 @@ obsEqMin <- function(sset, lpobj, lpsolver) {
         status   <- result$status
 
     }
-    if (lpsolver == "Rcplex") {
+    if (lpsolver == "rcplex") {
         result <- Rcplex::Rcplex(objsense = "min",
                                  cvec = lpobj$obj,
                                  Amat = lpobj$A,
@@ -281,7 +281,7 @@ obsEqMin <- function(sset, lpobj, lpsolver) {
 
     }
 
-    if (lpsolver == "lpSolve") {
+    if (lpsolver == "lpsolve") {
         result <- lpSolve::lp(direction = "min",
                               objective.in = lpobj$obj,
                               const.mat = lpobj$A,
@@ -300,7 +300,7 @@ obsEqMin <- function(sset, lpobj, lpsolver) {
 
     }
 
-    if (lpsolver == "cplexAPI") {
+    if (lpsolver == "cplexapi") {
 
         result <- runCplexAPI(lpobj, cplexAPI::CPX_MIN)
 
@@ -310,7 +310,7 @@ obsEqMin <- function(sset, lpobj, lpsolver) {
 
     }
 
-    if (lpsolver == "lpSolveAPI") {
+    if (lpsolver == "lpsolveapi") {
 
         result <- runLpSolveAPI(lpobj, 'min')
 
@@ -456,7 +456,8 @@ obsEqMin <- function(sset, lpobj, lpsolver) {
 #' @export
 bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
 
-    if (lpsolver %in% c("gurobi", "Rcplex", "cplexAPI", "lpSolveAPI")) {
+    if (tolower(lpsolver) %in% c("gurobi", "rcplex",
+                                 "cplexapi", "lpsolveapi")) {
 
         ## define model
         model <- list()
@@ -488,7 +489,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
             maxoptx <- maxresult$x
             
         }
-        if (lpsolver == "Rcplex") {
+        if (lpsolver == "rcplex") {
             model$sense[1] <- "L" ## to satisfy minimal obs. equiv. deviation
           
             minresult <- Rcplex::Rcplex(objsense = "min",
@@ -537,7 +538,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
             }
         }
 
-        if (lpsolver == "cplexAPI") {
+        if (lpsolver == "cplexapi") {
 
             minresult <- runCplexAPI(model, cplexAPI::CPX_MIN)
 
@@ -552,7 +553,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
             maxstatus <- maxresult$status
         }
 
-        if (lpsolver == "lpSolveAPI") {
+        if (lpsolver == "lpsolveapi") {
             
             minresult <- runLpSolveAPI(model, 'min')
 
@@ -568,7 +569,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         }
     }
 
-    if (lpsolver == "lpSolve") {
+    if (lpsolver == "lpsolve") {
 
         ## define model
         model <- list()
