@@ -2217,7 +2217,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 
     audit <- eval(audit_call)
 
-    message(paste0("Bound: (", audit$min, ", ", audit$max, ")\n"))
+    message(paste0("Bounds on the target parameter: [",
+                   audit$min, ", ", audit$max, "]\n"))
 
     ## include additional output material
     return(list(sset  = sset,
@@ -3148,7 +3149,7 @@ fglsEstimate <- function(sset, gstar0, gstar1,
 
     if (noisy == TRUE) {
         message()
-        message(paste0("Treatment effect: ", round(te, 4)))
+        message(paste0("Point estimate of the target parameter: ", round(te, 4)))
     }
     return(list(te = as.numeric(te),
                 coef = theta))
