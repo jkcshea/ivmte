@@ -434,7 +434,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
 
 
-        message(paste("Minimum observational equivalence deviation:",
+        message(paste("Minimum criterion:",
                       round(minobseq$obj, 6), "\n"))
         
 
