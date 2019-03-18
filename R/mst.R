@@ -249,7 +249,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ##---------------------------
 
     if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
-    
+
     if (is.null(lpsolver)) {
         if (requireNamespace("gurobi", quietly = TRUE)) {
             lpsolver <- "gurobi"
@@ -299,7 +299,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (classFormula(ivlike)) {
         ivlike <- c(ivlike)
     }
-    
+
     ## Convert formula, components, and subset inputs into lists
     length_formula <- length(ivlike)
 
@@ -330,7 +330,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             ## components should be treated as a single vector of
             ## components.
             specCompWarn <- FALSE
-            
+
             components <- deparse(substitute(components))
             components <- Reduce(paste, components)
             components <- paste0("l(c",
@@ -381,7 +381,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              deparse(substitute(subset)),
                              ")")
             subset <- eval(parse(text = subset))
-            
+
         }
 
         ## Check if all subseting conditions are logical
@@ -723,7 +723,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     terms_mtr1       <- c()
 
     if (classList(ivlike)) {
-        
+
         if(!min(unlist(lapply(ivlike, classFormula)))) {
             stop(gsub("\\s+", " ",
                       "Not all elements in list of formulas are specified
@@ -1019,16 +1019,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         vars_weights,
                         vars_propensity))
     allvars <- allvars[allvars != deparse(substitute(uname))]
-   
+
     comp_filler <- lapply(terms_formulas_x,
                           function(x) as.character(unstring(x)))
-    
+
     ## Fill in components list if necessary
     if (userComponents) {
         compMissing1 <- unlist(lapply(components, function(x) {
             Reduce(paste, deparse(x)) == ""
         }))
-        
+
         compMissing2 <- unlist(lapply(components, function(x) x == ""))
         compMissing <- as.logical(compMissing1 + compMissing2)
 
@@ -1862,14 +1862,14 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     call <- match.call(expand.dots = FALSE)
 
     if (classFormula(ivlike)) ivlike <- c(ivlike)
-    
+
     ## Character arguments will be converted to lowercase
     if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
     if (hasArg(target))   target   <- tolower(target)
     if (hasArg(link))     link     <- tolower(link)
     if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
 
-    
+
     ##---------------------------
     ## 1. Obtain propensity scores
     ##---------------------------
@@ -2289,7 +2289,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                       point = FALSE, noisy = TRUE) {
 
     if (hasArg(target)) target   <- tolower(target)
-    
+
     xindex0 <- NULL
     xindex1 <- NULL
     uexporder0 <- NULL

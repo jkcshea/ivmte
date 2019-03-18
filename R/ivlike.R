@@ -193,11 +193,35 @@ ivEstimate <- function(formula, data, subset, components, treat,
     ## Generate the lmcomponents vector
     lmcomponents <- components
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
-    
+
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
+
+        ## For the OLS case, we need to obtain additiona ldesign
+        ## matrices where we fix treatment.
+        if (list == TRUE) {
+            data[, colnames(data) == treat] <- 0
+            mf0 <- design(formula, data)
+
+            data[, colnames(data) == treat] <- 1
+            mf1 <- design(formula, data)
+        } else {
+            data[, colnames(data) == treat] <- 0
+            mf0 <- eval(modcall(call,
+                                 newcall = design,
+                                 keepargs = c("formula", "subset"),
+                                 newargs = list(data = quote(data))))
+
+            data[, colnames(data) == treat] <- 1
+            mf1 <- eval(modcall(call,
+                                 newcall = design,
+                                 keepargs = c("formula", "subset"),
+                                 newargs = list(data = quote(data))))
+        }
+
         bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents)
-        sweight <- olsj(mf$X, components, treat)
+        sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat)
+
     } else {
         if (length(formula)[2] == 2 &
             dim(mf$X)[2] == dim(mf$Z)[2]) {
@@ -220,6 +244,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
     if (!is.null(sweight$errorfactors)) {
         bhat <- bhat[-which(lmcomponents %in% sweight$errorfactors)]
     }
-    
+
     return(list(sw0 = sweight$s0, sw1 = sweight$s1, betas = bhat))
 }
