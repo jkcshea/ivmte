@@ -415,7 +415,6 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
                       FUN = "*")
 
     if (means) {
-
         if (is.matrix(preGamma)) {
             gstar <- colMeans(preGamma)
         } else {

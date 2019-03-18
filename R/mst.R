@@ -183,13 +183,6 @@ utils::globalVariables("u")
 #'     is implemented to estimate the treatment effects. Shape
 #'     constraints on the MTRs will be ignored under point
 #'     identification.
-#' @param point.tol scalar, set default at 1-e08. Tolerance for bounds
-#'     before automatically switchingto case of point
-#'     identification. So if the estimated bounds are narrower than
-#'     \code{point.tol}, and no shape restrictions are declared, the
-#'     function instead provides a point estimate of the treatment
-#'     effect. The output would be the same as if \code{point} was set
-#'     to \code{TRUE}.
 #' @param point.itermax integer, default of 2. Maximum number of
 #'     iterations allowed for FGLS estimation under point
 #'     identification. So default estimate is the two-step FGLS.
@@ -249,7 +242,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ##---------------------------
 
     if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
-    
+
     if (is.null(lpsolver)) {
         if (requireNamespace("gurobi", quietly = TRUE)) {
             lpsolver <- "gurobi"
@@ -299,7 +292,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (classFormula(ivlike)) {
         ivlike <- c(ivlike)
     }
-    
+
     ## Convert formula, components, and subset inputs into lists
     length_formula <- length(ivlike)
 
@@ -330,7 +323,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             ## components should be treated as a single vector of
             ## components.
             specCompWarn <- FALSE
-            
+
             components <- deparse(substitute(components))
             components <- Reduce(paste, components)
             components <- paste0("l(c",
@@ -381,7 +374,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              deparse(substitute(subset)),
                              ")")
             subset <- eval(parse(text = subset))
-            
+
         }
 
         ## Check if all subseting conditions are logical
@@ -723,7 +716,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     terms_mtr1       <- c()
 
     if (classList(ivlike)) {
-        
+
         if(!min(unlist(lapply(ivlike, classFormula)))) {
             stop(gsub("\\s+", " ",
                       "Not all elements in list of formulas are specified
@@ -1019,16 +1012,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         vars_weights,
                         vars_propensity))
     allvars <- allvars[allvars != deparse(substitute(uname))]
-   
+
     comp_filler <- lapply(terms_formulas_x,
                           function(x) as.character(unstring(x)))
-    
+
     ## Fill in components list if necessary
     if (userComponents) {
         compMissing1 <- unlist(lapply(components, function(x) {
             Reduce(paste, deparse(x)) == ""
         }))
-        
+
         compMissing2 <- unlist(lapply(components, function(x) x == ""))
         compMissing <- as.logical(compMissing1 + compMissing2)
 
@@ -1105,230 +1098,185 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
         origEstimate <- eval(estimateCall)
 
-        if (abs(origEstimate$bound[2] - origEstimate$bound[1]) < point.tol &
-            noshape == TRUE) {
+        ## Estimate bounds without resampling
+        if (bootstraps == 0) {
+            return(origEstimate)
+        }
+        ## Estimate bounds with resampling
+        if (bootstraps > 0) {
+            boundEstimates <- NULL
 
-            message(gsub("\\s+", " ",
-                         paste0("Width of bounds is narrower than 'point.tol',
-                                which is set to ", point.tol, ". Estimation
-                                under point identification will instead be
-                                performed.")))
+            b <- 1
+            bootFailN <- 0
+            bootFailNote <- ""
+            bootFailIndex <- NULL
 
-            estimateCall <-
-                modcall(call,
-                        newcall = ivmteEstimate,
-                        dropargs = c("m0", "m1",
-                                     "bootstraps", "data", "point",
-                                     "bootstraps.m",
-                                     "bootstraps.replace", "subset",
-                                     "levels",
-                                     "ci.type", "treat", "propensity",
-                                     "components", "lpsolver",
-                                     "target.weight0", "target.weight1",
-                                     "target.knots0", "target.knots0"),
-                        newargs = list(m0 = quote(m0),
-                                       m1 = quote(m1),
-                                       target.weight0 =
-                                           quote(target.weight0),
-                                       target.weight1 =
-                                           quote(target.weight1),
-                                       target.knots0 = quote(target.knots0),
-                                       target.knots1 = quote(target.knots1),
-                                       data = quote(data),
-                                       subset = quote(subset),
-                                       lpsolver = quote(lpsolver),
-                                       point = TRUE,
-                                       vars_y = quote(vars_y),
-                                       vars_mtr = quote(vars_mtr),
-                                       terms_mtr0 = quote(terms_mtr0),
-                                       terms_mtr1 = quote(terms_mtr1),
-                                       treat = quote(treat),
-                                       propensity = quote(propensity),
-                                       splinesobj = quote(splinesobj),
-                                       components = quote(components)))
+            while (b <= bootstraps) {
+                bootIDs  <- sample(seq(1, nrow(data)),
+                                   size = nrow(data),
+                                   replace = TRUE)
+                bdata <- data[bootIDs, ]
 
-            return(eval(estimateCall))
-        } else {
-            ## Estimate bounds without resampling
-            if (bootstraps == 0) {
-                return(origEstimate)
-            }
-            ## Estimate bounds with resampling
-            if (bootstraps > 0) {
-                boundEstimates <- NULL
+                bootCall <-
+                    modcall(call,
+                            newcall = ivmteEstimate,
+                            dropargs = c("m0", "m1",
+                                         "bootstraps", "data",
+                                         "noisy", "bootstraps.m",
+                                         "bootstraps.replace",
+                                         "subset", "levels", "ci.type",
+                                         "treat",
+                                         "propensity", "components",
+                                         "lpsolver",
+                                         "target.weight0", "target.weight1",
+                                         "target.knots0", "target.knots1"),
+                            newargs = list(m0 = quote(m0),
+                                           m1 = quote(m1),
+                                           target.weight0 =
+                                               quote(target.weight0),
+                                           target.weight1 =
+                                               quote(target.weight1),
+                                           target.knots0 =
+                                               quote(target.knots0),
+                                           target.knots1 =
+                                               quote(target.knots1),
+                                           data = quote(bdata),
+                                           subset = quote(subset),
+                                           lpsolver = quote(lpsolver),
+                                           noisy = FALSE,
+                                           vars_y = quote(vars_y),
+                                           vars_mtr = quote(vars_mtr),
+                                           terms_mtr0 = quote(terms_mtr0),
+                                           terms_mtr1 = quote(terms_mtr1),
+                                           treat = quote(treat),
+                                           propensity = quote(propensity),
+                                           splinesobj = quote(splinesobj),
+                                           components = quote(components)))
 
-                b <- 1
-                bootFailN <- 0
-                bootFailNote <- ""
-                bootFailIndex <- NULL
+                bootEstimate <- try(eval(bootCall), silent = TRUE)
+                if (is.list(bootEstimate)) {
+                    boundEstimates  <- rbind(boundEstimates,
+                                             bootEstimate$bound)
 
-                while (b <= bootstraps) {
-                    bootIDs  <- sample(seq(1, nrow(data)),
-                                    size = nrow(data),
-                                    replace = TRUE)
-                    bdata <- data[bootIDs, ]
-
-                    bootCall <-
-                        modcall(call,
-                                newcall = ivmteEstimate,
-                                dropargs = c("m0", "m1",
-                                             "bootstraps", "data",
-                                             "noisy", "bootstraps.m",
-                                             "bootstraps.replace",
-                                             "subset", "levels", "ci.type",
-                                             "treat",
-                                             "propensity", "components",
-                                             "lpsolver",
-                                             "target.weight0", "target.weight1",
-                                             "target.knots0", "target.knots1"),
-                                newargs = list(m0 = quote(m0),
-                                               m1 = quote(m1),
-                                               target.weight0 =
-                                                   quote(target.weight0),
-                                               target.weight1 =
-                                                   quote(target.weight1),
-                                               target.knots0 =
-                                                   quote(target.knots0),
-                                               target.knots1 =
-                                                   quote(target.knots1),
-                                               data = quote(bdata),
-                                               subset = quote(subset),
-                                               lpsolver = quote(lpsolver),
-                                               noisy = FALSE,
-                                               vars_y = quote(vars_y),
-                                               vars_mtr = quote(vars_mtr),
-                                               terms_mtr0 = quote(terms_mtr0),
-                                               terms_mtr1 = quote(terms_mtr1),
-                                               treat = quote(treat),
-                                               propensity = quote(propensity),
-                                               splinesobj = quote(splinesobj),
-                                               components = quote(components)))
-
-                    bootEstimate <- try(eval(bootCall), silent = TRUE)
-                    if (is.list(bootEstimate)) {
-                        boundEstimates  <- rbind(boundEstimates,
-                                                 bootEstimate$bound)
-
-                        if (noisy == TRUE) {
-                            message(paste0("Bootstrap iteration ", b,
-                                           bootFailNote, "..."))
-                        }
-                        b <- b + 1
-                        bootFailN <- 0
-                        bootFailNote <- ""
-                    } else {
-
-                        if (noisy == TRUE) {
-                            message(paste0("Bootstrap iteration ", b,
-                                           bootFailNote,
-                                           " error, resampling..."))
-                        }
-                        bootFailN <- bootFailN + 1
-                        bootFailIndex <- unique(c(bootFailIndex, b))
-                        bootFailNote <- paste0(": resample ",
-                                               bootFailN)
+                    if (noisy == TRUE) {
+                        message(paste0("Bootstrap iteration ", b,
+                                       bootFailNote, "..."))
                     }
-                }
+                    b <- b + 1
+                    bootFailN <- 0
+                    bootFailNote <- ""
+                } else {
 
-                if (length(bootFailIndex) > 0) {
-                    warning(gsub("\\s+", " ",
-                                 paste0("Bootstrap iteration(s) ",
-                                        paste(bootFailIndex, collapse = ", "),
-                                        " failed. Failed bootstraps are
+                    if (noisy == TRUE) {
+                        message(paste0("Bootstrap iteration ", b,
+                                       bootFailNote,
+                                       " error, resampling..."))
+                    }
+                    bootFailN <- bootFailN + 1
+                    bootFailIndex <- unique(c(bootFailIndex, b))
+                    bootFailNote <- paste0(": resample ",
+                                           bootFailN)
+                }
+            }
+
+            if (length(bootFailIndex) > 0) {
+                warning(gsub("\\s+", " ",
+                             paste0("Bootstrap iteration(s) ",
+                                    paste(bootFailIndex, collapse = ", "),
+                                    " failed. Failed bootstraps are
                                         repeated.")))
-                }
+            }
 
-                ## Obtain standard errors of bounds
-                bootSE <- apply(boundEstimates, 2, sd)
+            ## Obtain standard errors of bounds
+            bootSE <- apply(boundEstimates, 2, sd)
 
-                ## Construct confidence intervals
-                if (ci.type == "backward" | ci.type == "forward") {
-                    ci <- boundCI(bound = origEstimate$bound,
-                                  bound.resamples = boundEstimates,
-                                  n = nrow(data),
-                                  m = bootstraps.m,
-                                  levels = levels,
-                                  type = ci.type)
-                }
-
-                if (ci.type == "both") {
-                    ci <- list()
-                    ci$backward <- boundCI(bound = origEstimate$bound,
-                                           bound.resamples = boundEstimates,
-                                           n = nrow(data),
-                                           m = bootstraps.m,
-                                           levels = levels,
-                                           type = "backward")
-
-                    ci$forward <- boundCI(bound = origEstimate$bound,
-                                          bound.resamples = boundEstimates,
-                                          n = nrow(data),
-                                          m = bootstraps.m,
-                                          levels = levels,
-                                          type = "forward")
-                }
-
+            ## Construct confidence intervals
+            if (ci.type == "backward" | ci.type == "forward") {
                 ci <- boundCI(bound = origEstimate$bound,
                               bound.resamples = boundEstimates,
                               n = nrow(data),
                               m = bootstraps.m,
                               levels = levels,
                               type = ci.type)
-
-                ## Obtain p-value
-                if (ci.type == "backward") {
-                    pvalue <- boundPValue(ci = ci,
-                                          bound = origEstimate$bound,
-                                          bound.resamples = boundEstimates,
-                                          n = nrow(data),
-                                          m = bootstraps.m,
-                                          levels = levels,
-                                          type = "backward",
-                                          tol = pvalue.tol)
-                    names(pvalue) <- "backward"
-                }
-
-                if (ci.type == "forward") {
-                    pvalue <- boundPValue(ci = ci,
-                                          bound = origEstimate$bound,
-                                          bound.resamples = boundEstimates,
-                                          n = nrow(data),
-                                          m = bootstraps.m,
-                                          levels = levels,
-                                          type = "forward",
-                                          tol = pvalue.tol)
-                    names(pvalue) <- "forward"
-                }
-
-                if (ci.type == "both") {
-                    pvalue <- c(boundPValue(ci = ci$backward,
-                                            bound = origEstimate$bound,
-                                            bound.resamples = boundEstimates,
-                                            n = nrow(data),
-                                            m = bootstraps.m,
-                                            levels = levels,
-                                            type = "backward",
-                                            tol = pvalue.tol),
-                                boundPValue(ci = ci$forward,
-                                            bound = origEstimate$bound,
-                                            bound.resamples = boundEstimates,
-                                            n = nrow(data),
-                                            m = bootstraps.m,
-                                            levels = levels,
-                                            type = "forward",
-                                            tol = pvalue.tol))
-                    names(pvalue) <- c("backward", "forward")
-                }
-
-                ## Return output
-                return(c(origEstimate,
-                         list(bound.se = bootSE,
-                              bound.bootstraps = boundEstimates,
-                              ci = ci,
-                              pvalue = pvalue,
-                              bootstraps = bootstraps,
-                              failed.bootstraps = length(bootFailIndex))))
             }
+
+            if (ci.type == "both") {
+                ci <- list()
+                ci$backward <- boundCI(bound = origEstimate$bound,
+                                       bound.resamples = boundEstimates,
+                                       n = nrow(data),
+                                       m = bootstraps.m,
+                                       levels = levels,
+                                       type = "backward")
+
+                ci$forward <- boundCI(bound = origEstimate$bound,
+                                      bound.resamples = boundEstimates,
+                                      n = nrow(data),
+                                      m = bootstraps.m,
+                                      levels = levels,
+                                      type = "forward")
+            }
+
+            ci <- boundCI(bound = origEstimate$bound,
+                          bound.resamples = boundEstimates,
+                          n = nrow(data),
+                          m = bootstraps.m,
+                          levels = levels,
+                          type = ci.type)
+
+            ## Obtain p-value
+            if (ci.type == "backward") {
+                pvalue <- boundPValue(ci = ci,
+                                      bound = origEstimate$bound,
+                                      bound.resamples = boundEstimates,
+                                      n = nrow(data),
+                                      m = bootstraps.m,
+                                      levels = levels,
+                                      type = "backward",
+                                      tol = pvalue.tol)
+                names(pvalue) <- "backward"
+            }
+
+            if (ci.type == "forward") {
+                pvalue <- boundPValue(ci = ci,
+                                      bound = origEstimate$bound,
+                                      bound.resamples = boundEstimates,
+                                      n = nrow(data),
+                                      m = bootstraps.m,
+                                      levels = levels,
+                                      type = "forward",
+                                      tol = pvalue.tol)
+                names(pvalue) <- "forward"
+            }
+
+            if (ci.type == "both") {
+                pvalue <- c(boundPValue(ci = ci$backward,
+                                        bound = origEstimate$bound,
+                                        bound.resamples = boundEstimates,
+                                        n = nrow(data),
+                                        m = bootstraps.m,
+                                        levels = levels,
+                                        type = "backward",
+                                        tol = pvalue.tol),
+                            boundPValue(ci = ci$forward,
+                                        bound = origEstimate$bound,
+                                        bound.resamples = boundEstimates,
+                                        n = nrow(data),
+                                        m = bootstraps.m,
+                                        levels = levels,
+                                        type = "forward",
+                                        tol = pvalue.tol))
+                names(pvalue) <- c("backward", "forward")
+            }
+
+            ## Return output
+            return(c(origEstimate,
+                     list(bound.se = bootSE,
+                          bound.bootstraps = boundEstimates,
+                          ci = ci,
+                          pvalue = pvalue,
+                          bootstraps = bootstraps,
+                          failed.bootstraps = length(bootFailIndex))))
         }
     }
 
@@ -1862,14 +1810,14 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     call <- match.call(expand.dots = FALSE)
 
     if (classFormula(ivlike)) ivlike <- c(ivlike)
-    
+
     ## Character arguments will be converted to lowercase
     if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
     if (hasArg(target))   target   <- tolower(target)
     if (hasArg(link))     link     <- tolower(link)
     if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
 
-    
+
     ##---------------------------
     ## 1. Obtain propensity scores
     ##---------------------------
@@ -2289,7 +2237,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                       point = FALSE, noisy = TRUE) {
 
     if (hasArg(target)) target   <- tolower(target)
-    
+
     xindex0 <- NULL
     xindex1 <- NULL
     uexporder0 <- NULL

@@ -31,21 +31,19 @@ extractcols <- function(M, components) {
 #'
 #' Function generating the S-weights for OLS estimand, with controls.
 #' @param X Matrix of covariates, including the treatment indicator.
+#' @param X0 Matrix of covariates, once fixing treatment to be 1.
+#' @param X1 Matrix of covariates, once fixing treatment to be 0.
 #' @param components Vector of variable names of which user wants the
 #'     S-weights for.
 #' @param treat Variable name for the treatment indicator.
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
-olsj <- function(X, components, treat) {
+olsj <- function(X, X0, X1, components, treat) {
 
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
     cpos <- which(colnames(X) %in% components)
-    X0 <- X
-    X0[, which(colnames(X) == treat)] <- 0
-    X1 <- X
-    X1[, which(colnames(X) == treat)] <- 1
 
     wvec0 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X0)
     wvec0 <- extractcols(t(wvec0), cpos)
@@ -160,7 +158,7 @@ ivj <- function(X, Z, components, treat, order = NULL) {
                               variable was never included in IV-like
                               specification ", order, ".")
             }
-            
+
             emessage <-
                 paste0("The following components are not found in the design
                        matrix: ", errornames, ".", emessageIV, " The variables
@@ -259,7 +257,7 @@ tsls <- function(X, Z, components, treat, order = NULL) {
                               variable was never included in IV-like
                               specification ", order, ".")
             }
-            
+
             emessage <-
                 paste0("The following components are not found in the design
                        matrix: ", errornames, ".", emessageIV, " The variables
