@@ -541,18 +541,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
             }
         }
 
-        ## TESTING --------------------------------------
-
-        print("Constraint matrix (without shape restrictions)")
-        Amat <- lpobj$A[1:4, 9:12]
-        print(lpobj$A[1:4, ])
-        print("Rank of last 4 columns")
-        print(qr(Amat)$rank)
-        print(head(lpobj$rhs))
-
-        
-        ## END TESTING ----------------------------------
-
         ## Generate all monotonicity and boundedness matrices for the audit
         monoboundAcall <- modcall(call,
                               newcall = genmonoboundA,

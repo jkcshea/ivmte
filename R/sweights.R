@@ -44,7 +44,7 @@ olsj <- function(X, X0, X1, components, treat) {
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
     cpos <- which(colnames(X) %in% components)
-    
+
     wvec0 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X0)
     wvec0 <- extractcols(t(wvec0), cpos)
     colnames(wvec0)  <- components
@@ -158,7 +158,7 @@ ivj <- function(X, Z, components, treat, order = NULL) {
                               variable was never included in IV-like
                               specification ", order, ".")
             }
-            
+
             emessage <-
                 paste0("The following components are not found in the design
                        matrix: ", errornames, ".", emessageIV, " The variables
@@ -257,7 +257,7 @@ tsls <- function(X, Z, components, treat, order = NULL) {
                               variable was never included in IV-like
                               specification ", order, ".")
             }
-            
+
             emessage <-
                 paste0("The following components are not found in the design
                        matrix: ", errornames, ".", emessageIV, " The variables
