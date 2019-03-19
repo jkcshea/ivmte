@@ -299,7 +299,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     userComponents <- FALSE
     if (hasArg(components)) {
         if (!is.null(components)) {
-            userComponents <- TRUE
+            if (deparse(components) != "list()"){
+                userComponents <- TRUE
+            }
         }
     }   
 
@@ -1036,7 +1038,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                  vars_weights,
                  vars_propensity)
 
-    ## PROBLEM: components are terms! Not variables!
+    ## For the components, since they may be terms, we first collect
+    ## all terms, and then break it down into variables.
     vars_components <- NULL
     if (userComponents) {
         for (comp in components) {
@@ -1055,10 +1058,21 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             }
         }
     }
+    vars_components <- vars_components[vars_components != '""']
     
+    ## Break component terms into variables.    
+    vars_components_tmp <-
+        paste("~", paste(vars_components[vars_components != "components"],
+                         collapse = " + "))
+    if (! "intercept" %in% vars_components) {
+        vars_components_tmp <- paste(vars_components_tmp, " - 1")
+    }   
+    vars_components <- getXZ(as.formula(vars_components_tmp))
+
+    ## Collect all variables, and remove the variable name
+    ## corresponding to the unobservable.
     allvars <- c(allvars, vars_components)
     allvars <- unique(allvars)
-    
     allvars <- allvars[allvars != deparse(substitute(uname))]
     
     ## Fill in components list if necessary
