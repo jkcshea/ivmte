@@ -31,11 +31,17 @@ unstring <- function(vector) {
 #' ivmte:::restring(c(a, b), substitute = TRUE)
 #' ivmte:::restring(c(a, b), substitute = FALSE)
 restring <- function(vector, substitute = TRUE, command = "c") {
-    startPoint <- nchar(command) + 2
+    if (command == "") {
+        startPoint <- 1
+        endTruncation <- 0
+    } else {
+        startPoint <- nchar(command) + 2
+        endTruncation <- 1
+    }
     
     if (substitute == TRUE)  vector <- deparse(substitute(vector))
     if (substitute == FALSE) vector <- deparse(vector)
-    vector <- substr(vector, startPoint, nchar(vector) - 1)
+    vector <- substr(vector, startPoint, nchar(vector) - endTruncation)
     vector <- strsplit(vector, ", ")[[1]]
     return(vector)
 }

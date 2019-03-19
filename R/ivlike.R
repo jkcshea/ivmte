@@ -187,9 +187,11 @@ ivEstimate <- function(formula, data, subset, components, treat,
 
         components <- c(components[! components %in% factorVars],
                         unlist(factorVarsFull))
-        components <- unique(components)
     }
 
+    ## Ensure components are uniquely declared
+    components <- unique(components)
+    
     ## Generate the lmcomponents vector
     lmcomponents <- components
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"

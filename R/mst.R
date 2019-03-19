@@ -321,16 +321,28 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         } else {
             ## When a single formula is provided, then the list of
             ## components should be treated as a single vector of
-            ## components.
+            ## components. The way in which the user declares the
+            ## components can be problematic. The function must figure
+            ## out if the components list is entered directly, or as a
+            ## variable.
             specCompWarn <- FALSE
 
-            components <- deparse(substitute(components))
-            components <- Reduce(paste, components)
-            components <- paste0("l(c",
-                                 substr(components, 2, nchar(components)),
-                                 ")")
-            components <- eval(parse(text = components))
-            length_components <- 1
+            componentsTmp <- deparse(substitute(components))
+
+            if (substr(componentsTmp, 1, 2) == "l(") {
+                components <- deparse(substitute(components))
+                components <- Reduce(paste, components)
+                components <- paste0("l(c",
+                                     substr(components, 2, nchar(components)),
+                                     ")")
+                components <- eval(parse(text = components))
+                length_components <- 1
+            } else {
+                components <- unlist(lapply(components, deparse))
+                components <- paste(components, collapse = ", ")
+                components <- paste0("l(c(", components, "))")
+                components <- eval(parse(text = components))
+            }
         }
     } else {
         length_components <- length_formula
@@ -1004,19 +1016,42 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ## Remove unobserved variable from list
-    allvars <- unique(c(vars_y,
-                        vars_formulas_x,
-                        vars_formulas_z,
-                        vars_subsets,
-                        vars_mtr,
-                        vars_weights,
-                        vars_propensity))
-    allvars <- allvars[allvars != deparse(substitute(uname))]
+    allvars <- c(vars_y,
+                 vars_formulas_x,
+                 vars_formulas_z,
+                 vars_subsets,
+                 vars_mtr,
+                 vars_weights,
+                 vars_propensity)
 
+    vars_components <- NULL
+    if (userComponents) {
+        for (comp in components) {
+            compString <- try(deparse(comp), silent = TRUE)
+            if (class(compString) != "try-error") {
+                if (substr(compString, 1, 2) == "c(") {
+                    vars_components <- c(vars_components,
+                                         restring(comp,
+                                                  substitute = FALSE))
+                } else {
+                    vars_components <- c(vars_components,
+                                         restring(comp,
+                                                  substitute = FALSE,
+                                                  command = ""))
+                }
+            }
+        }
+    }
+    
+    allvars <- c(allvars, vars_components)
+    allvars <- unique(allvars)
+    
+    allvars <- allvars[allvars != deparse(substitute(uname))]
+    
+    ## Fill in components list if necessary
     comp_filler <- lapply(terms_formulas_x,
                           function(x) as.character(unstring(x)))
-
-    ## Fill in components list if necessary
+    
     if (userComponents) {
         compMissing1 <- unlist(lapply(components, function(x) {
             Reduce(paste, deparse(x)) == ""
@@ -1957,33 +1992,33 @@ ivmteEstimate <- function(ivlike, data, subset, components,
             pmodobj <- pmodel$phat[subset_index]
             if (point == FALSE) {
                 setobj <- genSSet(data = data,
-                                      sset = sset,
-                                      sest = sest,
-                                      splinesobj = splinesobj,
-                                      pmodobj = pmodobj,
-                                      pm0 = pm0,
-                                      pm1 = pm1,
-                                      ncomponents = ncomponents,
-                                      scount = scount,
-                                      subset_index = subset_index,
-                                      noisy = noisy)
+                                  sset = sset,
+                                  sest = sest,
+                                  splinesobj = splinesobj,
+                                  pmodobj = pmodobj,
+                                  pm0 = pm0,
+                                  pm1 = pm1,
+                                  ncomponents = ncomponents,
+                                  scount = scount,
+                                  subset_index = subset_index,
+                                  noisy = noisy)
             } else {
                 setobj <- genSSet(data = data,
-                                      sset = sset,
-                                      sest = sest,
-                                      splinesobj = splinesobj,
-                                      pmodobj = pmodobj,
-                                      pm0 = pm0,
-                                      pm1 = pm1,
-                                      ncomponents = ncomponents,
-                                      scount = scount,
-                                      subset_index = subset_index,
-                                      means = FALSE,
-                                      yvar = vars_y,
-                                      dvar = treat,
-                                      noisy = noisy)
+                                  sset = sset,
+                                  sest = sest,
+                                  splinesobj = splinesobj,
+                                  pmodobj = pmodobj,
+                                  pm0 = pm0,
+                                  pm1 = pm1,
+                                  ncomponents = ncomponents,
+                                  scount = scount,
+                                  subset_index = subset_index,
+                                  means = FALSE,
+                                  yvar = vars_y,
+                                  dvar = treat,
+                                  noisy = noisy)
             }
-
+           
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
@@ -2731,7 +2766,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         } else {
             gs1 <- NULL
         }
-
+      
         if (means == TRUE) {
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
                                              data = data,
