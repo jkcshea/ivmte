@@ -301,7 +301,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         if (!is.null(components)) {
             userComponents <- TRUE
         }
-    }
+    }   
 
     if (userComponents) {
         length_components <- length(components)
@@ -326,21 +326,27 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             ## out if the components list is entered directly, or as a
             ## variable.
             specCompWarn <- FALSE
-
             componentsTmp <- deparse(substitute(components))
-
             if (substr(componentsTmp, 1, 2) == "l(") {
                 components <- deparse(substitute(components))
                 components <- Reduce(paste, components)
-                components <- paste0("l(c",
-                                     substr(components, 2, nchar(components)),
-                                     ")")
+                if (substr(componentsTmp, 1, 4) != "l(c(") {
+                    components <- paste0("l(c",
+                                         substr(components, 2,
+                                                nchar(components)),
+                                         ")")
+                }
                 components <- eval(parse(text = components))
                 length_components <- 1
             } else {
                 components <- unlist(lapply(components, deparse))
                 components <- paste(components, collapse = ", ")
-                components <- paste0("l(c(", components, "))")
+
+                    if (substr(components, 1, 2) == "c(") {
+                        components <- paste0("l(", components, ")")
+                    } else {
+                        components <- paste0("l(c(", components, "))")
+                    }
                 components <- eval(parse(text = components))
             }
         }
@@ -727,6 +733,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     terms_mtr0       <- c()
     terms_mtr1       <- c()
 
+    ## TESTING --------------------------
+    vars_components  <- c()
+    terms_components <- c()
+    ## END TESTING ----------------------
+    
     if (classList(ivlike)) {
 
         if(!min(unlist(lapply(ivlike, classFormula)))) {
@@ -1015,7 +1026,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         propensity <- as.formula(propensity)
     }
 
-    ## Remove unobserved variable from list
+    ## Collect all variables declared, and remove unobserved variable
+    ## from list
     allvars <- c(vars_y,
                  vars_formulas_x,
                  vars_formulas_z,
@@ -1024,6 +1036,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                  vars_weights,
                  vars_propensity)
 
+    ## PROBLEM: components are terms! Not variables!
     vars_components <- NULL
     if (userComponents) {
         for (comp in components) {
@@ -1056,10 +1069,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         compMissing1 <- unlist(lapply(components, function(x) {
             Reduce(paste, deparse(x)) == ""
         }))
-
         compMissing2 <- unlist(lapply(components, function(x) x == ""))
-        compMissing <- as.logical(compMissing1 + compMissing2)
-
+        compMissing3 <- unlist(lapply(components, function(x) x == "c()"))        
+        compMissing <- as.logical(compMissing1 + compMissing2 + compMissing3)
+        
         if (sum(compMissing) > 0 & specCompWarn) {
             warning(gsub("\\s+", " ",
                          "Specifications without corresponding
