@@ -303,7 +303,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 userComponents <- TRUE
             }
         }
-    }   
+    }
 
     if (userComponents) {
         length_components <- length(components)
@@ -739,7 +739,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     vars_components  <- c()
     terms_components <- c()
     ## END TESTING ----------------------
-    
+
     if (classList(ivlike)) {
 
         if(!min(unlist(lapply(ivlike, classFormula)))) {
@@ -1059,14 +1059,14 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
     }
     vars_components <- vars_components[vars_components != '""']
-    
-    ## Break component terms into variables.    
+
+    ## Break component terms into variables.
     vars_components_tmp <-
         paste("~", paste(vars_components[vars_components != "components"],
                          collapse = " + "))
     if (! "intercept" %in% vars_components) {
         vars_components_tmp <- paste(vars_components_tmp, " - 1")
-    }   
+    }
     vars_components <- getXZ(as.formula(vars_components_tmp))
 
     ## Collect all variables, and remove the variable name
@@ -1074,19 +1074,19 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     allvars <- c(allvars, vars_components)
     allvars <- unique(allvars)
     allvars <- allvars[allvars != deparse(substitute(uname))]
-    
+
     ## Fill in components list if necessary
     comp_filler <- lapply(terms_formulas_x,
                           function(x) as.character(unstring(x)))
-    
+
     if (userComponents) {
         compMissing1 <- unlist(lapply(components, function(x) {
             Reduce(paste, deparse(x)) == ""
         }))
         compMissing2 <- unlist(lapply(components, function(x) x == ""))
-        compMissing3 <- unlist(lapply(components, function(x) x == "c()"))        
+        compMissing3 <- unlist(lapply(components, function(x) x == "c()"))
         compMissing <- as.logical(compMissing1 + compMissing2 + compMissing3)
-        
+
         if (sum(compMissing) > 0 & specCompWarn) {
             warning(gsub("\\s+", " ",
                          "Specifications without corresponding
@@ -1885,7 +1885,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
 
     if (noisy == TRUE) {
-        message("Obtaining propensity scores...\n")
+        message("Obtaining propensity scores...")
     }
 
     ## Estimate propensity scores
@@ -1903,7 +1903,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
 
     if (noisy == TRUE) {
-        message("Generating target moments...\n")
+        message("Generating target moments...")
     }
 
     ## Parse polynomials
@@ -2045,7 +2045,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                   dvar = treat,
                                   noisy = noisy)
             }
-           
+
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
@@ -2082,7 +2082,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 
     if (noisy == TRUE) {
         if (obseq.tol > 0) {
-            message("\nPerforming audit procedure...\n")
+            message("Performing audit procedure...")
         }
     }
 
@@ -2338,7 +2338,7 @@ genTarget <- function(treat, m0, m1, uname, target,
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
             if (noisy == TRUE) {
-                message("    Integrating terms for control group...\n")
+                message("    Integrating terms for control group...")
             }
             if (point == FALSE) {
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
@@ -2353,7 +2353,7 @@ genTarget <- function(treat, m0, m1, uname, target,
 
         if (!is.null(m1)) {
             if (noisy == TRUE) {
-                message("    Integrating terms for treated group...\n")
+                message("    Integrating terms for treated group...")
             }
             if (point == FALSE) {
                 gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp)
@@ -2472,10 +2472,10 @@ genTarget <- function(treat, m0, m1, uname, target,
                 if (noisy == TRUE) {
                     if (d == 0) {
                         message(
-                            "    Integrating non-spline terms for control group...\n")
+                            "    Integrating non-spline terms for control group...")
                     } else {
                         message(
-                            "    Integrating non-spline terms for treated group...\n")
+                            "    Integrating non-spline terms for treated group...")
                     }
                 }
 
@@ -2793,7 +2793,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         } else {
             gs1 <- NULL
         }
-      
+
         if (means == TRUE) {
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
                                              data = data,
@@ -3075,7 +3075,8 @@ fglsEstimate <- function(sset, gstar0, gstar1,
 
     if (noisy == TRUE) {
         message()
-        message(paste0("Point estimate of the target parameter: ", round(te, 4)))
+        message(paste0("Point estimate of the target parameter: ",
+                       round(te, 4), "\n"))
     }
     return(list(te = as.numeric(te),
                 coef = theta))

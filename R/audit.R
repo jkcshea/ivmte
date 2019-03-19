@@ -126,7 +126,7 @@
 #'                  data = dtm,
 #'                  uname = u,
 #'                  as.function = FALSE)
-#' 
+#'
 #' polynomials1 <- polyparse(formula = formula0,
 #'                  data = dtm,
 #'                  uname = u,
@@ -207,11 +207,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
                       m1.dec = FALSE, m1.inc = FALSE,
                       mte.dec = FALSE, mte.inc = FALSE,
                       sset, gstar0, gstar1, obseq.tol = 0.05, lpsolver) {
-    
+
     call  <- match.call()
 
     lpsolver <- tolower(lpsolver)
-    
+
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
 
@@ -313,7 +313,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
     while (audit_count <= audit.max) {
 
-        cat("Audit count:", audit_count, "\n")
+        cat("    Audit count:", audit_count, "\n")
         if (!noX) {
             if (length(grid_resid) == 0) {
                 message("Full support of covariates now included as grid.")
@@ -434,19 +434,18 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
 
 
-        message(paste("Minimum criterion:",
-                      round(minobseq$obj, 6), "\n"))
-        
+        message(paste("    Minimum criterion:", round(minobseq$obj, 6)))
+
 
         ## Obtain bounds
-        message("Obtaining bounds...\n")
+        message("    Obtaining bounds...")
         lpresult  <- bound(g0 = gstar0,
                            g1 = gstar1,
                            sset = sset,
                            lpobj = lpobj,
                            obseq.factor = minobseq$obj * (1 + obseq.tol),
                            lpsolver = lpsolver)
-        
+
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
 
@@ -461,7 +460,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                           size for imposing the shape restrictions
                           (grid.nx, grid.nu). \n"))
         }
-        
+
         ## Generate a new grid for the audit
         a_uvec <- round(runif(audit.nu), 8)
 
@@ -532,7 +531,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                      audit.tol)) {
 
                     message(gsub("\\s+", " ",
-                                 "Audit ending: change in bounds falls
+                                 "    Audit ending: change in bounds falls
                                  below tolerance level.\n"))
                     break
                 } else {
