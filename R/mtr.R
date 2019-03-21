@@ -143,12 +143,12 @@ polylisteval <- function(polynomials, points) {
 #'                           data = dtm,
 #'                           uname = u,
 #'                           as.function = FALSE)
-#' 
+#'
 #' polynomials1 <- polyparse(formula = formula0,
 #'                           data = dtm,
 #'                           uname = u,
 #'                           as.function = FALSE)
-#'  
+#'
 #' @export
 polyparse <- function(formula, data, uname = u, as.function = FALSE) {
 
@@ -430,17 +430,18 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
 
 #' Separating splines from MTR formulas
 #'
-#' This function separates out the function call \code{uSplines()}
-#' potentially embedded in the MTR formulas from the rest of the
-#' formula. The terms involving splines are treated separately from
-#' the terms that do not involve splines when creating the gamma
-#' moments.
+#' This function separates out the function calls \code{uSpline()} and
+#' \code{uSplines()} potentially embedded in the MTR formulas from the
+#' rest of the formula. The terms involving splines are treated
+#' separately from the terms that do not involve splines when creating
+#' the gamma moments.
 #' @param formula the formula that is to be parsed.
 #' @return a list containing two objects. One object is \code{formula}
 #'     but with the spline components removed. The second object is a
-#'     list. The name of each element is the \code{uSplines()}
-#'     command, and the elements are a vector of the names of
-#'     covariates that were interacted with the \code{uSplines()} command.
+#'     list. The name of each element is the
+#'     \code{uSpline()}/\code{uSplines()} command, and the elements
+#'     are a vector of the names of covariates that were interacted
+#'     with the \code{uSpline()}/\code{uSplines()} command.
 #'
 #' @examples
 #' ## Declare and MTR with a sline component.
@@ -456,7 +457,7 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
 #'
 #' ## Now separate the spline component from the non-spline component
 #' removeSplines(m0)
-#' 
+#'
 #' @export
 removeSplines <- function(formula) {
 
@@ -466,20 +467,24 @@ removeSplines <- function(formula) {
     if (length(fterms) == 0) {
         whichspline <- 0
     } else {
-
-        whichspline <- sapply(fterms,
-                              function(y) grepl(x = y, pattern = "uSplines\\("))
+        whichspline1 <- sapply(fterms,
+                               function(y) grepl(x = y,
+                                                 pattern = "uSplines\\("))
+        whichspline2 <- sapply(fterms,
+                               function(y) grepl(x = y,
+                                                 pattern = "uSpline\\("))
+        whichspline <- as.logical(whichspline1 + whichspline2)
     }
 
     if (max(whichspline) == 1) {
         ftobj <- terms(formula)
-        splinespos <- which(whichspline == TRUE)
+        splinepos <- which(whichspline == TRUE)
 
-        if (length(splinespos) == length(fterms)) {
+        if (length(splinepos) == length(fterms)) {
             if (finter == 0) nosplines <- NULL
             if (finter == 1) nosplines <- ~ 1
         } else {
-            nosplines <- drop.terms(ftobj, splinespos)
+            nosplines <- drop.terms(ftobj, splinepos)
             nosplines <- Formula::as.Formula(nosplines)
         }
 
@@ -487,7 +492,17 @@ removeSplines <- function(formula) {
         splineslist <- list()
 
         for (splineobj in splineterms) {
-            splinespos <- regexpr("uSplines\\(", splineobj)
+            splinepos1 <- regexpr("uSplines\\(", splineobj)
+            splinepos2 <- regexpr("uSpline\\(", splineobj)
+
+            if (splinepos1 == -1) {
+                splinepos <- splinepos2
+                splineposadd <- 7
+            } else {
+                splinepos <- splinepos1
+                splineposadd <- 8
+            }
+
             degreepos  <- regexpr("degree = ", splineobj)
             knotspos   <- regexpr("knots = ", splineobj)
             knotslpos  <- regexpr("knots = c\\(", splineobj)
@@ -496,31 +511,34 @@ removeSplines <- function(formula) {
             ## Check if vectors or sequences are declared to adjust parsing
             firstopen  <- regexpr("\\(",
                                   substr(splineobj,
-                                         splinespos + 8 + 1,
+                                         splinepos + splineposadd + 1,
                                          nchar(splineobj)))
 
             firstclose <- regexpr("\\)",
                                   substr(splineobj,
-                                         splinespos + 8 + 1,
+                                         splinepos + splineposadd + 1,
                                          nchar(splineobj)))
 
             secondclose <- regexpr("\\)",
                                    substr(splineobj,
-                                          splinespos + 8 + 1 + firstclose,
+                                          splinepos + splineposadd + 1 +
+                                          firstclose,
                                           nchar(splineobj)))
 
             ## For the case where knots are explcitly declared
             if ((firstopen < firstclose) & (secondclose != - 1)) {
                 splinecmd <- substr(splineobj,
-                                    splinespos,
-                                    splinespos + 8 + firstclose + secondclose)
+                                    splinepos,
+                                    splinepos + splineposadd + firstclose +
+                                    secondclose)
             } else { ## For the case where knots are passed as an object
                 splinecmd <- substr(splineobj,
-                                    splinespos,
-                                    splinespos + 8 + 1 + firstclose - 1)
+                                    splinepos,
+                                    splinepos + splineposadd + 1 +
+                                    firstclose - 1)
             }
 
-            ## Separate uSplines command from terms interacting with the spline
+            ## Separate uSpline/uSplines command from terms interacting with the spline
             splinecmdstr <- gsub("\\)", "\\\\)",
                                  gsub("\\(", "\\\\(", splinecmd))
 
@@ -544,9 +562,13 @@ removeSplines <- function(formula) {
 
         for (i in 1:length(splineslist)) {
             inDict <- FALSE
-            splinesSpec <- eval(parse(text = gsub("uSplines\\(",
-                                                  "list(",
-                                                  names(splineslist)[i])))
+            splinesSpecCmd <- gsub("uSplines\\(",
+                                   "list(",
+                                   names(splineslist)[i])
+            splinesSpecCmd <- gsub("uSpline\\(",
+                                   "list(",
+                                   splinesSpecCmd)
+            splinesSpec <- eval(parse(text = splinesSpecCmd))
 
             if (! "intercept" %in% names(splinesSpec)) {
                 splinesSpec$intercept = TRUE
@@ -580,7 +602,7 @@ removeSplines <- function(formula) {
         ## Using dictionary, generate new condensed splines list
         splinesList2 <- list()
         for (j in 1:length(splinesDict)) {
-            dictKey <- paste0("uSplines(degree = ",
+            dictKey <- paste0("uSpline(degree = ",
                               splinesDict[[j]]$degree,
                               ", knots = c(",
                               paste(splinesDict[[j]]$knots,
@@ -662,33 +684,33 @@ removeSplines <- function(formula) {
 #'     uSplines(degree = 3,
 #'              knots = c(0.2, 0.4),
 #'              intercept = FALSE)
-#' 
+#'
 #' ## Separate the spline components from the MTR function
 #' splineslist <- removeSplines(m0)$splineslist
-#' 
+#'
 #' ## Delcare the points at which we wish to evaluate the integrals
 #' x <- seq(0, 1, 0.2)
-#' 
+#'
 #' ## Evaluate the splines integrals
 #' eval(parse(text = gsub("uSplines\\(",
 #'                        "ivmte:::uSplinesInt(x = x, ",
 #'                        names(splineslist)[1])))
-#' 
-#' 
+#'
+#'
 #' eval(parse(text = gsub("uSplines\\(",
 #'                        "ivmte:::uSplinesInt(x = x, ",
 #'                        names(splineslist)[2])))
-uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
+uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
 
     ## Note: warning below is suppressed since it will be provided
     ## when uSplinesBasis is run.
-    
+
     if (any(knots < 0) || any(knots > 1)) {
         stop(gsub("\\s+", " ",
-                  "When defining splines, each knot must be inside the 
+                  "When defining splines, each knot must be inside the
                    [0, 1] interval."))
     }
-    
+
     splines2::ibs(x = x,
                   knots = knots,
                   degree = degree,
@@ -742,18 +764,18 @@ uSplinesInt <- function(x, knots, degree = 0, intercept = TRUE) {
 #' eval(parse(text = gsub("uSplines\\(",
 #'                        "ivmte:::uSplinesBasis(x = x, ",
 #'                         names(splineslist)[1])))
-#' 
+#'
 #' eval(parse(text = gsub("uSplines\\(",
 #'                        "ivmte:::uSplinesBasis(x = x, ",
 #'                        names(splineslist)[2])))
-uSplinesBasis <- function(x, knots, degree = 0, intercept = TRUE) {
+uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 
     if (any(knots < 0) || any(knots > 1)) {
         stop(gsub("\\s+", " ",
                   "When defining splines, each knot must be inside the
                    [0, 1] interval."))
     }
-    
+
     splines2::bSpline(x = x,
                       knots = knots,
                       degree = degree,
@@ -837,12 +859,12 @@ genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
                                          data[subset, ])$X
 
             ## Spline integral matrices
-            splinesLB <- eval(parse(text = gsub("uSplines\\(",
-                                                "uSplinesInt(x = lb, ",
+            splinesLB <- eval(parse(text = gsub("uSpline\\(",
+                                                "uSplineInt(x = lb, ",
                                                 names(splines)[j])))
 
-            splinesUB <- eval(parse(text = gsub("uSplines\\(",
-                                                "uSplinesInt(x = ub, ",
+            splinesUB <- eval(parse(text = gsub("uSpline\\(",
+                                                "uSplineInt(x = ub, ",
                                                 names(splines)[j])))
             splinesInt <- splinesUB - splinesLB
 
@@ -924,8 +946,8 @@ genBasisSplines <- function(splines, x, d = NULL) {
             splinesBasis <- NULL
             splinesNames <- NULL
 
-            bmat <- eval(parse(text = gsub("uSplines\\(",
-                                           "uSplinesBasis(x = x, ",
+            bmat <- eval(parse(text = gsub("uSpline\\(",
+                                           "uSplineBasis(x = x, ",
                                            names(splines[j]))))
 
             colnames(bmat) <- paste0(paste0("u", d, "S", j, "."),
