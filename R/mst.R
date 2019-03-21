@@ -865,52 +865,55 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     if (hasArg(propensity)) {
         if (classFormula(propensity)) {
-            ptreat <- all.vars(propensity)[1]
-            vars_propensity <- all.vars(propensity)
-
-            if (hasArg(treat)) {
-                if (ptreat != deparse(substitute(treat))) {
-                    warning(gsub("\\s+", " ",
-                                 "Variable listed in 'treat' argument differs
-                                 from dependent variable in propensity score
-                                 formula. Dependent variable from propensity
-                                 score formula will be used as the treatment
-                                 variable."),
-                            call. = FALSE)
-                    treat <- ptreat
+            if (length(propensity) == 3) {
+                ptreat <- all.vars(propensity)[1]
+                vars_propensity <- all.vars(propensity)
+                
+                if (hasArg(treat)) {
+                    if (ptreat != deparse(substitute(treat))) {
+                        stop(gsub("\\s+", " ",
+                                  "Variable listed in 'treat' argument
+                                 differs from dependent variable in propensity
+                                 score formula. Dependent variable from
+                                 propensity score formula will be used as the
+                                 treatment variable."),
+                                call. = FALSE)
+                        treat <- ptreat
+                    }
                 } else {
-                    treat <- deparse(substitute(treat))
+                    treat <- ptreat
                 }
-            } else {
-                warning(gsub("\\s+", " ",
-                             paste0("'treat' argument is not declared.
-                              Dependent variable from the propensity
-                              score formula, '",
-                              ptreat,
-                              "', will be used as the treatment variable.")))
-                treat <- ptreat
-            }
 
-
-            if (length(Formula::as.Formula(propensity))[1] == 0 &&
-                length(all.vars(propensity)) > 1) {
-                stop(gsub("\\s+", " ",
-                          paste0("'propensity' argument must either be a
+                if (length(Formula::as.Formula(propensity))[1] == 0 &&
+                    length(all.vars(propensity)) > 1) {
+                    stop(gsub("\\s+", " ",
+                              paste0("'propensity' argument must either be a
                           two-sided formula (if the propensity score is to be
                           estimated from the data), or a one-sided formula
                           containing a single variable on the RHS (where the
                           variable listed is included in the data, and
                           corresponds to propensity scores.")))
+                }
+            } else if (length(propensity) == 2) {
+                if (!hasArg(treat)) {
+                    stop(gsub("\\s+", " ",
+                              "Treatment variable is undetermined. Either
+                           provide two-sided formula in the 'propensity'
+                           argument, where the left hand variable is the
+                           treatment variable, or declare the treatment variable
+                           using the argument 'treat'."),
+                         call. = FALSE)
+                } else {
+                    treat <- deparse(substitute(treat))
+                }
             }
-
         } else {
-
             if (! deparse(substitute(propensity)) %in% colnames(data)) {
                 stop(gsub("\\s+", " ",
                           "Propensity score argument is interpreted as a
                           variable name, but is not found in the data set."))
             }
-
+            
             vars_propensity <- c(vars_propensity,
                                  deparse(substitute(propensity)))
 
@@ -919,21 +922,18 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 treat <- deparse(substitute(treat))
                 vars_propensity <- c(vars_propensity,
                                       treat)
-            } else if (is.list(ivlike)) {
-                warning(gsub("\\s+", " ",
-                             "First independent variable of first IV regression
-                             is selected as the treatment variable."),
-                        call. = FALSE)
-                treat <- all.vars(ivlike[[1]])[2]
-                vars_propensity <- c(vars_propensity,
-                                      treat)
             } else {
-                stop("Treatment variable indeterminable.")
+                stop(gsub("\\s+", " ",
+                          "Treatment variable is undetermined. Either provide
+                           two-sided formula in the 'propensity' argument,
+                           where the left hand variable is the treatment
+                           variable, or declare the treatment variable using
+                           the argument 'treat'."),
+                     call. = FALSE)
             }
-
+            
             propensity <- deparse(substitute(propensity))
             propensity <- Formula::as.Formula(paste("~", propensity))
-
             if (length(all.vars(propensity)) > 1) {
                 stop(gsub("\\s+", " ",
                           paste0("'propensity' argument must either be a
