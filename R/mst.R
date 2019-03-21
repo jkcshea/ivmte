@@ -2047,12 +2047,14 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
                                  noisy = noisy)
-
+        
         return(list(sset  = sset,
                     gstar = list(g0 = gstar0,
                                  g1 = gstar1),
                     propensity = pmodel,
-                    te = gmmResult$te,
+                    pointestimate = gmmResult$pointestimate,
+                    bounds = c(gmmResult$pointestimate,
+                               gmmResult$pointestimate),
                     mtr.coef = gmmResult$coef))
     }
 
@@ -2131,7 +2133,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                 gstar = list(g0 = gstar0,
                              g1 = gstar1),
                 propensity = pmodel,
-                bound = c(audit$min, audit$max),
+                pointestimate = NULL,
+                bounds = c(audit$min, audit$max),
                 lpresult =  audit$lpresult,
                 ## poly0 = pm0,
                 ## poly1 = pm1,
@@ -3024,13 +3027,13 @@ gmmEstimate <- function(sset, gstar0, gstar1, noisy = TRUE) {
     rownames(theta) <- c(paste0("m0.", colnames(gstar0)),
                          paste0("m1.", colnames(gstar1)))
 
-    te <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
+    pointestimate <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
 
     if (noisy == TRUE) {
         message()
         message(paste0("Point estimate of the target parameter: ",
-                       round(te, 4), "\n"))
+                       round(pointestimate, 4), "\n"))
     }
-    return(list(te = as.numeric(te),
+    return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta))
 }
