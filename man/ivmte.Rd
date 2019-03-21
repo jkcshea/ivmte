@@ -13,8 +13,7 @@ ivmte(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
   grid.nu = 20, grid.nx = 20, audit.nx = 2, audit.nu = 3,
   audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
   mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
-  lpsolver = NULL, point = FALSE, point.itermax = 2,
-  point.tol = 1e-08, noisy = TRUE)
+  lpsolver = NULL, point = FALSE, noisy = TRUE)
 }
 \arguments{
 \item{bootstraps}{integer, default set to 0.}
@@ -224,22 +223,10 @@ obtain the bounds on the treatment effect.}
 
 \item{point}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} if it is believed that the treatment effects are
-point identified. If set to \code{TRUE}, then a FGLS procedure
-is implemented to estimate the treatment effects. Shape
-constraints on the MTRs will be ignored under point
-identification.}
-
-\item{point.itermax}{integer, default of 2. Maximum number of
-iterations allowed for FGLS estimation under point
-identification. So default estimate is the two-step FGLS.}
-
-\item{point.tol}{scalar, set default at 1-e08. Tolerance for bounds
-before automatically switchingto case of point
-identification. So if the estimated bounds are narrower than
-\code{point.tol}, and no shape restrictions are declared, the
-function instead provides a point estimate of the treatment
-effect. The output would be the same as if \code{point} was set
-to \code{TRUE}.}
+point identified. If set to \code{TRUE}, then a two-step GMM
+procedure is implemented to estimate the treatment
+effects. Shape constraints on the MTRs will be ignored under
+point identification.}
 
 \item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
 then messages are provided throughout the estimation

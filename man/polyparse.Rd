@@ -49,5 +49,5 @@ polynomials1 <- polyparse(formula = formula0,
                           data = dtm,
                           uname = u,
                           as.function = FALSE)
- 
+
 }

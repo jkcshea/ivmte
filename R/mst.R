@@ -304,27 +304,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     if (userComponents) {
         length_components <- length(components)
-        if (length_formula > 1) {
-            ## When multiple formulas are declared, multiple
-            ## vectors of components should also be declared. If
-            ## not enouh vectors are declared, then 'specCompWarn'
-            ## ("special components warning") is set to TRUE,
-            ## which will inform the user that fomrulas without a
-            ## correpsonding components vector will include all
-            ## the second stage variables as components.
-            if (length_components == length_formula) {
-                specCompWarn <- TRUE
-            } else {
-                specCompWarn <- FALSE
-            }
-        } else {
+        if (length_formula == 1) {
             ## When a single formula is provided, then the list of
             ## components should be treated as a single vector of
             ## components. The way in which the user declares the
             ## components can be problematic. The function must figure
             ## out if the components list is entered directly, or as a
             ## variable.
-            specCompWarn <- FALSE
             componentsTmp <- deparse(substitute(components))
             if (substr(componentsTmp, 1, 2) == "l(") {
                 components <- deparse(substitute(components))
@@ -1080,14 +1066,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         compMissing2 <- unlist(lapply(components, function(x) x == ""))
         compMissing3 <- unlist(lapply(components, function(x) x == "c()"))
         compMissing <- as.logical(compMissing1 + compMissing2 + compMissing3)
-
-        if (sum(compMissing) > 0 & specCompWarn) {
-            warning(gsub("\\s+", " ",
-                         "Specifications without corresponding
-                         component vectors will include all covariates when
-                         constructing the S-set."),
-                    call. = FALSE)
-        }
 
         if (sum(compMissing) > 0) {
             components[compMissing] <- comp_filler[compMissing]

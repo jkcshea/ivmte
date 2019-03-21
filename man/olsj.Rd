@@ -4,10 +4,14 @@
 \alias{olsj}
 \title{OLS weights}
 \usage{
-olsj(X, components, treat)
+olsj(X, X0, X1, components, treat)
 }
 \arguments{
 \item{X}{Matrix of covariates, including the treatment indicator.}
+
+\item{X0}{Matrix of covariates, once fixing treatment to be 1.}
+
+\item{X1}{Matrix of covariates, once fixing treatment to be 0.}
 
 \item{components}{Vector of variable names of which user wants the
 S-weights for.}
