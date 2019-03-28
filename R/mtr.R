@@ -445,13 +445,13 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
 #'
 #' @examples
 #' ## Declare and MTR with a sline component.
-#' m0 = ~ x1 + x1 : uSplines(degree = 2,
+#' m0 = ~ x1 + x1 : uSpline(degree = 2,
 #'                           knots = c(0.2, 0.4)) +
-#'             x2 : uSplines(degree = 2,
+#'             x2 : uSpline(degree = 2,
 #'                           knots = c(0.2, 0.4)) +
-#'             x1 : x2 : uSplines(degree = 2,
+#'             x1 : x2 : uSpline(degree = 2,
 #'                                knots = c(0.2, 0.4)) +
-#'             uSplines(degree = 3,
+#'             uSpline(degree = 3,
 #'                      knots = c(0.2, 0.4),
 #'                      intercept = FALSE)
 #'
@@ -675,13 +675,13 @@ removeSplines <- function(formula) {
 #' ## the terms that interact with the splines.
 #'
 #' ## Declare MTR function
-#' m0 = ~ x1 + x1 : uSplines(degree = 2,
+#' m0 = ~ x1 + x1 : uSpline(degree = 2,
 #'                           knots = c(0.2, 0.4)) +
-#'     x2 : uSplines(degree = 2,
+#'     x2 : uSpline(degree = 2,
 #'                   knots = c(0.2, 0.4)) +
-#'     x1 : x2 : uSplines(degree = 2,
+#'     x1 : x2 : uSpline(degree = 2,
 #'                        knots = c(0.2, 0.4)) +
-#'     uSplines(degree = 3,
+#'     uSpline(degree = 3,
 #'              knots = c(0.2, 0.4),
 #'              intercept = FALSE)
 #'
@@ -692,18 +692,18 @@ removeSplines <- function(formula) {
 #' x <- seq(0, 1, 0.2)
 #'
 #' ## Evaluate the splines integrals
-#' eval(parse(text = gsub("uSplines\\(",
-#'                        "ivmte:::uSplinesInt(x = x, ",
+#' eval(parse(text = gsub("uSpline\\(",
+#'                        "ivmte:::uSplineInt(x = x, ",
 #'                        names(splineslist)[1])))
 #'
 #'
-#' eval(parse(text = gsub("uSplines\\(",
-#'                        "ivmte:::uSplinesInt(x = x, ",
+#' eval(parse(text = gsub("uSpline\\(",
+#'                        "ivmte:::uSplineInt(x = x, ",
 #'                        names(splineslist)[2])))
 uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
 
     ## Note: warning below is suppressed since it will be provided
-    ## when uSplinesBasis is run.
+    ## when uSplineBasis is run.
 
     if (any(knots < 0) || any(knots > 1)) {
         stop(gsub("\\s+", " ",
@@ -744,13 +744,13 @@ uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
 #' ## the terms that interact with the splines.
 #'
 #' ## Declare MTR function
-#' m0 = ~ x1 + x1 : uSplines(degree = 2,
+#' m0 = ~ x1 + x1 : uSpline(degree = 2,
 #'                           knots = c(0.2, 0.4)) +
-#'     x2 : uSplines(degree = 2,
+#'     x2 : uSpline(degree = 2,
 #'                   knots = c(0.2, 0.4)) +
-#'     x1 : x2 : uSplines(degree = 2,
+#'     x1 : x2 : uSpline(degree = 2,
 #'                        knots = c(0.2, 0.4)) +
-#'     uSplines(degree = 3,
+#'     uSpline(degree = 3,
 #'              knots = c(0.2, 0.4),
 #'              intercept = FALSE)
 #'
@@ -761,12 +761,12 @@ uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
 #' x <- seq(0, 1, 0.2)
 #'
 #' ## Evaluate the splines
-#' eval(parse(text = gsub("uSplines\\(",
-#'                        "ivmte:::uSplinesBasis(x = x, ",
+#' eval(parse(text = gsub("uSpline\\(",
+#'                        "ivmte:::uSplineBasis(x = x, ",
 #'                         names(splineslist)[1])))
 #'
-#' eval(parse(text = gsub("uSplines\\(",
-#'                        "ivmte:::uSplinesBasis(x = x, ",
+#' eval(parse(text = gsub("uSpline\\(",
+#'                        "ivmte:::uSplineBasis(x = x, ",
 #'                        names(splineslist)[2])))
 uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 

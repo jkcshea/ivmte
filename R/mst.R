@@ -296,8 +296,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     userComponents <- FALSE
     if (hasArg(components)) {
         if (!is.null(components)) {
-            if (deparse(components) != "list()"){
+            if (length(components) > 1) {
                 userComponents <- TRUE
+            }
+            if (length(components) == 1) {
+                if (Reduce(paste, deparse(components)) != "list()"){
+                    userComponents <- TRUE
+                }
             }
         }
     }
@@ -311,10 +316,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             ## components can be problematic. The function must figure
             ## out if the components list is entered directly, or as a
             ## variable.
-            componentsTmp <- deparse(substitute(components))
+            componentsTmp <- gsub("\\s+", " ",
+                                  Reduce(paste,
+                                         deparse(substitute(components))))
             if (substr(componentsTmp, 1, 2) == "l(") {
                 components <- deparse(substitute(components))
-                components <- Reduce(paste, components)
+                components <- gsub("\\s+", " ", Reduce(paste, components))
+
                 if (substr(componentsTmp, 1, 4) != "l(c(") {
                     components <- paste0("l(c",
                                          substr(components, 2,
@@ -325,13 +333,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 length_components <- 1
             } else {
                 components <- unlist(lapply(components, deparse))
-                components <- paste(components, collapse = ", ")
-
-                    if (substr(components, 1, 2) == "c(") {
-                        components <- paste0("l(", components, ")")
-                    } else {
-                        components <- paste0("l(c(", components, "))")
-                    }
+                components <- gsub("\\s+", " ", Reduce(paste, components))
+                if (substr(components, 1, 2) == "c(") {
+                    components <- paste0("l(", components, ")")
+                } else {
+                    components <- paste0("l(c(", components, "))")
+                }
                 components <- eval(parse(text = components))
             }
         }
@@ -374,7 +381,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         ## If subsetting is not a list, convert it to a list
         if (!(classList(subset))) {
             subset <- paste0("l(",
-                             deparse(substitute(subset)),
+                             gsub("\\s+", " ",
+                                  Reduce(paste, deparse(substitute(subset)))),
                              ")")
             subset <- eval(parse(text = subset))
 
@@ -713,7 +721,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     vars_weights    <- c()
     vars_propensity <- c()
     vars_components  <- c()
-    
+
     terms_formulas_x <- c()
     terms_formulas_z <- c()
     terms_mtr0       <- c()
@@ -767,7 +775,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         if (classList(subset)) {
             svec <- paste(unlist(lapply(subset, deparse)), collapse = " ")
         } else {
-            svec <- deparse(substitute(subset))
+            svec <- gsub("\\s+", " ",
+                         Reduce(paste, deparse(substitute(subset))))
         }
         svec <- subsetclean(svec)
 
@@ -868,7 +877,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             if (length(propensity) == 3) {
                 ptreat <- all.vars(propensity)[1]
                 vars_propensity <- all.vars(propensity)
-                
+
                 if (hasArg(treat)) {
                     if (ptreat != deparse(substitute(treat))) {
                         stop(gsub("\\s+", " ",
@@ -878,8 +887,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                  propensity score formula will be used as the
                                  treatment variable."),
                                 call. = FALSE)
-                        treat <- ptreat
                     }
+                    treat <- ptreat
                 } else {
                     treat <- ptreat
                 }
@@ -913,7 +922,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                           "Propensity score argument is interpreted as a
                           variable name, but is not found in the data set."))
             }
-            
+
             vars_propensity <- c(vars_propensity,
                                  deparse(substitute(propensity)))
 
@@ -931,7 +940,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                            the argument 'treat'."),
                      call. = FALSE)
             }
-            
+
             propensity <- deparse(substitute(propensity))
             propensity <- Formula::as.Formula(paste("~", propensity))
             if (length(all.vars(propensity)) > 1) {
@@ -1023,7 +1032,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     vars_components <- NULL
     if (userComponents) {
         for (comp in components) {
-            compString <- try(deparse(comp), silent = TRUE)
+
+            compString <- try(gsub("\\s+", " ",
+                                   Reduce(paste, deparse(comp))),
+                              silent = TRUE)
+
             if (class(compString) != "try-error") {
                 if (substr(compString, 1, 2) == "c(") {
                     vars_components <- c(vars_components,
@@ -1047,6 +1060,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (! "intercept" %in% vars_components) {
         vars_components_tmp <- paste(vars_components_tmp, " - 1")
     }
+
     vars_components <- getXZ(as.formula(vars_components_tmp))
 
     ## Collect all variables, and remove the variable name
@@ -1089,6 +1103,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
+
 
     ##---------------------------
     ## 5. Implement estimates
@@ -2025,7 +2040,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
                                  noisy = noisy)
-        
+
         return(list(sset  = sset,
                     gstar = list(g0 = gstar0,
                                  g1 = gstar1),

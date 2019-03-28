@@ -41,6 +41,7 @@ restring <- function(vector, substitute = TRUE, command = "c") {
     
     if (substitute == TRUE)  vector <- deparse(substitute(vector))
     if (substitute == FALSE) vector <- deparse(vector)
+    vector <- gsub("\\s+", " ", Reduce(paste, vector))
     vector <- substr(vector, startPoint, nchar(vector) - endTruncation)
     vector <- strsplit(vector, ", ")[[1]]
     return(vector)
