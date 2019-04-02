@@ -1055,14 +1055,14 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Break component terms into variables.
     vars_components_tmp <-
-        paste("~", paste(vars_components[vars_components != "components"],
+        paste(".qqq ~", paste(vars_components[vars_components != "components"],
                          collapse = " + "))
     if (! "intercept" %in% vars_components) {
         vars_components_tmp <- paste(vars_components_tmp, " - 1")
     }
-
+    
     vars_components <- getXZ(as.formula(vars_components_tmp))
-
+    
     ## Collect all variables, and remove the variable name
     ## corresponding to the unobservable.
     allvars <- c(allvars, vars_components)

@@ -53,8 +53,10 @@ classList <- function(obj) {
 
 #' Auxiliary function: extract X and Z covariates from a formula
 #'
-#' Auxiliary function that takes in a formula, and extracts the
-#' variable names of either the covariates or instruments.
+#' Auxiliary function that takes in a two-sided formula, and extracts
+#' the variable names of either the covariates or instruments. The
+#' function returns an error if the formula includes a variable called
+#' 'intercept'.
 #' @param fm the formula.
 #' @param inst boolean expression, set to TRUE if the instrument names
 #'     are to be extracted. Otherwise, the covariate names are
@@ -86,6 +88,11 @@ getXZ <- function(fm, inst = FALSE, terms = FALSE) {
                   paste0("The following IV-like specification is not
                   properly specified: ", deparse(fm), ".")),
              call. = FALSE)
+    }
+    if ("intercept" %in% x | "intercept" %in% z) {
+        stop(gsub("\\s+", " ",
+             "Regression specfiications cannot include variables named
+              'intercept'. Please rename that variable."), call. = FALSE)
     }
     if (attr(terms(fm), "intercept")) {
         x <- c("intercept", x)
