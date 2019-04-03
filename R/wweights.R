@@ -38,7 +38,7 @@ restring <- function(vector, substitute = TRUE, command = "c") {
         startPoint <- nchar(command) + 2
         endTruncation <- 1
     }
-    
+
     if (substitute == TRUE)  vector <- deparse(substitute(vector))
     if (substitute == FALSE) vector <- deparse(vector)
     vector <- gsub("\\s+", " ", Reduce(paste, vector))
@@ -160,41 +160,35 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
 
     ## Predict propensity scores using data.frame model
     if (modclass == "data.frame") {
-
         cond_from <- mapply(function(a, b) paste(a, "==", b), strinst, from)
         cond_from <- paste(cond_from, collapse = " & ")
-
         cond_to <- mapply(function(a, b) paste(a, "==", b), strinst, to)
         cond_to <- paste(cond_to, collapse = " & ")
-
         if (!is.null(X)) {
             condX <- mapply(function(a, b) paste(a, "==", b), strcovar, eval.X)
             condX <- paste(condX, collapse = " & ")
             cond_from <- paste(c(cond_from, condX), collapse = " & ")
             cond_to   <- paste(c(cond_to, condX), collapse = " & ")
         }
-
         pname <- colnames(model)[(!colnames(model) %in% c(strinst, strcovar))]
         bfrom <- subset(model, eval(parse(text = cond_from)))[, pname]
         bto   <- subset(model, eval(parse(text = cond_to)))[, pname]
     }
 
-    lb <- min(bfrom, bto)
-    ub <- max(bfrom, bto)
-
     ## Ensure the bounds are within 0 and 1
-    if (lb < 0) {
-        lb <- 0
+    if (length(which(bfrom < 0)) > 0 | length(which(bto < 0)) > 0) {
         warning("Propensity scores below 0 set to 0.", immediate. = TRUE)
+        bfrom[which(bfrom < 0)] <- 0
+        bto[which(bto < 0)] <- 0
     }
-    if (ub > 1) {
-        ub <- 1
-        warning("Propensity scores above 1 set to 1.", immediate. = TRUE)
+    if (length(which(bfrom > 1)) > 0 | length(which(bto > 1)) > 0) {
+        warning("Propensity scores greater than 1 set to 1.", immediate. = TRUE)
+        bfrom[which(bfrom > 1)] <- 1
+        bto[which(bto > 1)] <- 1
     }
-
-    return(list(lb = replicate(nrow(data), lb),
-                ub = replicate(nrow(data), ub),
-                mp =  1 / (ub - lb)))
+    return(list(lb = bfrom,
+                ub = bto,
+                mp =  1 / abs(bto - bfrom)))
 }
 
 #' Target weight for generalized LATE

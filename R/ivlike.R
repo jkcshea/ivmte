@@ -121,7 +121,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
         components <- gsub("\\s+", " ", Reduce(paste, components))
     }
 
-
     ## Address factors whose values are listed, e.g. factor(x)-1,
     ## factor(x)-2. General declaration of factors is dealt with
     ## below.
@@ -191,7 +190,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
 
     ## Ensure components are uniquely declared
     components <- unique(components)
-    
+
     ## Generate the lmcomponents vector
     lmcomponents <- components
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
