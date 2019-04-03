@@ -64,7 +64,11 @@ classList <- function(obj) {
 #' @param terms boolean expression, set to TRUE if the terms in the
 #'     formula \code{fm} should be returned instead of the variable
 #'     names.
-getXZ <- function(fm, inst = FALSE, terms = FALSE) {
+#' @param components boolean expression, set to FALSE by
+#'     default. Indicates that the formula being considered is
+#'     constructed from a list of components, and thus the term
+#'     'intercept' is permitted.
+getXZ <- function(fm, inst = FALSE, terms = FALSE, components = FALSE) {
     fm <- Formula::as.Formula(fm)
     if (length(fm)[2] == 1) {
         if (terms == FALSE) {
@@ -89,7 +93,7 @@ getXZ <- function(fm, inst = FALSE, terms = FALSE) {
                   properly specified: ", deparse(fm), ".")),
              call. = FALSE)
     }
-    if ("intercept" %in% x | "intercept" %in% z) {
+    if (components == FALSE & ("intercept" %in% x | "intercept" %in% z)) {
         stop(gsub("\\s+", " ",
              "Regression specfiications cannot include variables named
               'intercept'. Please rename that variable."), call. = FALSE)

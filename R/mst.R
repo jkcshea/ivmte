@@ -1108,7 +1108,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (! "intercept" %in% vars_components) {
         vars_components_tmp <- paste(vars_components_tmp, " - 1")
     }
-    vars_components <- getXZ(as.formula(vars_components_tmp))
+    vars_components <- getXZ(as.formula(vars_components_tmp), components = TRUE)
 
     ## Collect all variables, and remove the variable name
     ## corresponding to the unobservable.
