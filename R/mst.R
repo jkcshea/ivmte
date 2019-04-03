@@ -474,12 +474,26 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             ## Tyring to convert lists to vectors
 
             ## if (classList(late.Z)) late.Z <- unlist
+            print("This is lateZ")
+            print(late.Z)
 
             if (classList(late.to)) late.to <- unlist(late.to)
             if (classList(late.from)) late.from <- unlist(late.from)
 
+            if (length(late.to) != length(late.from) |
+                length(late.to) != length(late.Z)) {
+                stop(gsub("\\s+", " ",
+                          "The number of variables declared in 'late.Z'
+                           must be equal to the length of the vectors
+                           declared in 'late.to' and 'late.from'."))
+            }
+            if (all(late.to == late.from)) {
+                stop(gsub("\\s+", " ",
+                          "'late.to' must be different from 'late.from'."))
+            }
             ## END TESTING ---------------------------
 
+            
 
         }
         if (target == "genlate") {
@@ -489,7 +503,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                           and 1."))
             }
             if (genlate.lb >= genlate.ub) {
-                stop("'genlate.lb' must be less than 'genlate.ub'.")
+                stop("'genlate.lb' must be strictly less than 'genlate.ub'.")
             }
         }
         if (target != "genlate" &
