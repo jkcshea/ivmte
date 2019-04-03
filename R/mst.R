@@ -436,7 +436,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         subset <- as.list(replicate(length_formula, ""))
     }
 
-
     ##---------------------------
     ## 3. Check numeric arguments and case completion
     ##---------------------------
@@ -447,9 +446,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             stop("Declared treatment indicator not found in data")
         }
     }
-
     if (hasArg(target)) {
-
         if (! target %in% c("ate", "att", "atu", "late", "genlate")) {
             stop(gsub("\\s+", " ",
                       "Specified target parameter is not recognized.
@@ -461,7 +458,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                           "Target paramter of 'late' requires arguments
                           'late.Z', 'late.to', and 'late.from'."))
             }
-
             if ((hasArg(late.X) & !hasArg(eval.X)) |
                !hasArg(late.X) & hasArg(eval.X)) {
                 stop(gsub("\\s+", " ",
@@ -470,15 +466,19 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                           specified."))
             }
 
-            ## TESTING -------------------------------
-            ## Tyring to convert lists to vectors
-
-            ## if (classList(late.Z)) late.Z <- unlist
-            print("This is lateZ")
-            print(late.Z)
-
+            ## Check the LATE arguments are declared properly.
             if (classList(late.to)) late.to <- unlist(late.to)
             if (classList(late.from)) late.from <- unlist(late.from)
+            zIsVec <- substr(deparse(substitute(late.Z)), 1, 2) == "c("
+            zIsList <- substring(deparse(substitute(late.Z)), 1, 2) == "l("
+            if (zIsVec) {
+                late.Z <- restring(substitute(late.Z), substitute = FALSE)
+            } else if (zIsList) {
+                late.Z <- restring(substitute(late.Z), substitute = FALSE,
+                                   command = "l")
+            } else {
+                late.Z <- deparse(substitute(late.Z))
+            }
 
             if (length(late.to) != length(late.from) |
                 length(late.to) != length(late.Z)) {
@@ -487,14 +487,39 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                            must be equal to the length of the vectors
                            declared in 'late.to' and 'late.from'."))
             }
+            if (!is.numeric(late.to) | !is.numeric(late.from)) {
+                stop("Vectors 'late.from' and 'late.to' must be numeric.")
+            }
             if (all(late.to == late.from)) {
                 stop(gsub("\\s+", " ",
                           "'late.to' must be different from 'late.from'."))
             }
-            ## END TESTING ---------------------------
 
-            
-
+            ## Check that included insturments are declared properly
+            if (hasArg(eval.X)) {
+                if (classList(eval.X)) eval.X <- unlist(eval.X)
+                xIsVec <- substr(deparse(substitute(late.X)), 1, 2) == "c("
+                xIsList <- substring(deparse(substitute(late.X)), 1, 2) == "l("
+                if (xIsVec) {
+                    late.X <- restring(substitute(late.X),
+                                         substitute = FALSE)
+                } else if (xIsList) {
+                    late.X <- restring(substitute(late.X),
+                                         substitute = FALSE,
+                                         command = "l")
+                } else {
+                    late.X <- deparse(substitute(late.X))
+                }
+                if (length(late.X) != length(eval.X)) {
+                    stop(gsub("\\s+", " ",
+                              "The number of variables declared in 'late.X'
+                       must be equal to the length of the vector
+                       declared in 'eval.X'."))
+                }
+                if (!is.numeric(eval.X)) {
+                    stop("Vector 'eval.X' must be numeric.")
+                }
+            }
         }
         if (target == "genlate") {
             if (genlate.lb < 0 | genlate.ub > 1) {
@@ -523,10 +548,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                       weight is provided. Please provide an input for 'target'
                       only, or for 'target.weight0' and 'target.weight1'."))
         }
-
         target.weight0 <- NULL
         target.weight1 <- NULL
-
     } else {
         if (!(hasArg(target.weight0) & hasArg(target.weight1))) {
             stop(gsub("\\s+", " ",
@@ -534,7 +557,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                       target weight is to be used, inputs for both
                       target.weight0 and target.weight1 must be provided."))
         }
-
         if (!hasArg(target)) {
 
             ## Convert all entries into lists
@@ -670,8 +692,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (!((audit.nx %% 1 == 0) & audit.nx > 0)) {
         stop("'audit.nx' must be an integer greater than or equal to 1.")
     }
-
-
     if (hasArg(m0.dec) | hasArg(m0.inc) |
         hasArg(m1.dec) | hasArg(m1.inc) |
         hasArg(mte.dec) | hasArg(mte.inc) |
@@ -686,14 +706,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
 
     } else {
-
         noshape = TRUE
-
         if (!((audit.nu %% 1 == 0) & audit.nu > 0)) {
             stop("'audit.nu' must be an integer greater than or equal to 1.")
         }
     }
-
     if (!((audit.max %% 1 == 0) & audit.max > 0)) {
         stop("'audit.max' must be an integer greater than or equal to 1.")
     }
@@ -831,7 +848,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
            length(Formula::as.Formula(m1))[1] != 0) {
             stop("m0 and m1 must be one-sided formulas.")
         }
-
         splinesobj <- list(removeSplines(m0),
                            removeSplines(m1))
 
@@ -1092,7 +1108,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (! "intercept" %in% vars_components) {
         vars_components_tmp <- paste(vars_components_tmp, " - 1")
     }
-
     vars_components <- getXZ(as.formula(vars_components_tmp))
 
     ## Collect all variables, and remove the variable name
@@ -1118,6 +1133,31 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
     } else {
         components <- comp_filler
+    }
+
+    ## Check that all LATE variables are included in the propensity
+    ## formula.
+    if (target == "late") {
+        if (!all(late.Z %in% vars_propensity)) {
+            stop(gsub("\\s+", " ",
+                      "Variables in 'late.Z' argument must be contained
+                       in the propensity score model."))
+        }
+        nLateX <- 0
+        if (hasArg(late.X)) {
+            nLateX <- length(late.X)
+            if (!all(late.X %in% vars_propensity)) {
+                stop(gsub("\\s+", " ",
+                          "Variables in 'late.X' argument must be contained
+                           in the propensity score model."))
+            }
+        }
+        if (length(late.Z) + nLateX != length(vars_propensity) - 1) {
+            stop(gsub("\\s+", " ",
+                      "When estimating the LATE, all covariates in the
+                       propensity model must be fixed using 'late.Z' and
+                       'late.X'. Currently, not all variables are fixed."))
+        }
     }
 
     ## Keep only complete cases
@@ -1152,7 +1192,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                          "treat", "propensity",
                                          "components", "lpsolver",
                                          "target.weight0", "target.weight1",
-                                         "target.knots0", "target.knots1"),
+                                         "target.knots0", "target.knots1",
+                                         "late.Z", "late.to", "late.from",
+                                         "late.X", "eval.X"),
                             newargs = list(m0 = quote(m0),
                                            m1 = quote(m1),
                                            target.weight0 =
@@ -1172,6 +1214,17 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                            propensity = quote(propensity),
                                            splinesobj = quote(splinesobj),
                                            components = quote(components)))
+    if (target == "late") {
+        estimateCall <- modcall(estimateCall,
+                                newargs = list(late.Z = late.Z,
+                                               late.to = late.to,
+                                               late.from = late.from))
+        if (hasArg(late.X)) {
+            estimateCall <- modcall(estimateCall,
+                                    newargs = list(late.X = late.X,
+                                                   eval.X = eval.X))
+        }
+    }
 
 
     ## Estimate bounds
@@ -2268,8 +2321,8 @@ genTarget <- function(treat, m0, m1, uname, target,
                 late.X <- NULL
                 eval.X <- NULL
             }
-            w1 <- wlate1(data, late.from, late.to, substitute(late.Z),
-                         pmodobj$model, substitute(late.X), eval.X)
+            w1 <- wlate1(data, late.from, late.to, late.Z,
+                         pmodobj$model, late.X, eval.X)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "genlate") {
@@ -2310,7 +2363,6 @@ genTarget <- function(treat, m0, m1, uname, target,
         } else {
             gstar1 <- NULL
         }
-
         if (point == FALSE) {
             gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
                                                data = data,

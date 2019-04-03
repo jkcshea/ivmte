@@ -76,7 +76,7 @@ propensity <- function(formula, data, link = "logit", late.Z,
     } else if (length(formula)[1] == 0 & length(formula)[2] == 1) {
         
         ## If one-sided formula is provided, containing only one
-        ## variable, then that variable is the proepnsity score
+        ## variable, then that variable is the propensity score
 
         ## Check that only one variable is submitted. This variable is
         ## the one in the data containing the propensity scores

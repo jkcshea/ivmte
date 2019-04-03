@@ -96,12 +96,12 @@ watu1 <- function(data, expd0, propensity) {
 #' @param data \code{data.frame} on which the estimation is performed.
 #' @param from Vector of baseline values for the instruments.
 #' @param to Vector of comparison values for the instruments.
-#' @param Z An expression for the vector of names of instruments.
+#' @param Z Character vector of names of instruments.
 #' @param model A \code{lm} or \code{glm} object, or a
 #'     \code{data.frame}, which can be used to estimate the propensity
 #'     to take up treatment for the specified values of the
 #'     instruments.
-#' @param X Expression of variable names for the non-excluded
+#' @param X Character vector of variable names for the non-excluded
 #'     variables the user wishes to condition the LATE on.
 #' @param eval.X Vector of values the user wishes to condition the
 #'     \code{X} variables on.
@@ -109,68 +109,64 @@ watu1 <- function(data, expd0, propensity) {
 #'     well as the multiplier in the weight.
 wlate1 <- function(data, from, to, Z, model, X, eval.X) {
 
-    ## Determine the type of model we are working with (data.frame
-    ## vs. glm)
+    if (hasArg(X)) data[, X] <- t(replicate(nrow(data), eval.X))
+
+    ## Determine the type of model we are working with (lm vs. glm)
     modclass <- class(model)[1]
 
-    zIsVec <- substr(deparse(Z), 1, 2) == "c("
-    if (zIsVec) {
-        strinst <- restring(Z, substitute = FALSE)
-    } else {
-        strinst <- deparse(Z)
-    }
-    strcovar <- NULL
-
-    if (!is.null(X)) {
-        strcovar <- restring(X, substitute = FALSE)
-        data[, strcovar] <- t(replicate(nrow(data), eval.X))
-    }
-
     ## Predict propensity scores for 'from' case
-    if (length(strinst) == 1) {
-        data[, strinst] <- replicate(nrow(data), from)
+    if (length(Z) == 1) {
+        data[, Z] <- replicate(nrow(data), from)
     } else {
-        data[, strinst] <- t(replicate(nrow(data), from))
+        data[, Z] <- t(replicate(nrow(data), from))
     }
-
     if (modclass ==  "lm") {
         bfrom <- predict.lm(model, data)
     }
-
     if (modclass == "glm") {
         bfrom <- predict.glm(model, data,
                              type = "response")
     }
-
-    ## Predict propensity scores for 'from' case
-    if (length(strinst) == 1) {
-        data[, strinst] <- replicate(nrow(data), to)
-    } else {
-        data[, strinst] <- t(replicate(nrow(data), to))
+    bfrom <- unique(bfrom)
+    if (length(bfrom) > 1) {
+        stop("For LATE target, there should be a single lower bound.")
     }
 
+    print(head(data))
+
+    ## Predict propensity scores for 'to' case
+    if (length(Z) == 1) {
+        data[, Z] <- replicate(nrow(data), to)
+    } else {
+        data[, Z] <- t(replicate(nrow(data), to))
+    }
     if (modclass ==  "lm") {
         bto   <- predict.lm(model, data)
     }
-
     if (modclass == "glm") {
         bto   <- predict.glm(model, data,
                            type = "response")
     }
+    bto <- unique(bto)
+    if (length(bto) > 1) {
+        stop("For LATE target, there should be a single upper bound.")
+    }
+
+    print(head(data))
 
     ## Predict propensity scores using data.frame model
     if (modclass == "data.frame") {
-        cond_from <- mapply(function(a, b) paste(a, "==", b), strinst, from)
+        cond_from <- mapply(function(a, b) paste(a, "==", b), Z, from)
         cond_from <- paste(cond_from, collapse = " & ")
-        cond_to <- mapply(function(a, b) paste(a, "==", b), strinst, to)
+        cond_to <- mapply(function(a, b) paste(a, "==", b), Z, to)
         cond_to <- paste(cond_to, collapse = " & ")
         if (!is.null(X)) {
-            condX <- mapply(function(a, b) paste(a, "==", b), strcovar, eval.X)
+            condX <- mapply(function(a, b) paste(a, "==", b), X, eval.X)
             condX <- paste(condX, collapse = " & ")
             cond_from <- paste(c(cond_from, condX), collapse = " & ")
             cond_to   <- paste(c(cond_to, condX), collapse = " & ")
         }
-        pname <- colnames(model)[(!colnames(model) %in% c(strinst, strcovar))]
+        pname <- colnames(model)[(!colnames(model) %in% c(Z, X))]
         bfrom <- subset(model, eval(parse(text = cond_from)))[, pname]
         bto   <- subset(model, eval(parse(text = cond_to)))[, pname]
     }
