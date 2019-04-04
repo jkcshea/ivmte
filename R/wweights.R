@@ -132,8 +132,6 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
         stop("For LATE target, there should be a single lower bound.")
     }
 
-    print(head(data))
-
     ## Predict propensity scores for 'to' case
     if (length(Z) == 1) {
         data[, Z] <- replicate(nrow(data), to)
@@ -151,8 +149,6 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
     if (length(bto) > 1) {
         stop("For LATE target, there should be a single upper bound.")
     }
-
-    print(head(data))
 
     ## Predict propensity scores using data.frame model
     if (modclass == "data.frame") {

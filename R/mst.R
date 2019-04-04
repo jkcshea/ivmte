@@ -1446,92 +1446,79 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         mtrSE  <- apply(mtrEstimates, 1, sd)
         propSE  <- apply(propEstimates, 1, sd)
 
-        ## Conf. int. 1: quantile method (same as percentile method)
+        ## Construct confidence intervals for various levels
+        for (level in levels) {
+            pLower <- (1 - level) / 2
+            pUpper <- 1 - (1 - level) / 2
+            probVec <- c(pLower, pUpper)
+            
+            ## Conf. int. 1: quantile method (same as percentile method)
+            assign(paste0("ci1", level * 100),
+                quantile(x = teEstimates,
+                         probs = probVec,
+                         type = 1))
+            assign(paste0("mtrci1", level * 100),
+                apply(mtrEstimates, 1, quantile,
+                      probs = probVec,
+                      type = 1))
+            assign(paste0("propci1", level * 100),
+                apply(propEstimates, 1, quantile,
+                      probs = probVec,
+                      type = 1))
 
-        ## Testing -------------------------
+            ## Conf. int. 2: percentile method using Z statistics
+            tmpCi2 <- origEstimate$pointestimate +
+                c(qnorm(pLower), qnorm(pUpper)) * bootSE
+            names(tmpCi2) <- paste0(probVec * 100, "%")
 
-        
-        ## ci190 <- quantile(x = teEstimates, probs = c(0.05, 0.95), type = 1)
-        ## ci195 <- quantile(x = teEstimates, probs = c(0.025, 0.975), type = 1)
+            tmpMtrCi2 <- sweep(x = tcrossprod(c(qnorm(pLower),
+                                                qnorm(pUpper)),
+                                              mtrSE),
+                               MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
+            tmpPropCi2 <- sweep(x = tcrossprod(c(qnorm(pLower),
+                                                 qnorm(pUpper)),
+                                               propSE), MARGIN = 2,
+                                origEstimate$prop$model$coef, FUN = "+")
+            colnames(tmpMtrCi2) <- colnames(get(paste0("mtrci1",
+                                                       level * 100)))
+            rownames(tmpMtrCi2) <- rownames(get(paste0("mtrci1",
+                                                       level * 100)))
+            colnames(tmpPropCi2) <- colnames(get(paste0("propci1",
+                                                        level * 100)))
+            rownames(tmpPropCi2) <- rownames(get(paste0("propci1",
+                                                        level * 100)))
 
-        ## mtrci190 <- apply(mtrEstimates, 1, quantile, probs = c(0.05, 0.95),
-        ##                   type = 1)
-        ## mtrci195 <- apply(mtrEstimates, 1, quantile, probs = c(0.025, 0.975),
-        ##                   type = 1)
+            assign(paste0("ci2", level * 100), tmpCi2)
+            assign(paste0("mtrci2", level * 100), tmpMtrCi2)
+            assign(paste0("propci2", level * 100), tmpPropCi2)
+        }
 
-        ## propci190 <- apply(propEstimates, 1, quantile, probs = c(0.05, 0.95),
-        ##                   type = 1)
-        ## propci195 <- apply(propEstimates, 1, quantile, probs = c(0.025, 0.975),
-        ##                   type = 1)
-
-        
-        
-        ## End testing ---------------------
-        
-        ci190 <- quantile(x = teEstimates, probs = c(0.05, 0.95), type = 1)
-        ci195 <- quantile(x = teEstimates, probs = c(0.025, 0.975), type = 1)
-
-        mtrci190 <- apply(mtrEstimates, 1, quantile, probs = c(0.05, 0.95),
-                          type = 1)
-        mtrci195 <- apply(mtrEstimates, 1, quantile, probs = c(0.025, 0.975),
-                          type = 1)
-
-        propci190 <- apply(propEstimates, 1, quantile, probs = c(0.05, 0.95),
-                          type = 1)
-        propci195 <- apply(propEstimates, 1, quantile, probs = c(0.025, 0.975),
-                          type = 1)
-
-        ## Conf. int. 2: percentile method, using Z statistics
-        ci290 <- origEstimate$pointestimate +
-            c(qnorm(0.05), qnorm(0.95)) * bootSE
-        ci295 <- origEstimate$pointestimate +
-            c(qnorm(0.025), qnorm(0.975)) * bootSE
-
-        names(ci290) <- c("5%", "95%")
-        names(ci295) <- c("2.5%", "97.5%")
-
-        mtrci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), mtrSE),
-                          MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
-        mtrci295 <- sweep(x = tcrossprod(c(qnorm(0.025), qnorm(0.975)), mtrSE),
-                          MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
-
-        propci290 <- sweep(x = tcrossprod(c(qnorm(0.05), qnorm(0.95)), propSE),
-                          MARGIN = 2, origEstimate$prop$model$coef, FUN = "+")
-        propci295 <- sweep(x = tcrossprod(c(qnorm(0.025), qnorm(0.975)), propSE),
-                          MARGIN = 2, origEstimate$prop$model$coef, FUN = "+")
-
-        colnames(mtrci290) <- colnames(mtrci190)
-        rownames(mtrci290) <- rownames(mtrci190)
-
-        colnames(mtrci295) <- colnames(mtrci195)
-        rownames(mtrci295) <- rownames(mtrci195)
-
-        colnames(propci290) <- colnames(propci190)
-        rownames(propci290) <- rownames(propci190)
-
-        colnames(propci295) <- colnames(propci195)
-        rownames(propci295) <- rownames(propci195)
-
-        return(c(origEstimate,
-                 list(pointestimate.se  = bootSE,
-                      mtr.se = mtrSE,
-                      prop.se = propSE,
-                      pointestimate.bootstraps = teEstimates,
-                      mtr.bootstraps = t(mtrEstimates),
-                      pointestimate.ci1.90 = ci190,
-                      pointestimate.ci1.95 = ci195,
-                      pointestimate.ci2.90 = ci290,
-                      pointestimate.ci2.95 = ci295,
-                      mtr.ci1.90 = t(mtrci190),
-                      mtr.ci1.95 = t(mtrci195),
-                      mtr.ci2.90 = t(mtrci290),
-                      mtr.ci2.95 = t(mtrci295),
-                      prop.ci1.90 = t(propci190),
-                      prop.ci1.95 = t(propci195),
-                      prop.ci2.90 = t(propci290),
-                      prop.ci2.95 = t(propci295),
-                      bootstraps = bootstraps,
-                      failed.bootstraps = length(bootFailIndex))))
+        ## Prepare output
+        output1 <- c(origEstimate,
+                     list(pointestimate.se  = bootSE,
+                          mtr.se = mtrSE,
+                          prop.se = propSE,
+                          pointestimate.bootstraps = teEstimates,
+                          mtr.bootstraps = t(mtrEstimates)))
+        output2 <- list()
+        for (level in levels) {
+            output2[[paste0("pointestimate.ci1.", level * 100)]] <- 
+                get(paste0("ci1", level * 100))
+            output2[[paste0("mtr.ci1.", level * 100)]] <-
+                t(get(paste0("mtrci1", level * 100)))
+            output2[[paste0("prop.ci1.", level * 100)]] <-
+                t(get(paste0("propci1", level * 100)))            
+            output2[[paste0("pointestimate.ci2.", level * 100)]] <- 
+                get(paste0("ci2", level * 100))
+            output2[[paste0("mtr.ci2.", level * 100)]] <-
+                t(get(paste0("mtrci2", level * 100)))
+            output2[[paste0("prop.ci2.", level * 100)]] <-
+                t(get(paste0("propci2", level * 100)))
+        }
+        output3 <- list(bootstraps = bootstraps,
+                        failed.bootstraps = length(bootFailIndex))
+        output <- c(output1, output2, output3)
+        return(output)
     }
 }
 
