@@ -1447,6 +1447,27 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         propSE  <- apply(propEstimates, 1, sd)
 
         ## Conf. int. 1: quantile method (same as percentile method)
+
+        ## Testing -------------------------
+
+        
+        ## ci190 <- quantile(x = teEstimates, probs = c(0.05, 0.95), type = 1)
+        ## ci195 <- quantile(x = teEstimates, probs = c(0.025, 0.975), type = 1)
+
+        ## mtrci190 <- apply(mtrEstimates, 1, quantile, probs = c(0.05, 0.95),
+        ##                   type = 1)
+        ## mtrci195 <- apply(mtrEstimates, 1, quantile, probs = c(0.025, 0.975),
+        ##                   type = 1)
+
+        ## propci190 <- apply(propEstimates, 1, quantile, probs = c(0.05, 0.95),
+        ##                   type = 1)
+        ## propci195 <- apply(propEstimates, 1, quantile, probs = c(0.025, 0.975),
+        ##                   type = 1)
+
+        
+        
+        ## End testing ---------------------
+        
         ci190 <- quantile(x = teEstimates, probs = c(0.05, 0.95), type = 1)
         ci195 <- quantile(x = teEstimates, probs = c(0.025, 0.975), type = 1)
 
@@ -2089,7 +2110,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
-                    "mte.inc", "obseq.tol")
+                    "mte.inc", "obseq.tol", "noisy")
 
     audit_call <- modcall(call,
                           newcall = audit,
@@ -2140,8 +2161,10 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 
     audit <- eval(audit_call)
 
-    message(paste0("Bounds on the target parameter: [",
-                   audit$min, ", ", audit$max, "]\n"))
+    if (noisy) {
+        message(paste0("Bounds on the target parameter: [",
+                       audit$min, ", ", audit$max, "]\n"))
+    }
 
     ## include additional output material
     return(list(sset  = sset,
