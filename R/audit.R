@@ -281,7 +281,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         support <- data.frame(support)
         colnames(support) <- xvars
     }
-
+    
     ## deal with case in which there are no covariates.
     if (length(xvars) == 0) {
         noX <- TRUE
@@ -346,7 +346,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                              splines = splines,
                                              monov = monov))
         mbobj <- eval(monoboundAcall)
-
+        
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
 
@@ -582,7 +582,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (violate) {
             violate_pos <- which(violatevec == TRUE)
             violate_index <- unique(a_mbobj$mbmap[violate_pos])
-            grid_index <- unique(c(grid_index, violate_index))
+            if (!noX) grid_index <- unique(c(grid_index, violate_index))
             if (!noX) {
                 grid_resid <- grid_resid[!grid_resid %in% violate_index]
             }

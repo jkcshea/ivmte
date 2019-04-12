@@ -669,7 +669,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     } else {
         noX <- FALSE
     }
-
+    
     ## generate the first iteration of the grid
     if (noX) {
         grid <- data.frame(uvec)
@@ -683,7 +683,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                uvec,
                                uname)
     }
-
+    
     if (is.null(splines[[1]]) & is.null(splines[[2]])) {
         A0 <- design(formula = m0, data = gridobj$grid)$X
         A1 <- design(formula = m1, data = gridobj$grid)$X
@@ -755,7 +755,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         rownames(A0) <- A0[, ".grid.order"]
         rownames(A1) <- A1[, ".grid.order"]
     }
-
+    
     ## keep only the columns that are in the MTRs (A0 and A1 matrices
     ## potentially include extraneous columns)
     A0 <- as.matrix(A0[, names(gstar0)])
