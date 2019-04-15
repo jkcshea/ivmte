@@ -1451,7 +1451,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             pLower <- (1 - level) / 2
             pUpper <- 1 - (1 - level) / 2
             probVec <- c(pLower, pUpper)
-            
+
             ## Conf. int. 1: quantile method (same as percentile method)
             assign(paste0("ci1", level * 100),
                 quantile(x = teEstimates,
@@ -1502,13 +1502,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                           mtr.bootstraps = t(mtrEstimates)))
         output2 <- list()
         for (level in levels) {
-            output2[[paste0("pointestimate.ci1.", level * 100)]] <- 
+            output2[[paste0("pointestimate.ci1.", level * 100)]] <-
                 get(paste0("ci1", level * 100))
             output2[[paste0("mtr.ci1.", level * 100)]] <-
                 t(get(paste0("mtrci1", level * 100)))
             output2[[paste0("prop.ci1.", level * 100)]] <-
-                t(get(paste0("propci1", level * 100)))            
-            output2[[paste0("pointestimate.ci2.", level * 100)]] <- 
+                t(get(paste0("propci1", level * 100)))
+            output2[[paste0("pointestimate.ci2.", level * 100)]] <-
                 get(paste0("ci2", level * 100))
             output2[[paste0("mtr.ci2.", level * 100)]] <-
                 t(get(paste0("mtrci2", level * 100)))
