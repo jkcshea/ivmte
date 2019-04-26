@@ -139,7 +139,7 @@ ivj <- function(X, Z, components, treat, order = NULL) {
         ## NOTE: If the code directly above is commented out, then the
         ## code below will stop the function if there are ANY
         ## variables declared as components missing from the design
-        ## matrix. This could be either due to errneous input, or
+        ## matrix. This could be either due to erroneous input, or
         ## collinearities.
 
         ## Now address the case where the non-factor

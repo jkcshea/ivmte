@@ -481,19 +481,20 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         if (lpsolver == "gurobi") {
 
             model$modelsense <- "min"
-            minresult <- gurobi::gurobi(model, list(outputflag = 0))
+            minresult <- gurobi::gurobi(model, list(outputflag = 0,
+                                                    dualreductions = 1))
             min <- minresult$objval
             minstatus <- 0
             if (minresult$status == "OPTIMAL") minstatus <- 1
             minoptx <- minresult$x
 
             model$modelsense <- "max"
-            maxresult <- gurobi::gurobi(model, list(outputflag = 0))
+            maxresult <- gurobi::gurobi(model, list(outputflag = 0,
+                                                    dualreductions = 1))
             max <- maxresult$objval
             maxstatus <- 0
             if (maxresult$status == "OPTIMAL") maxstatus <- 1
             maxoptx <- maxresult$x
-            
         }
         if (lpsolver == "rcplex") {
             model$sense[1] <- "L" ## to satisfy minimal obs. equiv. deviation
@@ -602,7 +603,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         optxB <- optxB[1 : (length(optxB) / 2)] +
             optxB[(length(optxB) / 2 + 1) : length(optxB)]
         minoptx <- c(optxA, optxB)
-
+       
         if (minresult$status == 0) minstatus <- 1
         if (minresult$status != 0) minstatus <- 0
 
@@ -619,7 +620,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         optxB <- optxB[1 : (length(optxB) / 2)] +
             optxB[(length(optxB) / 2 + 1) : length(optxB)]
         maxoptx <- c(optxA, optxB)
-
+        
         if (maxresult$status == 0) maxstatus <- 1
         if (maxresult$status != 0) maxstatus <- 0
     }

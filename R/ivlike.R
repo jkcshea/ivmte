@@ -167,30 +167,25 @@ ivEstimate <- function(formula, data, subset, components, treat,
     ## Address factors whose values are not listed
     factorPos <- grep("factor(.)", components)
     if (length(factorPos) > 0) {
-
         factorVars <- components[factorPos]
         factorPos <- sapply(factorVars,
                             function(x) substr(x, nchar(x), nchar(x)) == ")")
-
         factorVars <- factorVars[factorPos]
         factorVarsGrep <- sapply(factorVars, function(x) {
             x <- gsub("\\(", "\\\\\\(", x)
             x <- gsub("\\)", "\\\\\\)", x)
             x
         })
-
         xVars <- colnames(mf$X)
-
         factorVarsPos <- sapply(factorVarsGrep, grep, x = xVars)
         factorVarsFull <- lapply(factorVarsPos, function(x) xVars[x])
-
         components <- c(components[! components %in% factorVars],
                         unlist(factorVarsFull))
     }
 
     ## Ensure components are uniquely declared
     components <- unique(components)
-
+   
     ## Generate the lmcomponents vector
     lmcomponents <- components
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
@@ -198,7 +193,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
 
-        ## For the OLS case, we need to obtain additiona ldesign
+        ## For the OLS case, we need to obtain additional design
         ## matrices where we fix treatment.
         if (list == TRUE) {
             data[, colnames(data) == treat] <- 0
@@ -222,7 +217,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
 
         bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents)
         sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat)
-
     } else {
         if (length(formula)[2] == 2 &
             dim(mf$X)[2] == dim(mf$Z)[2]) {

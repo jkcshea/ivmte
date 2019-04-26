@@ -824,7 +824,7 @@ genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
                                 subset, d = NULL, means = TRUE) {
 
     splines <- splines$splineslist
-
+    
     if (is.null(splines)) {
         return(list(gamma = NULL,
                     interactions = NULL))

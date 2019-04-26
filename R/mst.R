@@ -2803,20 +2803,19 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 
         if (means == TRUE) {
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
-                                             data = data,
-                                             lb = pmodobj,
-                                             ub = 1,
-                                             multiplier = sest$sw0[, j],
-                                             subset = subset_index,
-                                             d = 0)$gamma
-
+                                         data = data,
+                                         lb = pmodobj,
+                                         ub = 1,
+                                         multiplier = sest$sw0[, j],
+                                         subset = subset_index,
+                                         d = 0)$gamma
             gsSpline1 <- genGammaSplines(splines = splinesobj[[2]],
-                                             data = data,
-                                             lb = 0,
-                                             ub = pmodobj,
-                                             multiplier = sest$sw1[, j],
-                                             subset = subset_index,
-                                             d = 1)$gamma
+                                         data = data,
+                                         lb = 0,
+                                         ub = pmodobj,
+                                         multiplier = sest$sw1[, j],
+                                         subset = subset_index,
+                                         d = 1)$gamma
         } else {
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
                                              data = data,
@@ -2826,7 +2825,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                              subset = subset_index,
                                              d = 0,
                                              means = FALSE)$gamma
-
             gsSpline1 <- genGammaSplines(splines = splinesobj[[2]],
                                              data = data,
                                              lb = 0,

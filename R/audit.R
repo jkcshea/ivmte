@@ -281,7 +281,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         support <- data.frame(support)
         colnames(support) <- xvars
     }
-    
+
     ## deal with case in which there are no covariates.
     if (length(xvars) == 0) {
         noX <- TRUE
@@ -346,7 +346,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                              splines = splines,
                                              monov = monov))
         mbobj <- eval(monoboundAcall)
-        
+
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
 
@@ -448,6 +448,36 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (noisy) {
             message("    Obtaining bounds...")
         }
+
+        ## Experimenting (for issue 85) ----------------------------------------
+
+        ## sn <- lpobj$sn
+        ## deg <- lpobj$gn0 - 1
+
+        ## additionalMat <- function(sn, degree) {
+        ##     order <- degree + 1
+        ##     newA1 <- cbind(matrix(0, nrow = order, ncol = (2 * sn)),
+        ##                    diag(order),
+        ##                    matrix(0, nrow = order, ncol = order))
+        ##     newA2 <- cbind(matrix(0, nrow = order, ncol = (2 * sn)),
+        ##                    matrix(0, nrow = order, ncol = order),
+        ##                    diag(order))
+        ##     return(rbind(newA1, newA2))
+        ## }
+
+        ## newA <- additionalMat(sn, deg)
+        ## order <- deg + 1
+
+        ## newA <- rbind(lpobj$A, newA, newA)
+        ## newRhs <- c(lpobj$rhs, rep(1, 2 * order), rep(0, 2 * order))
+        ## newSense <- c(lpobj$sense, rep("<=", 2 * order), rep(">=", 2 * order))
+
+        ## lpobj$A <- newA
+        ## lpobj$rhs <- newRhs
+        ## lpobj$sense <- newSense
+
+        ## End experiment --------------------------------------
+
         lpresult  <- bound(g0 = gstar0,
                            g1 = gstar1,
                            sset = sset,
@@ -460,8 +490,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
         optstatus <- min(c(lpresult$minstatus,
                            lpresult$maxstatus))
-
-        if (obseq.tol == 0 & optstatus == 0) {
+        
+        if (obseq.tol == 0 & optstatus == 0) {            
             stop(gsub("\\s+", " ",
                          "Unable to obtain bounds. Try setting obseq.tol
                           to be greater than 0 to allow for model
