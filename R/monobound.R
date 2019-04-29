@@ -584,6 +584,8 @@ combinemonobound <- function(bdA, monoA) {
         mbrhs  <- c(mbrhs, bdA$rhs)
         mbmap  <- c(mbmap, bdA$map)
         mbumap <- rbind(mbumap, cbind(bdA$umap, bdA$umap))
+        ## bdA$umap is cbind'ed twice to be conformable with
+        ## monoA$umap, where we must keep track of pairs of u's.
     }
     if (!is.null(monoA)) {
         mbA      <- rbind(mbA, monoA$A)

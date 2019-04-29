@@ -578,6 +578,8 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
 
     if (lpsolver == "lpsolve") {
 
+        print("I am using lpsolve")
+        
         ## define model
         model <- list()
         model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1, -g0, -g1)
