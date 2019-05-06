@@ -1252,34 +1252,38 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                    size = bootstraps.m,
                                    replace = bootstraps.replace)
                 bdata <- data[bootIDs, ]
+                if (noisy == TRUE) {
+                    message(paste0("Bootstrap iteration ", b, "..."))
+                }
                 bootCall <-
                     modcall(estimateCall,
                             dropargs = c("data", "noisy"),
                             newargs = list(data = quote(bdata),
                                            noisy = FALSE))
-
                 bootEstimate <- try(eval(bootCall), silent = TRUE)
                 if (is.list(bootEstimate)) {
                     boundEstimates  <- rbind(boundEstimates,
                                              bootEstimate$bound)
-
-                    if (noisy == TRUE) {
-                        message(paste0("Bootstrap iteration ", b,
-                                       bootFailNote, "..."))
-                    }
                     b <- b + 1
                     bootFailN <- 0
-                    bootFailNote <- ""
+                    if (noisy == TRUE) {
+                        message(paste0("    Audit count: ",
+                                       bootEstimate$auditcount))
+                        message(paste0("    Minimum criterion: ",
+                                       bootEstimate$minobseq))
+                        message(paste0("    Bounds:",
+                                       paste0("[",
+                                              bootEstimate$bounds[1],
+                                              ", ",
+                                              bootEstimate$bounds[2],
+                                              "]")))
+                    }
                 } else {
                     if (noisy == TRUE) {
-                        message(paste0("Bootstrap iteration ", b,
-                                       bootFailNote,
-                                       " error, resampling..."))
+                        message(paste0("    Error, resampling..."))
                     }
                     bootFailN <- bootFailN + 1
                     bootFailIndex <- unique(c(bootFailIndex, b))
-                    bootFailNote <- paste0(": resample ",
-                                           bootFailN)
                 }
             }
             if (length(bootFailIndex) > 0) {
@@ -1367,6 +1371,56 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                         tol = pvalue.tol))
                 names(pvalue) <- c("backward", "forward")
             }
+
+            message("\nBootstrap summary:")
+            message(paste0("    Number of bootstraps: ",
+                           bootstraps))
+            message(paste0("    Failed bootstraps: ",
+                           length(bootFailIndex)))
+            if (ci.type == "both") {
+                for (i in c("backward", "forward")) {
+                    message(paste0("\nBootstrapped confidence intervals (",
+                                   i, "):"))
+                    for (j in 1:length(levels)) {
+                        cistr <- paste0("[",
+                                        ci[[i]][j, 1],
+                                        ", ",
+                                        ci[[i]][j, 2],
+                                        "]")
+                        message(paste0("    ",
+                                       levels[j] * 100,
+                                       "%: ",
+                                       cistr))
+                    }
+                }
+                message("\nBootstrapped p-values: ")
+                message(paste0("    Backward: ", pvalue[1]))
+                message(paste0("    Forward:  ", pvalue[2], "\n"))
+            } else {
+                message(paste0("\nBootstrapped confidence intervals (",
+                               ci.type, "):"))
+                for (j in 1:length(levels)) {
+                    cistr <- paste0("[",
+                                    ci[j, 1],
+                                    ", ",
+                                    ci[j, 2],
+                                    "]")
+                    message(paste0("    ",
+                                   levels[j] * 100,
+                                   "%: ",
+                                   cistr))
+                }
+
+                if (ci.type == "backward") {
+                    message(paste0("\nBootstrapped p-value (backward): ",
+                                   pvalue, "\n"))
+                }
+                if (ci.type == "forward") {
+                    message(paste0("\nBootstrapped p-value (forward): ",
+                                   pvalue, "\n"))
+                }
+            }
+
             ## Return output
             return(c(origEstimate,
                      list(bound.se = bootSE,
@@ -1404,6 +1458,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                  size = bootstraps.m,
                                  replace = bootstraps.replace)
             bdata <- data[bootIDs, ]
+            if (noisy == TRUE) {
+                message(paste0("Bootstrap iteration ", b, "..."))
+            }
             bootCall <-
                 modcall(estimateCall,
                         dropargs = c("data", "noisy"),
@@ -1415,26 +1472,20 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
                 propEstimates <- cbind(propEstimates,
                                        bootEstimate$propensity$model$coef)
-
-                if (noisy == TRUE) {
-                    message(paste0("Bootstrap iteration ", b, bootFailNote,
-                                   "..."))
-                }
                 b <- b + 1
                 bootFailN <- 0
-                bootFailNote <- ""
+                if (noisy == TRUE) {
+                    message(paste0("    Point estimate:",
+                                   bootEstimate$pointestimate))
+                }
             } else {
                 if (noisy == TRUE) {
-                    message(paste0("Bootstrap iteration ", b, bootFailNote,
-                                   " error, resampling..."))
+                    message(paste0("    Error, resampling..."))
                 }
                 bootFailN <- bootFailN + 1
                 bootFailIndex <- unique(c(bootFailIndex, b))
-                bootFailNote <- paste0(": resample ",
-                                       bootFailN)
             }
         }
-
         if (length(bootFailIndex) > 0) {
             warning(gsub("\\s+", " ",
                          paste0("Bootstrap iteration(s) ",
@@ -1445,6 +1496,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         bootSE <- sd(teEstimates)
         mtrSE  <- apply(mtrEstimates, 1, sd)
         propSE  <- apply(propEstimates, 1, sd)
+
+        ## Construct p-value
+        pvalue <- (sum(teEstimates >= abs(origEstimate$pointestimate)) +
+            sum(teEstimates <= -abs(origEstimate$pointestimate))) / bootstraps
 
         ## Construct confidence intervals for various levels
         for (level in levels) {
@@ -1515,9 +1570,44 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             output2[[paste0("prop.ci2.", level * 100)]] <-
                 t(get(paste0("propci2", level * 100)))
         }
-        output3 <- list(bootstraps = bootstraps,
+        output3 <- list(pvalue = pvalue,
+                        bootstraps = bootstraps,
                         failed.bootstraps = length(bootFailIndex))
         output <- c(output1, output2, output3)
+
+        message("\nBootstrap summary:")
+        message(paste0("    Number of bootstraps: ",
+                       bootstraps))
+        message(paste0("    Failed bootstraps: ",
+                       length(bootFailIndex)))
+        message("\nBootstrapped confidence intervals (nonparametric):")
+        for (level in levels) {
+            ci1str <- get(paste0("ci1", level * 100))
+            ci1str <- paste0("[",
+                             ci1str[1],
+                             ", ",
+                             ci1str[2],
+                             "]")
+            message(paste0("    ",
+                           level * 100,
+                           "%: ",
+                           ci1str))
+        }
+        message("\nBootstrapped confidence intervals (normal quantiles):")
+        for (level in levels) {
+            ci2str <- get(paste0("ci2", level * 100))
+            ci2str <- paste0("[",
+                             ci2str[1],
+                             ", ",
+                             ci2str[2],
+                             "]")
+            message(paste0("    ",
+                           level * 100,
+                           "%: ",
+                           ci2str))
+        }
+        message(paste0("\nBootstrapped p-value: ",
+                       pvalue, "\n"))
         return(output)
     }
 }
@@ -2164,6 +2254,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                 ## poly0 = pm0,
                 ## poly1 = pm1,
                 auditgrid = audit$gridobj,
+                auditcount = audit$auditcount,
                 minobseq = audit$minobseq,
                 splinesdict = list(splinesobj[[1]]$splinesdict,
                                    splinesobj[[2]]$splinesdict)))

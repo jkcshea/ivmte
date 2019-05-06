@@ -648,7 +648,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 solutionMax = solVecMax,
                 lpresult = lpresult,
                 minobseq = minobseq$obj,
-                gridobj = mbobj$gridobj))
+                gridobj = mbobj$gridobj,
+                auditcount = min(audit_count, audit.max)))
 }
 
 #' Calculate Euclidean distance between two points
