@@ -1270,17 +1270,17 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         message(paste0("    Audit count: ",
                                        bootEstimate$auditcount))
                         message(paste0("    Minimum criterion: ",
-                                       bootEstimate$minobseq))
+                                       fmtResult(bootEstimate$minobseq)))
                         message(paste0("    Bounds:",
                                        paste0("[",
-                                              bootEstimate$bounds[1],
+                                              fmtResult(bootEstimate$bounds[1]),
                                               ", ",
-                                              bootEstimate$bounds[2],
+                                              fmtResult(bootEstimate$bounds[2]),
                                               "]")))
                     }
                 } else {
                     if (noisy == TRUE) {
-                        message(paste0("    Error, resampling..."))
+                        stop(paste0("    Error:", bootEstimate))
                     }
                     bootFailN <- bootFailN + 1
                     bootFailIndex <- unique(c(bootFailIndex, b))
@@ -1372,20 +1372,20 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 names(pvalue) <- c("backward", "forward")
             }
 
-            message("\nBootstrap summary:")
-            message(paste0("    Number of bootstraps: ",
-                           bootstraps))
-            message(paste0("    Failed bootstraps: ",
-                           length(bootFailIndex)))
+            ## message("\nBootstrap summary:")
+            ## message(paste0("    Number of bootstraps: ",
+            ##                bootstraps))
+            ## message(paste0("    Failed bootstraps: ",
+            ##                length(bootFailIndex)))
             if (ci.type == "both") {
                 for (i in c("backward", "forward")) {
                     message(paste0("\nBootstrapped confidence intervals (",
                                    i, "):"))
                     for (j in 1:length(levels)) {
                         cistr <- paste0("[",
-                                        ci[[i]][j, 1],
+                                        fmtResult(ci[[i]][j, 1]),
                                         ", ",
-                                        ci[[i]][j, 2],
+                                        fmtResult(ci[[i]][j, 2]),
                                         "]")
                         message(paste0("    ",
                                        levels[j] * 100,
@@ -1394,16 +1394,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     }
                 }
                 message("\nBootstrapped p-values: ")
-                message(paste0("    Backward: ", pvalue[1]))
-                message(paste0("    Forward:  ", pvalue[2], "\n"))
+                message(paste0("    Backward: ", fmtResult(pvalue[1])))
+                message(paste0("    Forward:  ", fmtResult(pvalue[2]), "\n"))
             } else {
                 message(paste0("\nBootstrapped confidence intervals (",
                                ci.type, "):"))
                 for (j in 1:length(levels)) {
                     cistr <- paste0("[",
-                                    ci[j, 1],
+                                    fmtResults(ci[j, 1]),
                                     ", ",
-                                    ci[j, 2],
+                                    fmtResults(ci[j, 2]),
                                     "]")
                     message(paste0("    ",
                                    levels[j] * 100,
@@ -2240,7 +2240,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 
     if (noisy) {
         message(paste0("Bounds on the target parameter: [",
-                       audit$min, ", ", audit$max, "]\n"))
+                       fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n"))
     }
 
     ## include additional output material
@@ -3142,4 +3142,24 @@ gmmEstimate <- function(sset, gstar0, gstar1, noisy = TRUE) {
     }
     return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta))
+}
+
+#' Format result for display
+#'
+#' This function simply takes a number and formats it for being
+#' displayed. Numbers less than 1 in absolute value are rounded to 6
+#' significant figure. Numbers larger than
+#'
+#' @param x The scalar to be formated
+#' @return A scalar.
+fmtResult <- function(x) {
+    if (abs(x) < 1) {
+        fx <- signif(x, digits = 7)
+    } else if (abs(x) >= 1 & abs(x) < 1e+7) {
+        fx <- signif(round(x, digits = 4), digits = 7)
+    } else {
+        fx <- formatC(x, format = "e", digits = 7)
+    }
+    if (is.numeric(fx)) fx <- as.character(fx)
+    return(fx)
 }

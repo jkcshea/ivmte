@@ -196,7 +196,7 @@
 #' @export
 audit <- function(data, uname, m0, m1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1,
-                  grid.nu = 20, grid.nx = 20,
+                  grid.nu = 20, grid.nx = 50,
                   audit.nx = 10, audit.nu = 10, audit.max = 5,
                   audit.tol = 1e-08,
                   m1.ub, m0.ub, m1.lb, m0.lb,
@@ -281,16 +281,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
         support <- data.frame(support)
         colnames(support) <- xvars
     }
-
-    ## Experimenting ---------------------------------------------------
-
-    ## Collect details on the support for conducting the audit (where
-    ## the Halton distribution is used to expand the grid)
-    supportMax <- apply(support, MARGIN = 2, FUN = max)
-    supportMin <- apply(support, MARGIN = 2, FUN = min)
-    supportStretch <- supportMax - supportMin
-    
-    ## End experimenting -----------------------------------------------
 
     ## deal with case in which there are no covariates.
     if (length(xvars) == 0) {
@@ -451,7 +441,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
 
         if (noisy) {
-            message(paste("    Minimum criterion:", round(minobseq$obj, 6)))
+            message(paste("    Minimum criterion:", fmtResult(minobseq$obj)))
         }
 
         ## Obtain bounds
@@ -471,8 +461,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
         optstatus <- min(c(lpresult$minstatus,
                            lpresult$maxstatus))
-        
-        if (obseq.tol == 0 & optstatus == 0) {            
+
+        if (obseq.tol == 0 & optstatus == 0) {
             stop(gsub("\\s+", " ",
                          "Unable to obtain bounds. Try setting obseq.tol
                           to be greater than 0 to allow for model
@@ -482,7 +472,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
 
         ## Generate a new grid for the audit
-        a_uvec <- round(runif(grid.nu), 8)
+        a_uvec <- round(runif(audit.nu), 8)
 
         if (noX) {
             a_grid <- data.frame(a_uvec)
@@ -495,15 +485,15 @@ audit <- function(data, uname, m0, m1, splinesobj,
             }
 
             ## Generate alternate grid from residual indexes
-            grid.nx <- min(grid.nx, length(grid_resid))
-            if (grid.nx == length(grid_resid)) {
+            audit.nx <- min(audit.nx, length(grid_resid))
+            if (audit.nx == length(grid_resid)) {
                 a_grid_index <- grid_resid
             } else {
                 a_grid_index <- sample(grid_resid,
-                                       grid.nx,
-                                       replace = FALSE,
-                                       prob = replicate(nrow(resid_support),
-                                       (1 / nrow(resid_support))))
+                                        audit.nx,
+                                        replace = FALSE,
+                                        prob = replicate(nrow(resid_support),
+                                        (1 / nrow(resid_support))))
             }
             if (length(a_grid_index) == 0) {
                 a_grid_index <- grid_index
@@ -513,9 +503,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Add all audit points to the grid if previous optimization failed
         if (optstatus == 0) {
             existsolution <- FALSE
+
             grid_index <- c(grid_index, a_grid_index)
             uvec <- c(uvec, a_uvec)
             audit_count <- audit_count + 1
+
             if (audit_count <= audit.max) {
                 if (noisy) {
                     message(gsub("\\s+", " ",
@@ -583,42 +575,20 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Test for violations
         violatevecMin <- mapply(">", (a_mbA %*% solVecMin), a_mbrhs)
         violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)
+
         violatevec <- violatevecMin + violatevecMax
         violate <- as.logical(sum(violatevec))
 
         if (violate) {
-            ## Use Halton distribution to select points to add to the
-            ## grid for X
-            violate_pos <- which(violatevec > 0)
+            violate_pos <- which(violatevec == TRUE)
             violate_index <- unique(a_mbobj$mbmap[violate_pos])
+            if (!noX) grid_index <- unique(c(grid_index, violate_index))
             if (!noX) {
-                violate_grid <- support[violate_index, ]
-                haltonGrid <-
-                    as.matrix(randtoolbox::halton(n = audit.nx,
-                                     dim = ncol(violate_grid)))                
-                haltonGrid <-
-                    as.matrix(sweep(x = haltonGrid, MARGIN = 2,
-                                    STATS = supportStretch, FUN = "*"))
-                haltonGrid <-
-                    as.matrix(sweep(x = haltonGrid, MARGIN = 2,
-                                    STATS = supportMin, FUN = "+"))
-                audit_add_x <- apply(X = haltonGrid, MARGIN = 1,
-                                     FUN = closestPoint,
-                                     matrix = violate_grid)
-                violate_index <- violate_index[audit_add_x]                
-                grid_index <- unique(c(grid_index, violate_index))
                 grid_resid <- grid_resid[!grid_resid %in% violate_index]
             }
-            ## Use Halton distribution to select points to add to the
-            ## grid for U
-            violate_u <- as.matrix(unique(c(a_mbobj$mbumap[violate_pos, ])))
-            haltonUGrid <- as.matrix(randtoolbox::halton(n = audit.nu, dim = 1))
-            audit_add_u <- apply(X = haltonUGrid, MARGIN = 1,
-                                 FUN = closestPoint,
-                                 matrix = violate_u)
-            uvec <- sort(unique(c(uvec, violate_u[audit_add_u])))
-            
+            uvec <- sort(unique(c(uvec, c(a_mbobj$mbumap[violate_pos, ]))))
             audit_count <- audit_count + 1
+
             if (audit_count <= audit.max) {
                 if (noisy) message("Expanding audit grid...\n")
             } else {
@@ -648,39 +618,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 solutionMax = solVecMax,
                 lpresult = lpresult,
                 minobseq = minobseq$obj,
-                gridobj = mbobj$gridobj,
-                auditcount = min(audit_count, audit.max)))
-}
-
-#' Calculate Euclidean distance between two points
-#'
-#' This function simply calculates the Euclidean distance between two vectors.
-#'
-#' @param vec1 (vector) The first vector.
-#' @param vec2 (vector) The second vector.
-#'
-#' @return scalar, the Euclidean distancve.
-euclidean <- function(vec1, vec2) {
-    sqrt(sum((vec1 - vec2) ^ 2))
-}
-
-#' Find the closest point from a list of points
-#'
-#' For a given point, and a given set of points, this matrix finds the
-#' closest two.
-#'
-#' @param point (vector) The reference point to which we are
-#'     calculating distances.
-#' @param matrix (matrix) The collection of points whose distance from
-#'     the reference point will be calculated.
-#'
-#' @return vector of the positions in the object 'matrix'
-#'     corresponding to the shortest distance from the reference
-#'     point.
-closestPoint <- function(point, matrix) {
-    dvec <- apply(X = matrix,
-                  MARGIN = 1,
-                  FUN = euclidean,
-                  vec1 = point)
-    return(which.min(dvec))
+                gridobj = mbobj$gridob,
+                auditcount = audit_count))
 }
