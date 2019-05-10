@@ -101,6 +101,8 @@
 #'     obtain the bounds on the treatment effect.
 #' @param noisy boolean, set to TRUE by default. If TRUE, then output
 #'     throughout the audit procedure is printed.
+#' @param seed integer, the seed that determines the random grid in
+#'     the audit procedure.
 #' @return a list. Included in the list is the minimum violation of
 #'     observational equivalence of the set of IV-like estimands, as
 #'     well as the list of matrices and vectors associated with
@@ -209,12 +211,12 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   m1.dec = FALSE, m1.inc = FALSE,
                   mte.dec = FALSE, mte.inc = FALSE,
                   sset, gstar0, gstar1, obseq.tol = 0.05, lpsolver,
-                  noisy = TRUE) {
+                  noisy = TRUE, audit.seed = 12345) {
 
+    set.seed(audit.seed)
     call  <- match.call()
 
     lpsolver <- tolower(lpsolver)
-
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
 

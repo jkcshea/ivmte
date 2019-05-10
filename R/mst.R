@@ -147,6 +147,8 @@ utils::globalVariables("u")
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
 #'     procedure.
+#' @param audit.seed integer, the seed that determines the random grid
+#'     in the audit procedure.
 #' @param m1.ub numeric value for upper bound on MTR for treated
 #'     group. By default, this will be set to the largest value of the
 #'     observed outcome in the estimation sample.
@@ -227,7 +229,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   late.X, eval.X, genlate.lb, genlate.ub,
                   obseq.tol = 0.05, grid.nu = 20, grid.nx = 20,
                   audit.nx = 10, audit.nu = 10, audit.max = 5,
-                  audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
+                  audit.tol = 1e-08, audit.seed = 12345,
+                  m1.ub, m0.ub, m1.lb, m0.lb,
                   mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
                   mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
                   noisy = TRUE) {
@@ -691,6 +694,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     if (!((audit.nx %% 1 == 0) & audit.nx > 0)) {
         stop("'audit.nx' must be an integer greater than or equal to 1.")
+    }
+    if (!(is.numeric(audit.seed) & length(audit.seed) == 1)) {
+        stop("'audit.seed' must be a scalar.")
     }
     if (hasArg(m0.dec) | hasArg(m0.inc) |
         hasArg(m1.dec) | hasArg(m1.inc) |
@@ -2187,7 +2193,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
-                    "mte.inc", "obseq.tol", "noisy")
+                    "mte.inc", "obseq.tol", "noisy", "audit.seed")
 
     audit_call <- modcall(call,
                           newcall = audit,
