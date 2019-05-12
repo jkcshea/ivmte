@@ -5,13 +5,13 @@
 \title{Audit procedure}
 \usage{
 audit(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr0, terms_mtr1,
-  grid.nu = 20, grid.nx = 50, audit.nx = 5, audit.nu = 3,
+  grid.nu = 20, grid.nx = 50, audit.nx = 10, audit.nu = 10,
   audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
   m1.ub.default = FALSE, m0.ub.default = FALSE,
   m1.lb.default = FALSE, m0.lb.default = FALSE, mte.ub, mte.lb,
   m0.dec = FALSE, m0.inc = FALSE, m1.dec = FALSE, m1.inc = FALSE,
   mte.dec = FALSE, mte.inc = FALSE, sset, gstar0, gstar1,
-  obseq.tol = 0.05, lpsolver)
+  obseq.tol = 0.05, lpsolver, noisy = TRUE, seed = 12345)
 }
 \arguments{
 \item{data}{\code{data.frame} used to estimate the treatment
@@ -130,6 +130,12 @@ statistical noise.}
 
 \item{lpsolver}{name of the linear programming package in R used to
 obtain the bounds on the treatment effect.}
+
+\item{noisy}{boolean, set to TRUE by default. If TRUE, then output
+throughout the audit procedure is printed.}
+
+\item{seed}{integer, the seed that determines the random grid in
+the audit procedure.}
 }
 \value{
 a list. Included in the list is the minimum violation of

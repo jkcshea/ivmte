@@ -13,14 +13,14 @@ wlate1(data, from, to, Z, model, X, eval.X)
 
 \item{to}{Vector of comparison values for the instruments.}
 
-\item{Z}{An expression for the vector of names of instruments.}
+\item{Z}{Character vector of names of instruments.}
 
 \item{model}{A \code{lm} or \code{glm} object, or a
 \code{data.frame}, which can be used to estimate the propensity
 to take up treatment for the specified values of the
 instruments.}
 
-\item{X}{Expression of variable names for the non-excluded
+\item{X}{Character vector of variable names for the non-excluded
 variables the user wishes to condition the LATE on.}
 
 \item{eval.X}{Vector of values the user wishes to condition the

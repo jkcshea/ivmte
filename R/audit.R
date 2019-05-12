@@ -211,9 +211,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   m1.dec = FALSE, m1.inc = FALSE,
                   mte.dec = FALSE, mte.inc = FALSE,
                   sset, gstar0, gstar1, obseq.tol = 0.05, lpsolver,
-                  noisy = TRUE, audit.seed = 12345) {
+                  noisy = TRUE, seed = 12345) {
 
-    set.seed(audit.seed)
+    set.seed(seed)
     call  <- match.call()
 
     lpsolver <- tolower(lpsolver)
@@ -378,8 +378,15 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbrhs[negatepos] <- -mbrhs[negatepos]
 
             violatevec <- mapply(">", (mbA %*% solVec), mbrhs)
-            violatepos <- which(violatevec == TRUE)
-
+            ## Deal with special cases where constraints may be
+            ## binding, and machine precision fails to recognize this
+            ## and treats it as a violation
+            if (sum(violatevec) > 0) {
+                equality <- mapply(all.equal, (mbA %*% solVec)[violatevec],
+                                   mbrhs[violatevec])
+                violatevec[equality] <- FALSE
+            }
+            violatepos <- which(violatevec == TRUE)            
             violateType <- sapply(violatepos, function(x) {
                 if (x %in% mbobj$lb0seq) {
                     if (m0.lb.default == TRUE) {
@@ -577,10 +584,23 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Test for violations
         violatevecMin <- mapply(">", (a_mbA %*% solVecMin), a_mbrhs)
         violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)
-
+        ## Deal with special cases where constraints may be
+        ## binding, and machine precision fails to recognize this
+        ## and treats it as a violation
+        if (sum(violatevecMin) > 0) {
+            violatepos <- which(violatevecMin == TRUE)
+            equality <- mapply(all.equal, (a_mbA %*% solVecMin)[violatepos],
+                               a_mbrhs[violatepos])
+            violatevecMin[equality] <- FALSE
+        }
+        if (sum(violatevecMax) > 0) {
+            violatepos <- which(violatevecMax == TRUE)
+            equality <- mapply(all.equal, (a_mbA %*% solVecMax)[violatepos],
+                               a_mbrhs[violatepos])
+            violatevecMax[equality] <- FALSE
+        }
         violatevec <- violatevecMin + violatevecMax
         violate <- as.logical(sum(violatevec))
-
         if (violate) {
             violate_pos <- which(violatevec == TRUE)
             violate_index <- unique(a_mbobj$mbmap[violate_pos])

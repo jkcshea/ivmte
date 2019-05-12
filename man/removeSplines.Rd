@@ -26,13 +26,13 @@ the gamma moments.
 }
 \examples{
 ## Declare and MTR with a sline component.
-m0 = ~ x1 + x1 : uSplines(degree = 2,
+m0 = ~ x1 + x1 : uSpline(degree = 2,
                           knots = c(0.2, 0.4)) +
-            x2 : uSplines(degree = 2,
+            x2 : uSpline(degree = 2,
                           knots = c(0.2, 0.4)) +
-            x1 : x2 : uSplines(degree = 2,
+            x1 : x2 : uSpline(degree = 2,
                                knots = c(0.2, 0.4)) +
-            uSplines(degree = 3,
+            uSpline(degree = 3,
                      knots = c(0.2, 0.4),
                      intercept = FALSE)
 

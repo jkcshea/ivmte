@@ -147,7 +147,7 @@ utils::globalVariables("u")
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
 #'     procedure.
-#' @param audit.seed integer, the seed that determines the random grid
+#' @param seed integer, the seed that determines the random grid
 #'     in the audit procedure.
 #' @param m1.ub numeric value for upper bound on MTR for treated
 #'     group. By default, this will be set to the largest value of the
@@ -229,7 +229,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   late.X, eval.X, genlate.lb, genlate.ub,
                   obseq.tol = 0.05, grid.nu = 20, grid.nx = 20,
                   audit.nx = 10, audit.nu = 10, audit.max = 5,
-                  audit.tol = 1e-08, audit.seed = 12345,
+                  audit.tol = 1e-08, seed = 12345,
                   m1.ub, m0.ub, m1.lb, m0.lb,
                   mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
                   mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
@@ -681,6 +681,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
     }
 
+    ## Seed check
+    if (!(is.numeric(seed) & length(seed) == 1)) {
+        stop("'seed' must be a scalar.")
+    }
+    
     ## Audit checks
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
         stop("Cannot set 'obseq.tol' below 0.")
@@ -694,9 +699,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     if (!((audit.nx %% 1 == 0) & audit.nx > 0)) {
         stop("'audit.nx' must be an integer greater than or equal to 1.")
-    }
-    if (!(is.numeric(audit.seed) & length(audit.seed) == 1)) {
-        stop("'audit.seed' must be a scalar.")
     }
     if (hasArg(m0.dec) | hasArg(m0.inc) |
         hasArg(m1.dec) | hasArg(m1.inc) |
@@ -1244,6 +1246,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
         ## Estimate bounds with resampling
         if (bootstraps > 0) {
+            set.seed(seed)
             boundEstimates <- NULL
 
             b <- 1
@@ -1378,11 +1381,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 names(pvalue) <- c("backward", "forward")
             }
 
-            ## message("\nBootstrap summary:")
-            ## message(paste0("    Number of bootstraps: ",
-            ##                bootstraps))
-            ## message(paste0("    Failed bootstraps: ",
-            ##                length(bootFailIndex)))
             if (ci.type == "both") {
                 for (i in c("backward", "forward")) {
                     message(paste0("\nBootstrapped confidence intervals (",
@@ -1445,7 +1443,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Point estimate with resampling
     if (point == TRUE & bootstraps > 0) {
-
+        set.seed(seed)
         origEstimate <- eval(estimateCall)
 
         teEstimates  <- NULL
@@ -1482,7 +1480,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 bootFailN <- 0
                 if (noisy == TRUE) {
                     message(paste0("    Point estimate:",
-                                   bootEstimate$pointestimate))
+                                   fmtResult(bootEstimate$pointestimate)))
                 }
             } else {
                 if (noisy == TRUE) {
@@ -1581,18 +1579,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         failed.bootstraps = length(bootFailIndex))
         output <- c(output1, output2, output3)
 
-        message("\nBootstrap summary:")
-        message(paste0("    Number of bootstraps: ",
-                       bootstraps))
-        message(paste0("    Failed bootstraps: ",
-                       length(bootFailIndex)))
         message("\nBootstrapped confidence intervals (nonparametric):")
         for (level in levels) {
             ci1str <- get(paste0("ci1", level * 100))
             ci1str <- paste0("[",
-                             ci1str[1],
+                             fmtResult(ci1str[1]),
                              ", ",
-                             ci1str[2],
+                             fmtResult(ci1str[2]),
                              "]")
             message(paste0("    ",
                            level * 100,
@@ -1603,9 +1596,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         for (level in levels) {
             ci2str <- get(paste0("ci2", level * 100))
             ci2str <- paste0("[",
-                             ci2str[1],
+                             fmtResult(ci2str[1]),
                              ", ",
-                             ci2str[2],
+                             fmtResult(ci2str[2]),
                              "]")
             message(paste0("    ",
                            level * 100,
@@ -1613,7 +1606,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                            ci2str))
         }
         message(paste0("\nBootstrapped p-value: ",
-                       pvalue, "\n"))
+                       fmtResult(pvalue), "\n"))
         return(output)
     }
 }
@@ -1958,20 +1951,21 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     expectations of each term in the MTRs; the components and
 #'     results of the LP problem.
 ivmteEstimate <- function(ivlike, data, subset, components,
-                           propensity, link = "logit", treat, m0, m1,
-                           vars_y, vars_mtr, terms_mtr0, terms_mtr1,
-                           splinesobj, uname = u,
-                           target, target.weight0, target.weight1,
-                           target.knots0 = NULL, target.knots1 = NULL,
-                           late.Z, late.from, late.to, late.X, eval.X,
-                           genlate.lb, genlate.ub, obseq.tol = 0.05,
-                           grid.nu = 20, grid.nx = 20, audit.nx = 2,
-                           audit.nu = 3, audit.max = 5,
-                           audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
-                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                           m1.dec, m1.inc, mte.dec, mte.inc,
-                           lpsolver = NULL, point = FALSE,
-                           noisy = TRUE) {
+                          propensity, link = "logit", treat, m0, m1,
+                          vars_y, vars_mtr, terms_mtr0, terms_mtr1,
+                          splinesobj, uname = u,
+                          target, target.weight0, target.weight1,
+                          target.knots0 = NULL, target.knots1 = NULL,
+                          late.Z, late.from, late.to, late.X, eval.X,
+                          genlate.lb, genlate.ub, obseq.tol = 0.05,
+                          grid.nu = 20, grid.nx = 20, audit.nx = 2,
+                          audit.nu = 3, audit.max = 5,
+                          audit.tol = 1e-08, seed = 12345,
+                          m1.ub, m0.ub, m1.lb,
+                          m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
+                          m1.dec, m1.inc, mte.dec, mte.inc,
+                          lpsolver = NULL, point = FALSE,
+                          noisy = TRUE) {
 
     call <- match.call(expand.dots = FALSE)
 
@@ -2193,7 +2187,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
-                    "mte.inc", "obseq.tol", "noisy", "audit.seed")
+                    "mte.inc", "obseq.tol", "noisy", "seed")
 
     audit_call <- modcall(call,
                           newcall = audit,

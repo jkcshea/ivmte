@@ -38,13 +38,13 @@ checking the boundedness and monotonicity conditions.
 ## the terms that interact with the splines.
 
 ## Declare MTR function
-m0 = ~ x1 + x1 : uSplines(degree = 2,
+m0 = ~ x1 + x1 : uSpline(degree = 2,
                           knots = c(0.2, 0.4)) +
-    x2 : uSplines(degree = 2,
+    x2 : uSpline(degree = 2,
                   knots = c(0.2, 0.4)) +
-    x1 : x2 : uSplines(degree = 2,
+    x1 : x2 : uSpline(degree = 2,
                        knots = c(0.2, 0.4)) +
-    uSplines(degree = 3,
+    uSpline(degree = 3,
              knots = c(0.2, 0.4),
              intercept = FALSE)
 
@@ -55,11 +55,11 @@ splineslist <- removeSplines(m0)$splineslist
 x <- seq(0, 1, 0.2)
 
 ## Evaluate the splines
-eval(parse(text = gsub("uSplines\\\\(",
-                       "ivmte:::uSplinesBasis(x = x, ",
+eval(parse(text = gsub("uSpline\\\\(",
+                       "ivmte:::uSplineBasis(x = x, ",
                         names(splineslist)[1])))
 
-eval(parse(text = gsub("uSplines\\\\(",
-                       "ivmte:::uSplinesBasis(x = x, ",
+eval(parse(text = gsub("uSpline\\\\(",
+                       "ivmte:::uSplineBasis(x = x, ",
                        names(splineslist)[2])))
 }
