@@ -178,3 +178,9 @@
 #' }
 #' @source Simulated.
 "dtb"
+
+#' Vignette results
+#'
+#' The results for the vignette example. This is to avoid having to
+#' re-run the code when compiling the vignette.
+"vignetteResult"

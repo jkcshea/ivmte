@@ -384,7 +384,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             if (sum(violatevec) > 0) {
                 equality <- mapply(all.equal, (mbA %*% solVec)[violatevec],
                                    mbrhs[violatevec])
-                violatevec[equality] <- FALSE
+                violatevec[equality == TRUE] <- FALSE
             }
             violatepos <- which(violatevec == TRUE)            
             violateType <- sapply(violatepos, function(x) {
@@ -591,13 +591,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
             violatepos <- which(violatevecMin == TRUE)
             equality <- mapply(all.equal, (a_mbA %*% solVecMin)[violatepos],
                                a_mbrhs[violatepos])
-            violatevecMin[equality] <- FALSE
+            violatevecMin[equality == TRUE] <- FALSE
         }
         if (sum(violatevecMax) > 0) {
             violatepos <- which(violatevecMax == TRUE)
             equality <- mapply(all.equal, (a_mbA %*% solVecMax)[violatepos],
                                a_mbrhs[violatepos])
-            violatevecMax[equality] <- FALSE
+            violatevecMax[equality == TRUE] <- FALSE
         }
         violatevec <- violatevecMin + violatevecMax
         violate <- as.logical(sum(violatevec))

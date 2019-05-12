@@ -11,10 +11,10 @@ ivmteEstimate(ivlike, data, subset, components, propensity,
   target.weight1, target.knots0 = NULL, target.knots1 = NULL, late.Z,
   late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
   obseq.tol = 0.05, grid.nu = 20, grid.nx = 20, audit.nx = 2,
-  audit.nu = 3, audit.max = 5, audit.tol = 1e-08, seed = 12345,
-  m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec,
-  m1.inc, mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
-  noisy = TRUE)
+  audit.nu = 3, audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub,
+  m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
+  mte.inc, lpsolver = NULL, point = FALSE, noisy = TRUE,
+  seed = 12345)
 }
 \arguments{
 \item{ivlike}{formula or vector of formulas used to specify the
@@ -219,6 +219,9 @@ identification.}
 then messages are provided throughout the estimation
 procedure. Set to \code{FALSE} to suppress all messages,
 e.g. when performing the bootstrap.}
+
+\item{seed}{integer, the seed that determines the random grid
+in the audit procedure.}
 }
 \value{
 Returns a list of results from throughout the estimation

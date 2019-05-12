@@ -147,8 +147,6 @@ utils::globalVariables("u")
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
 #'     procedure.
-#' @param seed integer, the seed that determines the random grid
-#'     in the audit procedure.
 #' @param m1.ub numeric value for upper bound on MTR for treated
 #'     group. By default, this will be set to the largest value of the
 #'     observed outcome in the estimation sample.
@@ -189,6 +187,8 @@ utils::globalVariables("u")
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
 #'     e.g. when performing the bootstrap.
+#' @param seed integer, the seed that determines the random grid
+#'     in the audit procedure.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -222,18 +222,17 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'both',
                   pvalue.tol = 1e-08, ivlike, data, subset,
-                  components, propensity, link = "logit", treat, m0, m1,
-                  uname = u, target, target.weight0 = NULL,
-                  target.weight1, target.knots0,
-                  target.knots1 = NULL, late.Z, late.from, late.to,
-                  late.X, eval.X, genlate.lb, genlate.ub,
-                  obseq.tol = 0.05, grid.nu = 20, grid.nx = 20,
-                  audit.nx = 10, audit.nu = 10, audit.max = 5,
-                  audit.tol = 1e-08, seed = 12345,
-                  m1.ub, m0.ub, m1.lb, m0.lb,
-                  mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
-                  mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
-                  noisy = TRUE) {
+                  components, propensity, link = "logit", treat, m0,
+                  m1, uname = u, target, target.weight0 = NULL,
+                  target.weight1, target.knots0, target.knots1 = NULL,
+                  late.Z, late.from, late.to, late.X, eval.X,
+                  genlate.lb, genlate.ub, obseq.tol = 0.05,
+                  grid.nu = 20, grid.nx = 20, audit.nx = 10,
+                  audit.nu = 10, audit.max = 5, audit.tol = 1e-08,
+                  m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
+                  mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
+                  mte.inc, lpsolver = NULL, point = FALSE,
+                  noisy = TRUE, seed = 12345) {
 
     call <- match.call(expand.dots = FALSE)
 
@@ -553,108 +552,106 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
         target.weight0 <- NULL
         target.weight1 <- NULL
-    } else {
+    } else {       
         if (!(hasArg(target.weight0) & hasArg(target.weight1))) {
             stop(gsub("\\s+", " ",
                       "Only one target weight function is provided. If a custom
                       target weight is to be used, inputs for both
                       target.weight0 and target.weight1 must be provided."))
         }
-        if (!hasArg(target)) {
 
-            ## Convert all entries into lists
-            target.weight0 <- c(target.weight0)
-            target.weight1 <- c(target.weight1)
-            target.knots0  <- c(target.knots0)
-            target.knots1  <- c(target.knots1)
+        ## Convert all entries into lists
+        target.weight0 <- c(target.weight0)
+        target.weight1 <- c(target.weight1)
+        target.knots0  <- c(target.knots0)
+        target.knots1  <- c(target.knots1)
 
-            ## Weight check
-            weightCheck1 <- unlist(lapply(target.weight0, is.function))
-            weightCheck2 <- unlist(lapply(target.weight0, function(x)
-                is.numeric(x) * (length(x) == 1)))
-            fails0 <- which(weightCheck1 + weightCheck2 == 0)
+        ## Weight check
+        weightCheck1 <- unlist(lapply(target.weight0, is.function))
+        weightCheck2 <- unlist(lapply(target.weight0, function(x)
+            is.numeric(x) * (length(x) == 1)))
+        fails0 <- which(weightCheck1 + weightCheck2 == 0)
 
-            if (length(fails0) > 0) {
-                stop(gsub("\\s+", " ",
-                          paste0("Each component of the custom weight
+        if (length(fails0) > 0) {
+            stop(gsub("\\s+", " ",
+                      paste0("Each component of the custom weight
                              vectors/lists
                              must either be functions or constants. The
                              following entries of target.weight0 are neither: ",
                              paste(fails0, collapse = ", "),
                              ".")))
-            }
+        }
 
-            weightCheck1 <- unlist(lapply(target.weight1, is.function))
-            weightCheck2 <- unlist(lapply(target.weight1, function(x)
-                is.numeric(x) * (length(x) == 1)))
-            fails1 <- which(weightCheck1 + weightCheck2 == 0)
+        weightCheck1 <- unlist(lapply(target.weight1, is.function))
+        weightCheck2 <- unlist(lapply(target.weight1, function(x)
+            is.numeric(x) * (length(x) == 1)))
+        fails1 <- which(weightCheck1 + weightCheck2 == 0)
 
-            if (length(fails1) > 0) {
-                stop(gsub("\\s+", " ",
-                          paste0("Each component of the custom weight
+        if (length(fails1) > 0) {
+            stop(gsub("\\s+", " ",
+                      paste0("Each component of the custom weight
                              vectors/lists
                              must either be functions or constants. The
                              following entries of target.weight1 are neither: ",
                              paste(fails1, collapse = ", "),
                              ".")))
-            }
+        }
 
-            if (length(target.weight0) != (length(target.knots0) + 1)) {
-                stop(gsub("\\s+", " ",
-                          paste0("The number of weight functions declared in
+        if (length(target.weight0) != (length(target.knots0) + 1)) {
+            stop(gsub("\\s+", " ",
+                      paste0("The number of weight functions declared in
                                  target.weight0 must be exactly equal to the
                                  number of knots declared in target.knots0
                                  plus 1. Currently, the number of weights
                                  declared is ", length(target.weight0),
-                                 ", and the number of knots declared is ",
-                                 length(target.knots0), ".")))
-            }
-            if (length(target.weight1) != (length(target.knots1) + 1)) {
-                stop(gsub("\\s+", " ",
-                          paste0("The number of weight functions declared in
+                             ", and the number of knots declared is ",
+                             length(target.knots0), ".")))
+        }
+        if (length(target.weight1) != (length(target.knots1) + 1)) {
+            stop(gsub("\\s+", " ",
+                      paste0("The number of weight functions declared in
                                  target.weight1 must be exactly equal to the
                                  number of knots declared in target.knots1
                                  plus 1. Currently, the number of weights
                                  declared is ", length(target.weight1),
-                                 ", and the number of knots declared is ",
-                                 length(target.knots1), ".")))
-            }
+                             ", and the number of knots declared is ",
+                             length(target.knots1), ".")))
+        }
 
-            ## Knots check
-            if (!is.null(target.knots0)) {
-                knotsCheck1 <- unlist(lapply(target.knots0, is.function))
-                knotsCheck2 <- unlist(lapply(target.knots0, function(x)
-                    is.numeric(x) * (length(x) == 1)))
-                fails0 <- which(knotsCheck1 + knotsCheck2 == 0)
+        ## Knots check
+        if (!is.null(target.knots0)) {
+            knotsCheck1 <- unlist(lapply(target.knots0, is.function))
+            knotsCheck2 <- unlist(lapply(target.knots0, function(x)
+                is.numeric(x) * (length(x) == 1)))
+            fails0 <- which(knotsCheck1 + knotsCheck2 == 0)
 
-                if (length(fails0) > 0) {
-                    stop(gsub("\\s+", " ",
-                              paste0("Each component of the custom knots
+            if (length(fails0) > 0) {
+                stop(gsub("\\s+", " ",
+                          paste0("Each component of the custom knots
                              vectors/lists
                              must either be functions or constants. The
                              following entries of target.knots0 are neither: ",
                              paste(fails0, collapse = ", "),
                              ".")))
-                }
             }
+        }
 
-            if (!is.null(target.knots1)) {
-                knotsCheck1 <- unlist(lapply(target.knots1, is.function))
-                knotsCheck2 <- unlist(lapply(target.knots1, function(x)
-                    is.numeric(x) * (length(x) == 1)))
-                fails1 <- which(knotsCheck1 + knotsCheck2 == 0)
+        if (!is.null(target.knots1)) {
+            knotsCheck1 <- unlist(lapply(target.knots1, is.function))
+            knotsCheck2 <- unlist(lapply(target.knots1, function(x)
+                is.numeric(x) * (length(x) == 1)))
+            fails1 <- which(knotsCheck1 + knotsCheck2 == 0)
 
-                if (length(fails1) > 0) {
-                    stop(gsub("\\s+", " ",
-                              paste0("Each component of the custom knots
+            if (length(fails1) > 0) {
+                stop(gsub("\\s+", " ",
+                          paste0("Each component of the custom knots
                              vectors/lists
                              must either be functions or constants. The
                              following entries of target.knots1 are neither: ",
                              paste(fails0, collapse = ", "),
                              ".")))
-                }
             }
-        }
+        }            
     }
 
     if (hasArg(link)) {
@@ -1145,7 +1142,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Check that all LATE variables are included in the propensity
     ## formula.
-    if (target == "late") {
+    if (hasArg(target) && target == "late") {
         if (!all(late.Z %in% vars_propensity)) {
             stop(gsub("\\s+", " ",
                       "Variables in 'late.Z' argument must be contained
@@ -1167,7 +1164,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                        'late.X'. Currently, not all variables are fixed."))
         }
     }
-
+    
     ## Keep only complete cases
     varError <- allvars[! allvars %in% colnames(data)]
     varError <- varError[varError != "intercept"]
@@ -1222,7 +1219,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                            propensity = quote(propensity),
                                            splinesobj = quote(splinesobj),
                                            components = quote(components)))
-    if (target == "late") {
+
+    if (hasArg(target) && target == "late") {
         estimateCall <- modcall(estimateCall,
                                 newargs = list(late.Z = late.Z,
                                                late.to = late.to,
@@ -1233,7 +1231,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                                    eval.X = eval.X))
         }
     }
-
 
     ## Estimate bounds
     if (point == FALSE) {
@@ -1945,6 +1942,8 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
 #'     e.g. when performing the bootstrap.
+#' @param seed integer, the seed that determines the random grid
+#'     in the audit procedure.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -1953,19 +1952,18 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 ivmteEstimate <- function(ivlike, data, subset, components,
                           propensity, link = "logit", treat, m0, m1,
                           vars_y, vars_mtr, terms_mtr0, terms_mtr1,
-                          splinesobj, uname = u,
-                          target, target.weight0, target.weight1,
+                          splinesobj, uname = u, target,
+                          target.weight0, target.weight1,
                           target.knots0 = NULL, target.knots1 = NULL,
                           late.Z, late.from, late.to, late.X, eval.X,
                           genlate.lb, genlate.ub, obseq.tol = 0.05,
                           grid.nu = 20, grid.nx = 20, audit.nx = 2,
                           audit.nu = 3, audit.max = 5,
-                          audit.tol = 1e-08, seed = 12345,
-                          m1.ub, m0.ub, m1.lb,
+                          audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                           m1.dec, m1.inc, mte.dec, mte.inc,
                           lpsolver = NULL, point = FALSE,
-                          noisy = TRUE) {
+                          noisy = TRUE, seed = 12345 ) {
 
     call <- match.call(expand.dots = FALSE)
 
