@@ -22,6 +22,9 @@ default. Indicates that the formula being considered is
 constructed from a list of components, and thus the term
 'intercept' is permitted.}
 }
+\value{
+vector of variable names.
+}
 \description{
 Auxiliary function that takes in a two-sided formula, and extracts
 the variable names of either the covariates or instruments. The

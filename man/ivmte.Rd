@@ -10,9 +10,9 @@ ivmte(bootstraps = 0, bootstraps.m, bootstraps.replace = TRUE,
   m0, m1, uname = u, target, target.weight0 = NULL, target.weight1,
   target.knots0, target.knots1 = NULL, late.Z, late.from, late.to,
   late.X, eval.X, genlate.lb, genlate.ub, obseq.tol = 0.05,
-  grid.nu = 20, grid.nx = 20, audit.nx = 10, audit.nu = 10,
-  audit.max = 5, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
-  mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
+  grid.nu = 20, grid.nx = 20, audit.nx = 20, audit.nu = 20,
+  audit.max = 10, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
+  mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
   lpsolver = NULL, point = FALSE, noisy = TRUE, seed = 12345)
 }
 \arguments{
@@ -233,8 +233,8 @@ then messages are provided throughout the estimation
 procedure. Set to \code{FALSE} to suppress all messages,
 e.g. when performing the bootstrap.}
 
-\item{seed}{integer, the seed that determines the random grid
-in the audit procedure.}
+\item{seed}{integer, the seed that determines the random grid in
+the audit procedure.}
 }
 \value{
 Returns a list of results from throughout the estimation
@@ -253,10 +253,7 @@ instrumental variable (IV) model considered by
 \href{https://doi.org/10.3982/ECTA15463}{Mogstad, Santos and Torgovitsky
 (2018)}. See also the recent survey paper on extrapolation in IV models by
 \href{https://doi.org/10.1146/annurev-economics-101617-041813}{Mogstad and
-Torgovitsky (2018)}.  A detailed description of the module and its features
-can be found in
-\href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea and
-Torgovitsky (2019)}.
+Torgovitsky (2018)}.
 }
 \examples{
 ivlikespecs <- c(ey ~ d | z,

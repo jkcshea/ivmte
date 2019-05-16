@@ -198,8 +198,8 @@
 #' @export
 audit <- function(data, uname, m0, m1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1,
-                  grid.nu = 20, grid.nx = 50,
-                  audit.nx = 10, audit.nu = 10, audit.max = 5,
+                  grid.nu = 20, grid.nx = 20,
+                  audit.nx = 20, audit.nu = 20, audit.max = 10,
                   audit.tol = 1e-08,
                   m1.ub, m0.ub, m1.lb, m0.lb,
                   m1.ub.default = FALSE,

@@ -68,6 +68,7 @@ classList <- function(obj) {
 #'     default. Indicates that the formula being considered is
 #'     constructed from a list of components, and thus the term
 #'     'intercept' is permitted.
+#' @return vector of variable names.
 getXZ <- function(fm, inst = FALSE, terms = FALSE, components = FALSE) {
     fm <- Formula::as.Formula(fm)
     if (length(fm)[2] == 1) {
