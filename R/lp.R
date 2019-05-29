@@ -481,6 +481,12 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         if (lpsolver == "gurobi") {
 
             model$modelsense <- "min"
+
+            ## Experimenting ---------------------------------
+            ## save(model, file = "testModel.Rdata")
+            ## gurobi::gurobi_write(model, "testModel.mps")
+            ## End experimenting ------------------------------
+            
             minresult <- gurobi::gurobi(model, list(outputflag = 0,
                                                     dualreductions = 1))
             min <- minresult$objval

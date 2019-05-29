@@ -2175,9 +2175,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
 
     if (noisy == TRUE) {
-        if (obseq.tol > 0) {
-            message("Performing audit procedure...")
-        }
+        message("Performing audit procedure...")
     }
 
     audit.args <- c("uname", "grid.nu", "grid.nx",
