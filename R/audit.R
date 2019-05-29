@@ -215,7 +215,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
     set.seed(seed)
     call  <- match.call()
-
     lpsolver <- tolower(lpsolver)
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
@@ -283,26 +282,16 @@ audit <- function(data, uname, m0, m1, splinesobj,
         support <- data.frame(support)
         colnames(support) <- xvars
     }
-
     ## deal with case in which there are no covariates.
     if (length(xvars) == 0) {
         noX <- TRUE
         grid_index <- NULL
     } else {
         noX <- FALSE
-
-        ## Obtain quantiles for covariates
-        ## FIX: Tukey distribution can be improved.
-        quantiles <- apply(support, 1, tukeydist, data = data[, xvars])
-        quantiles <- cbind(support, quantiles)
-        quantiles <- quantiles[order(quantiles[, "quantiles"]), ]
-        rownames(quantiles) <- seq(1, nrow(quantiles))
-        support <- data.frame(quantiles[, xvars])
-        if (dim(support)[2] == 1) colnames(support) <- xvars
+        rownames(support) <- seq(1, nrow(support))
 
         ## Select first iteration of the grid
         full_index <- seq(1, nrow(support))
-
         grid.nx <- min(grid.nx, nrow(support))
         grid_index <- sample(full_index,
                              grid.nx,
@@ -310,7 +299,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                              prob = replicate(nrow(support), (1/nrow(support))))
         grid_resid <- full_index[!(full_index %in% grid_index)]
     }
-
     ## Begin performing the audit
     prevbound <- c(-Inf, Inf)
     existsolution <- FALSE
@@ -348,12 +336,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                              splines = splines,
                                              monov = monov))
         mbobj <- eval(monoboundAcall)
-
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
-
         minobseq  <- obsEqMin(sset, lpobj, lpsolver)
-
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -366,7 +351,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
             lpobjAlt <- lpSetup(sset, mbobj$mbA, mbobj$mbs,
                                     mbobj$mbrhs, lpsolver,
                                     shape = FALSE)
-
             minobseqAlt <- obsEqMin(sset, lpobjAlt, lpsolver)
             solVec <- minobseqAlt$result$x
 
@@ -386,7 +370,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                    mbrhs[violatevec])
                 violatevec[equality == TRUE] <- FALSE
             }
-            violatepos <- which(violatevec == TRUE)            
+            violatepos <- which(violatevec == TRUE)
             violateType <- sapply(violatepos, function(x) {
                 if (x %in% mbobj$lb0seq) {
                     if (m0.lb.default == TRUE) {
@@ -457,14 +441,12 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (noisy) {
             message("    Obtaining bounds...")
         }
-
         lpresult  <- bound(g0 = gstar0,
                            g1 = gstar1,
                            sset = sset,
                            lpobj = lpobj,
                            obseq.factor = minobseq$obj * (1 + obseq.tol),
                            lpsolver = lpsolver)
-
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
 
@@ -572,7 +554,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                              uvec = a_uvec,
                                              splines = splines,
                                              monov = monov))
-
         a_mbobj <- eval(monoboundAcall)
         a_mbA <- a_mbobj$mbA[, (2 * sn + 1) : ncol(a_mbobj$mbA)]
 
