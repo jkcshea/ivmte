@@ -2107,7 +2107,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                 treat = treat,
                                 list = TRUE,
                                 order = ivlikeCounter)
-            ivlikeCounter <- ivlikeCounter + 1
 
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands
@@ -2125,7 +2124,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                   ncomponents = ncomponents,
                                   scount = scount,
                                   subset_index = subset_index,
-                                  noisy = noisy)
+                                  noisy = noisy,
+                                  ivn = ivlikeCounter)
             } else {
                 setobj <- genSSet(data = data,
                                   sset = sset,
@@ -2140,9 +2140,11 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                   means = FALSE,
                                   yvar = vars_y,
                                   dvar = treat,
-                                  noisy = noisy)
+                                  noisy = noisy,
+                                  ivn = ivlikeCounter)
             }
-
+            ivlikeCounter <- ivlikeCounter + 1
+            
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
@@ -2787,6 +2789,8 @@ genTarget <- function(treat, m0, m1, uname, target,
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
 #'     e.g. when performing the bootstrap.
+#' @param ivn integer, the number indicating which IV specification
+#'     the component corresponds to.
 #' @return A list containing the point estimate for the IV regression,
 #'     and the expectation of each monomial term in the MTR.
 #'
@@ -2842,7 +2846,7 @@ genTarget <- function(treat, m0, m1, uname, target,
 #' @export
 genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         ncomponents, scount, subset_index, means = TRUE,
-                        yvar, dvar, noisy = TRUE) {
+                        yvar, dvar, noisy = TRUE, ivn = NULL) {
 
     if (!hasArg(subset_index)) subset_index <- NULL
 
@@ -2923,11 +2927,17 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                              means = FALSE)$gamma
         }
 
+        ## generate average weights
+        avgweight <- c(mean(sest$sw0[, j]), mean(sest$sw1[, j]))
+        names(avgweight) <- c("sw0", "sw1")
+        
         ## generate components of constraints
         if (means == TRUE) {
-            sset[[paste0("s", scount)]] <- list(beta = sest$beta[j],
+            sset[[paste0("s", scount)]] <- list(ivspec = ivn,
+                                                beta = sest$beta[j],
                                                 g0 = c(gs0, gsSpline0),
-                                                g1 = c(gs1, gsSpline1))
+                                                g1 = c(gs1, gsSpline1),
+                                                avgweight = avgweight)
         } else {
             ## Now generate the vectors for Y * S(D, Z).
 
@@ -2944,10 +2954,12 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 
             names(yvec) <- newsubset
 
-            sset[[paste0("s", scount)]] <- list(beta = sest$beta[j],
+            sset[[paste0("s", scount)]] <- list(ivspec = ivn,
+                                                beta = sest$beta[j],
                                                 g0 = cbind(gs0, gsSpline0),
                                                 g1 = cbind(gs1, gsSpline1),
-                                                ys = yvec)
+                                                ys = yvec,
+                                                avgweight = avgweight)
         }
 
         ## update counter (note scount is not referring
