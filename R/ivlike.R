@@ -139,13 +139,11 @@ ivEstimate <- function(formula, data, subset, components, treat,
     ## order of the interaction
     termsR <- attr(terms(formula), "term.labels")
     failTerms <- which(!components %in% termsR)
-
-    for(fail in failTerms) {
+    for (fail in failTerms) {
         vars <- strsplit(components[fail], ":")[[1]]
         varsPerm <- permute(vars)
         varsPerm <- unlist(lapply(varsPerm,
                                   function(x) paste(x, collapse = ":")))
-
         correctPos <- which(varsPerm %in% termsR)
         if (length(correctPos) > 0) {
             components[fail] <- varsPerm[correctPos]

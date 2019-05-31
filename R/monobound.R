@@ -671,7 +671,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     } else {
         noX <- FALSE
     }
-    
+
     ## generate the first iteration of the grid
     if (noX) {
         grid <- data.frame(uvec)
@@ -685,7 +685,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                uvec,
                                uname)
     }
-    
+
     if (is.null(splines[[1]]) & is.null(splines[[2]])) {
         A0 <- design(formula = m0, data = gridobj$grid)$X
         A1 <- design(formula = m1, data = gridobj$grid)$X
@@ -757,7 +757,30 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         rownames(A0) <- A0[, ".grid.order"]
         rownames(A1) <- A1[, ".grid.order"]
     }
-    
+
+    ## Rename columns so they match with the names in vectors gstar0
+    ## and gstar1 (the problem stems from the unpredictable ordering
+    ## of variables in interaction terms).
+    for (d in c(0, 1)) {
+        Amat <- get(paste0("A", d))
+        gvec <- get(paste0("gstar", d))
+
+        Apos <- NULL
+        failTerms <- which(!names(gvec) %in% colnames(Amat))
+        for (fail in failTerms) {
+            vars <- strsplit(names(gvec)[fail], ":")[[1]]
+            varsPerm <- permute(vars)
+            varsPerm <- unlist(lapply(varsPerm,
+                                      function(x) paste(x, collapse = ":")))
+            correctPos <- unique(which(varsPerm %in% colnames(Amat)))
+            if (length(correctPos) > 0) {
+                Aname <- varsPerm[correctPos]
+                Apos <- c(Apos, which(colnames(Amat) == Aname))
+            }
+        }
+        colnames(Amat)[Apos] <- names(gvec)[failTerms]
+        assign(paste0("A", d), Amat)
+    }
     ## keep only the columns that are in the MTRs (A0 and A1 matrices
     ## potentially include extraneous columns)
     A0 <- as.matrix(A0[, names(gstar0)])
