@@ -234,7 +234,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## can be found in
     ## \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea and
     ## Torgovitsky (2019)}.
-    
+
     call <- match.call(expand.dots = FALSE)
 
     ##---------------------------
@@ -380,15 +380,57 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## only this can be omitted by the user, in which case no
     ## subsetting is used
     if (hasArg(subset)) {
-
         ## If subsetting is not a list, convert it to a list
         if (!(classList(subset))) {
-            subset <- paste0("l(",
-                             gsub("\\s+", " ",
-                                  Reduce(paste, deparse(substitute(subset)))),
-                             ")")
-            subset <- eval(parse(text = subset))
+            ## Check if character, if so, then may need to
+            ## deparse. Also check if logical, in which case less
+            ## needs to be done.
+            subsetChar <- try(is.character(subset), silent = TRUE)
+            subsetLogic <- try(is.logical(subset), silent = TRUE)
+            if (subsetChar == TRUE) {
+                stop(gsub("\\s+", " ",
+                          "Subset conditions should be logical
+                           expressions involving variable names from the
+                           data set and logical operators."))
+            } else if (subsetLogic == TRUE) {
+                ## Currently prohobit logical vectors. Instead
+                ## restrict to expressions only. Below is the code to
+                ## revert to the case where logical vectors are
+                ## allowed.
+                ##
+                ## subsetList <- list()
+                ## subsetList[[1]] <- subset
+                ## subset <- subsetList
+                stop(gsub("\\s+", " ",
+                          "Subset conditions should be logical
+                           expressions involving variable names from the
+                           data set and logical operators. Make sure the name of
+                           the variable is not the same as that of another
+                           object in the workspace. If so, rename the object
+                           in the workspace, or the variable in the data set."))
+            } else {
+                subsetStrSubs <- Reduce(paste, deparse(substitute(subset)))
+                subsetStr <- try(Reduce(paste, deparse(subset)), silent = TRUE)
 
+                if (class(subsetStr) == "try-error") { ## i.e. logical
+                    subset <- paste0("l(", subsetStrSubs, ")")
+                } else { ## i.e. variable, for looping
+                    subset <- paste0("l(", subsetStr, ")")
+                }
+            }
+            if (subsetLogic == FALSE) {
+                subsetLogicOp <- 0
+                for (operator in c("==", "<", ">", "%in%")) {
+                    subsetLogicOp <- subsetLogicOp + grepl(operator, subset)
+                }
+                if (subsetLogicOp == 0) {
+                    stop(gsub("\\s+", " ",
+                              "Subset conditions should be logical
+                           expressions involving variable names from the
+                           data set and logical operators."))
+                }
+                subset <- eval(parse(text = subset))
+            }
         }
 
         ## Check if all subseting conditions are logical
@@ -553,7 +595,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
         target.weight0 <- NULL
         target.weight1 <- NULL
-    } else {       
+    } else {
         if (!(hasArg(target.weight0) & hasArg(target.weight1))) {
             stop(gsub("\\s+", " ",
                       "Only one target weight function is provided. If a custom
@@ -652,7 +694,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              paste(fails0, collapse = ", "),
                              ".")))
             }
-        }            
+        }
     }
 
     if (hasArg(link)) {
@@ -683,7 +725,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (!(is.numeric(seed) & length(seed) == 1)) {
         stop("'seed' must be a scalar.")
     }
-    
+
     ## Audit checks
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
         stop("Cannot set 'obseq.tol' below 0.")
@@ -1165,7 +1207,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                        'late.X'. Currently, not all variables are fixed."))
         }
     }
-    
+
     ## Keep only complete cases
     varError <- allvars[! allvars %in% colnames(data)]
     varError <- varError[varError != "intercept"]
@@ -2144,7 +2186,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                   ivn = ivlikeCounter)
             }
             ivlikeCounter <- ivlikeCounter + 1
-            
+
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
@@ -2930,7 +2972,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         ## generate average weights
         avgweight <- c(mean(sest$sw0[, j]), mean(sest$sw1[, j]))
         names(avgweight) <- c("sw0", "sw1")
-        
+
         ## generate components of constraints
         if (means == TRUE) {
             sset[[paste0("s", scount)]] <- list(ivspec = ivn,

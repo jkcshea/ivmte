@@ -109,7 +109,7 @@ watu1 <- function(data, expd0, propensity) {
 #'     well as the multiplier in the weight.
 wlate1 <- function(data, from, to, Z, model, X, eval.X) {
 
-    if (hasArg(X)) data[, X] <- t(replicate(nrow(data), eval.X))
+    if (hasArg(X)) data[, X] <- replicate(nrow(data), eval.X)
 
     ## Determine the type of model we are working with (lm vs. glm)
     modclass <- class(model)[1]
