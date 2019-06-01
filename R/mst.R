@@ -418,7 +418,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     subset <- paste0("l(", subsetStr, ")")
                 }
             }
-            if (subsetLogic == FALSE) {
+            if (subsetLogic != TRUE) {
                 subsetLogicOp <- 0
                 for (operator in c("==", "<", ">", "%in%")) {
                     subsetLogicOp <- subsetLogicOp + grepl(operator, subset)
@@ -432,7 +432,21 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 subset <- eval(parse(text = subset))
             }
         }
-
+        ## Experimenting ---------------------------------------------------
+        ## Fill in any missing subset slots
+        if (length(subset) > 1 && length(subset) != length_formula) {
+            stop(gsub("\\s+", " ",
+                      "Number of subset conditions not equal to number of
+                       IV specifications. Either declare a single subset
+                       condition to be applied to all IV specifications; or
+                       declare a list of subset conditions, one for each IV
+                       specificaiton. An empty element in the list of subset
+                       conditions corresponds to using the full sample."))
+        }       
+        if (length(subset) == 1 && length_formula > 1) {
+            subset <- rep(subset, length_formula)
+        }       
+        ## End experimenting -----------------------------------------------
         ## Check if all subseting conditions are logical
         nonLogicSubset <- NULL
         for (i in 1:length(ivlike)) {
