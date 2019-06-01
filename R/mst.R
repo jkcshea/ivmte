@@ -442,10 +442,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                        declare a list of subset conditions, one for each IV
                        specificaiton. An empty element in the list of subset
                        conditions corresponds to using the full sample."))
-        }       
+        }
         if (length(subset) == 1 && length_formula > 1) {
             subset <- rep(subset, length_formula)
-        }       
+        }
         ## End experimenting -----------------------------------------------
         ## Check if all subseting conditions are logical
         nonLogicSubset <- NULL
@@ -1198,8 +1198,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ## Check that all LATE variables are included in the propensity
-    ## formula.
-    if (hasArg(target) && target == "late") {
+    ## formula, if a propensity score formula is provided
+    if (hasArg(target) && target == "late"  &&
+        length(Formula::as.Formula(propensity))[1] != 0) {
         if (!all(late.Z %in% vars_propensity)) {
             stop(gsub("\\s+", " ",
                       "Variables in 'late.Z' argument must be contained

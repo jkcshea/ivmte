@@ -52,7 +52,7 @@ propensity <- function(formula, data, link = "logit", late.Z,
                            late.X) {
 
     formula <- Formula::as.Formula(formula)
-   
+
     ## If two-sided formula is provided, estimate propensity score
     ## accordingly
     if (length(formula)[1] == 1 & length(formula)[2] == 1) {
@@ -72,9 +72,8 @@ propensity <- function(formula, data, link = "logit", late.Z,
         phat[which(phat > 1)] <- 1
 
         return(list(model = prop, phat = phat))
-        
+
     } else if (length(formula)[1] == 0 & length(formula)[2] == 1) {
-        
         ## If one-sided formula is provided, containing only one
         ## variable, then that variable is the propensity score
 
@@ -95,31 +94,21 @@ propensity <- function(formula, data, link = "logit", late.Z,
         ## Check that the variable is indeed a proepnsity,
         ## i.e. bounded between 0 and 1
         phat <- data[[pname]]
-
         names(phat) <- rownames(data)
-
         if (max(phat) > 1 | min(phat) < 0) {
             stop('Provided propensity scores are not between 0 and 1.')
         }
 
         model <- NULL
-
         if (hasArg(late.Z)) {
             ## Generate a matrix of propensity scores corresponding to
             ## each X and Z---this only works if the X and Z are
             ## declared for the LATE variables.
-            zIsVec <- substr(deparse(substitute(late.Z)), 1, 2) == "c("
-            if (zIsVec) {
-                late.Z <- restring(substitute(late.Z), substitute = FALSE)
-            } else {
-                late.Z <- deparse(substitute(late.Z))
-            }
-
-            if(hasArg(late.X))  late.X <- restring(substitute(late.X),
-                                                   substitute = FALSE)
-            if(!hasArg(late.X)) late.X <- NULL
-
-            model <- unique(data[, c(late.X, late.Z, pname)])
+            propVars <- NULL
+            if (hasArg(late.X)) propVars <- c(propVars, late.X)
+            if (hasArg(late.Z)) propVars <- c(propVars, late.Z)
+            propVars <- c(propVars, pname)
+            model <- unique(data[, propVars])
 
             ## There should be no duplicate (X, Z)s in the model
             ## (i.e. for each set of (X, Z), there should only be one

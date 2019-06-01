@@ -109,54 +109,41 @@ watu1 <- function(data, expd0, propensity) {
 #'     well as the multiplier in the weight.
 wlate1 <- function(data, from, to, Z, model, X, eval.X) {
 
-    if (length(eval.X) > 1) {
-        replicate(nrow(data), eval.X)
+    if (!hasArg(eval.X)) {
+        fixDataFrom <- data.frame(matrix(from, nrow = 1))
+        fixDataTo   <- data.frame(matrix(to, nrow = 1))
+        colnames(fixDataFrom) <- Z
+        colnames(fixDataTo)   <- Z
+
+    } else {
+        fixDataFrom <- data.frame(matrix(c(eval.X, from), nrow = 1))
+        fixDataTo   <- data.frame(matrix(c(eval.X, to), nrow = 1))
+        colnames(fixDataFrom) <- c(X, Z)
+        colnames(fixDataTo)   <- c(X, Z)
     }
-    if (hasArg(X)) {
-        if (length(eval.X) == 1) data[, X] <- replicate(nrow(data), eval.X)
-        if (length(eval.X) > 1)  data[, X] <- t(replicate(nrow(data), eval.X))
-    }
+
     ## Determine the type of model we are working with (lm vs. glm)
     modclass <- class(model)[1]
-
     ## Predict propensity scores for 'from' case
-    if (length(Z) == 1) {
-        data[, Z] <- replicate(nrow(data), from)
-    } else {
-        data[, Z] <- t(replicate(nrow(data), from))
-    }
     if (modclass ==  "lm") {
-        bfrom <- predict.lm(model, data)
+        bfrom <- predict.lm(model, fixDataFrom)
     }
     if (modclass == "glm") {
-        bfrom <- predict.glm(model, data,
+        bfrom <- predict.glm(model, fixDataFrom,
                              type = "response")
     }
-    bfrom <- unique(bfrom)
-    if (length(bfrom) > 1) {
-        stop("For LATE target, there should be a single lower bound.")
-    }
-
     ## Predict propensity scores for 'to' case
-    if (length(Z) == 1) {
-        data[, Z] <- replicate(nrow(data), to)
-    } else {
-        data[, Z] <- t(replicate(nrow(data), to))
-    }
     if (modclass ==  "lm") {
-        bto   <- predict.lm(model, data)
+        bto   <- predict.lm(model, fixDataTo)
     }
     if (modclass == "glm") {
-        bto   <- predict.glm(model, data,
+        bto   <- predict.glm(model, fixDataTo,
                            type = "response")
-    }
-    bto <- unique(bto)
-    if (length(bto) > 1) {
-        stop("For LATE target, there should be a single upper bound.")
     }
 
     ## Predict propensity scores using data.frame model
     if (modclass == "data.frame") {
+
         cond_from <- mapply(function(a, b) paste(a, "==", b), Z, from)
         cond_from <- paste(cond_from, collapse = " & ")
         cond_to <- mapply(function(a, b) paste(a, "==", b), Z, to)
