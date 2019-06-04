@@ -2302,7 +2302,9 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ## include additional output material
     return(list(sset  = sset,
                 gstar = list(g0 = gstar0,
-                             g1 = gstar1),
+                             g1 = gstar1,
+                             w0 = targetGammas$w0,
+                             w1 = targetGammas$w1),
                 propensity = pmodel,
                 pointestimate = NULL,
                 bounds = c(audit$min, audit$max),
@@ -2798,12 +2800,26 @@ genTarget <- function(treat, m0, m1, uname, target,
         gstar1 <- cbind(gstar1, gstarSpline1)
     }
 
-    return(list(gstar0 = gstar0,
-                gstar1 = gstar1,
-                xindex0 = xindex0,
-                xindex1 = xindex1,
-                uexporder0 = uexporder0,
-                uexporder1 = uexporder1))
+    ## Original -------------------------------------------
+    ## return(list(gstar0 = gstar0,
+    ##             gstar1 = gstar1,
+    ##             xindex0 = xindex0,
+    ##             xindex1 = xindex1,
+    ##             uexporder0 = uexporder0,
+    ##             uexporder1 = uexporder1))
+    ## Experimenting --------------------------------------
+    output <- list(gstar0 = gstar0,
+                   gstar1 = gstar1,
+                   xindex0 = xindex0,
+                   xindex1 = xindex1,
+                   uexporder0 = uexporder0,
+                   uexporder1 = uexporder1)
+    if (hasArg(target)) {
+        output$w1 <- w1
+        output$w0 <- w0
+    }
+    return(output)
+    ## End experimenting ----------------------------------
 }
 
 
