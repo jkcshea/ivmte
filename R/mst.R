@@ -2943,25 +2943,31 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     subset = subset_index,
                                     means = FALSE)
             }
+            sweight0 <- list(lb = pmodobj,
+                             ub = 1,
+                             multiplier = sest$sw0[, j])
         } else {
             gs0 <- NULL
         }
-
+        
         if (!is.null(pm1)) {
             if (means == TRUE) {
                 gs1 <- genGamma(monomials = pm1,
-                                    lb = 0,
-                                    ub = pmodobj,
-                                    multiplier = sest$sw1[, j],
-                                    subset = subset_index)
+                                lb = 0,
+                                ub = pmodobj,
+                                multiplier = sest$sw1[, j],
+                                subset = subset_index)
             } else {
                 gs1 <- genGamma(monomials = pm1,
-                                    lb = 0,
-                                    ub = pmodobj,
-                                    multiplier = sest$sw1[, j],
-                                    subset = subset_index,
-                                    means = FALSE)
+                                lb = 0,
+                                ub = pmodobj,
+                                multiplier = sest$sw1[, j],
+                                subset = subset_index,
+                                means = FALSE)
             }
+            sweight1 <- list(lb = 0,
+                             ub = pmodobj,
+                             multiplier = sest$sw1[, j])
         } else {
             gs1 <- NULL
         }
@@ -2999,18 +3005,15 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                              d = 1,
                                              means = FALSE)$gamma
         }
-
-        ## generate average weights
-        avgweight <- c(mean(sest$sw0[, j]), mean(sest$sw1[, j]))
-        names(avgweight) <- c("sw0", "sw1")
-
+       
         ## generate components of constraints
         if (means == TRUE) {
             sset[[paste0("s", scount)]] <- list(ivspec = ivn,
                                                 beta = sest$beta[j],
                                                 g0 = c(gs0, gsSpline0),
                                                 g1 = c(gs1, gsSpline1),
-                                                avgweight = avgweight)
+                                                w0 = sweight0,
+                                                w1 = sweight1)
         } else {
             ## Now generate the vectors for Y * S(D, Z).
 
@@ -3032,7 +3035,8 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                 g0 = cbind(gs0, gsSpline0),
                                                 g1 = cbind(gs1, gsSpline1),
                                                 ys = yvec,
-                                                avgweight = avgweight)
+                                                w0 = sweight0,
+                                                w1 = sweight1)
         }
 
         ## update counter (note scount is not referring
