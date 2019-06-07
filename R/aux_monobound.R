@@ -10,27 +10,6 @@ alldup <- function (data) {
     duplicated(data) | duplicated(data, fromLast = TRUE)
 }
 
-#' Auxiliary function: matching rows in data to a vector
-#'
-#' For a given vector \code{match}, this function returns a binary
-#' indicator for each row in \code{data}, telling you whether or not
-#' that row matches the entries in the vector \code{match}. Note this
-#' assumes that \code{data} and \code{match} have the same column
-#' order.
-#' @param data \code{data.frame} whose rows will be compared against a
-#'     given vector to determine whether or not they are identical in
-#'     values.
-#' @param match the vector against which \code{data} will be compared
-#'     against.
-#' @return binary vector, each element indicating whether the
-#'     corresponding row in \code{data} matches the vector
-#'     \code{match}.
-matchrow <- function(data, match) {
-    if(class(data) != "matrix") data <- as.matrix(data)
-    matches <- lapply(split(data, seq(1, nrow(data))), "==", match)
-    return(as.integer(unlist(lapply(matches, sum)) == length(match)))
-}
-
 #' Auxiliary function: grouping rows in data
 #'
 #' Auxiliary function that takes in \code{data}, and assigns a group
@@ -52,16 +31,22 @@ matchrow <- function(data, match) {
 #'     within each group is also included.
 groupby <- function(data, variables, groupname = ".mst.monog",
                     countname = ".mst.monoc", count = TRUE) {
-
     uniquevals <- unique(data[, variables])
-    if (class(uniquevals) != "matrix") uniquevals <- as.matrix(uniquevals)
+    if (! "data.frame" %in% class(uniquevals)) uniquevals <-
+                                                   data.frame(uniquevals)
     keys <- seq(1, nrow(uniquevals))
     uniquevals <- split(uniquevals, keys)
-    grouplist <- lapply(uniquevals, matchrow, data = data[, variables])
-    data[, groupname] <-  rowSums(mapply("*", grouplist, keys))
+    grouplist <- match(split(data[, variables], seq(1, nrow(data))),
+                       uniquevals)
+    data[, groupname] <- grouplist
     if (count == TRUE) {
-        data[, countname] <- rowSums(mapply("*", grouplist,
-                                            lapply(grouplist, cumsum)))
+        gunique <- unique(grouplist)
+        countlist <- rep(0, length(grouplist))
+        for(i in gunique) {
+            pos <- which(grouplist == i)
+            countlist[pos] <- seq(1, length(pos))
+        }
+        data[, countname] <- countlist
     }
     return(data)
 }
@@ -95,7 +80,6 @@ maxminmatch <- function(data,
     typevals <- aggregate(as.formula(paste(count, "~", group)), data, type)
     keys <- seq(1, nrow(typevals))
     typevals <- split(typevals, keys)
-    return(Reduce("+", lapply(typevals,
-                              matchrow,
-                              data = data[, c(group, count)])))
+    return(match(typevals,
+          split(data[, c(group, count)], seq(1, nrow(data)))))
 }

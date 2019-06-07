@@ -324,8 +324,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                             'mte.ub', 'mte.lb',
                             'm0.dec', 'm0.inc',
                             'm1.dec', 'm1.inc',
-                            'mte.dec', 'mte.inc')
-
+                            'mte.dec', 'mte.inc')       
         monoboundAcall <- modcall(call,
                               newcall = genmonoboundA,
                               keepargs = monoboundAlist,
@@ -436,7 +435,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (noisy) {
             message(paste("    Minimum criterion:", fmtResult(minobseq$obj)))
         }
-
         ## Obtain bounds
         if (noisy) {
             message("    Obtaining bounds...")
@@ -449,7 +447,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                            lpsolver = lpsolver)
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
-
         optstatus <- min(c(lpresult$minstatus,
                            lpresult$maxstatus))
 

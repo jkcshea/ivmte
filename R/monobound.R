@@ -285,27 +285,20 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
 #'     dimension.
 #' @return a matrix representing the monotonicity restrictions.
 diffA <- function(A, monogrid, sn, d, ndcols) {
-
     A_mono <- as.matrix(A[rownames(monogrid),])
-
-    A_max  <- A_mono[!as.logical(maxminmatch(monogrid,
-                                             ".mst.monoc",
-                                             ".mst.monog",
-                                             min)), ]
-
-    A_min  <- A_mono[!as.logical(maxminmatch(monogrid,
-                                             ".mst.monoc",
-                                             ".mst.monog",
-                                             max)), ]
-
+    A_max  <- A_mono[maxminmatch(monogrid,
+                                 ".mst.monoc",
+                                 ".mst.monog",
+                                 min), ]
+    A_min  <- A_mono[maxminmatch(monogrid,
+                                 ".mst.monoc",
+                                 ".mst.monog",
+                                 max), ]
     mono   <- as.matrix(A_max - A_min)
-
     if (length(rownames(mono)) == length(colnames(A))) {
         if (min(rownames(mono) == colnames(A))) mono <- t(mono)
     }
-
     if (is.null(dim(mono))) mono <- t(as.matrix(mono))
-
     if (d == 0) monoA <- cbind(matrix(0, nrow = nrow(mono), ncol = 2 * sn),
                                mono,
                                matrix(0, nrow = nrow(mono), ncol = ndcols))
@@ -361,7 +354,6 @@ stackA <- function(A0, A1, sset, monogrid, gstar0, gstar1,
                          mte.inc) {
 
     sn <- length(sset)
-
     namesA0 <- colnames(A0)
     namesA1 <- colnames(A1)
     namesA  <- c(seq(1, 2 * sn),
@@ -383,7 +375,6 @@ stackA <- function(A0, A1, sset, monogrid, gstar0, gstar1,
     monoA1seq <- NULL
     monoAteseq <- NULL
     countseq  <- 0
-
     ## Generate the constraint matrices ("A" in Gurobi)
     ## corresponding to the monotonicity constraints
     ## A matrix for monotonicity of m0
@@ -413,7 +404,6 @@ stackA <- function(A0, A1, sset, monogrid, gstar0, gstar1,
         colnames(monoAte) <- namesA
         monoAteseq <- seq(1, nrow(monoAte)) + countseq
     }
-
     ## Now generate the model sense vectors
     if (try(m0.inc, silent = TRUE) == TRUE) {
         mono0s <- replicate(nrow(monoA0), ">=")
@@ -433,7 +423,6 @@ stackA <- function(A0, A1, sset, monogrid, gstar0, gstar1,
     if (try(mte.dec, silent = TRUE) == TRUE) {
         monotes <- replicate(nrow(monoAte), "<=")
     }
-
     ## Combine matrices and return
     monoA <- rbind(monoA0, monoA1, monoAte)
     monos   <- c(mono0s, mono1s, monotes)
@@ -497,12 +486,10 @@ genmonoA <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     grid <- gridobj$grid
     othercols <- colnames(grid)[(colnames(grid) != monov) &
                                 (colnames(grid) != ".grid.order")]
-
     colorder  <- c(othercols, monov)
     cmdorder <- paste0("order", "(", paste(colorder, collapse = ", "), ")")
     grid$.grid.index <- gridobj$map
     grid <- grid[with(grid, eval(parse(text = cmdorder))), ]
-
     ## Now group the rows by the combinations of all other variables
     ## other than the variable we are imposing monotonicity on
     if (length(othercols) > 0) {
@@ -513,19 +500,15 @@ genmonoA <- function(A0, A1, sset, gridobj, gstar0, gstar1,
         monogrid$.mst.monog <- 1
         monogrid$.mst.monoc <- seq(1, nrow(monogrid))
     }
-
     add.audit.x <- length(unique(monogrid$.mst.monog))
     add.audit.i <- nrow(monogrid) / add.audit.x
     uvec <- monogrid[1:add.audit.i, monov]
-
     umap <- cbind(uvec[-length(uvec)], uvec[-1])
     umap <- do.call("rbind", rep(list(umap), add.audit.x))
-
     ## obtain the map (simply need to drop one row from every
     ## group, so just drop the row for which count == 1)
     monomap <- monogrid[monogrid$.mst.monoc > 1, ]$.grid.index
     monogrid$.grid.index <- NULL
-
     ## Now we can construct the matrices for monotonicity
     arglist  <- c("sset",
                   "gstar0", "gstar1",
@@ -542,12 +525,10 @@ genmonoA <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                                         A1 = quote(A1),
                                         monogrid = quote(monogrid)))
     monoA <- eval(monoAcall)
-
     ## expand the map for monotonicity constraints accordingly.
     monoargs <- length(which(match(monolist, names(call), 0) > 0))
     monomap  <- rep(monomap, times = monoargs)
     umap <- do.call("rbind", rep(list(umap), monoargs))
-
     return(list(A = monoA$A,
                 sense = monoA$sense,
                 rhs = monoA$rhs,
@@ -665,7 +646,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                           m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc) {
 
     call <- match.call()
-
     if (is.null(grid_index)) {
         noX <- TRUE
     } else {
@@ -685,7 +665,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                uvec,
                                uname)
     }
-
     if (is.null(splines[[1]]) & is.null(splines[[2]])) {
         A0 <- design(formula = m0, data = gridobj$grid)$X
         A1 <- design(formula = m1, data = gridobj$grid)$X
@@ -698,14 +677,12 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
 
         A0 <- cbind(A0, .grid.order = seq(1, nrow(A0)))
         A1 <- cbind(A1, .grid.order = seq(1, nrow(A1)))
-
         basisList <- list(genBasisSplines(splines = splines[[1]],
                                               x = uvec,
                                               d = 0),
                           genBasisSplines(splines = splines[[2]],
                                               x = uvec,
                                               d = 1))
-
         ## Generate interaction with the splines.
         ## Indexing in the loops takes the following structure:
         ## j: splines index
@@ -873,6 +850,5 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     output$mono0seq <- mono0seq + boundLength
     output$mono1seq <- mono1seq + boundLength
     output$monomteseq <- monomteseq + boundLength
-
     return(output)
 }
