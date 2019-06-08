@@ -285,7 +285,7 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
 #'     dimension.
 #' @return a matrix representing the monotonicity restrictions.
 diffA <- function(A, monogrid, sn, d, ndcols) {
-    A_mono <- as.matrix(A[rownames(monogrid),])
+    A_mono <- as.matrix(A[rownames(monogrid),])    
     A_max  <- A_mono[maxminmatch(monogrid,
                                  ".mst.monoc",
                                  ".mst.monog",

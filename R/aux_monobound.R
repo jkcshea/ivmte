@@ -68,7 +68,7 @@ groupby <- function(data, variables, groupname = ".mst.monog",
 #'     row within a group.
 #' @param group string of column name indicating the group of each
 #'     row.
-#' @param type input \code{"max"} to tag the row in each group with
+#' @param typeaud input \code{"max"} to tag the row in each group with
 #'     the largest rank, and \code{"min"} to tag the row in each group
 #'     with the smallest rank.
 #' @return A binary vector indicating whether or not each
