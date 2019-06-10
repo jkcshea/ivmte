@@ -58,19 +58,40 @@ propensity <- function(formula, data, link = "logit", late.Z,
     if (length(formula)[1] == 1 & length(formula)[2] == 1) {
 
         ## obtain design matrix
-        if (link == "linear") prop <-  lm(formula, data)
+        if (link == "linear") prop <-  lm(formula, data, x = FALSE, y = FALSE)
         if (link == "logit")  prop <- glm(formula,
                                           family = binomial(link = "logit"),
-                                          data)
+                                          data, x = FALSE, y = FALSE)
         if (link == "probit") prop <- glm(formula,
                                           family = binomial(link = "probit"),
-                                          data)
-
+                                          data, x = FALSE, y = FALSE)
         phat <- prop$fitted.values
-
         phat[which(phat < 0)] <- 0
         phat[which(phat > 1)] <- 1
-
+        
+        ## Reduce the size of the object returned
+        prop$residuals <- NULL
+        prop$fitted.values <- NULL
+        prop$effects <- NULL
+        prop$linear.predictors <- NULL
+        prop$weights <- NULL
+        prop$prior.weights <- NULL
+        prop$data <- NULL
+        prop$R <- NULL
+        ## prop$deviance <- NULL
+        ## prop$aic <- NULL
+        ## prop$null.deviance <- NULL
+        prop$iter <- NULL
+        prop$df.null <- NULL
+        prop$df.residual <- NULL
+        prop$converged <- NULL
+        prop$boundary <- NULL
+        prop$offset <- NULL
+        prop$control <- NULL
+        prop$method <- NULL
+        prop$contrasts <- NULL
+        prop$xlevels <- NULL
+        
         return(list(model = prop, phat = phat))
 
     } else if (length(formula)[1] == 0 & length(formula)[2] == 1) {
@@ -91,7 +112,7 @@ propensity <- function(formula, data, link = "logit", late.Z,
 
         pname <- all.vars(formula)
 
-        ## Check that the variable is indeed a proepnsity,
+        ## Check that the variable is indeed a propensity,
         ## i.e. bounded between 0 and 1
         phat <- data[[pname]]
         names(phat) <- rownames(data)
