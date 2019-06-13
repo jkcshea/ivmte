@@ -3,5 +3,7 @@ inst/doc
 .Rhistory
 .RData
 
+*.html
+
 *.*~
 data/
