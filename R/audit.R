@@ -463,6 +463,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Generate a new grid for the audit
         a_uvec <- round(runif(audit.nu), 8)
 
+        ## Experimenting -------------------------------------------------------
+        message("\nHead of audit U-vector (rounded to 4 dp)")
+        print(head(round(sort(a_uvec), digits = 4)))
+        ## End experimenting ---------------------------------------------------
+
         if (noX) {
             a_grid <- data.frame(a_uvec)
             colnames(a_grid) <- uname
@@ -572,13 +577,27 @@ audit <- function(data, uname, m0, m1, splinesobj,
             equality <- mapply(all.equal, (a_mbA %*% solVecMin)[violatepos],
                                a_mbrhs[violatepos])
             violatevecMin[equality == TRUE] <- FALSE
+            vminvec <- table(violatevecMin)
+            eminvec <- c(sum(equality != FALSE), sum(equality == TRUE))
         }
         if (sum(violatevecMax) > 0) {
             violatepos <- which(violatevecMax == TRUE)
             equality <- mapply(all.equal, (a_mbA %*% solVecMax)[violatepos],
                                a_mbrhs[violatepos])
             violatevecMax[equality == TRUE] <- FALSE
+            vmaxvec <- table(violatevecMin)
+            emaxvec <- c(sum(equality != FALSE), sum(equality == TRUE))
         }
+
+        ## Experimenting -------------------------------------------------------
+
+        evtable <- rbind(vminvec, eminvec, vmaxvec, emaxvec)
+        message("\nViolations/binding counts (TRUE = violate/binding)")
+        rownames(evtable) <- c("Min. violations", "Min. binding", "Max. violations", "Max. binding")
+        print(evtable)
+        
+        ## End experiment ------------------------------------------------------
+        
         violatevec <- violatevecMin + violatevecMax
         violate <- as.logical(sum(violatevec))
         if (violate) {

@@ -386,7 +386,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
         umap <- rbind(umap, cbind(gridobj$grid[uMinIndex, uname],
                                   gridobj$grid[uMaxIndex, uname]))
     }
-
+   
     ## Now generate the model sense vectors
     if (try(m0.inc, silent = TRUE) == TRUE) {
         mono0s <- replicate(nrow(monoA0), ">=")
@@ -410,7 +410,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     monoA <- rbind(monoA0, monoA1, monoAte)
     monos   <- c(mono0s, mono1s, monotes)
     monorhs <- c(mono0z, mono1z, monotez)
-
+    
     return(list(A = monoA,
                 sense = monos,
                 rhs = monorhs,
@@ -589,8 +589,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                                             iName,
                                                             ".grid.order")],
                                     bmat, by = uname)
-                            print("this is bmat")
-                            print(bmat)
 
                             bmat[, 4:ncol(bmat)] <-
                                 sweep(x = bmat[, 4:ncol(bmat)],
@@ -600,8 +598,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                             namesB <- paste0(colnames(bmat)[4:ncol(bmat)],
                                              ":", iName)
                             colnames(bmat)[4:ncol(bmat)] <- namesB
-                            print("this is updated bmat")
-                            print(bmat)
                             newA <- merge(get(paste0("A", d)),
                                           bmat[, c(".grid.order", namesB)],
                                           by = ".grid.order")
