@@ -297,21 +297,14 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
 #' @return a matrix representing the monotonicity restrictions.
 diffA <- function(A, monogrid, sn, d, ndcols) {
     A_mono <- as.matrix(A[rownames(monogrid),])
-    A_max  <- A_mono[maxminmatch(monogrid,
+    A_max  <- A_mono[-maxminmatch(monogrid,
                                  ".mst.monoc",
                                  ".mst.monog",
                                  min), ]
-    print("this is A max")
-    print(A_max)
-    
-    A_min  <- A_mono[maxminmatch(monogrid,
+    A_min  <- A_mono[-maxminmatch(monogrid,
                                  ".mst.monoc",
                                  ".mst.monog",
                                  max), ]
-
-    print("this is A min")
-    print(A_min)
-    
     mono   <- as.matrix(A_max - A_min)
     if (length(rownames(mono)) == length(colnames(A))) {
         if (min(rownames(mono) == colnames(A))) mono <- t(mono)
@@ -399,11 +392,6 @@ stackA <- function(A0, A1, sset, monogrid, gstar0, gstar1,
     if ((hasArg(m0.inc) && m0.inc == TRUE) |
         (hasArg(m0.dec) && m0.dec == TRUE)) {
         monoA0 <- diffA(A0, monogrid, sn, 0, length(gstar1))
-
-        print("This is mono A0")
-        print(monoA0)
-        stop("end of test")
-        
         mono0z <- replicate(nrow(monoA0), 0)
         colnames(monoA0) <- namesA
         monoA0seq <- seq(1, nrow(monoA0))
@@ -499,7 +487,7 @@ stackA <- function(A0, A1, sset, monogrid, gstar0, gstar1,
 #' @return constraint matrix for the LP problem. The matrix pertains
 #'     only to the monotonicity conditions on the MTR and MTE declared
 #'     by the user.
-genmonoA <- function(A0, A1, sset, gridobj, gstar0, gstar1,
+genmonoA_old <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                      m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
                      mte.inc, monov) {
 
@@ -507,16 +495,16 @@ genmonoA <- function(A0, A1, sset, gridobj, gstar0, gstar1,
     ## below (this is one way to construct the constraint matrices
     ## for monotonicity)
     grid <- gridobj$grid
-    
+
     grid$.u.order <- NULL ## EXPERIMENTING
-    
+
     othercols <- colnames(grid)[(colnames(grid) != monov) &
                                 (colnames(grid) != ".grid.order")]
     colorder  <- c(othercols, monov)
     cmdorder <- paste0("order", "(", paste(colorder, collapse = ", "), ")")
     grid$.grid.index <- gridobj$map
     grid <- grid[with(grid, eval(parse(text = cmdorder))), ]
-    
+
     ## Now group the rows by the combinations of all other variables
     ## other than the variable we are imposing monotonicity on
     if (length(othercols) > 0) {
@@ -567,16 +555,59 @@ genmonoA <- function(A0, A1, sset, gridobj, gstar0, gstar1,
                 monoteseq = monoA$monoteseq))
 }
 
-genmonoA2 <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
+
+#' Generate LP components of the monotonicity constraints
+#'
+#' This function generates the matrix and vectors associated with the
+#' monotonicity constraints declared by the user. It takes in a grid
+#' of the covariates on which we define the LP constraints, and then
+#' calculates the values of the MTR and MTE over the grid. The
+#' matrices characterizing the monotonicity conditions can then be
+#' obtained by taking first differences over the grid of the
+#' unobservable term, within each set of values in the grid of
+#' covariate values.
+#' @param A0 the matrix of values from evaluating the MTR for control
+#'     observations over the grid generated to perform the audit. This
+#'     matrix will be incorporated into the final constraint matrix
+#'     for the monotonicity conditions.
+#' @param A1 the matrix of values from evaluating the MTR for control
+#'     observations over the grid generated to perform the audit. This
+#'     matrix will be incorporated into the final constraint matrix
+#'     for the monotonicity conditions.
+#' @param sset a list containing the point estimates and gamma
+#'     components associated with each element in the S-set.
+#' @param uname Name of unobserved variable.
+#' @param gridobj a list containing the grid over which the
+#'     monotonicity and boundedness conditions are imposed on.
+#' @param gstar0 set of expectations for each terms of the MTR for the
+#'     control group.
+#' @param gstar1 set of expectations for each terms of the MTR for the
+#'     control group.
+#' @param m0.dec boolean, indicating whether the MTR for the control
+#'     group is monotone decreasing.
+#' @param m0.inc boolean, indicating whether the MTR for the control
+#'     group is monotone increasing.
+#' @param m1.dec boolean, indicating whether the MTR for the treated
+#'     group is monotone decreasing.
+#' @param m1.inc boolean, indicating whether the MTR for the treated
+#'     group is monotone increasing.
+#' @param mte.dec boolean, indicating whether the MTE is monotone
+#'     decreasing.
+#' @param mte.inc boolean, indicating whether the MTE is monotone
+#'     increasing.
+#' @return constraint matrix for the LP problem. The matrix pertains
+#'     only to the monotonicity conditions on the MTR and MTE declared
+#'     by the user.
+genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                      m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
-                     mte.inc, monov) {
+                     mte.inc) {
 
     un <- length(unique(gridobj$grid[, uname]))
 
     ## Construct index for calculating first differences
     uMaxIndex <- seq(1, nrow(A0))[-seq(from = 1, to = nrow(A0), by = un)]
     uMinIndex <- seq(1, nrow(A0))[-seq(from = un, to = nrow(A0), by = un)]
-    
+
     ## Generate place holders for the matrices representing monotonicity
     monoA0  <- NULL
     monoA1  <- NULL
@@ -594,7 +625,7 @@ genmonoA2 <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
 
     monomap <- NULL
     umap <- NULL
-    
+
     ## This matrix should include all the additions 0s on the left
     ## columns
     sn <- length(sset)
@@ -610,7 +641,7 @@ genmonoA2 <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
         (hasArg(m0.dec) && m0.dec == TRUE)) {
         monoA0 <- A0[uMaxIndex, ] - A0[uMinIndex, ]
         monoA0 <- cbind(matrix(0, nrow = nrow(monoA0), ncol = 2 * sn),
-                        monoA0,          
+                        monoA0,
                         matrix(0, nrow = nrow(monoA0), ncol = ncol(A1)))
         mono0z <- replicate(nrow(monoA0), 0)
         monoA0seq <- seq(1, nrow(monoA0))
@@ -628,7 +659,7 @@ genmonoA2 <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                         matrix(0, nrow = nrow(monoA1), ncol = ncol(A1)),
                         monoA1)
         mono1z <- replicate(nrow(monoA1), 0)
-        monoA1seq <- seq(1, nrow(monoA1))
+        monoA1seq <- seq(1, nrow(monoA1)) + countseq
         colnames(monoA1) <- namesA
         countseq <- countseq + nrow(monoA1)
         monomap <- c(monomap, gridobj$map[uMinIndex])
@@ -648,8 +679,9 @@ genmonoA2 <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
         monoAteseq <- seq(1, nrow(monoAte)) + countseq
         monomap <- c(monomap, gridobj$map[uMinIndex])
         umap <- rbind(umap, cbind(gridobj$grid[uMinIndex, uname],
-                                  gridobj$grid[uMaxIndex, uname]))        
+                                  gridobj$grid[uMaxIndex, uname]))
     }
+    
     ## Now generate the model sense vectors
     if (try(m0.inc, silent = TRUE) == TRUE) {
         mono0s <- replicate(nrow(monoA0), ">=")
@@ -673,7 +705,7 @@ genmonoA2 <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     monoA <- rbind(monoA0, monoA1, monoAte)
     monos   <- c(mono0s, mono1s, monotes)
     monorhs <- c(mono0z, mono1z, monotez)
-    
+
     return(list(A = monoA,
                 sense = monos,
                 rhs = monorhs,
@@ -966,28 +998,10 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                             A1 = quote(A1),
                                             sset = quote(sset),
                                             gridobj = quote(gridobj),
-                                            monov = quote(monov),
-                                            gstar0 = quote(gstar0),
-                                            gstar1 = quote(gstar1)))
-        monoA <- eval(monoAcall)
-        print("monoA1-----------------------------------------------------")
-        print(monoA)
-
-        monoAcall <- modcall(call,
-                             newcall = genmonoA2,
-                             keepargs = monolist,
-                             newargs = list(A0 = quote(A0),
-                                            A1 = quote(A1),
-                                            sset = quote(sset),
-                                            gridobj = quote(gridobj),
                                             uname = uname,
-                                            monov = quote(monov),
                                             gstar0 = quote(gstar0),
                                             gstar1 = quote(gstar1)))
         monoA <- eval(monoAcall)
-        print("monoA2-------------------------------------------------------")
-        print(monoA)
-        stop("end of test")
     }
 
     ## Update bound sequence counts

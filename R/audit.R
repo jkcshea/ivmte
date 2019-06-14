@@ -563,6 +563,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Test for violations
         violatevecMin <- mapply(">", (a_mbA %*% solVecMin), a_mbrhs)
         violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)
+        
         ## Deal with special cases where constraints may be
         ## binding, and machine precision fails to recognize this
         ## and treats it as a violation
