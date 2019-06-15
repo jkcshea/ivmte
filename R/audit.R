@@ -366,8 +366,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             ## binding, and machine precision fails to recognize this
             ## and treats it as a violation
             if (sum(violatevec) > 0) {
-                equality <- mapply(all.equal, (mbA %*% solVec)[violatevec],
-                                   mbrhs[violatevec])
+                equality <- mapply(all.equal, (mbA %*% solVec), mbrhs)
                 violatevec[equality == TRUE] <- FALSE
             }
             violatepos <- which(violatevec == TRUE)
@@ -446,6 +445,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
                            lpobj = lpobj,
                            obseq.factor = minobseq$obj * (1 + obseq.tol),
                            lpsolver = lpsolver)
+
+        message("\nlpresult size:")
+        print(lapply(lpresult, object.size), units = "MB")
+        
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
         optstatus <- min(c(lpresult$minstatus,
@@ -567,26 +570,36 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
         ## Test for violations
         violatevecMin <- mapply(">", (a_mbA %*% solVecMin), a_mbrhs)
-        violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)
+        violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)        
         
         ## Deal with special cases where constraints may be
         ## binding, and machine precision fails to recognize this
         ## and treats it as a violation
         if (sum(violatevecMin) > 0) {
-            violatepos <- which(violatevecMin == TRUE)
-            equality <- mapply(all.equal, (a_mbA %*% solVecMin)[violatepos],
-                               a_mbrhs[violatepos])
-            violatevecMin[equality == TRUE] <- FALSE
-            vminvec <- table(violatevecMin)
-            eminvec <- c(sum(equality != FALSE), sum(equality == TRUE))
+            ## violatepos <- which(violatevecMin == TRUE)
+            ## equality <- mapply(all.equal, (a_mbA %*% solVecMin)[violatepos],
+            ##                    a_mbrhs[violatepos])
+            ## violatevecMin[equality == TRUE] <- FALSE
+            ## Experimenting -------------
+            eqmin <- mapply(all.equal, (a_mbA %*% solVecMin), a_mbrhs)
+            violatevecMin[eqmin == TRUE] <- FALSE
+            equality <- eqmin
+            ## End experimenting ---------
+            vminvec <- c(sum(violatevecMin != TRUE), sum(violatevecMin == TRUE))
+            eminvec <- c(sum(equality != TRUE), sum(equality == TRUE))
         }
         if (sum(violatevecMax) > 0) {
-            violatepos <- which(violatevecMax == TRUE)
-            equality <- mapply(all.equal, (a_mbA %*% solVecMax)[violatepos],
-                               a_mbrhs[violatepos])
-            violatevecMax[equality == TRUE] <- FALSE
-            vmaxvec <- table(violatevecMin)
-            emaxvec <- c(sum(equality != FALSE), sum(equality == TRUE))
+            ## violatepos <- which(violatevecMax == TRUE)
+            ## equality <- mapply(all.equal, (a_mbA %*% solVecMax)[violatepos],
+            ##                    a_mbrhs[violatepos])
+            ## violatevecMax[equality == TRUE] <- FALSE
+            ## Experimenting -------------
+            eqmax <- mapply(all.equal, (a_mbA %*% solVecMax), a_mbrhs)
+            violatevecMax[eqmax == TRUE] <- FALSE
+            equality <- eqmax
+            ## End experimenting ---------
+            vmaxvec <- c(sum(violatevecMax != TRUE), sum(violatevecMax == TRUE))
+            emaxvec <- c(sum(equality != TRUE), sum(equality == TRUE))
         }
 
         ## Experimenting -------------------------------------------------------
