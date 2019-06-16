@@ -272,7 +272,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                      ## other covariates
     uvec    <- round(seq(0, 1, length.out = grid.nu), 8)
     xvars   <- unique(vars_mtr)
-
     xvars   <- xvars[xvars != uname]
     otherx  <- xvars[xvars != monov]
     support <- unique(data[, xvars])

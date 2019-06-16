@@ -2215,7 +2215,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
         ## Obtain GMM estimate
-        gmmResult <- gmmEstimate(sset = sset,
+        gmmResult <- gmmEstimate2(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
                                  noisy = noisy)
@@ -3228,6 +3228,90 @@ gmmEstimate <- function(sset, gstar0, gstar1, noisy = TRUE) {
     }
     return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta))
+}
+
+
+gmmEstimate2 <- function(sset, gstar0, gstar1, noisy = TRUE) {
+ 
+    gn0 <- ncol(gstar0)
+    gn1 <- ncol(gstar1)
+
+    momentMatrix <- function() {
+        ## This function constructs the matrix to be fed into the GMM
+        ## estimator.
+        momentMatrix <- NULL
+        momentNames <- NULL
+        for (s in 1:length(sset)) {
+            momentMatrix <- cbind(momentMatrix,
+                                  sset[[s]]$ys , sset[[s]]$g0,  sset[[s]]$g1)
+            momentNames <- c(momentNames,
+                             paste0("s", s, "y"),
+                             paste0("s", s, "g0", seq(1, gn0)),
+                             paste0("s", s, "g1", seq(1, gn1)))
+        }
+        for (k in 1:gn0) {
+            momentMatrix <- cbind(momentMatrix, gstar0[, k])
+            momentNames <- c(momentNames, paste0("g0", k))
+        }
+        for (k in 1:gn1) {
+            momentMatrix <- cbind(momentMatrix, gstar1[, k])
+            momentNames <- c(momentNames, paste0("g1", k))
+        }
+        colnames(momentMatrix) <- momentNames
+        return(momentMatrix)
+    }
+
+    ## The theta vector stores the parameters in the following order:
+    ## (i) coefficients for m0; (ii) coefficients for m1; (iii)
+    ## gamma-stars for m0; (iv) gamma-stars for m1.
+    momentConditions <- function(theta, data) {
+        momentMatrix <- NULL
+        for (s in 1:length(sset)) {
+            yvec <- data[, paste0("s", s, "y")]
+            gmat <- data[, c( paste0("s", s, "g0", seq(1, gn0)),
+                             paste0("s", s, "g1", seq(1, gn1)))]
+            momentMatrix <- cbind(momentMatrix,
+                                  yvec - gmat %*% theta[1:(gn0 + gn1)])
+        }
+        for (k in 1:gn0) {
+            momentMatrix <- cbind(momentMatrix,
+                                  data[, paste0("g0", k)] -
+                                  theta[(gn0 + gn1 + 1):(2 * gn0 + gn1)])
+        }
+        for (k in 1:gn1) {
+            momentMatrix <- cbind(momentMatrix,
+                                  data[, paste0("g1", k)] -
+                                  theta[(2*gn0 + gn1 + 1):(2*gn0 + 2*gn1)])
+        }
+        return(momentMatrix)
+    }
+    
+    ## print(momentConditions(theta = rep(1, times = 28), momentMatrix()))
+    
+    print(gmm::gmm(momentCondition, x = momentMatrix()))
+    
+    stop("end of test")
+    
+    
+    N <- length(ids)
+    gmmMat <- gmmMat[order(gmmMat[, 1], gmmMat[, 2]), ]
+    rownames(gmmMat) <- gmmMat[, 1]
+    yMat   <- yMat[order(yMat[, 1], yMat[, 2]), ]
+    ids <- unique(gmmMat[, 1])
+    gmmCompN <- ncol(gmmMat) - 2
+    if (gmmCompN > length(sset)) {
+        stop(gsub("\\s+", " ",
+                  paste0("System is underidentified: excluding
+                         target moments, there are ",
+                         gmmCompN,
+                         " unknown parameters/MTR coefficients and ",
+                         length(sset),
+                         " moment conditions (defined by IV-like
+                         specifications). Either expand the number of
+                         IV-like specifications, or modify m0 and m1.")))
+    }
+    gmmMat <- gmmMat[, -c(1, 2)]
+    yMat   <- yMat[, -c(1, 2)]
 }
 
 #' Format result for display

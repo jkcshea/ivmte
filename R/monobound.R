@@ -597,9 +597,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                                             iName,
                                                             ".grid.order")],
                                     bmat, by = uname)
-                            print("this is bmat")
-                            print(bmat)
-
                             bmat[, 4:ncol(bmat)] <-
                                 sweep(x = bmat[, 4:ncol(bmat)],
                                       MARGIN = 1,
@@ -608,8 +605,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                             namesB <- paste0(colnames(bmat)[4:ncol(bmat)],
                                              ":", iName)
                             colnames(bmat)[4:ncol(bmat)] <- namesB
-                            print("this is updated bmat")
-                            print(bmat)
                             newA <- merge(get(paste0("A", d)),
                                           bmat[, c(".grid.order", namesB)],
                                           by = ".grid.order")
@@ -633,7 +628,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         rownames(A0) <- A0[, ".grid.order"]
         rownames(A1) <- A1[, ".grid.order"]
     }
-    print(head(A0))
     A0 <- A0[order(A0[, ".grid.order"]), ]
     A1 <- A1[order(A1[, ".grid.order"]), ]
 
