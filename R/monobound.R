@@ -538,7 +538,9 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     ## generate the first iteration of the grid
     if (noX) {
         grid <- data.frame(uvec)
-        colnames(grid) <- uname
+        grid$.grid.order <- seq(1, length(uvec))
+        grid$.u.order <- seq(1, length(uvec))
+        colnames(grid) <- c(uname, ".grid.order", ".u.order")
         grid_index <- rownames(grid)
         gridobj <- list(grid = grid,
                         map  = replicate(length(uvec), 1))
@@ -552,6 +554,12 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     if (is.null(splines[[1]]) & is.null(splines[[2]])) {
         A0 <- design(formula = m0, data = gridobj$grid)$X
         A1 <- design(formula = m1, data = gridobj$grid)$X
+        A0 <- cbind(A0,
+                    .grid.order = gridobj$grid$.grid.order,
+                    .u.order = gridobj$grid$.u.order)        
+        A1 <- cbind(A1,
+                    .grid.order = gridobj$grid$.grid.order,
+                    .u.order = gridobj$grid$.u.order)
     } else {
         m0 <- update(m0, as.formula(paste("~ . +", uname)))
         m1 <- update(m1, as.formula(paste("~ . +", uname)))
@@ -625,8 +633,9 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         rownames(A0) <- A0[, ".grid.order"]
         rownames(A1) <- A1[, ".grid.order"]
     }
-    A0 <- A0[order(A0$.grid.order), ]
-    A1 <- A1[order(A1$.grid.order), ]
+    print(head(A0))
+    A0 <- A0[order(A0[, ".grid.order"]), ]
+    A1 <- A1[order(A1[, ".grid.order"]), ]
 
     ## Rename columns so they match with the names in vectors gstar0
     ## and gstar1 (the problem stems from the unpredictable ordering
