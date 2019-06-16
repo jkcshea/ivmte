@@ -629,7 +629,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         rownames(A0) <- A0[, ".grid.order"]
         rownames(A1) <- A1[, ".grid.order"]
     }
-    print(head(A0))
     A0 <- A0[order(A0[, ".grid.order"]), ]
     A1 <- A1[order(A1[, ".grid.order"]), ]
 
