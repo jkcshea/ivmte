@@ -248,6 +248,9 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
     bdrhs <- c(m0lb,  m1lb,  telb,
                m0ub,  m1ub,  teub)
 
+    print("Boundedness constraint size")
+    print(dim(bdA))
+    
     return(list(A = bdA,
                 sense = bds,
                 rhs = bdrhs,
@@ -410,6 +413,9 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     monoA <- rbind(monoA0, monoA1, monoAte)
     monos   <- c(mono0s, mono1s, monotes)
     monorhs <- c(mono0z, mono1z, monotez)
+
+    print("Monotonicity constraint size")
+    print(dim(monoA))
     
     return(list(A = monoA,
                 sense = monos,
@@ -713,6 +719,8 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         monoA <- eval(monoAcall)
     }
 
+    print(head(monoA$umap))
+    
     ## Update bound sequence counts
     if (!is.null(bdA$lb0seq)) lb0seq <- bdA$lb0seq
     if (!is.null(bdA$lb1seq)) lb1seq <- bdA$lb1seq

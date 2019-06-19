@@ -397,9 +397,11 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
     ub <- split(replicate(nmono, ub), seq(length(ub)))
     lb <- split(replicate(nmono, lb), seq(length(lb)))
 
+    t0 <- Sys.time()
     monoeval <- t(mapply(polylisteval, integrals, ub)) -
         t(mapply(polylisteval, integrals, lb))
-
+    print(paste("Time to do integral:", Sys.time() - t0))
+    
     termsN <- length(integrals[[1]])
     if (termsN == 1) monoeval <- t(monoeval)
 
@@ -408,12 +410,12 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
     ## provided MTR objects include only one term, R transposes the
     ## matrix. So below I undo that transpose if the number of terms
     ## is 1.
-
+    t0 <- Sys.time()
     preGamma <- sweep(monoeval,
                       MARGIN = 1,
                       STATS = multiplier,
                       FUN = "*")
-
+    print(paste("Time to sweep multiplier:", Sys.time() - t0))
     if (means) {
         if (is.matrix(preGamma)) {
             gstar <- colMeans(preGamma)
