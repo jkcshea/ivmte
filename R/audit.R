@@ -335,15 +335,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                              uvec = uvec,
                                              splines = splines,
                                              monov = monov))
-        print("Generating monotonicity matrix---non-audit")
-        t0 <- Sys.time()
         mbobj <- eval(monoboundAcall)
-        print(paste("Time to for generating monotonciity constraints, minobseq:", Sys.time() - t0))
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
-        t0 <- Sys.time()
         minobseq  <- obsEqMin(sset, lpobj, lpsolver)
-        print(paste("Time for minobseq:", Sys.time() - t0))
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -444,19 +439,12 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (noisy) {
             message("    Obtaining bounds...")
         }
-        print("Dimension of constraint matrix")
-        print(dim(lpobj$A))
-        t0 <- Sys.time()
         lpresult  <- bound(g0 = gstar0,
                            g1 = gstar1,
                            sset = sset,
                            lpobj = lpobj,
                            obseq.factor = minobseq$obj * (1 + obseq.tol),
-                           lpsolver = lpsolver)
-        print(paste("Time to for solving bound:", Sys.time() - t0))
-        ## message("\nlpresult size:")
-        ## print(lapply(lpresult, object.size), units = "MB")
-        
+                           lpsolver = lpsolver)        
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
         optstatus <- min(c(lpresult$minstatus,
@@ -473,12 +461,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
         ## Generate a new grid for the audit
         a_uvec <- sort(round(runif(audit.nu), 8))
-
-        ## Experimenting -------------------------------------------------------
-        message("\nHead of audit U-vector (rounded to 4 dp)")
-        print(head(round(sort(a_uvec), digits = 4)))
-        ## End experimenting ---------------------------------------------------
-
         if (noX) {
             a_grid <- data.frame(a_uvec)
             colnames(a_grid) <- uname
@@ -568,10 +550,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                              uvec = a_uvec,
                                              splines = splines,
                                              monov = monov))
-        print("Generating monotonicity matrix---audit")
-        t0 <- Sys.time()
         a_mbobj <- eval(monoboundAcall)
-        print(paste("Time to for generating constraints, audit:", Sys.time() - t0))
         a_mbA <- a_mbobj$mbA[, (2 * sn + 1) : ncol(a_mbobj$mbA)]
 
         negatepos <- which(a_mbobj$mbs == ">=")
@@ -580,11 +559,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
         a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
 
         ## Test for violations
-        t0 <- Sys.time()
         violatevecMin <- mapply(">", (a_mbA %*% solVecMin), a_mbrhs)
-        violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)        
-        print(paste("Time to for checking for violations:", Sys.time() - t0))
-        
+        violatevecMax <- mapply(">", (a_mbA %*% solVecMax), a_mbrhs)                
         ## Deal with special cases where constraints may be
         ## binding, and machine precision fails to recognize this
         ## and treats it as a violation
@@ -625,38 +601,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
             vmaxvec <- c(length(a_mbrhs), 0)
             emaxvec <- c(length(a_mbrhs), 0)
         }
-        
-
-        ## Experimenting -------------------------------------------------------
-        evtable <- rbind(vminvec, eminvec, vmaxvec, emaxvec)
-        message("\nViolations/binding counts (TRUE = violate/binding)")
-        rownames(evtable) <- c("Min. violations", "Min. binding", "Max. violations", "Max. binding")
-        print(evtable)
-        
-        ## End experiment ------------------------------------------------------
         violatevec <- violatevecMin + violatevecMax        
         violate <- as.logical(sum(violatevec))
         violatevec <- as.logical(violatevec)
 
-
-        ## print(cbind(violatevecMin, violatevecMax, a_mbobj$mbumap))
-        
         if (violate) {
             violate_pos <- which(violatevec == TRUE)
-            ## print("violate pos")
-            ## print(head(violate_pos))
             violate_index <- unique(a_mbobj$mbmap[violate_pos])
-            ## print("mbmap")
-            ## print(cbind(a_mbobj$mbmap, violatevecMin, violatevecMax))            
-            ## print("violate index")
-            ## print(violate_index)
-            ## print("count of violated xs")
-            ## print(length(violate_index))
-            ## print("count of violated us")
-            ## print(length(unique(c(a_mbobj$mbumap[violate_pos, ]))))
-            ## print("umap")
-            ## print(a_mbobj$mbumap)
-            
             if (!noX) grid_index <- unique(c(grid_index, violate_index))
             if (!noX) {
                 grid_resid <- grid_resid[!grid_resid %in% violate_index]

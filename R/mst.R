@@ -234,7 +234,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## can be found in
     ## \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea and
     ## Torgovitsky (2019)}.
-    t0 <- Sys.time()
+    
     call <- match.call(expand.dots = FALSE)
 
     ##---------------------------
@@ -1238,8 +1238,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
-
-    print(paste("Parsing command:", Sys.time() - t0))
     
     ##---------------------------
     ## 5. Implement estimates
@@ -2044,7 +2042,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     }
 
     ## Estimate propensity scores
-    t0 <- Sys.time()
+    
     pcall <- modcall(call,
                      newcall = propensity,
                      keepargs = c("link", "late.Z", "late.X"),
@@ -2052,8 +2050,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                      newargs = list(data = quote(data),
                                     formula = propensity))
     pmodel <- eval(pcall)
-    
-    print(paste("Time to for propensity score:", Sys.time() - t0))
     
     ##---------------------------
     ## 2. Generate target moments/gamma terms
@@ -2064,7 +2060,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     }
 
     ## Parse polynomials
-    t0 <- Sys.time()
+    
     if (!is.null(m0)) {
         m0call <- modcall(call,
                           newcall = polyparse,
@@ -2086,7 +2082,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     } else {
         pm1 <- NULL
     }
-    print(paste("Time to for propensity parse polynomials:", Sys.time() - t0))
     
     ## Generate target weights
     if (!hasArg(target.weight0) & !hasArg(target.weight1)) {
@@ -2094,7 +2089,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         target.weight1 <- NULL
     }
 
-    t0 <- Sys.time()
+    
     if (is.null(target.weight0) & is.null(target.weight1)) {
         gentargetcall <- modcall(call,
                                  newcall = genTarget,
@@ -2131,7 +2126,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
-    print(paste("Time to for generating target gammas:", Sys.time() - t0))
     
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
@@ -2144,7 +2138,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
     scount <- 1     ## counter for S-set constraints
-    t0 <- Sys.time()
+    
     if (classList(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
@@ -2218,7 +2212,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
-    print(paste("Time to for S-set gammas:", Sys.time() - t0))
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
         ## Obtain GMM estimate
@@ -2235,8 +2228,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                gmmResult$pointestimate),
                     mtr.coef = gmmResult$coef))
     }
-
-    stop("end of test")
     
     ##---------------------------
     ## 4. Define constraint matrices using the audit
@@ -2300,14 +2291,13 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
     ## 5. Obtain the bounds
     ##---------------------------
-    t0 <- Sys.time()
+    
     audit <- eval(audit_call)
 
     if (noisy) {
         message(paste0("Bounds on the target parameter: [",
                        fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n"))
     }
-    print(paste("Time to for full audit::", Sys.time() - t0))
     ## include additional output material
     return(list(sset  = sset,
                 gstar = list(g0 = gstar0,
@@ -2931,20 +2921,12 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         yvar, dvar, noisy = TRUE, ivn = NULL) {
 
     if (!hasArg(subset_index)) subset_index <- NULL
-
-    timetable <- NULL ## EXPERIMENTING
-    
     for (j in 1:ncomponents) {
         if (noisy == TRUE) {
             message(paste0("    Moment ", scount, "..."))
-        }
-
-        timetableTmp <- NULL ## EXPERIMENTING
-        
-        t1 <- Sys.time()
-        
+        }        
         if (!is.null(pm0)) {
-            t0 <- Sys.time()
+            
             if (means == TRUE) {
                 gs0 <- genGamma(monomials = pm0,
                                     lb = pmodobj,
@@ -2959,8 +2941,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     subset = subset_index,
                                     means = FALSE)
             }
-            print(paste("Time to do full non-spline gamma 0, spec.", j, ":", Sys.time() - t0))
-            timetableTmp <- c(timetableTmp, Sys.time() - t0)
             sweight0 <- list(lb = pmodobj,
                              ub = 1,
                              multiplier = sest$sw0[, j])
@@ -2970,7 +2950,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         
         if (!is.null(pm1)) {
             if (means == TRUE) {
-                t0 <- Sys.time()
+                
                 gs1 <- genGamma(monomials = pm1,
                                 lb = 0,
                                 ub = pmodobj,
@@ -2984,16 +2964,14 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                 subset = subset_index,
                                 means = FALSE)
             }
-            print(paste("Time to do full non-spline gamma 1, spec.", j, ":", Sys.time() - t0))
-            timetableTmp <- c(timetableTmp, Sys.time() - t0)
-            sweight1 <- list(lb = 0,
+           sweight1 <- list(lb = 0,
                              ub = pmodobj,
                              multiplier = sest$sw1[, j])
         } else {
             gs1 <- NULL
         }
         if (means == TRUE) {
-            t0 <- Sys.time()
+            
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
                                          data = data,
                                          lb = pmodobj,
@@ -3001,9 +2979,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          multiplier = sest$sw0[, j],
                                          subset = subset_index,
                                          d = 0)$gamma
-            print(paste("Time to do full spline gamma 0, spec.", j, ":", Sys.time() - t0))
-            timetableTmp <- c(timetableTmp, Sys.time() - t0)
-            t0 <- Sys.time()
             gsSpline1 <- genGammaSplines(splines = splinesobj[[2]],
                                          data = data,
                                          lb = 0,
@@ -3011,8 +2986,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          multiplier = sest$sw1[, j],
                                          subset = subset_index,
                                          d = 1)$gamma
-            print(paste("Time to do full spline gamma 1, spec.", j, ":", Sys.time() - t0))
-            timetableTmp <- c(timetableTmp, Sys.time() - t0)
         } else {
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
                                          data = data,
@@ -3031,8 +3004,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          d = 1,
                                          means = FALSE)$gamma
         }
-        timetable <- rbind(timetable, timetableTmp)
-        t0 <- Sys.time()
+        
         ## generate components of constraints
         if (means == TRUE) {
             sset[[paste0("s", scount)]] <- list(ivspec = ivn,
@@ -3060,21 +3032,11 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                 w0 = sweight0,
                                                 w1 = sweight1)
         }
-        print(paste("Time to generate RHS, spec.", j, ":", Sys.time() - t0))
         ## update counter (note scount is not referring
         ## to the list of IV regressions, but the components
         ## from the IV regressions)
         scount <- scount + 1
-
-        print(paste("Time to do FULL gamma, spec.", j, ":", Sys.time() - t1))
     }
-
-    print(gs0)
-    print("Timetable")
-    print(timetable)
-    print("Timetable means")
-    print(colMeans(timetable))
-    
     return(list(sset = sset, scount = scount))
 }
 
