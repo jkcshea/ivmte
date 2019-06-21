@@ -468,11 +468,18 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     monos   <- c(monoList$mono0s, monoList$mono1s, monoList$monotes)
     monorhs <- c(monoList$mono0z, monoList$mono1z, monoList$monotez)
 
-    monomap <- matrix(monoList$monomap, ncol = 1)
-    colnames(monomap) <- c("grid.X.index")
-
-    umap <- monoList$umap
-    colnames(umap) <- c("u1", "u2")
+    if (!is.null(monoList$monomap)) {
+        monomap <- matrix(monoList$monomap, ncol = 1)
+        colnames(monomap) <- c("grid.X.index")
+    } else {
+        monomap <- NULL
+    }
+    if (!is.null(monoList$umap)) {
+        umap <- monoList$umap
+        colnames(umap) <- c("u1", "u2")
+    } else {
+        umap <- NULL
+    }
 
     if ((hasArg(m0.inc) && m0.inc == TRUE) |
         (hasArg(m0.dec) && m0.dec == TRUE)) {
@@ -482,7 +489,6 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     } else {
         mono0seq <- NULL
     }
-
     if ((hasArg(m1.inc) && m1.inc == TRUE) |
         (hasArg(m1.dec) && m1.dec == TRUE)) {
         mono1seq = monoList$monoA1seq
@@ -510,8 +516,6 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                 mono1seq = mono1seq,
                 monoteseq = monoteseq))
 }
-
-
 
 
 #' Combining the boundedness and monotonicity constraint objects
