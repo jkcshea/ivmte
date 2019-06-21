@@ -318,6 +318,65 @@ gendist4 <- function(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8) {
 
 
 
+#' Generate test distribution 5 (has errors and a covariate)
+#'
+#' This function generates a data set for testing purposes. There is a
+#' single instrument that takes on values of 1 or 2, and the
+#' distribution of the values for the binary instrument is
+#' uniform. The MTRs are both of the form m ~ 1 + x + u +
+#' uspline(degree = 2).
+#'@param N integer, default set to 100. Total number of observations
+#'     in the data.
+#' @param subN , default set to 0.5. This is the probability the agent
+#'     will have Z = 1.
+#' @param p1 the probability of treatment for those with the
+#'     instrument Z = 1.
+#' @param p2 the probability of treatment for those with the
+#'     instrument Z = 2.
+#' @param v0.sd numeric, standard deviation of error term for
+#'     counterfactual \code{D = 0}
+#' @param v1.sd numeric, standard deviation of error term for
+#'     counterfactual \code{D = 1}
+#' @return a data.frame.
+gendist5e <- function(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 1,
+                      v1.sd = 1.55) {
+
+    dt <- data.frame(z = runif(N),
+                     x = rnorm(N, mean = 1),
+                     u = runif(N))
+
+    ## First construct the instruments independently from U
+    dt$z  <- as.integer(dt$z > subN) + 1
+
+    dt$d <- 0
+    dt[dt$z == 1 & dt$u <= p1, "d"] <- 1
+    dt[dt$z == 2 & dt$u <= p2, "d"] <- 1
+
+    ## Now construct the error terms. The error terms are normally
+    ## distributed, centered at the draw of u if D = 0, and -u if D =
+    ## 1.
+    dt$v0 <- sapply(dt[, "u"], rnorm, n = 1, sd = v0.sd)
+    dt$v1 <- sapply(-dt[, "u"], rnorm, n = 1, sd = v1.sd)
+
+    ## Now construct the Y values
+    ## m0 = 3
+    ## m1 = 9
+    dt[dt$d == 0, "y"] <- 3 + 0.4 * dt[dt$d == 0, "x"] - 1.3 *
+        dt[dt$d == 0, "u"] + dt[dt$d == 0, "v0"]
+    dt[dt$d == 1, "y"] <- 9 + 0.3 * dt[dt$d == 1, "x"] - 0.9 *
+        dt[dt$d == 1, "u"] + dt[dt$d == 1, "v1"]
+
+    ## Label the types
+    dt[dt$d == 1 & dt$z == 1, "type"] <- 1
+    dt[dt$d == 0 & dt$z == 1, "type"] <- 2
+    dt[dt$d == 1 & dt$z == 2, "type"] <- 3
+    dt[dt$d == 0 & dt$z == 2, "type"] <- 4
+
+    return(dt)
+}
+
+
+
 #' Generate mosquito data set
 #'
 #' This code generates the population level data in Mogstad, Santos,

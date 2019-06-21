@@ -393,13 +393,23 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
     ## Determine bounds of integrals (i.e. include weights)
     if (length(ub) == 1) ub <- replicate(length(integrals), ub)
     if (length(lb) == 1) lb <- replicate(length(integrals), lb)
-
-    ub <- split(replicate(nmono, ub), seq(length(ub)))
-    lb <- split(replicate(nmono, lb), seq(length(lb)))
-
     
-    monoeval <- t(mapply(polylisteval, integrals, ub)) -
-        t(mapply(polylisteval, integrals, lb))
+    ## Original ------------------------------------------
+    ## ub <- split(replicate(nmono, ub), seq(length(ub)))
+    ## lb <- split(replicate(nmono, lb), seq(length(lb)))
+    ## monoeval <- t(mapply(polylisteval, integrals, ub)) -
+    ##     t(mapply(polylisteval, integrals, lb))
+    ## Experimenting -------------------------------------
+    nterm <- length(integrals[[1]])
+    monoeval <- NULL
+    for (j in 1:nterm) {
+        intTmp <- lapply(integrals, function(x) x[[j]])
+        ubInt <- mapply(predict, intTmp, ub)
+        lbInt <- mapply(predict, intTmp, lb)
+        monoeval <- cbind(monoeval, ubInt - lbInt)
+    }
+    ## End experimenting ---------------------------------
+    
     termsN <- length(integrals[[1]])
     if (termsN == 1) monoeval <- t(monoeval)
 
