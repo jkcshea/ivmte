@@ -2498,6 +2498,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                 message("    Integrating terms for control group...")
             }
             if (point == FALSE) {
+                ## gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
             } else {
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
