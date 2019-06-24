@@ -242,43 +242,15 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         oterms   <- c("(Intercept)", oterms)
     }
     polymat <- as.matrix(dmat[, oterms])
-    
-    ## prepare monomials and their integrals
-    polynomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                              genpolynomial,
-                              basis = exporder)
-
-    if (as.function == FALSE) {
-        monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                                genmonomial,
-                                basis = exporder)
-
-        integral_list <- lapply(monomial_list,
-                                lapply,
-                                polynom::integral)
-        names(integral_list) <- rownames(data)
-    } else {
-        monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                                genmonomial,
-                                basis = exporder,
-                                as.function = TRUE)
-
-        integral_list <- NULL
-    }
-
-    names(monomial_list) <- rownames(data)
 
     ## Generate index for non-U variables---this is used to avoid
     ## collinearity issues in the GMM estimate.
-
     xIndex <- unlist(lapply(nterms, function(x) {
         paste(sort(x), collapse = ":")
     }))
-
     xIndex[u_pos] <- unlist(lapply(nterms[u_pos], function(x) {
         paste(sort(x[which(x != uname)]), collapse = ":")
     }))
-
     if (length(uexp_pos) > 0) {
         xIndex[uexp_pos] <- unlist(lapply(seq(1, length(uexp_pos)),
             function(x) {
@@ -290,17 +262,12 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
             }
         }))
     }
-
     xIndex[xIndex == ""] <- "1"
-
     if ("(Intercept)" %in% colnames(dmat)) {
         xIndex <- c("1", xIndex)
     }
 
-    return(list(plist = polynomial_list,
-                mlist = monomial_list,
-                ilist = integral_list,
-                polymat = polymat,
+    return(list(polymat = polymat,
                 exporder = exporder,
                 xindex = xIndex,
                 terms = oterms))
@@ -327,114 +294,6 @@ polyProduct <- function(poly1, poly2) {
                                                prodMat[, x + 1],
                                                rep(0, maxAdd - x)))
     return(rowSums(prodMat))
-}
-
-#' Estimating expectations of terms in the MTR (gamma objects)
-#'
-#' This function generates the gamma objects defined in the paper,
-#' i.e. each additive term in E[md], where md is a MTR.
-#'
-#' @param monomials object containing list of list of monomials. Each
-#'     element of the outer list represents an observation in the data
-#'     set, each element in the inner list is a monomial from the
-#'     MTR. The variable is the unobservable u, and the coefficient is
-#'     the evaluation of any interactions with u.
-#' @param lb vector of lower bounds for the interval of
-#'     integration. Each element corresponds to an observation.
-#' @param ub vector of upper bounds for the interval of
-#'     integration. Each element corresponds to an observation.
-#' @param multiplier a vector of the weights that enter into the
-#'     integral. Each element corresponds to an observation.
-#' @param subset Subset condition used to select observations with
-#'     which to estimate gamma.
-#' @param means logical, if TRUE then function returns the terms of
-#'     E[md]. If FALSE, then function instead returns each term of
-#'     E[md | D, X, Z]. This is useful for testing the code,
-#'     i.e. obtaining population estimates.
-#' @return If \code{means = TRUE}, then the function returns a vector
-#'     of the additive terms in Gamma (i.e. the expectation is over D,
-#'     X, Z, and u). If \code{means = FALSE}, then the function
-#'     returns a matrix, where each row corresponds to an observation,
-#'     and each column corresponds to an additive term in E[md | D, X,
-#'     Z] (i.e. only the integral with respect to u is performed).
-#'
-#' @examples
-#' ## Declare MTR formula
-#' formula0 = ~ 1 + u
-#'
-#' ## Construct MTR polynomials
-#' polynomials0 <- polyparse(formula = formula0,
-#'                 data = dtm,
-#'                 uname = u,
-#'                 as.function = FALSE)
-#'
-#' ## Construct propensity score model
-#' propensityObj <- propensity(formula = d ~ z,
-#'                             data = dtm,
-#'                             link = "linear")
-#'
-#' ## Generate gamma moments, with S-weight equal to its default value
-#' ## of 1
-#' genGamma(monomials = polynomials0,
-#'          lb = 0,
-#'          ub = propensityObj$phat)
-#'
-#' @export
-genGamma_orig <- function(monomials, lb, ub, multiplier = 1,
-                         subset = NULL, means = TRUE) {
-
-    exporder  <- monomials$exporder
-    integrals <- monomials$ilist
-    
-    if (!is.null(subset)) integrals <- integrals[subset]
-
-    nmono <- length(exporder)
-
-    ## Determine bounds of integrals (i.e. include weights)
-    if (length(ub) == 1) ub <- replicate(length(integrals), ub)
-    if (length(lb) == 1) lb <- replicate(length(integrals), lb)
-    
-    ## Original ------------------------------------------
-    ## ub <- split(replicate(nmono, ub), seq(length(ub)))
-    ## lb <- split(replicate(nmono, lb), seq(length(lb)))
-    ## monoeval <- t(mapply(polylisteval, integrals, ub)) -
-    ##     t(mapply(polylisteval, integrals, lb))
-    ## Experimenting -------------------------------------
-    nterm <- length(integrals[[1]])
-    monoeval <- NULL
-    for (j in 1:nterm) {
-        intTmp <- lapply(integrals, function(x) x[[j]])
-        ubInt <- mapply(predict, intTmp, ub)
-        lbInt <- mapply(predict, intTmp, lb)
-        monoeval <- cbind(monoeval, ubInt - lbInt)
-    }
-    ## End experimenting ---------------------------------
-    
-    termsN <- length(integrals[[1]])
-    if (termsN == 1) monoeval <- t(monoeval)
-
-    ## The object monoeval is supposed to have as many rows as the
-    ## number of observations used for estimation. However, if the
-    ## provided MTR objects include only one term, R transposes the
-    ## matrix. So below I undo that transpose if the number of terms
-    ## is 1.
-    preGamma <- sweep(monoeval,
-                      MARGIN = 1,
-                      STATS = multiplier,
-                      FUN = "*")
-
-    if (means) {
-        if (is.matrix(preGamma)) {
-            gstar <- colMeans(preGamma)
-        } else {
-            gstar <- mean(preGamma)
-        }
-        names(gstar) <- monomials$terms
-        return(gstar)
-    } else {
-        colnames(preGamma) <- monomials$terms
-        return(preGamma)
-    }
 }
 
 #' Estimating expectations of terms in the MTR (gamma objects)

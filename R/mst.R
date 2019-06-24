@@ -2138,7 +2138,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
     scount <- 1     ## counter for S-set constraints
-    t1 <- Sys.time()
+    
     if (classList(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
@@ -2228,7 +2228,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                gmmResult$pointestimate),
                     mtr.coef = gmmResult$coef))
     }
-    print(paste("Total time to generate sset:", Sys.time() - t1))
     
     ##---------------------------
     ## 4. Define constraint matrices using the audit
@@ -2309,8 +2308,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                 pointestimate = NULL,
                 bounds = c(audit$min, audit$max),
                 lpresult =  audit$lpresult,
-                ## poly0 = pm0,
-                ## poly1 = pm1,
                 auditgrid = audit$gridobj,
                 auditcount = audit$auditcount,
                 minobseq = audit$minobseq,
@@ -2927,7 +2924,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         if (noisy == TRUE) {
             message(paste0("    Moment ", scount, "..."))
         }
-        t0 <- Sys.time()
         if (!is.null(pm0)) {
 
             if (means == TRUE) {
@@ -2973,8 +2969,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         } else {
             gs1 <- NULL
         }
-        print(paste("Time to integrate non-spline", Sys.time() - t0))
-        t0 <- Sys.time()
         if (means == TRUE) {
             
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
@@ -3009,7 +3003,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          d = 1,
                                          means = FALSE)$gamma
         }
-        print(paste("Time to integrate splines", Sys.time() - t0))
         ## generate components of constraints
         if (means == TRUE) {
             sset[[paste0("s", scount)]] <- list(ivspec = ivn,
