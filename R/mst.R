@@ -127,17 +127,21 @@ utils::globalVariables("u")
 #'     value of 0 corresponds to no violation of observational
 #'     equivalence other than statistical noise, and the assumption
 #'     that the model is correctly specified.
-#' @param grid.nu number of evenly spread points in the interval [0,
-#'     1] of the unobservable u used to form the grid for imposing
-#'     shape restrictions on the MTRs.
-#' @param grid.nx number of evenly spread points of the covariates to
-#'     use to form the grid for imposing shape restrictions on the
-#'     MTRs.
+#' @param initgrid.nu number of evenly spread points in the interval
+#'     [0, 1] of the unobservable u used to form the initial grid for
+#'     imposing shape restrictions on the MTRs.
+#' @param initgrid.nx number of evenly spread points of the covariates
+#'     to use to form the initial grid for imposing shape restrictions
+#'     on the MTRs.
 #' @param audit.nx number of points on the covariates space to audit
 #'     in each iteration of the audit procedure.
 #' @param audit.nu number of points in the interval [0, 1],
 #'     corresponding to the normalized value of the unobservable term,
 #'     to audit in each iteration of the audit procedure.
+#' @param audit.add maximum number of points to add to the grids for
+#'     imposing each kind of shape constraint. So if there are 5
+#'     different kinds of shape constraints, there can be at most
+#'     \code{audit.add * 5} additional points added to the grid.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
@@ -222,12 +226,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   target.weight1, target.knots0, target.knots1 = NULL,
                   late.Z, late.from, late.to, late.X, eval.X,
                   genlate.lb, genlate.ub, obseq.tol = 0.05,
-                  grid.nu = 20, grid.nx = 20, audit.nx = 20,
-                  audit.nu = 20, audit.max = 10, audit.tol = 1e-08,
-                  m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec,
-                  m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
-                  lpsolver = NULL, point = FALSE, noisy = TRUE,
-                  seed = 12345) {
+                  initgrid.nu = 20, initgrid.nx = 20, audit.nx = 20,
+                  audit.nu = 20, audit.add = 5, audit.max = 10,
+                  audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
+                  mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
+                  mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
+                  noisy = TRUE, seed = 12345) {
 
     ## Include into Roxygen documentation once document is published..
     ## A detailed description of the module and its features
@@ -725,7 +729,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 hasArg(m1.dec) | hasArg(m1.inc) |
                 hasArg(mte.dec) | hasArg(mte.inc) |
                 hasArg(audit.nu) | hasArg(audit.nx) |
-                hasArg(grid.nu) | hasArg(grid.nx)|
+                hasArg(initgrid.nu) | hasArg(initgrid.nx)|
                 hasArg(audit.tol) | hasArg(audit.max)) {
                 warning(gsub("\\s+", " ",
                              "If argument 'point' is set to TRUE, then shape
@@ -744,11 +748,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
         stop("Cannot set 'obseq.tol' below 0.")
     }
-    if (!((grid.nu %% 1 == 0) & grid.nu >= 2)) {
-        stop("grid.nu must be an integer greater than or equal to 2.")
+    if (!((initgrid.nu %% 1 == 0) & initgrid.nu >= 2)) {
+        stop("initgrid.nu must be an integer greater than or equal to 2.")
     }
-    if (!((grid.nx %% 1 == 0) & grid.nx >= 0)) {
-        stop("'grid.nx' must be an integer greater than or equal to 0.")
+    if (!((initgrid.nx %% 1 == 0) & initgrid.nx >= 0)) {
+        stop("'initgrid.nx' must be an integer greater than or equal to 0.")
     }
 
     if (!((audit.nx %% 1 == 0) & audit.nx > 0)) {
@@ -1944,10 +1948,10 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     value of 0 corresponds to no violation of observational
 #'     equivalence other than statistical noise, and the assumption
 #'     that the model is correctly specified.
-#' @param grid.nu number of evenly spread points in the interval [0,
+#' @param initgrid.nu number of evenly spread points in the interval [0,
 #'     1] of the unobservable u used to form the grid for imposing
 #'     shape restrictions on the MTRs.
-#' @param grid.nx number of evenly spread points of the covariates to
+#' @param initgrid.nx number of evenly spread points of the covariates to
 #'     use to form the grid for imposing shape restrictions on the
 #'     MTRs.
 #' @param audit.nx number of points on the covariates space to audit
@@ -2014,7 +2018,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           target.knots0 = NULL, target.knots1 = NULL,
                           late.Z, late.from, late.to, late.X, eval.X,
                           genlate.lb, genlate.ub, obseq.tol = 0.05,
-                          grid.nu = 20, grid.nx = 20, audit.nx = 20,
+                          initgrid.nu = 20, initgrid.nx = 20, audit.nx = 20,
                           audit.nu = 20, audit.max = 10,
                           audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
@@ -2237,8 +2241,9 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         message("Performing audit procedure...")
     }
 
-    audit.args <- c("uname", "grid.nu", "grid.nx",
-                    "audit.nx", "audit.nu", "audit.max", "audit.tol",
+    audit.args <- c("uname", "initgrid.nu", "initgrid.nx",
+                    "audit.nx", "audit.nu", "audit.add",
+                    "audit.max", "audit.tol",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
