@@ -226,8 +226,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   target.weight1, target.knots0, target.knots1 = NULL,
                   late.Z, late.from, late.to, late.X, eval.X,
                   genlate.lb, genlate.ub, obseq.tol = 0.05,
-                  initgrid.nu = 20, initgrid.nx = 20, audit.nx = 20,
-                  audit.nu = 20, audit.add = 5, audit.max = 10,
+                  initgrid.nu = 10, initgrid.nx = 20, audit.nx = 2500,
+                  audit.nu = 20, audit.add = 100, audit.max = 10,
                   audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
                   mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
                   mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
@@ -728,7 +728,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             if (hasArg(m0.dec) | hasArg(m0.inc) |
                 hasArg(m1.dec) | hasArg(m1.inc) |
                 hasArg(mte.dec) | hasArg(mte.inc) |
-                hasArg(audit.nu) | hasArg(audit.nx) |
+                hasArg(audit.nu) | hasArg(audit.nx) | hasArg(audit.add) |
                 hasArg(initgrid.nu) | hasArg(initgrid.nx)|
                 hasArg(audit.tol) | hasArg(audit.max)) {
                 warning(gsub("\\s+", " ",
@@ -758,19 +758,20 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (!((audit.nx %% 1 == 0) & audit.nx > 0)) {
         stop("'audit.nx' must be an integer greater than or equal to 1.")
     }
+    if (!((audit.add %% 1 == 0) & audit.add > 0)) {
+        stop("'audit.add' must be an integer greater than or equal to 1.")
+    }
     if (hasArg(m0.dec) | hasArg(m0.inc) |
         hasArg(m1.dec) | hasArg(m1.inc) |
         hasArg(mte.dec) | hasArg(mte.inc) |
         hasArg(m0.lb) | hasArg(m0.ub) |
         hasArg(m1.lb) | hasArg(m1.ub) |
         hasArg(mte.lb) | hasArg(mte.ub)) {
-
+        
         noshape = FALSE ## indicator for whether shape restrictions declared
-
         if (!((audit.nu %% 1 == 0) & audit.nu > 0) | audit.nu < 2) {
             stop("'audit.nu' must be an integer greater than or equal to 2.")
         }
-
     } else {
         noshape = TRUE
         if (!((audit.nu %% 1 == 0) & audit.nu > 0)) {
@@ -1958,7 +1959,11 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     in each iteration of the audit procedure.
 #' @param audit.nu number of points in the interval [0, 1],
 #'     corresponding to the normalized value of the unobservable term,
-#'     to audit in each iteration of the audit procedure.
+#'     to audit in each iteration of the audit procedure
+#' @param audit.add maximum number of points to add to the grids for
+#'     imposing each kind of shape constraint. So if there are 5
+#'     different kinds of shape constraints, there can be at most
+#'     \code{audit.add * 5} additional points added to the grid.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
@@ -2018,8 +2023,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           target.knots0 = NULL, target.knots1 = NULL,
                           late.Z, late.from, late.to, late.X, eval.X,
                           genlate.lb, genlate.ub, obseq.tol = 0.05,
-                          initgrid.nu = 20, initgrid.nx = 20, audit.nx = 20,
-                          audit.nu = 20, audit.max = 10,
+                          initgrid.nu = 10, initgrid.nx = 20, audit.nx = 2500,
+                          audit.nu = 20, audit.add = 10, audit.max = 10,
                           audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                           m1.dec, m1.inc, mte.dec, mte.inc,
@@ -2296,9 +2301,9 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
     ## 5. Obtain the bounds
     ##---------------------------
-    
+    t0 <- Sys.time()
     audit <- eval(audit_call)
-
+    print(paste("Time to perform audit:", Sys.time() - t0))
     if (noisy) {
         message(paste0("Bounds on the target parameter: [",
                        fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n"))

@@ -647,8 +647,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                            support,
                            uvec,
                            uname)
-        print("grid obj")
-        print(gridobj)
     }
 
     if (is.null(splines[[1]]) & is.null(splines[[2]])) {
@@ -791,8 +789,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                              sset = quote(sset),
                                              gridobj = quote(gridobj)))
         bdA <- eval(boundAcall)
-        print("bounded A")
-        print(bdA)
     }
 
     ## Prepare to generate matrices for monotonicity constraints
@@ -813,8 +809,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                             gstar0 = quote(gstar0),
                                             gstar1 = quote(gstar1)))
         monoA <- eval(monoAcall)
-        print("mono A")
-        print(monoA)
     }
 
     ## Update bound sequence counts
