@@ -545,58 +545,22 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (violate) {
             t0 <- Sys.time()
             message(paste0("    Violations: ", sum(violatevec)))
-            typeVec <- c(rep(1, times = length(a_mbobj$lb0seq)),
-                         rep(2, times = length(a_mbobj$lb1seq)),
-                         rep(3, times = length(a_mbobj$ub0seq)),
-                         rep(4, times = length(a_mbobj$ub1seq)),
-                         rep(5, sum(times = a_mbobj$mono0seq[, 2] > 0)),
-                         rep(6, sum(times = a_mbobj$mono0seq[, 2] < 0)),
-                         rep(7, sum(times = a_mbobj$mono1seq[, 2] > 0)),
-                         rep(8, sum(times = a_mbobj$mono1seq[, 2] < 0)),
-                         rep(9, sum(times = a_mbobj$monoteseq[, 2] > 0)),
-                         rep(10, sum(times = a_mbobj$monoteseq[, 2] < 0)))
+
             ## Store all points that violate the constraints
             diffVec <- violateDiffMin * as.integer(violateDiffMin -
                                                    violateDiffMax > 0) +
                 violateDiffMax * as.integer(violateDiffMax - violateDiffMin > 0)
-        
-            violateMat <-
-                data.frame(cbind(c(a_mbobj$lb0seq, a_mbobj$lb1seq,
-                                   a_mbobj$ub0seq, a_mbobj$ub1seq,
-                                   a_mbobj$mono0seq[, 1],
-                                   a_mbobj$mono1seq[, 1],
-                                   a_mbobj$monoteseq[, 1]),
-                                 typeVec,
-                                 a_mbobj$mbmap, a_mbobj$mbumap,
-                                 diffVec))
-            colnames(violateMat) <- c("row", "type", "grid.x",
-                                      "u1", "u2", "diff")
-            violateMat <- violateMat[order(violateMat$type,
-                                           violateMat$grid.x,
-                                           violateMat$diff), ]
-            violateMat$i <- seq(1, nrow(violateMat))
-            violateMat[violateMat$diff <= 0, "i"] <- 0
-            print(paste("Time for constructing basic violation matrix:", Sys.time() - t0))
-            ## For each point in the X-grid, find the U that violats
-            ## the constraints the most
-            t0 <- Sys.time()
-            vmaxu <- aggregate(violateMat$i,
-                                    by = list(violateMat[, "type"],
-                                              violateMat[, "grid.x"]),
-                               FUN = max)
-            vmaxu <- vmaxu$x
-            vmaxu <- vmaxu[vmaxu > 0]
-            violateMat <- violateMat[vmaxu, ]
-            print(paste("Time to find max u:", Sys.time() - t0))
-            ## Select audit.add number of points to add to the initial grid
-            t0 <- Sys.time()
-            violateMat <- violateMat[order(violateMat$type,
-                                           violateMat$grid.x,
-                                           violateMat$diff), ]
-            violateMat$counts <- c(unlist(sapply(table(violateMat$type),
-                                               function(x) seq(1, x))))
-            violateMat <- violateMat[violateMat$counts <= audit.add, ]
-            violateIndexes <- violateMat$row
+            violateIndexes <- selectViolations(diffVec = diffVec,
+                                           audit.add = audit.add,
+                                           lb0seq = a_mbobj$lb0seq,
+                                           lb1seq = a_mbobj$lb1seq,
+                                           ub0seq = a_mbobj$ub0seq,
+                                           ub1seq = a_mbobj$ub1seq,
+                                           mono0seq = a_mbobj$mono0seq,
+                                           mono1seq = a_mbobj$mono1seq,
+                                           monoteseq = a_mbobj$monoteseq,
+                                           mbmap = a_mbobj$mbmap,
+                                           mbumap = a_mbobj$mbumap)
             ## Expand initial grid
             mbobj$mbA <- rbind(mbobj$mbA, a_mbobj$mbA[violateIndexes, ])
             mbobj$mbrhs <- c(mbobj$mbrhs, a_mbobj$mbrhs[violateIndexes])
@@ -641,4 +605,103 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 minobseq = minobseq$obj,
                 gridobj = mbobj$gridob,
                 auditcount = audit_count))
+}
+
+
+#' Select points from audit grid to add to the initial grid
+#'
+#' This function selects which points from the audit grid should be
+#' included into the original grid. Both the initial grid and audit
+#' grid are represented as constraints in an LP problem. This function
+#' selects which points in the audit grid (i.e. which rows in the
+#' audit constraint matrix) should be added to the initial grid
+#' (i.e. should be appended to the initial constraint matrix).
+#' 
+#' @param diffVec numeric vector, with a positive value indicating a
+#'     violation of a shape constriant.
+#' @param audit.add integer, the number of points from the audit grid
+#'     to add to the intial for each constraint type. For instance, if
+#'     there are 5 different kinds of constraints imposed, and
+#'     \code{audit.add = 5}, then up to 30 points may be added to the
+#'     initial grid.
+#' @param lb0seq integer vector, indicates which rows in the audit
+#'     constraint matrix corresponding to the lower bound for m0.
+#' @param lb1seq integer vector, indicates which rows in the audit
+#'     constraint matrix corresponding to the lower bound for m1.
+#' @param ub0seq integer vector, indicates which rows in the audit
+#'     constraint matrix corresponding to the upper bound for m0.
+#' @param ub1seq integer vector, indicates which rows in the audit
+#'     constraint matrix corresponding to the upper bound for m1.
+#' @param mono0seq integer vector, indicates which rows in the audit
+#'     constraint matrix corresponding to the monotonicity conditions
+#'     for m0.
+#' @param mono1seq integer vector, indicates which rows in the audit
+#'     constraint matrix corresponding to the monotonicity conditions
+#'     for m1.
+#' @param monoteseq integer vector, indicates which rows in the audit
+#'     constraint matrix corresponding to the monotonicity conditions
+#'     for the mte.
+#' @param mbmap integer vector, indexes the X-value associated with
+#'     each row in the audit constraint matrix.
+#' @param mbumap numeric vector, indexes the U-value associated with
+#'     each row in the audit constraint matrix.
+#' @return The audit grid is represented using a set of constraint
+#'     matrices. Each point in the audit grid corresponds to a set of
+#'     rows in the constraint matrices. The function simply returns
+#'     the vector of row numbers for the points from the audit grid
+#'     whose corresponding constriants should be added to the original
+#'     LP problem (i.e. the points to add to the original grid).
+selectViolations <- function(diffVec, audit.add,
+                             lb0seq, lb1seq, ub0seq, ub1seq,
+                             mono0seq, mono1seq, monoteseq,
+                             mbmap, mbumap) {
+    typeVec <- c(rep(1, times = length(lb0seq)),
+                 rep(2, times = length(lb1seq)),
+                 rep(3, times = length(ub0seq)),
+                 rep(4, times = length(ub1seq)),
+                 rep(5, sum(times = mono0seq[, 2] > 0)),
+                 rep(6, sum(times = mono0seq[, 2] < 0)),
+                 rep(7, sum(times = mono1seq[, 2] > 0)),
+                 rep(8, sum(times = mono1seq[, 2] < 0)),
+                 rep(9, sum(times = monoteseq[, 2] > 0)),
+                 rep(10, sum(times = monoteseq[, 2] < 0)))
+    ## Store all points that violate the constraints
+    violateMat <-
+        data.frame(cbind(c(lb0seq, lb1seq,
+                           ub0seq, ub1seq,
+                           mono0seq[, 1],
+                           mono1seq[, 1],
+                           monoteseq[, 1]),
+                         typeVec,
+                         mbmap, mbumap,
+                         diffVec))
+    colnames(violateMat) <- c("row", "type", "grid.x",
+                              "u1", "u2", "diff")
+    violateMat <- violateMat[order(violateMat$type,
+                                   violateMat$grid.x,
+                                   violateMat$diff), ]
+    violateMat$i <- seq(1, nrow(violateMat))
+    violateMat[violateMat$diff <= 0, "i"] <- 0
+    print(paste("Time for constructing basic violation matrix:", Sys.time() - t0))
+    ## For each point in the X-grid, find the U that violats
+    ## the constraints the most
+    t0 <- Sys.time()
+    vmaxu <- aggregate(violateMat$i,
+                       by = list(violateMat[, "type"],
+                                 violateMat[, "grid.x"]),
+                       FUN = max)
+    vmaxu <- vmaxu$x
+    vmaxu <- vmaxu[vmaxu > 0]
+    violateMat <- violateMat[vmaxu, ]
+    print(paste("Time to find max u:", Sys.time() - t0))
+    ## Select audit.add number of points to add to the initial grid
+    t0 <- Sys.time()
+    violateMat <- violateMat[order(violateMat$type,
+                                   violateMat$grid.x,
+                                   violateMat$diff), ]
+    violateMat$counts <- c(unlist(sapply(table(violateMat$type),
+                                         function(x) seq(1, x))))
+    violateMat <- violateMat[violateMat$counts <= audit.add, ]
+    violateIndexes <- violateMat$row
+    return(violateIndexes)
 }
