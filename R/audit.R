@@ -203,8 +203,8 @@
 audit <- function(data, uname, m0, m1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1,
                   initgrid.nu = 10, initgrid.nx = 20,
-                  audit.nx = 2500, audit.nu = 20, audit.add = 10,
-                  audit.max = 10, audit.tol = 1e-08,
+                  audit.nx = 2500, audit.nu = 25, audit.add = 100,
+                  audit.max = 25, audit.tol = 1e-08,
                   m1.ub, m0.ub, m1.lb, m0.lb,
                   m1.ub.default = FALSE,
                   m0.ub.default = FALSE,
@@ -358,7 +358,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbA[negatepos, ] <- -mbA[negatepos, ]
             mbrhs <- mbobj$mbrhs
             mbrhs[negatepos] <- -mbrhs[negatepos]
-            violateDiff <- round(mbA %*% solVec - mbrhs, digits = 10)
+            violateDiff <- round(mbA %*% solVec - mbrhs,
+                                 digits = 10)
             violatevec <- violateDiff > 0        
             ## Deal with special cases where constraints may be
             ## binding, and machine precision fails to recognize this
@@ -451,7 +452,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 stop(gsub("\\s+", " ",
                           "Unable to obtain bounds. Try setting obseq.tol
                           to be greater than 0 to allow for model
-                          misspecification, or expanding the grid
+                          misspecification, or expanding the initial grid
                           size for imposing the shape restrictions
                           (initgrid.nx, initgrid.nu). \n"))
             } else {
@@ -536,10 +537,12 @@ audit <- function(data, uname, m0, m1, splinesobj,
         
         ## Test for violations for minimization problem
         t0 <- Sys.time()
-        violateDiffMin <- round(a_mbA %*% solVecMin - a_mbrhs, digits = 10)
+        violateDiffMin <- round(a_mbA %*% solVecMin - a_mbrhs,
+                                digits = 10)
         violatevecMin <- violateDiffMin > 0
         ## Test for violations for maximization problem
-        violateDiffMax <- round(a_mbA %*% solVecMax - a_mbrhs, digits = 10)
+        violateDiffMax <- round(a_mbA %*% solVecMax - a_mbrhs,
+                                digits = 10)
         violatevecMax <- violateDiffMax > 0
         print(paste("Time to test for violations:", Sys.time() - t0))
         ## Generate violation data set
@@ -593,8 +596,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
             violateMat <- violateMat[order(violateMat$type,
                                            violateMat$grid.x,
                                            violateMat$diff), ]
-            violateMat$counts <- unlist(sapply(table(violateMat$type),
-                                               function(x) seq(1, x)))
+            violateMat$counts <- c(unlist(sapply(table(violateMat$type),
+                                               function(x) seq(1, x))))
             violateMat <- violateMat[violateMat$counts <= audit.add, ]
             violateIndexes <- violateMat$row
             ## Expand initial grid

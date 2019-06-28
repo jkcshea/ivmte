@@ -227,7 +227,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   late.Z, late.from, late.to, late.X, eval.X,
                   genlate.lb, genlate.ub, obseq.tol = 0.05,
                   initgrid.nu = 10, initgrid.nx = 20, audit.nx = 2500,
-                  audit.nu = 20, audit.add = 100, audit.max = 10,
+                  audit.nu = 25, audit.add = 100, audit.max = 25,
                   audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
                   mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
                   mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
@@ -2024,12 +2024,12 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           late.Z, late.from, late.to, late.X, eval.X,
                           genlate.lb, genlate.ub, obseq.tol = 0.05,
                           initgrid.nu = 10, initgrid.nx = 20, audit.nx = 2500,
-                          audit.nu = 20, audit.add = 10, audit.max = 10,
+                          audit.nu = 25, audit.add = 100, audit.max = 25,
                           audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                           m1.dec, m1.inc, mte.dec, mte.inc,
                           lpsolver = NULL, point = FALSE,
-                          noisy = TRUE, seed = 12345 ) {
+                          noisy = TRUE, seed = 12345) {
 
     call <- match.call(expand.dots = FALSE)
 
