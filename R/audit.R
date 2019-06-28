@@ -360,14 +360,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbrhs[negatepos] <- -mbrhs[negatepos]
             violateDiff <- round(mbA %*% solVec - mbrhs,
                                  digits = 10)
-            violatevec <- violateDiff > 0        
-            ## Deal with special cases where constraints may be
-            ## binding, and machine precision fails to recognize this
-            ## and treats it as a violation
-            if (sum(violatevec) > 0) {
-                equality <- mapply(all.equal, (mbA %*% solVec), mbrhs)
-                violatevec[equality == TRUE] <- FALSE
-            }
+            violatevec <- violateDiff > 0
             violatepos <- which(violatevec == TRUE)
             violateType <- sapply(violatepos, function(x) {
                 if (x %in% mbobj$lb0seq) {
@@ -563,6 +556,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
                          rep(9, sum(times = a_mbobj$monoteseq[, 2] > 0)),
                          rep(10, sum(times = a_mbobj$monoteseq[, 2] < 0)))
             ## Store all points that violate the constraints
+            diffVec <- violateDiffMin * as.integer(violateDiffMin -
+                                                   violateDiffMax > 0) +
+                violateDiffMax * as.integer(violateDiffMax - violateDiffMin > 0)
+        
             violateMat <-
                 data.frame(cbind(c(a_mbobj$lb0seq, a_mbobj$lb1seq,
                                    a_mbobj$ub0seq, a_mbobj$ub1seq,
@@ -571,7 +568,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                    a_mbobj$monoteseq[, 1]),
                                  typeVec,
                                  a_mbobj$mbmap, a_mbobj$mbumap,
-                                 mapply(max, violateDiffMin, violateDiffMax)))
+                                 diffVec))
             colnames(violateMat) <- c("row", "type", "grid.x",
                                       "u1", "u2", "diff")
             violateMat <- violateMat[order(violateMat$type,
