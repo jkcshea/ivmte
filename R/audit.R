@@ -543,7 +543,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
         violate <- as.logical(sum(violatevec))
         violatevec <- as.logical(violatevec)
         if (violate) {
-            t0 <- Sys.time()
             message(paste0("    Violations: ", sum(violatevec)))
             ## Store all points that violate the constraints
             ## Original -----------------------------------------
@@ -604,6 +603,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             ## End experimenting ----------------------------------
 
             ## Expand initial grid
+            t0 <- Sys.time()
             mbobj$mbA <- rbind(mbobj$mbA, a_mbobj$mbA[violateIndexes, ])
             mbobj$mbrhs <- c(mbobj$mbrhs, a_mbobj$mbrhs[violateIndexes])
             mbobj$mbs <- c(mbobj$mbs, a_mbobj$mbs[violateIndexes])
@@ -697,6 +697,7 @@ selectViolations <- function(diffMin, diffMax, audit.add,
                              lb0seq, lb1seq, ub0seq, ub1seq,
                              mono0seq, mono1seq, monoteseq,
                              mbmap, mbumap) {
+    t0 <- Sys.time()
     typeVec <- c(rep(1, times = length(lb0seq)),
                  rep(2, times = length(lb1seq)),
                  rep(3, times = length(ub0seq)),
@@ -726,8 +727,10 @@ selectViolations <- function(diffMin, diffMax, audit.add,
                                    violateMat$diff), ]
     violateMat$i <- seq(1, nrow(violateMat))
     violateMat[violateMat$diff <= 0, "i"] <- 0
+    print(paste0("Time to construct viomat: ", Sys.time() - t0))
     ## For each point in the X-grid, find the U that violats
     ## the constraints the most
+    t0 <- Sys.time()
     vmaxu <- aggregate(violateMat$i,
                        by = list(violateMat$maxTag,
                                  violateMat$type,
@@ -748,6 +751,7 @@ selectViolations <- function(diffMin, diffMax, audit.add,
                                  function(x) seq(1, x))))
     violateMat$counts <- c(countsMin, countsMax)
     violateMat <- violateMat[violateMat$counts <= ceiling(audit.add / 2), ]
-    violateIndexes <- unique(violateMat$row)    
+    violateIndexes <- unique(violateMat$row)
+    print(paste0("Time to select things: ", Sys.time() - t0))
     return(violateIndexes)
 }
