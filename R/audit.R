@@ -694,22 +694,26 @@ selectViolations <- function(diffVec, audit.add,
                  rep(8, sum(times = mono1seq[, 2] < 0)),
                  rep(9, sum(times = monoteseq[, 2] > 0)),
                  rep(10, sum(times = monoteseq[, 2] < 0)))
+    print(paste0("Time to make viomat 1: ", Sys.time() - t0))    
     ## Store all points that violate the constraints
+    t0 <- Sys.time()
     violateMat <- data.frame(cbind(c(lb0seq, lb1seq,
                                      ub0seq, ub1seq,
                                      mono0seq[, 1],
                                      mono1seq[, 1],
                                      monoteseq[, 1]),
                                    typeVec,
-                                   mbmap,
-                                   diffVec))
-    colnames(violateMat) <- c("row", "type", "grid.x", "diff")
+                                   mbmap))
+    colnames(violateMat) <- c("row", "type", "grid.x")
+    violateMat$diff <- diffVec
+    print(paste0("Time to make viomat 2: ", Sys.time() - t0))
+    t0 <- Sys.time()
     violateMat <- violateMat[order(violateMat$type,
                                    violateMat$grid.x,
                                    violateMat$diff), ]
     violateMat$i <- seq(1, nrow(violateMat))
     violateMat[violateMat$diff <= 0, "i"] <- 0
-    print(paste0("Time to make viomat: ", Sys.time() - t0))
+    print(paste0("Time to make viomat 3: ", Sys.time() - t0))
     ## For each point in the X-grid, find the U that violats
     ## the constraints the most
     t0 <- Sys.time()
