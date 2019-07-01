@@ -1,26 +1,3 @@
-#' Obtain Tukey half-space quantiles
-#'
-#' This function calculates the Tukey half-space quantiles for
-#' multivariate random variables.
-#'
-#' @param x vector of values.
-#' @param data a matrix of data, characterizing the empirical
-#'     distribution.
-#' @return scalar, representing the quantile of \code{x} under the
-#'     empirical distribution characterized by \code{data}.
-tukeydist <- function(x, data) {
-    if (is.null(dim(data))) {
-        data <- as.matrix(data)
-        ineqvec <- mapply("<=", split(data, seq(1, nrow(data))), x)
-        F <- sum(ineqvec)/length(ineqvec)
-    } else {
-        ineqvec <- lapply(split(data, seq(1, nrow(data))), "<=", x)
-        ineqvec <- lapply(ineqvec, min)
-        F <- Reduce("+", ineqvec) / length(ineqvec)
-    }
-    return(F)
-}
-
 #' Generating the grid for the audit procedure
 #'
 #' This function takes in a matrix summarizing the support of the

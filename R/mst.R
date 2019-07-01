@@ -238,7 +238,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## can be found in
     ## \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea and
     ## Torgovitsky (2019)}.
-    
+
     call <- match.call(expand.dots = FALSE)
 
     ##---------------------------
@@ -767,7 +767,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         hasArg(m0.lb) | hasArg(m0.ub) |
         hasArg(m1.lb) | hasArg(m1.ub) |
         hasArg(mte.lb) | hasArg(mte.ub)) {
-        
+
         noshape = FALSE ## indicator for whether shape restrictions declared
         if (!((audit.nu %% 1 == 0) & audit.nu > 0) | audit.nu < 2) {
             stop("'audit.nu' must be an integer greater than or equal to 2.")
@@ -1243,7 +1243,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
-    
+
     ##---------------------------
     ## 5. Implement estimates
     ##---------------------------
@@ -2051,7 +2051,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     }
 
     ## Estimate propensity scores
-    
+
     pcall <- modcall(call,
                      newcall = propensity,
                      keepargs = c("link", "late.Z", "late.X"),
@@ -2059,7 +2059,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                      newargs = list(data = quote(data),
                                     formula = propensity))
     pmodel <- eval(pcall)
-    
+
     ##---------------------------
     ## 2. Generate target moments/gamma terms
     ##---------------------------
@@ -2069,7 +2069,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     }
 
     ## Parse polynomials
-    
+
     if (!is.null(m0)) {
         m0call <- modcall(call,
                           newcall = polyparse,
@@ -2091,14 +2091,14 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     } else {
         pm1 <- NULL
     }
-    
+
     ## Generate target weights
     if (!hasArg(target.weight0) & !hasArg(target.weight1)) {
         target.weight0 <- NULL
         target.weight1 <- NULL
     }
 
-    
+
     if (is.null(target.weight0) & is.null(target.weight1)) {
         gentargetcall <- modcall(call,
                                  newcall = genTarget,
@@ -2135,7 +2135,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
-    
+
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
@@ -2147,7 +2147,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
     scount <- 1     ## counter for S-set constraints
-    
+
     if (classList(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
@@ -2237,7 +2237,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                gmmResult$pointestimate),
                     mtr.coef = gmmResult$coef))
     }
-    
+
     ##---------------------------
     ## 4. Define constraint matrices using the audit
     ##---------------------------
@@ -2301,9 +2301,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
     ## 5. Obtain the bounds
     ##---------------------------
-    t0 <- Sys.time()
     audit <- eval(audit_call)
-    print(paste("Time to perform audit:", Sys.time() - t0))
     if (noisy) {
         message(paste0("Bounds on the target parameter: [",
                        fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n"))
@@ -2956,10 +2954,10 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         } else {
             gs0 <- NULL
         }
-        
+
         if (!is.null(pm1)) {
             if (means == TRUE) {
-                
+
                 gs1 <- genGamma(monomials = pm1,
                                 lb = 0,
                                 ub = pmodobj,
@@ -2980,7 +2978,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
             gs1 <- NULL
         }
         if (means == TRUE) {
-            
+
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
                                          data = data,
                                          lb = pmodobj,
