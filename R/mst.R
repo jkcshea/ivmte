@@ -127,17 +127,21 @@ utils::globalVariables("u")
 #'     value of 0 corresponds to no violation of observational
 #'     equivalence other than statistical noise, and the assumption
 #'     that the model is correctly specified.
-#' @param grid.nu number of evenly spread points in the interval [0,
-#'     1] of the unobservable u used to form the grid for imposing
-#'     shape restrictions on the MTRs.
-#' @param grid.nx number of evenly spread points of the covariates to
-#'     use to form the grid for imposing shape restrictions on the
-#'     MTRs.
+#' @param initgrid.nu number of evenly spread points in the interval
+#'     [0, 1] of the unobservable u used to form the initial grid for
+#'     imposing shape restrictions on the MTRs.
+#' @param initgrid.nx number of evenly spread points of the covariates
+#'     to use to form the initial grid for imposing shape restrictions
+#'     on the MTRs.
 #' @param audit.nx number of points on the covariates space to audit
 #'     in each iteration of the audit procedure.
 #' @param audit.nu number of points in the interval [0, 1],
 #'     corresponding to the normalized value of the unobservable term,
 #'     to audit in each iteration of the audit procedure.
+#' @param audit.add maximum number of points to add to the grids for
+#'     imposing each kind of shape constraint. So if there are 5
+#'     different kinds of shape constraints, there can be at most
+#'     \code{audit.add * 5} additional points added to the grid.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
@@ -222,12 +226,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   target.weight1, target.knots0, target.knots1 = NULL,
                   late.Z, late.from, late.to, late.X, eval.X,
                   genlate.lb, genlate.ub, obseq.tol = 0.05,
-                  grid.nu = 20, grid.nx = 20, audit.nx = 20,
-                  audit.nu = 20, audit.max = 10, audit.tol = 1e-08,
-                  m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec,
-                  m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
-                  lpsolver = NULL, point = FALSE, noisy = TRUE,
-                  seed = 12345) {
+                  initgrid.nu = 10, initgrid.nx = 20, audit.nx = 2500,
+                  audit.nu = 25, audit.add = 100, audit.max = 25,
+                  audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
+                  mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
+                  mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
+                  noisy = TRUE, seed = 12345) {
 
     ## Include into Roxygen documentation once document is published..
     ## A detailed description of the module and its features
@@ -724,8 +728,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             if (hasArg(m0.dec) | hasArg(m0.inc) |
                 hasArg(m1.dec) | hasArg(m1.inc) |
                 hasArg(mte.dec) | hasArg(mte.inc) |
-                hasArg(audit.nu) | hasArg(audit.nx) |
-                hasArg(grid.nu) | hasArg(grid.nx)|
+                hasArg(audit.nu) | hasArg(audit.nx) | hasArg(audit.add) |
+                hasArg(initgrid.nu) | hasArg(initgrid.nx)|
                 hasArg(audit.tol) | hasArg(audit.max)) {
                 warning(gsub("\\s+", " ",
                              "If argument 'point' is set to TRUE, then shape
@@ -744,15 +748,18 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
         stop("Cannot set 'obseq.tol' below 0.")
     }
-    if (!((grid.nu %% 1 == 0) & grid.nu >= 2)) {
-        stop("grid.nu must be an integer greater than or equal to 2.")
+    if (!((initgrid.nu %% 1 == 0) & initgrid.nu >= 2)) {
+        stop("initgrid.nu must be an integer greater than or equal to 2.")
     }
-    if (!((grid.nx %% 1 == 0) & grid.nx >= 0)) {
-        stop("'grid.nx' must be an integer greater than or equal to 0.")
+    if (!((initgrid.nx %% 1 == 0) & initgrid.nx >= 0)) {
+        stop("'initgrid.nx' must be an integer greater than or equal to 0.")
     }
 
     if (!((audit.nx %% 1 == 0) & audit.nx > 0)) {
         stop("'audit.nx' must be an integer greater than or equal to 1.")
+    }
+    if (!((audit.add %% 1 == 0) & audit.add > 0)) {
+        stop("'audit.add' must be an integer greater than or equal to 1.")
     }
     if (hasArg(m0.dec) | hasArg(m0.inc) |
         hasArg(m1.dec) | hasArg(m1.inc) |
@@ -762,11 +769,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         hasArg(mte.lb) | hasArg(mte.ub)) {
 
         noshape = FALSE ## indicator for whether shape restrictions declared
-
         if (!((audit.nu %% 1 == 0) & audit.nu > 0) | audit.nu < 2) {
             stop("'audit.nu' must be an integer greater than or equal to 2.")
         }
-
     } else {
         noshape = TRUE
         if (!((audit.nu %% 1 == 0) & audit.nu > 0)) {
@@ -1238,7 +1243,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
-
 
     ##---------------------------
     ## 5. Implement estimates
@@ -1945,17 +1949,21 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     value of 0 corresponds to no violation of observational
 #'     equivalence other than statistical noise, and the assumption
 #'     that the model is correctly specified.
-#' @param grid.nu number of evenly spread points in the interval [0,
+#' @param initgrid.nu number of evenly spread points in the interval [0,
 #'     1] of the unobservable u used to form the grid for imposing
 #'     shape restrictions on the MTRs.
-#' @param grid.nx number of evenly spread points of the covariates to
+#' @param initgrid.nx number of evenly spread points of the covariates to
 #'     use to form the grid for imposing shape restrictions on the
 #'     MTRs.
 #' @param audit.nx number of points on the covariates space to audit
 #'     in each iteration of the audit procedure.
 #' @param audit.nu number of points in the interval [0, 1],
 #'     corresponding to the normalized value of the unobservable term,
-#'     to audit in each iteration of the audit procedure.
+#'     to audit in each iteration of the audit procedure
+#' @param audit.add maximum number of points to add to the grids for
+#'     imposing each kind of shape constraint. So if there are 5
+#'     different kinds of shape constraints, there can be at most
+#'     \code{audit.add * 5} additional points added to the grid.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param audit.tol tolerance for determining when to end the audit
@@ -2015,13 +2023,13 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           target.knots0 = NULL, target.knots1 = NULL,
                           late.Z, late.from, late.to, late.X, eval.X,
                           genlate.lb, genlate.ub, obseq.tol = 0.05,
-                          grid.nu = 20, grid.nx = 20, audit.nx = 20,
-                          audit.nu = 20, audit.max = 10,
+                          initgrid.nu = 10, initgrid.nx = 20, audit.nx = 2500,
+                          audit.nu = 25, audit.add = 100, audit.max = 25,
                           audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                           m1.dec, m1.inc, mte.dec, mte.inc,
                           lpsolver = NULL, point = FALSE,
-                          noisy = TRUE, seed = 12345 ) {
+                          noisy = TRUE, seed = 12345) {
 
     call <- match.call(expand.dots = FALSE)
 
@@ -2061,6 +2069,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     }
 
     ## Parse polynomials
+
     if (!is.null(m0)) {
         m0call <- modcall(call,
                           newcall = polyparse,
@@ -2088,6 +2097,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         target.weight0 <- NULL
         target.weight1 <- NULL
     }
+
 
     if (is.null(target.weight0) & is.null(target.weight1)) {
         gentargetcall <- modcall(call,
@@ -2211,7 +2221,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
-
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
         ## Obtain GMM estimate
@@ -2237,8 +2246,9 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         message("Performing audit procedure...")
     }
 
-    audit.args <- c("uname", "grid.nu", "grid.nx",
-                    "audit.nx", "audit.nu", "audit.max", "audit.tol",
+    audit.args <- c("uname", "initgrid.nu", "initgrid.nx",
+                    "audit.nx", "audit.nu", "audit.add",
+                    "audit.max", "audit.tol",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
@@ -2291,14 +2301,11 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
     ## 5. Obtain the bounds
     ##---------------------------
-
     audit <- eval(audit_call)
-
     if (noisy) {
         message(paste0("Bounds on the target parameter: [",
                        fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n"))
     }
-
     ## include additional output material
     return(list(sset  = sset,
                 gstar = list(g0 = gstar0,
@@ -2309,8 +2316,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                 pointestimate = NULL,
                 bounds = c(audit$min, audit$max),
                 lpresult =  audit$lpresult,
-                ## poly0 = pm0,
-                ## poly1 = pm1,
                 auditgrid = audit$gridobj,
                 auditcount = audit$auditcount,
                 minobseq = audit$minobseq,
@@ -2498,6 +2503,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                 message("    Integrating terms for control group...")
             }
             if (point == FALSE) {
+                ## gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
             } else {
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
@@ -2922,13 +2928,12 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         yvar, dvar, noisy = TRUE, ivn = NULL) {
 
     if (!hasArg(subset_index)) subset_index <- NULL
-
     for (j in 1:ncomponents) {
         if (noisy == TRUE) {
             message(paste0("    Moment ", scount, "..."))
         }
-
         if (!is.null(pm0)) {
+
             if (means == TRUE) {
                 gs0 <- genGamma(monomials = pm0,
                                     lb = pmodobj,
@@ -2949,9 +2954,10 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         } else {
             gs0 <- NULL
         }
-        
+
         if (!is.null(pm1)) {
             if (means == TRUE) {
+
                 gs1 <- genGamma(monomials = pm1,
                                 lb = 0,
                                 ub = pmodobj,
@@ -2965,14 +2971,14 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                 subset = subset_index,
                                 means = FALSE)
             }
-            sweight1 <- list(lb = 0,
+           sweight1 <- list(lb = 0,
                              ub = pmodobj,
                              multiplier = sest$sw1[, j])
         } else {
             gs1 <- NULL
         }
-
         if (means == TRUE) {
+
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
                                          data = data,
                                          lb = pmodobj,
@@ -2989,23 +2995,22 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          d = 1)$gamma
         } else {
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
-                                             data = data,
-                                             lb = pmodobj,
-                                             ub = 1,
-                                             multiplier = sest$sw0[, j],
-                                             subset = subset_index,
-                                             d = 0,
-                                             means = FALSE)$gamma
+                                         data = data,
+                                         lb = pmodobj,
+                                         ub = 1,
+                                         multiplier = sest$sw0[, j],
+                                         subset = subset_index,
+                                         d = 0,
+                                         means = FALSE)$gamma
             gsSpline1 <- genGammaSplines(splines = splinesobj[[2]],
-                                             data = data,
-                                             lb = 0,
-                                             ub = pmodobj,
-                                             multiplier = sest$sw1[, j],
-                                             subset = subset_index,
-                                             d = 1,
-                                             means = FALSE)$gamma
+                                         data = data,
+                                         lb = 0,
+                                         ub = pmodobj,
+                                         multiplier = sest$sw1[, j],
+                                         subset = subset_index,
+                                         d = 1,
+                                         means = FALSE)$gamma
         }
-       
         ## generate components of constraints
         if (means == TRUE) {
             sset[[paste0("s", scount)]] <- list(ivspec = ivn,
@@ -3016,20 +3021,15 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                 w1 = sweight1)
         } else {
             ## Now generate the vectors for Y * S(D, Z).
-
             if (!is.null(subset_index)) {
                 newsubset <- subset_index
             } else {
                 newsubset <- seq(1, nrow(data))
             }
-
             yvec <- as.vector(data[newsubset, yvar])
             dvec <- as.vector(data[newsubset, dvar])
-
             yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] * (1 - dvec))
-
             names(yvec) <- newsubset
-
             sset[[paste0("s", scount)]] <- list(ivspec = ivn,
                                                 beta = sest$beta[j],
                                                 g0 = cbind(gs0, gsSpline0),
@@ -3038,13 +3038,11 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                 w0 = sweight0,
                                                 w1 = sweight1)
         }
-
         ## update counter (note scount is not referring
         ## to the list of IV regressions, but the components
         ## from the IV regressions)
         scount <- scount + 1
     }
-
     return(list(sset = sset, scount = scount))
 }
 

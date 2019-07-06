@@ -26,91 +26,6 @@ vecextract <- function(vector, position, truncation = 0) {
     return(elem)
 }
 
-#' Generating monomials
-#'
-#' This function takes in a first vector of coefficients, and a second
-#' vector declaring which univariate polynomial basis corresponds to
-#' each element ofexponents corresponding to each element of
-#' \code{vector}.
-#' @param vector numeric, a vector of coefficients in a polynomial.
-#' @param basis integer, a vector of the polynomial degrees
-#'     corresponding to the coefficients in \code{vector}
-#' @param zero logical, if \code{FALSE} then \code{vector} does not
-#'     include an element for the constant term. The vector
-#'     \code{basis} will need to be adjusted to account for this in
-#'     order to generate the correct polynomial and monomials.
-#' @param as.function boolean, if \code{FALSE} then polynomials are
-#'     returned; if \code{TRUE} then a function corresponding to the
-#'     polynomial is returned.
-#' @return A list of monomials, in the form of the \code{polynom}
-#'     package.
-genmonomial <- function(vector, basis, zero = FALSE, as.function = FALSE) {
-
-    if (length(basis) == 1 & typeof(basis) == "list") basis <- unlist(basis)
-    if (!zero) basis <- basis + 1
-
-    monolist  <- mapply(genej, pos = basis, length = basis, SIMPLIFY = FALSE)
-    polyinput <- mapply("*", monolist, vector, SIMPLIFY = FALSE)
-
-    if (as.function == FALSE) {
-        poly <- lapply(polyinput, polynom::polynomial)
-    } else {
-        poly <- lapply(polyinput,
-                       function(x) as.function(polynom::polynomial(x)))
-    }
-    return(poly)
-}
-
-#' Generating polynomial functions
-#'
-#' This function takes in a first vector of coefficients, and a second
-#' vector declaring which univariate polynomial basis corresponds to
-#' each element of the first vector. Then it generates a polynomial
-#' function.
-#' @param vector vector of polynomial coefficients.
-#' @param basis vector of exponents corresponding to each element of
-#'     \code{vector}.
-#' @param zero logical, if \code{FALSE} then \code{vector} does not
-#'     include an element for the constant term. The vector
-#'     \code{basis} will need to be adjusted to account for this in
-#'     order to generate the correct polynomial and monomials.
-#' @return A function in the form of the \code{polynom}
-#'     package.
-genpolynomial <- function(vector, basis, zero = FALSE) {
-    if (length(basis) == 1 & typeof(basis) == "list") basis <- unlist(basis)
-    if (!zero) basis <- basis + 1
-
-    polyvec <- replicate(max(basis), 0)
-    polyvec[basis] <- vector
-    return(as.function(polynom::polynomial(polyvec)))
-}
-
-#' Evaluating polynomials
-#'
-#' This function allows one to evaluate a list of polynomials at
-#' various points (the points are allowed to differ across
-#' polynomials). This function will instead be used to evaluate a list
-#' of monomials.
-#' @param polynomials a list of polynomials.
-#' @param points a list/vector of points at which we want to evaluate
-#'     each polynomial.
-#' @return A matrix of values, corresponding to the polynomials
-#'     specified in \code{polynomials} evaluated at the points
-#'     specified in \code{points}.
-polylisteval <- function(polynomials, points) {
-    if (is.list(polynomials)) {
-        if (length(polynomials) != length(points)) {
-            stop(gsub("\\s+", " ",
-                      "List of polynomials to evaluate, and list of points to
-                  evaluate each polynomial, are not equal."))
-        }
-        output <- mapply(predict, polynomials, points)
-    } else {
-        output <- predict(polynomials, points)
-    }
-    return(output)
-}
-
 #' Parsing marginal treatment response formulas
 #'
 #' This function takes in an MTR formula, and then parses the formula
@@ -241,45 +156,16 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         exporder <- c(0, exporder)
         oterms   <- c("(Intercept)", oterms)
     }
-
     polymat <- as.matrix(dmat[, oterms])
-
-    ## prepare monomials and their integrals
-    polynomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                              genpolynomial,
-                              basis = exporder)
-
-    if (as.function == FALSE) {
-        monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                                genmonomial,
-                                basis = exporder)
-
-        integral_list <- lapply(monomial_list,
-                                lapply,
-                                polynom::integral)
-        names(integral_list) <- rownames(data)
-    } else {
-        monomial_list <- lapply(split(polymat, seq(1, nrow(polymat))),
-                                genmonomial,
-                                basis = exporder,
-                                as.function = TRUE)
-
-        integral_list <- NULL
-    }
-
-    names(monomial_list) <- rownames(data)
 
     ## Generate index for non-U variables---this is used to avoid
     ## collinearity issues in the GMM estimate.
-
     xIndex <- unlist(lapply(nterms, function(x) {
         paste(sort(x), collapse = ":")
     }))
-
     xIndex[u_pos] <- unlist(lapply(nterms[u_pos], function(x) {
         paste(sort(x[which(x != uname)]), collapse = ":")
     }))
-
     if (length(uexp_pos) > 0) {
         xIndex[uexp_pos] <- unlist(lapply(seq(1, length(uexp_pos)),
             function(x) {
@@ -291,16 +177,12 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
             }
         }))
     }
-
     xIndex[xIndex == ""] <- "1"
-
     if ("(Intercept)" %in% colnames(dmat)) {
         xIndex <- c("1", xIndex)
     }
 
-    return(list(plist = polynomial_list,
-                mlist = monomial_list,
-                ilist = integral_list,
+    return(list(polymat = polymat,
                 exporder = exporder,
                 xindex = xIndex,
                 terms = oterms))
@@ -334,17 +216,18 @@ polyProduct <- function(poly1, poly2) {
 #' This function generates the gamma objects defined in the paper,
 #' i.e. each additive term in E[md], where md is a MTR.
 #'
-#' @param monomials object containing list of list of monomials. Each
-#'     element of the outer list represents an observation in the data
-#'     set, each element in the inner list is a monomial from the
-#'     MTR. The variable is the unobservable u, and the coefficient is
-#'     the evaluation of any interactions with u.
+#' @param monomials [UPDATE DESCRIPTION] object containing list of
+#'     list of monomials. Each element of the outer list represents an
+#'     observation in the data set, each element in the inner list is
+#'     a monomial from the MTR. The variable is the unobservable u,
+#'     and the coefficient is the evaluation of any interactions with
+#'     u.
 #' @param lb vector of lower bounds for the interval of
 #'     integration. Each element corresponds to an observation.
 #' @param ub vector of upper bounds for the interval of
 #'     integration. Each element corresponds to an observation.
 #' @param multiplier a vector of the weights that enter into the
-#'     interal. Each element corresponds to an observation.
+#'     integral. Each element corresponds to an observation.
 #' @param subset Subset condition used to select observations with
 #'     which to estimate gamma.
 #' @param means logical, if TRUE then function returns the terms of
@@ -383,37 +266,22 @@ polyProduct <- function(poly1, poly2) {
 genGamma <- function(monomials, lb, ub, multiplier = 1,
                          subset = NULL, means = TRUE) {
 
-    exporder  <- monomials$exporder
-    integrals <- monomials$ilist
-
-    if (!is.null(subset)) integrals <- integrals[subset]
-
+    exporder <- monomials$exporder
+    polymat <- monomials$polymat
+    if (!is.null(subset)) polymat <- polymat[subset, ]
     nmono <- length(exporder)
 
     ## Determine bounds of integrals (i.e. include weights)
-    if (length(ub) == 1) ub <- replicate(length(integrals), ub)
-    if (length(lb) == 1) lb <- replicate(length(integrals), lb)
-
-    ub <- split(replicate(nmono, ub), seq(length(ub)))
-    lb <- split(replicate(nmono, lb), seq(length(lb)))
-
-    monoeval <- t(mapply(polylisteval, integrals, ub)) -
-        t(mapply(polylisteval, integrals, lb))
-
-    termsN <- length(integrals[[1]])
-    if (termsN == 1) monoeval <- t(monoeval)
-
-    ## The object monoeval is supposed to have as many rows as the
-    ## number of observations used for estimation. However, if the
-    ## provided MTR objects include only one term, R transposes the
-    ## matrix. So below I undo that transpose if the number of terms
-    ## is 1.
-
-    preGamma <- sweep(monoeval,
-                      MARGIN = 1,
-                      STATS = multiplier,
-                      FUN = "*")
-
+    if (length(ub) == 1) ub <- replicate(nrow(polymat), ub)
+    if (length(lb) == 1) lb <- replicate(nrow(polymat), lb)
+    
+    uLbMat <- NULL
+    uUbMat <- NULL
+    for (exp in exporder) {
+        uLbMat <- cbind(uLbMat, monoIntegral(lb, exp) * multiplier)
+        uUbMat <- cbind(uUbMat, monoIntegral(ub, exp) * multiplier)
+    }
+    preGamma <- polymat * (uUbMat - uLbMat)
     if (means) {
         if (is.matrix(preGamma)) {
             gstar <- colMeans(preGamma)
@@ -426,6 +294,22 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
         colnames(preGamma) <- monomials$terms
         return(preGamma)
     }
+}
+
+
+#' Integrating and evaluating monomials
+#'
+#' Analytically integrates monomials and evalates them at a given
+#' point. It is assumed that there is no constant multiplying the
+#' monomial.
+#'
+#' @param u scalar, the point at which to evaluate the integral. If a
+#'     vector is passed, then the integral is evaluated at all the
+#'     elements of the vector.
+#' @param exp The exponent of the monomial.
+#' @return scalar or vector, depending on what \code{u} is.
+monoIntegral <- function(u, exp) {
+    return((u ^ (exp + 1)) / (exp + 1))
 }
 
 #' Separating splines from MTR formulas

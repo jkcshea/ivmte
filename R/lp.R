@@ -135,7 +135,10 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
         obj <- c(obj, -obj[(sn * 2 + 1) : ncol(A)])
         A <- cbind(A, -A[, (sn * 2 + 1) : ncol(A)])
     }
-
+    if (lpsolver %in% c("gurobi", "rcplex", "lpsolveapi")) {
+        A <- Matrix::Matrix(A, sparse = TRUE)
+    }
+    
     return(list(obj = obj,
                 rhs = rhs,
                 sense = sense,
