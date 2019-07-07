@@ -157,6 +157,11 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         oterms   <- c("(Intercept)", oterms)
     }
     polymat <- as.matrix(dmat[, oterms])
+    if (length(oterms) == 1) {
+        polymat <- matrix(polymat, ncol = 1)
+        rownames(polymat) <- seq(1, nrow(polymat))
+    }
+    print(polymat)
 
     ## Generate index for non-U variables---this is used to avoid
     ## collinearity issues in the GMM estimate.
@@ -264,17 +269,14 @@ polyProduct <- function(poly1, poly2) {
 #'
 #' @export
 genGamma <- function(monomials, lb, ub, multiplier = 1,
-                         subset = NULL, means = TRUE) {
-
+                     subset = NULL, means = TRUE) {
     exporder <- monomials$exporder
     polymat <- monomials$polymat
-    if (!is.null(subset)) polymat <- polymat[subset, ]
+    if (!is.null(subset)) polymat <- as.matrix(polymat[subset, ])
     nmono <- length(exporder)
-
     ## Determine bounds of integrals (i.e. include weights)
     if (length(ub) == 1) ub <- replicate(nrow(polymat), ub)
     if (length(lb) == 1) lb <- replicate(nrow(polymat), lb)
-    
     uLbMat <- NULL
     uUbMat <- NULL
     for (exp in exporder) {

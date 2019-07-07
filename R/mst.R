@@ -313,7 +313,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             }
         }
     }
-
+    
     if (userComponents) {
         length_components <- length(components)
         if (length_formula == 1) {
@@ -436,7 +436,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 subset <- eval(parse(text = subset))
             }
         }
-        ## Experimenting ---------------------------------------------------
         ## Fill in any missing subset slots
         if (length(subset) > 1 && length(subset) != length_formula) {
             stop(gsub("\\s+", " ",
@@ -450,7 +449,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         if (length(subset) == 1 && length_formula > 1) {
             subset <- rep(subset, length_formula)
         }
-        ## End experimenting -----------------------------------------------
         ## Check if all subseting conditions are logical
         nonLogicSubset <- NULL
         for (i in 1:length(ivlike)) {
@@ -917,10 +915,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
         splinesobj <- list(removeSplines(m0),
                            removeSplines(m1))
-
         m0 <- splinesobj[[1]]$formula
-        m1 <- splinesobj[[2]]$formula
-
+        m1 <- splinesobj[[2]]$formula        
         vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
                       all.vars(splinesobj[[2]]$formula))
 
@@ -2805,15 +2801,6 @@ genTarget <- function(treat, m0, m1, uname, target,
         gstar0 <- cbind(gstar0, gstarSpline0)
         gstar1 <- cbind(gstar1, gstarSpline1)
     }
-
-    ## Original -------------------------------------------
-    ## return(list(gstar0 = gstar0,
-    ##             gstar1 = gstar1,
-    ##             xindex0 = xindex0,
-    ##             xindex1 = xindex1,
-    ##             uexporder0 = uexporder0,
-    ##             uexporder1 = uexporder1))
-    ## Experimenting --------------------------------------
     output <- list(gstar0 = gstar0,
                    gstar1 = gstar1,
                    xindex0 = xindex0,
@@ -2825,7 +2812,6 @@ genTarget <- function(treat, m0, m1, uname, target,
         output$w0 <- w0
     }
     return(output)
-    ## End experimenting ----------------------------------
 }
 
 
@@ -2933,13 +2919,12 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
             message(paste0("    Moment ", scount, "..."))
         }
         if (!is.null(pm0)) {
-
             if (means == TRUE) {
                 gs0 <- genGamma(monomials = pm0,
                                     lb = pmodobj,
                                     ub = 1,
                                     multiplier = sest$sw0[, j],
-                                    subset = subset_index)
+                                subset = subset_index)
             } else {
                 gs0 <- genGamma(monomials = pm0,
                                     lb = pmodobj,
@@ -2954,7 +2939,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         } else {
             gs0 <- NULL
         }
-
         if (!is.null(pm1)) {
             if (means == TRUE) {
 
@@ -3233,7 +3217,7 @@ gmmEstimate2 <- function(sset, gstar0, gstar1, noisy = TRUE) {
  
     gn0 <- ncol(gstar0)
     gn1 <- ncol(gstar1)
-
+    
     momentMatrix <- function() {
         ## This function constructs the matrix to be fed into the GMM
         ## estimator.
@@ -3276,17 +3260,17 @@ gmmEstimate2 <- function(sset, gstar0, gstar1, noisy = TRUE) {
                                   data[, paste0("g0", k)] -
                                   theta[(gn0 + gn1 + 1):(2 * gn0 + gn1)])
         }
-        for (k in 1:gn1) {
-            momentMatrix <- cbind(momentMatrix,
-                                  data[, paste0("g1", k)] -
-                                  theta[(2*gn0 + gn1 + 1):(2*gn0 + 2*gn1)])
-        }
+        ## for (k in 1:gn1) {
+        ##     momentMatrix <- cbind(momentMatrix,
+        ##                           data[, paste0("g1", k)] -
+        ##                           theta[(2*gn0 + gn1 + 1):(2*gn0 + 2*gn1)])
+        ## }
         return(momentMatrix)
     }
-    
-    ## print(momentConditions(theta = rep(1, times = 28), momentMatrix()))
-    
-    print(gmm::gmm(momentCondition, x = momentMatrix()))
+    print('Using gmm')
+    print(gmm::gmm(momentConditions, x = momentMatrix(),
+                   t0 = rep(0, times = (length(sset) + gn0 ## + gn1
+                   ))))
     
     stop("end of test")
     
