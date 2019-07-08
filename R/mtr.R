@@ -161,8 +161,6 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         polymat <- matrix(polymat, ncol = 1)
         rownames(polymat) <- seq(1, nrow(polymat))
     }
-    print(polymat)
-
     ## Generate index for non-U variables---this is used to avoid
     ## collinearity issues in the GMM estimate.
     xIndex <- unlist(lapply(nterms, function(x) {

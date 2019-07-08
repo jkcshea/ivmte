@@ -182,6 +182,9 @@ utils::globalVariables("u")
 #'     procedure is implemented to estimate the treatment
 #'     effects. Shape constraints on the MTRs will be ignored under
 #'     point identification.
+#' @param point.identity boolean, default set to \code{FALSE}. Set to
+#'     \code{TRUE} if GMM point estimate should use the identity
+#'     weighting matrix (i.e. one-step GMM).
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
@@ -231,7 +234,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
                   mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
                   mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
-                  noisy = TRUE, seed = 12345) {
+                  point.identity = FALSE, noisy = TRUE, seed = 12345) {
 
     ## Include into Roxygen documentation once document is published..
     ## A detailed description of the module and its features
@@ -313,7 +316,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             }
         }
     }
-    
+
     if (userComponents) {
         length_components <- length(components)
         if (length_formula == 1) {
@@ -795,29 +798,32 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             warning(gsub("\\s+", " ",
                          "Argument 'bootstrap.m' is only used for
                           partial identification, and will be ignored
-                          under point identification."))
+                          under point identification."), call. = FALSE)
         }
     } else {
         bootstraps.m <- nrow(data)
     }
-
-    if (!is.logical(bootstraps.replace))
+    if (!is.logical(bootstraps.replace)) {
         stop("'bootstraps.replace' must be TRUE or FALSE.")
-
-
+    }
     if (max(levels) >= 1 | min(levels) <= 0) {
         stop(gsub("\\s+", " ",
                   "'levels' must be a vector of values strictly between 0 and
                   1."))
     }
     levels <- sort(levels)
-
-
     if (! ci.type %in% c("forward", "backward", "both")) {
         stop(gsub("\\s+", " ",
                   "'ci.types' selects the type of confidence intervals to be
                   constructed for the treatment effect bound. It must be set to
                   either 'forward', 'backward', or 'both'."))
+    }
+
+    if (hasArg(point.identity) && point == FALSE) {
+        warning(gsub("\\s+", " ",
+                     "Argument 'point.identity' is only used for
+                      point identification, and will be ignored when
+                      point = FALSE."), call. = FALSE)
     }
 
     ##---------------------------
@@ -916,7 +922,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         splinesobj <- list(removeSplines(m0),
                            removeSplines(m1))
         m0 <- splinesobj[[1]]$formula
-        m1 <- splinesobj[[2]]$formula        
+        m1 <- splinesobj[[2]]$formula
         vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
                       all.vars(splinesobj[[2]]$formula))
 
@@ -1945,11 +1951,11 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     value of 0 corresponds to no violation of observational
 #'     equivalence other than statistical noise, and the assumption
 #'     that the model is correctly specified.
-#' @param initgrid.nu number of evenly spread points in the interval [0,
-#'     1] of the unobservable u used to form the grid for imposing
+#' @param initgrid.nu number of evenly spread points in the interval
+#'     [0, 1] of the unobservable u used to form the grid for imposing
 #'     shape restrictions on the MTRs.
-#' @param initgrid.nx number of evenly spread points of the covariates to
-#'     use to form the grid for imposing shape restrictions on the
+#' @param initgrid.nx number of evenly spread points of the covariates
+#'     to use to form the grid for imposing shape restrictions on the
 #'     MTRs.
 #' @param audit.nx number of points on the covariates space to audit
 #'     in each iteration of the audit procedure.
@@ -2000,12 +2006,15 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     is implemented to estimate the treatment effects. Shape
 #'     constraints on the MTRs will be ignored under point
 #'     identification.
+#' @param point.identity boolean, default set to \code{FALSE}. Set to
+#'     \code{TRUE} if GMM point estimate should use the identity
+#'     weighting matrix (i.e. one-step GMM).
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
 #'     e.g. when performing the bootstrap.
-#' @param seed integer, the seed that determines the random grid
-#'     in the audit procedure.
+#' @param seed integer, the seed that determines the random grid in
+#'     the audit procedure.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -2025,6 +2034,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                           m1.dec, m1.inc, mte.dec, mte.inc,
                           lpsolver = NULL, point = FALSE,
+                          point.identity = FALSE,
                           noisy = TRUE, seed = 12345) {
 
     call <- match.call(expand.dots = FALSE)
@@ -2219,16 +2229,19 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     }
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
-        ## Obtain GMM estimate
-        gmmResult <- gmmEstimate2(sset = sset,
+        ## Obtain GMM estimate        
+        gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
+                                 identity = point.identity,
                                  noisy = noisy)
+
         return(list(sset  = sset,
-                    gstar = list(g0 = gstar0,
-                                 g1 = gstar1),
+                    gstar = list(g0 = colMeans(gstar0),
+                                 g1 = colMeans(gstar1)),
                     propensity = pmodel,
                     pointestimate = gmmResult$pointestimate,
+                    Jtest = gmmResult$Jtest,
                     bounds = c(gmmResult$pointestimate,
                                gmmResult$pointestimate),
                     mtr.coef = gmmResult$coef))
@@ -3129,7 +3142,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'             gstar1 = targetGamma$gstar1)
 #'
 #' @export
-gmmEstimate <- function(sset, gstar0, gstar1, noisy = TRUE) {
+gmmEstimate_orig <- function(sset, gstar0, gstar1, noisy = TRUE) {
 
     gmmMat <- NULL
     yMat   <- NULL
@@ -3212,15 +3225,125 @@ gmmEstimate <- function(sset, gstar0, gstar1, noisy = TRUE) {
                 coef = theta))
 }
 
-
-gmmEstimate2 <- function(sset, gstar0, gstar1, noisy = TRUE) {
- 
+#' GMM estimate of TE under point identification
+#'
+#' If the user sets the argument \code{point = TRUE} in the function
+#' \code{ivmte}, then it is assumed that the treatment effect
+#' parameter is point identified. The observational equivalence
+#' condition is then set up as a two-step GMM problem. Solving this
+#' GMM problem recovers the coefficients on the MTR functions m0 and
+#' m1. Combining these coefficients with the target gamma moments
+#' allows us to estimate the target treatment effect.
+#' @param sset a list of lists constructed from the function
+#'     \link{genSSet}. Each inner list should include a coefficient
+#'     corresponding to a term in an IV specification, a matrix of the
+#'     estimates of the gamma moments conditional on (X, Z) for d = 0,
+#'     and a matrix of the estimates of the gamma moments conditional
+#'     on (X, Z) for d = 1. The column means of the last two matrices
+#'     is what is used to generate the gamma moments.
+#' @param gstar0 vector, the target gamma moments for d = 0.
+#' @param gstar1 vector, the target gamma moments for d = 1.
+#' @param identity boolean, default set to \code{FALSE}. Set to
+#'     \code{TRUE} if GMM point estimate should use the identity
+#'     weighting matrix (i.e. one-step GMM).
+#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
+#'     then messages are provided throughout the estimation
+#'     procedure. Set to \code{FALSE} to suppress all messages,
+#'     e.g. when performing the bootstrap.
+#' @return a list containing the point estimate of the treatment
+#'     effects, the standard errors, the 90% and 95% confidence
+#'     intervals, the convergence code (see
+#'     \code{\link[stats]{optim}}), the coefficients on the MTR, and
+#'     the variance/covariance matrix of the MTR coefficient
+#'     estimates.
+#'
+#' @examples
+#' ## Declare empty list to be updated (in the event multiple IV like
+#' ## specifications are provided
+#' sSet <- list()
+#'
+#' ## Declare MTR formulas
+#' formula1 = ~ 0 + u
+#' formula0 = ~ 0 + u
+#'
+#' ## Construct object that separates out non-spline components of MTR
+#' ## formulas from the spline components. The MTR functions are
+#' ## obtained from this object by the function 'genSSet'.
+#' splinesList = list(removeSplines(formula0), removeSplines(formula1))
+#'
+#' ## Construct MTR polynomials
+#' polynomials0 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#' polynomials1 <- polyparse(formula = formula0,
+#'                  data = dtm,
+#'                  uname = u,
+#'                  as.function = FALSE)
+#'
+#' ## Generate propensity score model
+#' propensityObj <- propensity(formula = d ~ z,
+#'                             data = dtm,
+#'                             link = "linear")
+#'
+#' ## Generate IV estimates
+#' ivEstimates <- ivEstimate(formula = ey ~ d | z,
+#'                           data = dtm,
+#'                           components = l(intercept, d),
+#'                           treat = d,
+#'                           list = FALSE)
+#'
+#' ## Generate target gamma moments
+#' targetGamma <- genTarget(treat = "d",
+#'                          m0 = ~ 1 + u,
+#'                          m1 = ~ 1 + u,
+#'                          uname = u,
+#'                          target = "atu",
+#'                          data = dtm,
+#'                          splinesobj = splinesList,
+#'                          pmodobj = propensityObj,
+#'                          pm0 = polynomials0,
+#'                          pm1 = polynomials1,
+#'                          point = TRUE)
+#'
+#' ## Construct S-set. which contains the coefficients and weights
+#' ## corresponding to various IV-like estimands
+#' sSet <- genSSet(data = dtm,
+#'                 sset = sSet,
+#'                 sest = ivEstimates,
+#'                 splinesobj = splinesList,
+#'                 pmodobj = propensityObj$phat,
+#'                 pm0 = polynomials0,
+#'                 pm1 = polynomials1,
+#'                 ncomponents = 2,
+#'                 scount = 1,
+#'                 yvar = "ey",
+#'                 dvar = "d",
+#'                 means = FALSE)
+#'
+#' ## Obtain point estimates using GMM
+#' gmmEstimate(sset = sSet$sset,
+#'             gstar0 = targetGamma$gstar0,
+#'             gstar1 = targetGamma$gstar1)
+#'
+#' @export
+gmmEstimate <- function(sset, gstar0, gstar1, identity = FALSE, noisy = TRUE) {
     gn0 <- ncol(gstar0)
     gn1 <- ncol(gstar1)
-    
+    if ((gn0 + gn1) > length(sset)) {
+        stop(gsub("\\s+", " ",
+                  paste0("System is underidentified: there are ",
+                         (gn0 + gn1),
+                         " unknown MTR coefficients and ",
+                         length(sset),
+                         " moment conditions defined by IV-like
+                         specifications. Either expand the number of
+                         IV-like specifications, or modify m0 and m1.")))
+    }
+
+    ## This function constructs the matrix to be fed into the GMM
+    ## estimator to construct the moment conditions.
     momentMatrix <- function() {
-        ## This function constructs the matrix to be fed into the GMM
-        ## estimator.
         momentMatrix <- NULL
         momentNames <- NULL
         for (s in 1:length(sset)) {
@@ -3231,21 +3354,14 @@ gmmEstimate2 <- function(sset, gstar0, gstar1, noisy = TRUE) {
                              paste0("s", s, "g0", seq(1, gn0)),
                              paste0("s", s, "g1", seq(1, gn1)))
         }
-        for (k in 1:gn0) {
-            momentMatrix <- cbind(momentMatrix, gstar0[, k])
-            momentNames <- c(momentNames, paste0("g0", k))
-        }
-        for (k in 1:gn1) {
-            momentMatrix <- cbind(momentMatrix, gstar1[, k])
-            momentNames <- c(momentNames, paste0("g1", k))
-        }
         colnames(momentMatrix) <- momentNames
         return(momentMatrix)
     }
 
-    ## The theta vector stores the parameters in the following order:
-    ## (i) coefficients for m0; (ii) coefficients for m1; (iii)
-    ## gamma-stars for m0; (iv) gamma-stars for m1.
+    ## This function defines the moment conditions for the GMM
+    ## estimator. The argument 'theta' is for a vector storing the
+    ## parameters of interest in the following order: (i) coefficients
+    ## for m0; (ii) coefficients for m1.
     momentConditions <- function(theta, data) {
         momentMatrix <- NULL
         for (s in 1:length(sset)) {
@@ -3255,45 +3371,41 @@ gmmEstimate2 <- function(sset, gstar0, gstar1, noisy = TRUE) {
             momentMatrix <- cbind(momentMatrix,
                                   yvec - gmat %*% theta[1:(gn0 + gn1)])
         }
-        for (k in 1:gn0) {
-            momentMatrix <- cbind(momentMatrix,
-                                  data[, paste0("g0", k)] -
-                                  theta[(gn0 + gn1 + 1):(2 * gn0 + gn1)])
-        }
-        ## for (k in 1:gn1) {
-        ##     momentMatrix <- cbind(momentMatrix,
-        ##                           data[, paste0("g1", k)] -
-        ##                           theta[(2*gn0 + gn1 + 1):(2*gn0 + 2*gn1)])
-        ## }
         return(momentMatrix)
     }
-    print('Using gmm')
-    print(gmm::gmm(momentConditions, x = momentMatrix(),
-                   t0 = rep(0, times = (length(sset) + gn0 ## + gn1
-                   ))))
-    
-    stop("end of test")
-    
-    
-    N <- length(ids)
-    gmmMat <- gmmMat[order(gmmMat[, 1], gmmMat[, 2]), ]
-    rownames(gmmMat) <- gmmMat[, 1]
-    yMat   <- yMat[order(yMat[, 1], yMat[, 2]), ]
-    ids <- unique(gmmMat[, 1])
-    gmmCompN <- ncol(gmmMat) - 2
-    if (gmmCompN > length(sset)) {
-        stop(gsub("\\s+", " ",
-                  paste0("System is underidentified: excluding
-                         target moments, there are ",
-                         gmmCompN,
-                         " unknown parameters/MTR coefficients and ",
-                         length(sset),
-                         " moment conditions (defined by IV-like
-                         specifications). Either expand the number of
-                         IV-like specifications, or modify m0 and m1.")))
+
+    ## Perform GMM
+    if (identity == FALSE) {
+        gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
+                           t0 = rep(0, times = (gn0 + gn1)),
+                           prewhite = 1)
+    } else {
+        gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
+                           t0 = rep(0, times = (gn0 + gn1)),
+                           prewhite = 1, wmatrix = "ident")
     }
-    gmmMat <- gmmMat[, -c(1, 2)]
-    yMat   <- yMat[, -c(1, 2)]
+    theta <- gmmObj$coefficients
+    if (length(sset) > gn0 + gn1) {
+        Jtest <- gmmObj$objective * nrow(gstar0)
+        Jtest <- c(Jtest,
+                   1 - pchisq(Jtest, df = length(sset) - gn0 - gn1))
+        names(Jtest) <- c("J-statistic", "p-value")
+    } else {
+        Jtest <- NULL
+    }
+    
+    ## Construct point estimate and CI of TE
+    names(theta) <- c(paste0("m0.", colnames(gstar0)),
+                      paste0("m1.", colnames(gstar1)))
+    pointestimate <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
+    if (noisy == TRUE) {
+        message()
+        message(paste0("Point estimate of the target parameter: ",
+                       round(pointestimate, 4), "\n"))
+    }
+    return(list(pointestimate = as.numeric(pointestimate),
+                coef = theta,
+                Jtest = Jtest))
 }
 
 #' Format result for display
