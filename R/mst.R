@@ -784,8 +784,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ## Bootstrap checks
-    if (bootstraps < 0 | bootstraps %% 1 != 0) {
-        stop("'bootstraps' must be an integer greater than or equal to 0.")
+    if (bootstraps < 2 | bootstraps %% 1 != 0) {
+        stop("'bootstraps' must be an integer greater than or equal to 2.")
     }
 
     if (hasArg(bootstraps.m)) {
@@ -1316,7 +1316,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             bootFailIndex <- NULL
 
             if (!hasArg(bootstraps.m)) bootstraps.m <- nrow(data)
-
+            if (bootstraps.m > nrow(data) && bootstraps.replace == FALSE) {
+                stop(gsub("\\s+", " ",
+                          "Cannot draw more observations than the number of rows
+                           in the data set when 'bootstraps.replace = FALSE'."))
+            }
+            
             while (b <= bootstraps) {
                 bootIDs  <- sample(seq(1, nrow(data)),
                                    size = bootstraps.m,
@@ -1497,7 +1502,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
     }
 
-    ## Point estimate  without resampling
+    ## Point estimate without resampling
     if (point == TRUE & bootstraps == 0) {
         return(eval(estimateCall))
     }
@@ -1517,7 +1522,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         bootFailIndex <- NULL
 
         if (!hasArg(bootstraps.m)) bootstraps.m <- nrow(data)
-
+        if (bootstraps.m > nrow(data) && bootstraps.replace == FALSE) {
+            stop(gsub("\\s+", " ",
+                      "Cannot draw more observations than the number of rows
+                           in the data set when 'bootstraps.replace = FALSE'."))
+        }
         while (b <= bootstraps) {
             bootIDs  <- sample(seq(1, nrow(data)),
                                  size = bootstraps.m,
@@ -1563,8 +1572,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         propSE  <- apply(propEstimates, 1, sd)
 
         ## Construct p-value
-        pvalue <- (sum(teEstimates >= abs(origEstimate$pointestimate)) +
-            sum(teEstimates <= -abs(origEstimate$pointestimate))) / bootstraps
+        pvalue <- (sum(teEstimates - origEstimate$pointestimate >=
+                       abs(origEstimate$pointestimate)) +
+                   sum(teEstimates - origEstimate$pointestimate <=
+                       -abs(origEstimate$pointestimate))) / bootstraps
 
         ## Construct confidence intervals for various levels
         for (level in levels) {
@@ -2217,7 +2228,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                   ivn = ivlikeCounter)
             }
             ivlikeCounter <- ivlikeCounter + 1
-
+            
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
@@ -2512,7 +2523,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                 message("    Integrating terms for control group...")
             }
             if (point == FALSE) {
-                ## gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
             } else {
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
@@ -2934,17 +2944,17 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         if (!is.null(pm0)) {
             if (means == TRUE) {
                 gs0 <- genGamma(monomials = pm0,
-                                    lb = pmodobj,
-                                    ub = 1,
-                                    multiplier = sest$sw0[, j],
+                                lb = pmodobj,
+                                ub = 1,
+                                multiplier = sest$sw0[, j],
                                 subset = subset_index)
             } else {
                 gs0 <- genGamma(monomials = pm0,
-                                    lb = pmodobj,
-                                    ub = 1,
-                                    multiplier = sest$sw0[, j],
-                                    subset = subset_index,
-                                    means = FALSE)
+                                lb = pmodobj,
+                                ub = 1,
+                                multiplier = sest$sw0[, j],
+                                subset = subset_index,
+                                means = FALSE)
             }
             sweight0 <- list(lb = pmodobj,
                              ub = 1,
@@ -2954,7 +2964,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         }
         if (!is.null(pm1)) {
             if (means == TRUE) {
-
+                
                 gs1 <- genGamma(monomials = pm1,
                                 lb = 0,
                                 ub = pmodobj,
@@ -3189,6 +3199,10 @@ gmmEstimate <- function(sset, gstar0, gstar1, identity = FALSE, noisy = TRUE) {
             momentMatrix <- cbind(momentMatrix,
                                   yvec - gmat %*% theta[1:(gn0 + gn1)])
         }
+        ## print("rank check")
+        ## print(qr(momentMatrix)$rank)
+        ## stop('end of test')
+        
         return(momentMatrix)
     }
 
