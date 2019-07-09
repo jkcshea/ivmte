@@ -1321,7 +1321,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                           "Cannot draw more observations than the number of rows
                            in the data set when 'bootstraps.replace = FALSE'."))
             }
-            
+
             while (b <= bootstraps) {
                 bootIDs  <- sample(seq(1, nrow(data)),
                                    size = bootstraps.m,
@@ -1650,7 +1650,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         bootstraps = bootstraps,
                         failed.bootstraps = length(bootFailIndex))
         output <- c(output1, output2, output3)
-
+        
         message("\nBootstrapped confidence intervals (nonparametric):")
         for (level in levels) {
             ci1str <- get(paste0("ci1", level * 100))
@@ -2228,7 +2228,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                   ivn = ivlikeCounter)
             }
             ivlikeCounter <- ivlikeCounter + 1
-            
+
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
@@ -2240,7 +2240,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     }
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
-        ## Obtain GMM estimate        
+        ## Obtain GMM estimate
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
@@ -2964,7 +2964,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         }
         if (!is.null(pm1)) {
             if (means == TRUE) {
-                
+
                 gs1 <- genGamma(monomials = pm1,
                                 lb = 0,
                                 ub = pmodobj,
@@ -3202,7 +3202,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, identity = FALSE, noisy = TRUE) {
         ## print("rank check")
         ## print(qr(momentMatrix)$rank)
         ## stop('end of test')
-        
+
         return(momentMatrix)
     }
 
@@ -3225,7 +3225,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, identity = FALSE, noisy = TRUE) {
     } else {
         Jtest <- NULL
     }
-    
+
     ## Construct point estimate and CI of TE
     names(theta) <- c(paste0("m0.", colnames(gstar0)),
                       paste0("m1.", colnames(gstar1)))

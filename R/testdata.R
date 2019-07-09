@@ -84,8 +84,10 @@ gendist1e <- function(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 0.5,
     ## Now construct the error terms. The error terms are normally
     ## distributed, centered at the draw of u if D = 0, and -u if D =
     ## 1.
-    dt$v0 <- sapply(dt[, "u"], rnorm, n = 1, sd = v0.sd)
-    dt$v1 <- sapply(-dt[, "u"], rnorm, n = 1, sd = v1.sd)
+    ## dt$v0 <- sapply(dt[, "u"], rnorm, n = 1, sd = v0.sd)
+    ## dt$v1 <- sapply(-dt[, "u"], rnorm, n = 1, sd = v1.sd)
+    dt$v0 <- rnorm(n = N, mean = 0, sd = v0.sd)
+    dt$v1 <- rnorm(n = N, mean = 0, sd = v1.sd)
 
     ## Now construct the Y values
     ## m0 = 0 + u
