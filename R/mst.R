@@ -182,7 +182,7 @@ utils::globalVariables("u")
 #'     procedure is implemented to estimate the treatment
 #'     effects. Shape constraints on the MTRs will be ignored under
 #'     point identification.
-#' @param point.identity boolean, default set to \code{FALSE}. Set to
+#' @param point.eyeweight boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
@@ -234,7 +234,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
                   mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
                   mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
-                  point.identity = FALSE, noisy = TRUE, seed = 12345) {
+                  point.eyeweight = FALSE, noisy = TRUE, seed = 12345) {
 
     ## Include into Roxygen documentation once document is published..
     ## A detailed description of the module and its features
@@ -784,8 +784,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ## Bootstrap checks
-    if (bootstraps < 2 | bootstraps %% 1 != 0) {
-        stop("'bootstraps' must be an integer greater than or equal to 2.")
+    if (bootstraps < 0 | bootstraps %% 1 != 0 | bootstraps == 1) {
+        stop(gsub("\\s+", " ",
+                  "'bootstraps' must either be 0, or be an integer greater than
+                   or equal to 2."))
     }
 
     if (hasArg(bootstraps.m)) {
@@ -819,9 +821,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   either 'forward', 'backward', or 'both'."))
     }
 
-    if (hasArg(point.identity) && point == FALSE) {
+    if (hasArg(point.eyeweight) && point == FALSE) {
         warning(gsub("\\s+", " ",
-                     "Argument 'point.identity' is only used for
+                     "Argument 'point.eyeweight' is only used for
                       point identification, and will be ignored when
                       point = FALSE."), call. = FALSE)
     }
@@ -2017,7 +2019,7 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     is implemented to estimate the treatment effects. Shape
 #'     constraints on the MTRs will be ignored under point
 #'     identification.
-#' @param point.identity boolean, default set to \code{FALSE}. Set to
+#' @param point.eyeweight boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
@@ -2045,7 +2047,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                           m1.dec, m1.inc, mte.dec, mte.inc,
                           lpsolver = NULL, point = FALSE,
-                          point.identity = FALSE,
+                          point.eyeweight = FALSE,
                           noisy = TRUE, seed = 12345) {
 
     call <- match.call(expand.dots = FALSE)
@@ -2244,7 +2246,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
-                                 identity = point.identity,
+                                 identity = point.eyeweight,
                                  noisy = noisy)
 
         return(list(sset  = sset,
