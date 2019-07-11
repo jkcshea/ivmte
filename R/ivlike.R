@@ -99,9 +99,7 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
 #' @export
 ivEstimate <- function(formula, data, subset, components, treat,
                          list = FALSE, order = NULL) {
-
     formula <- Formula::as.Formula(formula)
-
     call <- match.call(expand.dots = FALSE)
 
     ## Select components
@@ -134,7 +132,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
         components   <- substr(components, 3, nchar(components) - 1)
         components   <- strsplit(components, ", ")[[1]]
     }
-
+    
     ## Some interactions  may need  to be  relabled by  reordering the
     ## order of the interaction
     termsR <- attr(terms(formula), "term.labels")
@@ -149,7 +147,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
             components[fail] <- varsPerm[correctPos]
         }
     }
-
     ## obtain design matrices
     if (list == TRUE) {
         mf <- design(formula, data)
@@ -159,9 +156,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
                            keepargs = c("formula", "subset"),
                            newargs = list(data = quote(data))))
     }
-
     instrumented <- !is.null(mf$Z)
-
     ## Address factors whose values are not listed
     factorPos <- grep("factor(.)", components)
     if (length(factorPos) > 0) {
@@ -180,7 +175,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
         components <- c(components[! components %in% factorVars],
                         unlist(factorVarsFull))
     }
-
     ## Ensure components are uniquely declared
     components <- unique(components)
    

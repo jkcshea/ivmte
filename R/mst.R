@@ -332,12 +332,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             if (substr(componentsTmp, 1, 2) == "l(") {
                 components <- deparse(substitute(components))
                 components <- gsub("\\s+", " ", Reduce(paste, components))
-
                 if (substr(componentsTmp, 1, 4) != "l(c(") {
-                    components <- paste0("l(c",
-                                         substr(components, 2,
-                                                nchar(components)),
-                                         ")")
+                    ## Experimenting ------------------------
+                    internals <- substr(components, 3,
+                                        nchar(components) - 1)
+                    charList <- unique(unlist(strsplit(x = internals,
+                                                       split = "")))
+                    if (length(charList) == 2 && all(charList == c(",", " "))) {
+                        internals <- ""
+                    }
+                    components <- paste0("l(c(", internals, "))")
                 }
                 components <- eval(parse(text = components))
                 length_components <- 1
@@ -418,7 +422,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             } else {
                 subsetStrSubs <- Reduce(paste, deparse(substitute(subset)))
                 subsetStr <- try(Reduce(paste, deparse(subset)), silent = TRUE)
-
                 if (class(subsetStr) == "try-error") { ## i.e. logical
                     subset <- paste0("l(", subsetStrSubs, ")")
                 } else { ## i.e. variable, for looping
@@ -1148,7 +1151,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## For the components, since they may be terms, we first collect
     ## all terms, and then break it down into variables.
-    vars_components <- NULL
+    vars_components <- NULL    
     if (userComponents) {
         for (comp in components) {
 
@@ -1189,8 +1192,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Fill in components list if necessary
     comp_filler <- lapply(terms_formulas_x,
-                          function(x) as.character(unstring(x)))
-
+                          function(x) as.character(unstring(x)))    
     if (userComponents) {
         compMissing1 <- unlist(lapply(components, function(x) {
             Reduce(paste, deparse(x)) == ""
@@ -2174,16 +2176,13 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         ## loop across IV specifications
         ivlikeCounter <- 1
         for (i in 1:length(ivlike)) {
-
             sformula   <- ivlike[[i]]
             scomponent <- components[[i]]
-
             if (subset[[i]] == "") {
                 ssubset <- replicate(nrow(data), TRUE)
             } else {
                 ssubset <- subset[[i]]
             }
-
             ## Obtain coefficient estimates and S-weights
             ## corresponding to the IV-like estimands
             sdata <- data[eval(substitute(ssubset), data), ]
@@ -2193,7 +2192,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                 treat = treat,
                                 list = TRUE,
                                 order = ivlikeCounter)
-
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands
             subset_index <- rownames(sdata)
@@ -2937,7 +2935,6 @@ genTarget <- function(treat, m0, m1, uname, target,
 genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                         ncomponents, scount, subset_index, means = TRUE,
                         yvar, dvar, noisy = TRUE, ivn = NULL) {
-
     if (!hasArg(subset_index)) subset_index <- NULL
     for (j in 1:ncomponents) {
         if (noisy == TRUE) {
@@ -3201,10 +3198,6 @@ gmmEstimate <- function(sset, gstar0, gstar1, identity = FALSE, noisy = TRUE) {
             momentMatrix <- cbind(momentMatrix,
                                   yvec - gmat %*% theta[1:(gn0 + gn1)])
         }
-        ## print("rank check")
-        ## print(qr(momentMatrix)$rank)
-        ## stop('end of test')
-
         return(momentMatrix)
     }
 
