@@ -339,6 +339,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                                        split = "")))
                     if (length(charList) == 2 && all(charList == c(",", " "))) {
                         internals <- ""
+                        warning(gsub("\\s+", " ",
+                                     "No list of components provided.
+                                      All covariates in each
+                                      IV-like specification will be included
+                                      when constructing each S-set."),
+                                call. = FALSE)
                     }
                     components <- paste0("l(c(", internals, "))")
                 }
