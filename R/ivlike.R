@@ -132,7 +132,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
         components   <- substr(components, 3, nchar(components) - 1)
         components   <- strsplit(components, ", ")[[1]]
     }
-    
+
     ## Some interactions  may need  to be  relabled by  reordering the
     ## order of the interaction
     termsR <- attr(terms(formula), "term.labels")
@@ -177,7 +177,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
     }
     ## Ensure components are uniquely declared
     components <- unique(components)
-   
+
     ## Generate the lmcomponents vector
     lmcomponents <- components
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"

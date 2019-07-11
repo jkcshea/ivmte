@@ -333,7 +333,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 components <- deparse(substitute(components))
                 components <- gsub("\\s+", " ", Reduce(paste, components))
                 if (substr(componentsTmp, 1, 4) != "l(c(") {
-                    ## Experimenting ------------------------
                     internals <- substr(components, 3,
                                         nchar(components) - 1)
                     charList <- unique(unlist(strsplit(x = internals,
@@ -396,8 +395,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             ## Check if character, if so, then may need to
             ## deparse. Also check if logical, in which case less
             ## needs to be done.
-            subsetChar <- try(is.character(subset), silent = TRUE)
-            subsetLogic <- try(is.logical(subset), silent = TRUE)
+            subsetChar <- suppressWarnings(
+                try(is.character(subset), silent = TRUE))
+            subsetLogic <- suppressWarnings(
+                try(is.logical(subset), silent = TRUE))
             if (subsetChar == TRUE) {
                 stop(gsub("\\s+", " ",
                           "Subset conditions should be logical
@@ -421,7 +422,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                            in the workspace, or the variable in the data set."))
             } else {
                 subsetStrSubs <- Reduce(paste, deparse(substitute(subset)))
-                subsetStr <- try(Reduce(paste, deparse(subset)), silent = TRUE)
+                subsetStr <- suppressWarnings(
+                    try(Reduce(paste, deparse(subset)), silent = TRUE))
                 if (class(subsetStr) == "try-error") { ## i.e. logical
                     subset <- paste0("l(", subsetStrSubs, ")")
                 } else { ## i.e. variable, for looping
@@ -1151,7 +1153,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## For the components, since they may be terms, we first collect
     ## all terms, and then break it down into variables.
-    vars_components <- NULL    
+    vars_components <- NULL
     if (userComponents) {
         for (comp in components) {
 
@@ -1192,7 +1194,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Fill in components list if necessary
     comp_filler <- lapply(terms_formulas_x,
-                          function(x) as.character(unstring(x)))    
+                          function(x) as.character(unstring(x)))
     if (userComponents) {
         compMissing1 <- unlist(lapply(components, function(x) {
             Reduce(paste, deparse(x)) == ""
@@ -1654,7 +1656,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         bootstraps = bootstraps,
                         failed.bootstraps = length(bootFailIndex))
         output <- c(output1, output2, output3)
-        
+
         message("\nBootstrapped confidence intervals (nonparametric):")
         for (level in levels) {
             ci1str <- get(paste0("ci1", level * 100))
