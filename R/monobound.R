@@ -730,6 +730,17 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     }
     ## keep only the columns that are in the MTRs (A0 and A1 matrices
     ## potentially include extraneous columns)
+
+    print("names of gstar0")
+    print(names(gstar0))
+    print("names of matrix A0")
+    print(colnames(A0))
+
+    print(dim(A0))
+    print(A0)
+
+
+    stop("end of test")
     A0 <- as.matrix(A0[, names(gstar0)])
     A1 <- as.matrix(A1[, names(gstar1)])
     colnames(A0) <- names(gstar0)

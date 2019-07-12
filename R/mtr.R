@@ -75,18 +75,84 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     ## specifications correspond polynomial coefficients on u
     ## monomials
     data[[uname]] <- 1
+    ## Experimenting
+    ## -----------------------------------------------------------
+    ## Allowing for factor variables. This is done by removing all
+    ## factor-terms from the MTR. Their own design matrices will be
+    ## included so every possible dummy is available for selection.
+    ## sFormula <- deparse(formula)   
+    
+    ## dmat <- design(altFormula, data)$X
+    ## stop("end of exp")
+    ## THIS EXPERIMENT MAY BE UNNECESSARY    
+    ## Original ----------------------------------------------------------------
     dmat <- design(formula, data)$X
+    ## End original ------------------------------------------------------------
 
+    ## Question: why did you need to save the original terms from the
+    ## formula in oterms? Why could you not use the variable names
+    ## from the design matrix?
+    
     ## Save original terms for reference as later
-    oterms <- attr(terms(formula), "term.labels")
-
+    ## oterms <- attr(terms(formula), "term.labels") ## ORIGINAL
+    oterms <- colnames(dmat) ## EXPERIMENTING
+    
     ## Separate and parse the original terms
     nterms <- oterms
+
+    ## Experimenting ------------------------------------------------
+    ## Address booleans and their splitting
+    for (op in c("==", "!=", ">", ">=", "<", "<=")) {
+        nterms <- sapply(nterms, gsub,
+                         pattern = paste0(" ", op, " "),
+                         replacement = op)
+    }    
+    ## End experimenting --------------------------------------------
+       
     for (sep in c("I\\(", "\\)", "\\*", ":", "  ", "  ")) {
-        nterms <- lapply(nterms, gsub, pattern = sep, replacement = " ")
-    }
+              nterms <- lapply(nterms, gsub, pattern = sep, replacement = " ")
+        }
     nterms <- strsplit(trimws(unlist(nterms)), " ")
 
+    ## Experimenting ----------------------------------------------
+
+    ## Correct the spltting for factors
+    nterms <- lapply(nterms, function(x) {
+        factorPos <- grep("factor\\(" , x = x)
+        if (length(factorPos) > 0) {
+            for (i in factorPos) {
+                x[i] <- paste0(x[i], ")")
+            }
+        }
+        return(x)
+    })
+
+    ## Correct the spltting for booleans
+    nterms <- lapply(nterms, function(x) {
+        for (op in c("==", "!=", ">=", "<=", ">",  "<")) {
+            boolPos <- grep(op, x = x)
+            if (length(boolPos) > 0) {
+                for (i in boolPos) {
+                    x[i] <- gsub(op,
+                                 paste0(" ", op, " "), x[i])
+                }
+            }
+        }
+        for (op in c(" < =", " > =")) {
+            boolPos <- grep(op, x = x)
+            if (length(boolPos) > 0) {
+                for (i in boolPos) {
+                    x[i] <- gsub(op,
+                                 gsub(" ", "", op) ,
+                                 x[i])
+                }
+            }
+        }
+        return(x)
+    })
+    
+    ## End experimenting -------------------------------------------------------
+    
     ## Find monomials of degree 1 ('degree' is with respect to u)
     u_pos <- lapply(nterms, whichforlist, obj = uname)
     u_pos <- which(u_pos > 0)
@@ -106,7 +172,6 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     } else {
         exptab1 <- cbind(u_pos, 1)
     }
-
     if (deggtr2) {
         uexp <- as.numeric(mapply(vecextract,
                                   nterms[uexp_pos],
@@ -117,7 +182,6 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     } else {
         exptab <- exptab1
     }
-
     if(!is.null(exptab)) {
         colnames(exptab) <- c("term", "degree")
     }
@@ -130,16 +194,16 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         nonuterms    <- NULL
         nonutermspos <- NULL
     }
-
     if (length(nonuterms) > 0) {
         exptab0 <- cbind(nonutermspos, replicate(length(nonutermspos), 0))
+        rownames(exptab0) <- oterms[nonutermspos]
     } else {
         exptab0  <- NULL
     }
     exptab <- rbind(exptab0, exptab)
 
     if (!is.null(dim(exptab))) exptab <- exptab[order(exptab[, 1]), ]
-
+    
     if (is.matrix(exptab)) {
         exporder <- exptab[, 2]
         colnames(exptab) <- c("term", "degree")
@@ -150,44 +214,58 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         exporder <- NULL
     }
     names(exporder) <- NULL
-
+    
     ## generate matrix with monomial coefficients
-    if ("(Intercept)" %in% colnames(dmat)) {
-        exporder <- c(0, exporder)
-        oterms   <- c("(Intercept)", oterms)
-    }
-    polymat <- as.matrix(dmat[, oterms])
-    if (length(oterms) == 1) {
+    ## if ("(Intercept)" %in% colnames(dmat)) {
+    ##     exporder <- c(0, exporder)
+    ##     oterms   <- c("(Intercept)", oterms)
+    ## }
+    ## print("oterms")
+    ## print(oterms)
+    ## Original ----------------------------------------------------
+    ## polymat <- as.matrix(dmat[, oterms])
+    ## if (length(oterms) == 1) {
+    ##     polymat <- matrix(polymat, ncol = 1)
+    ##     rownames(polymat) <- rownames(data)
+    ## }
+    ## Testing -----------------------------------------------------
+    polymat <- as.matrix(dmat)
+    if (is.null(dim(polymat))) {
         polymat <- matrix(polymat, ncol = 1)
         rownames(polymat) <- rownames(data)
     }
-    ## Generate index for non-U variables---this is used to avoid
-    ## collinearity issues in the GMM estimate.
-    xIndex <- unlist(lapply(nterms, function(x) {
-        paste(sort(x), collapse = ":")
-    }))
-    xIndex[u_pos] <- unlist(lapply(nterms[u_pos], function(x) {
-        paste(sort(x[which(x != uname)]), collapse = ":")
-    }))
-    if (length(uexp_pos) > 0) {
-        xIndex[uexp_pos] <- unlist(lapply(seq(1, length(uexp_pos)),
-            function(x) {
-            if (length(nterms[[uexp_pos[x]]]) > 1) {
-                return(paste(sort(nterms[[uexp_pos[x]]][-uexp_subpos[[x]]]),
-                             collapse = ":"))
-            } else {
-                return("")
-            }
-        }))
-    }
-    xIndex[xIndex == ""] <- "1"
-    if ("(Intercept)" %in% colnames(dmat)) {
-        xIndex <- c("1", xIndex)
-    }
+    ## End of test -------------------------------------------------
+
+    print("exporder")
+    print(exptab)
+    
+    ## ## Generate index for non-U variables---this is used to avoid
+    ## ## collinearity issues in the GMM estimate.
+    ## xIndex <- unlist(lapply(nterms, function(x) {
+    ##     paste(sort(x), collapse = ":")
+    ## }))
+    ## xIndex[u_pos] <- unlist(lapply(nterms[u_pos], function(x) {
+    ##     paste(sort(x[which(x != uname)]), collapse = ":")
+    ## }))
+    ## if (length(uexp_pos) > 0) {
+    ##     xIndex[uexp_pos] <- unlist(lapply(seq(1, length(uexp_pos)),
+    ##         function(x) {
+    ##         if (length(nterms[[uexp_pos[x]]]) > 1) {
+    ##             return(paste(sort(nterms[[uexp_pos[x]]][-uexp_subpos[[x]]]),
+    ##                          collapse = ":"))
+    ##         } else {
+    ##             return("")
+    ##         }
+    ##     }))
+    ## }
+    ## xIndex[xIndex == ""] <- "1"
+    ## if ("(Intercept)" %in% colnames(dmat)) {
+    ##     xIndex <- c("1", xIndex)
+    ## }
 
     return(list(polymat = polymat,
                 exporder = exporder,
-                xindex = xIndex,
+                ## xindex = xIndex,
                 terms = oterms))
 }
 
@@ -267,9 +345,14 @@ polyProduct <- function(poly1, poly2) {
 #'
 #' @export
 genGamma <- function(monomials, lb, ub, multiplier = 1,
-                     subset = NULL, means = TRUE) {
+                     subset = NULL, means = TRUE) {    
     exporder <- monomials$exporder
     polymat <- monomials$polymat
+    print("exp order")
+    print(exporder)
+    ## print("polymat pre")
+    ## print(head(polymat))
+    
     if (!is.null(subset)) polymat <- as.matrix(polymat[subset, ])
     nmono <- length(exporder)
 
@@ -282,6 +365,11 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
         uLbMat <- cbind(uLbMat, monoIntegral(lb, exp) * multiplier)
         uUbMat <- cbind(uUbMat, monoIntegral(ub, exp) * multiplier)
     }
+    print("dims")
+    print(dim(uUbMat))
+    print(dim(uLbMat))
+    print(dim(polymat))
+    
     preGamma <- polymat * (uUbMat - uLbMat)
     if (means) {
         if (is.matrix(preGamma)) {
