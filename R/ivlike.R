@@ -127,7 +127,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
     ## Covert components into a vector of strings
     stringComp <- (substr(components, 1, 2) == "c(" &
         substr(components, nchar(components), nchar(components)) == ")")
-
     if (stringComp){
         components   <- substr(components, 3, nchar(components) - 1)
         components   <- strsplit(components, ", ")[[1]]
@@ -147,7 +146,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
             components[fail] <- varsPerm[correctPos]
         }
     }
-    ## obtain design matrices
+    ## Obtain design matrices
     if (list == TRUE) {
         mf <- design(formula, data)
     } else {
@@ -157,7 +156,9 @@ ivEstimate <- function(formula, data, subset, components, treat,
                            newargs = list(data = quote(data))))
     }
     instrumented <- !is.null(mf$Z)
-    ## Address factors whose values are not listed
+    ## Address factors whose values are not explicitly listed (i.e. if
+    ## factor(var1) is povided as a component, this will choose every
+    ## variable beginning with factor(var1) in the design matrix
     factorPos <- grep("factor(.)", components)
     if (length(factorPos) > 0) {
         factorVars <- components[factorPos]
@@ -175,6 +176,19 @@ ivEstimate <- function(formula, data, subset, components, treat,
         components <- c(components[! components %in% factorVars],
                         unlist(factorVarsFull))
     }
+    ## Deal with boolean expressions (the user will have to fllow a
+    ## naming convention, e.g. var1==1TRUE.
+    for (op in c("==", ">", ">=", "<", "<=")) {
+        boolPos <- grep(op, components)
+        if (length(boolPos) > 0) {
+            boolVars <- components[boolPos]
+            xVars <- colnames(mf$X)
+            boolVarsPos <- sapply(components[boolPos], grep, x = xVars)
+            boolVarsFull <- lapply(boolVarsPos, function(x) xVars[x])
+            components[boolVarsPos] <- unlist(boolVarsFull)
+        }
+    }
+
     ## Ensure components are uniquely declared
     components <- unique(components)
 
@@ -184,13 +198,11 @@ ivEstimate <- function(formula, data, subset, components, treat,
 
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
-
         ## For the OLS case, we need to obtain additional design
         ## matrices where we fix treatment.
         if (list == TRUE) {
             data[, colnames(data) == treat] <- 0
             mf0 <- design(formula, data)
-
             data[, colnames(data) == treat] <- 1
             mf1 <- design(formula, data)
         } else {
@@ -199,14 +211,12 @@ ivEstimate <- function(formula, data, subset, components, treat,
                                  newcall = design,
                                  keepargs = c("formula", "subset"),
                                  newargs = list(data = quote(data))))
-
             data[, colnames(data) == treat] <- 1
             mf1 <- eval(modcall(call,
                                  newcall = design,
                                  keepargs = c("formula", "subset"),
                                  newargs = list(data = quote(data))))
         }
-
         bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents)
         sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat)
     } else {
