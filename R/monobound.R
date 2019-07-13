@@ -628,8 +628,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                            uvec,
                            uname)
     }
-
-    print("Did i make it here?")
     if (is.null(splines[[1]]) & is.null(splines[[2]])) {
         A0 <- design(formula = m0, data = gridobj$grid)$X
         A1 <- design(formula = m1, data = gridobj$grid)$X
@@ -697,9 +695,23 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         ## Experimenting ------------------------------------------
         colnames(A0) <- parenthBoolean(colnames(A0))
         colnames(A1) <- parenthBoolean(colnames(A1))
+
+        namesA0 <- colnames(A0)
+        namesA1 <- colnames(A1)
+        namesA0length <- sapply(namesA0, function(x) {
+            length(unlist(strsplit(x, ":")))
+        })        
+        namesA1length <- sapply(namesA1, function(x) {
+            length(unlist(strsplit(x, ":")))
+        })
+
+        print(namesA0)
+        
         ## End of experiment --------------------------------------
         
         for (d in 0:1) {
+            namesA <- get(paste0("namesA", d))
+            namesAlength <- get(paste0("namesA", d, "length"))
             if (!is.null(basisList[[d + 1]])) {
                 for (j in 1:length(splines[[d + 1]])) {
                     print("Splineslist")
@@ -715,10 +727,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                         colnames(bmat)[1] <- uname
                         iName <- splines[[d + 1]][[j]][v]
                         if (iName != "1") {
-                            namesA <- colnames(get(paste0("A", d)))
-                            namesAlength <- sapply(namesA, function(x) {
-                                length(unlist(strsplit(x, ":")))
-                            })
                             ## Experimenting ---------------------
                             isFactor  <- FALSE
                             isBoolean <- FALSE
@@ -775,29 +783,52 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                             iNamePos <- (namesAscore == length(iNameList)) * 
                                 (namesAscore == namesAlength)
                             iNamePos <- which(iNamePos == 1)
+                            for (r in iNamePos) {
+                                bmatTmp <-
+                                    merge(
+                                        get(paste0("A", d))[, c(uname,
+                                                                namesA[r],
+                                                                ".grid.order")],
+                                        bmat, by = uname)
+                                bmatTmp[, 4:ncol(bmatTmp)] <-
+                                    sweep(x = bmatTmp[, 4:ncol(bmatTmp)],
+                                          MARGIN = 1,
+                                          STATS = bmatTmp[, namesA[r]],
+                                          FUN = "*")
+                                namesB <- paste0(colnames(bmatTmp)[4:ncol(bmatTmp)],
+                                                 ":", namesA[r])
+                                colnames(bmatTmp)[4:ncol(bmatTmp)] <- namesB
+                                newA <- merge(get(paste0("A", d)),
+                                              bmatTmp[, c(".grid.order",
+                                                          namesB)],
+                                              by = ".grid.order")
+                                newA <- newA[, c(namesA, namesB)]
+                                assign(paste0("A", d), newA)
+                            }
+                            
 
                             ## End experimenting -----------------
 
                             ## Original -------------------------------------
-                            bmat <-
-                                merge(
-                                    get(paste0("A", d))[, c(uname,
-                                                            iName,
-                                                            ".grid.order")],
-                                    bmat, by = uname)
-                            bmat[, 4:ncol(bmat)] <-
-                                sweep(x = bmat[, 4:ncol(bmat)],
-                                      MARGIN = 1,
-                                      STATS = bmat[, iName],
-                                      FUN = "*")
-                            namesB <- paste0(colnames(bmat)[4:ncol(bmat)],
-                                             ":", iName)
-                            colnames(bmat)[4:ncol(bmat)] <- namesB
-                            newA <- merge(get(paste0("A", d)),
-                                          bmat[, c(".grid.order", namesB)],
-                                          by = ".grid.order")
-                            newA <- newA[, c(namesA, namesB)]
-                            assign(paste0("A", d), newA)
+                            ## bmat <-
+                            ##     merge(
+                            ##         get(paste0("A", d))[, c(uname,
+                            ##                                 iName,
+                            ##                                 ".grid.order")],
+                            ##         bmat, by = uname)
+                            ## bmat[, 4:ncol(bmat)] <-
+                            ##     sweep(x = bmat[, 4:ncol(bmat)],
+                            ##           MARGIN = 1,
+                            ##           STATS = bmat[, iName],
+                            ##           FUN = "*")
+                            ## namesB <- paste0(colnames(bmat)[4:ncol(bmat)],
+                            ##                  ":", iName)
+                            ## colnames(bmat)[4:ncol(bmat)] <- namesB
+                            ## newA <- merge(get(paste0("A", d)),
+                            ##               bmat[, c(".grid.order", namesB)],
+                            ##               by = ".grid.order")
+                            ## newA <- newA[, c(namesA, namesB)]
+                            ## assign(paste0("A", d), newA)
                             ## End original -------------------------------------
                             
                         } else {
@@ -820,7 +851,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     }
     A0 <- A0[order(A0[, ".grid.order"]), ]
     A1 <- A1[order(A1[, ".grid.order"]), ]
-    stop("end of experiment")
+
     ## Rename columns so they match with the names in vectors gstar0
     ## and gstar1 (the problem stems from the unpredictable ordering
     ## of variables in interaction terms).
@@ -851,10 +882,10 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     print("names of matrix A0")
     print(colnames(A0))
 
+    print("HOW IS IT THAT THE NUMBER OF VARIABLES/COLUMNS IN A0 DIFFER FROM THAT OF GSTAR?")
+    
     print(dim(A0))
-    print(A0)
-
-
+    
     stop("end of test")
     A0 <- as.matrix(A0[, names(gstar0)])
     A1 <- as.matrix(A1[, names(gstar1)])
