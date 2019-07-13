@@ -223,16 +223,49 @@ audit <- function(data, uname, m0, m1, splinesobj,
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
 
+    ## Clean boolean terms
+    ## for (m in c("terms_mtr0", "terms_mtr1")) {
+    ##     terms_mtr <- get(m)
+    ##     terms_mtr <- lapply(terms_mtr, function(x) {
+    ##         tmpTerms <- unlist(strsplit(x, ":"))
+    ##         for (op in c("==", "!=", ">", ">=", "<", "<=")) {
+    ##             boolPos <- grep(op, tmpTerms)
+    ##             if (length(boolPos > 0)) {
+    ##                 for (j in boolPos) {
+    ##                     if (substr(tmpTerms[j], 1, 1) != "(") {
+    ##                         tmpTerms[j] <- paste0("(", tmpTerms[j], ")")
+    ##                     }
+    ##                 }
+    ##             }
+    ##         }
+    ##         paste(tmpTerms, collapse = ":")
+    ##     })
+    ##     assign(m, unlist(terms_mtr))
+    ## }
+    terms_mtr0 <- parenthBoolean(terms_mtr0)
+    terms_mtr1 <- parenthBoolean(terms_mtr1)
+
+    print("temrs of mtr0")
+    print(terms_mtr0)
+    
     ## Update MTR formulas to include all terms that interact with
     ## splines. This is required for generating the matrices to impose
     ## monotoncity and bounds. The terms that interact wtih the
     ## splines, but do not enter into the MTRs on their own, will be
     ## removed in the function genmonoboundA.
-
     if (!is.null(m0) & length(terms_mtr0) > 0) {
-        m0 <- update(m0, as.formula(paste("~ . +",
-                                          paste(unique(terms_mtr0),
-                                                collapse = " + "))))
+        ## Original -------------
+        ## m0 <- update(m0, as.formula(paste("~ . +",
+        ##                                   paste(unique(terms_mtr0),
+        ##                                         collapse = " + "))))
+        ## Experimenting -----------------
+        m0int <- attr(terms(m0), "intercept")
+        m0 <- paste("~", paste(unique(terms_mtr0), collapse = " + "))
+        if (m0int == 0) {
+            m0 <- paste(m0, "+ 0")
+        }
+        m0 <- as.formula(m0)
+        ## End experimenting ---------------------
     } else {
         if (length(terms_mtr0) > 0) {
             m0 <- as.formula(paste("~",
@@ -242,11 +275,20 @@ audit <- function(data, uname, m0, m1, splinesobj,
             m0 <- as.formula("~ 1")
         }
     }
-
+    
     if (!is.null(m1) & length(terms_mtr1) > 0) {
-        m1 <- update(m1, as.formula(paste("~ . +",
-                                          paste(unique(terms_mtr1),
-                                                collapse = " + "))))
+        ## Original -------------------------
+        ## m1 <- update(m1, as.formula(paste("~ . +",
+        ##                                   paste(unique(terms_mtr1),
+        ##                                         collapse = " + "))))
+        ## Experimenting -------------------
+        m1int <- attr(terms(m1), "intercept")
+        m1 <- paste("~", paste(unique(terms_mtr1), collapse = " + "))
+        if (m1int == 0) {
+            m1 <- paste(m1, "+ 0")
+        }
+        m1 <- as.formula(m1)
+        ## End experimenting ---------------------
     } else {
         if (length(terms_mtr1) > 0) {
             m1 <- as.formula(paste("~",
@@ -256,7 +298,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             m1 <- as.formula("~ 1")
         }
     }
-
+    
     ## Obtain name of unobservable variable
     if(hasArg(uname)) {
         if (!suppressWarnings(try(class(uname), silent = TRUE) ==
@@ -309,8 +351,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
     while (audit_count <= audit.max) {
         if (noisy) {
             message(paste0("\n    Audit count: ", audit_count))
-        }
-
+        }        
         ## Generate all monotonicity and boundedness matrices for initial grid
         if (audit_count == 1) {
             message("    Generating initial grid...")

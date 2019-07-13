@@ -932,8 +932,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
            length(Formula::as.Formula(m1))[1] != 0) {
             stop("m0 and m1 must be one-sided formulas.")
         }
+        print("about to remove spliens")
         splinesobj <- list(removeSplines(m0),
                            removeSplines(m1))
+        print("did I successfully finish runnign this?")
         m0 <- splinesobj[[1]]$formula
         m1 <- splinesobj[[2]]$formula
         vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
@@ -963,11 +965,18 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             vars_mtr   <- c(vars_mtr, all.vars(sf1))
             terms_mtr1 <- c(terms_mtr1, attr(terms(sf1), "term.labels"))
         }
-
     } else {
         stop("m0 and m1 must be one-sided formulas.")
     }
 
+    ## print("first terms mtr0")
+    ## print(terms_mtr0)
+    ## stop("end of experiment")
+    ## print("--------------------------------------------------------")
+    ## print(splinesobj[[1]])
+    ## print(splinesobj[[2]])
+    ## print("--------------------------------------------------------")
+    
     ## Collect list of variables used in custom weights (if defined)
     if (!hasArg(target)) {
 
@@ -2165,6 +2174,9 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
 
+    print("This is gstar0")
+    print(gstar0)
+
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
@@ -2947,7 +2959,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
     for (j in 1:ncomponents) {
         if (noisy == TRUE) {
             message(paste0("    Moment ", scount, "..."))
-        }
+        }        
         if (!is.null(pm0)) {
             if (means == TRUE) {
                 gs0 <- genGamma(monomials = pm0,
@@ -2963,12 +2975,12 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                 subset = subset_index,
                                 means = FALSE)
             }
-            sweight0 <- list(lb = pmodobj,
-                             ub = 1,
-                             multiplier = sest$sw0[, j])
         } else {
             gs0 <- NULL
         }
+        sweight0 <- list(lb = pmodobj,
+                         ub = 1,
+                         multiplier = sest$sw0[, j])
         if (!is.null(pm1)) {
             if (means == TRUE) {
 
@@ -2985,14 +2997,13 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                 subset = subset_index,
                                 means = FALSE)
             }
-           sweight1 <- list(lb = 0,
-                             ub = pmodobj,
-                             multiplier = sest$sw1[, j])
         } else {
             gs1 <- NULL
         }
+        sweight1 <- list(lb = 0,
+                         ub = pmodobj,
+                         multiplier = sest$sw1[, j])
         if (means == TRUE) {
-
             gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
                                          data = data,
                                          lb = pmodobj,

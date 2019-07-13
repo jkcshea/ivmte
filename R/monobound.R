@@ -610,6 +610,9 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         noX <- FALSE
     }
 
+    print("formula")
+    print(m0)
+    
     ## generate the first iteration of the grid
     if (noX) {
         grid <- data.frame(uvec)
@@ -626,9 +629,22 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                            uname)
     }
 
+    print("Did i make it here?")
     if (is.null(splines[[1]]) & is.null(splines[[2]])) {
         A0 <- design(formula = m0, data = gridobj$grid)$X
         A1 <- design(formula = m1, data = gridobj$grid)$X
+
+        print("formula")
+        print(m0)
+
+        print('grid')
+        print(gridobj$grid)
+        
+        print("A0 initial")
+        print(A0)
+        stop("end of test")
+
+        
         A0 <- cbind(A0,
                     .grid.order = gridobj$grid$.grid.order,
                     .u.order = gridobj$grid$.u.order)
@@ -636,10 +652,31 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                     .grid.order = gridobj$grid$.grid.order,
                     .u.order = gridobj$grid$.u.order)
     } else {
-        m0 <- update(m0, as.formula(paste("~ . +", uname)))
-        m1 <- update(m1, as.formula(paste("~ . +", uname)))
+
+        print("ahouhd")
+        
+        m0 <- as.formula(paste(gsub("\\s+", " ",
+                                    Reduce(paste, deparse(m0))), "+", uname))
+        m1 <- as.formula(paste(gsub("\\s+", " ",
+                                    Reduce(paste, deparse(m1))), "+", uname))
+                         
+        print("New m0")
+        print(m0)
+
+        print("New m1")
+        print(m1)
+
+        print('head of grid')
+        print(head(gridobj$grid))
+
+        print(table(gridobj$grid$hours))
+        print(table(gridobj$grid$yob))
+        print(table(gridobj$grid$u))
+        
+        ## m0 <- update(m0, as.formula(paste("~ . +", uname)))
+        ## m1 <- update(m1, as.formula(paste("~ . +", uname)))
         A0 <- design(formula = m0, data = gridobj$grid)$X
-        A1 <- design(formula = m1, data = gridobj$grid)$X
+        A1 <- design(formula = m1, data = gridobj$grid)$X        
         A0 <- cbind(A0,
                     .grid.order = gridobj$grid$.grid.order,
                     .u.order = gridobj$grid$.u.order)
@@ -652,20 +689,96 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                           genBasisSplines(splines = splines[[2]],
                                           x = uvec,
                                           d = 1))
-
+        
         ## Generate interaction with the splines.
         ## Indexing in the loops takes the following structure:
         ## j: splines index
         ## v: interaction index
+        ## Experimenting ------------------------------------------
+        colnames(A0) <- parenthBoolean(colnames(A0))
+        colnames(A1) <- parenthBoolean(colnames(A1))
+        ## End of experiment --------------------------------------
+        
         for (d in 0:1) {
             if (!is.null(basisList[[d + 1]])) {
                 for (j in 1:length(splines[[d + 1]])) {
+                    print("Splineslist")
+                    print(splines[[d+1]])
+                    print("Basis list")
+                    print(basisList[[d+1]][[j]])
+                    
                     for (v in 1:length(splines[[d + 1]][[j]])) {
                         bmat <- cbind(uvec, basisList[[d + 1]][[j]])
+
+                        print("THIS IS THE BMAT")
+                        print(bmat)
                         colnames(bmat)[1] <- uname
                         iName <- splines[[d + 1]][[j]][v]
                         if (iName != "1") {
                             namesA <- colnames(get(paste0("A", d)))
+                            namesAlength <- sapply(namesA, function(x) {
+                                length(unlist(strsplit(x, ":")))
+                            })
+                            ## Experimenting ---------------------
+                            isFactor  <- FALSE
+                            isBoolean <- FALSE
+                            iNamePos  <- NULL
+                            ## ## Special case for factors
+                            ## if (grepl("factor\\([[:alnum:]]*\\)", iName)) {
+                            ##     isFactor <- TRUE
+                            ##     iNamePos <-
+                            ##         which(gsub(
+                            ##             "factor\\([[:alnum:]]*\\)[[:alnum:]]*",
+                            ##             "",
+                            ##             colnames(get(paste0("A", d)))) == "")
+                            ## }
+                            ## ## Special case for boolean
+                            ## if (!isFactor) {
+                            ##     for (op in c("==", "!=", ">", ">=", "<", "<=")){
+                            ##         if (grepl(op, iName)) {
+                            ##             isBoolean <- TRUE
+                            ##             iName <- parenthBoolean(iName)
+                            ##             print("NEW INAME BOOL")
+                            ##             print(iName)
+                            ##             ## iNamePos <-
+                            ##             ##     which(colnames(get(paste0("A", d)))
+                            ##             ##           == paste0(iName, "TRUE"))
+                            ##             break
+                            ##         }
+                            ##     }
+                            ## }
+                            ## ## Standard case
+                            ## if (!isFactor && !isBoolean) {
+                            ##     iNamePos <-
+                            ##         which(colnames(get(paste0("A", d))) ==
+                            ##               iName)
+                            ## }
+
+                            iNameList <- unlist(strsplit(iName, ":"))
+                            namesAscore <- rep(0, times = length(namesA))
+                            for (q in iNameList) {
+                                if (substr(q, nchar(q), nchar(q)) == ")") {
+                                    q <- gsub("\\)", "\\\\)",
+                                              gsub("\\(", "\\\\(", q))
+                                    namesApos <-
+                                        as.integer(
+                                            grepl(paste0(q, "[[:alnum:]]*"),
+                                                  namesA))
+
+                                } else {
+                                    namesApos <-
+                                        as.integer(
+                                            grepl(q, namesA))
+                                }
+                                namesAscore <- namesAscore + namesApos
+                            }
+                            iNamePos <- (namesAscore == length(iNameList)) * 
+                                (namesAscore == namesAlength)
+                            iNamePos <- which(iNamePos == 1)
+
+                            ## End experimenting -----------------
+
+                            ## Original -------------------------------------
                             bmat <-
                                 merge(
                                     get(paste0("A", d))[, c(uname,
@@ -685,6 +798,8 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                           by = ".grid.order")
                             newA <- newA[, c(namesA, namesB)]
                             assign(paste0("A", d), newA)
+                            ## End original -------------------------------------
+                            
                         } else {
                             namesA <- colnames(get(paste0("A", d)))
                             namesB <- paste0(colnames(bmat)[2:ncol(bmat)],
@@ -705,7 +820,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     }
     A0 <- A0[order(A0[, ".grid.order"]), ]
     A1 <- A1[order(A1[, ".grid.order"]), ]
-
+    stop("end of experiment")
     ## Rename columns so they match with the names in vectors gstar0
     ## and gstar1 (the problem stems from the unpredictable ordering
     ## of variables in interaction terms).

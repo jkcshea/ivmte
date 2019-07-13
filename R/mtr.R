@@ -80,11 +80,11 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     ## Allowing for factor variables. This is done by removing all
     ## factor-terms from the MTR. Their own design matrices will be
     ## included so every possible dummy is available for selection.
-    ## sFormula <- deparse(formula)   
-    
+    ## sFormula <- deparse(formula)
+
     ## dmat <- design(altFormula, data)$X
     ## stop("end of exp")
-    ## THIS EXPERIMENT MAY BE UNNECESSARY    
+    ## THIS EXPERIMENT MAY BE UNNECESSARY
     ## Original ----------------------------------------------------------------
     dmat <- design(formula, data)$X
     ## End original ------------------------------------------------------------
@@ -92,11 +92,11 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     ## Question: why did you need to save the original terms from the
     ## formula in oterms? Why could you not use the variable names
     ## from the design matrix?
-    
+
     ## Save original terms for reference as later
     ## oterms <- attr(terms(formula), "term.labels") ## ORIGINAL
     oterms <- colnames(dmat) ## EXPERIMENTING
-    
+
     ## Separate and parse the original terms
     nterms <- oterms
 
@@ -106,9 +106,9 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         nterms <- sapply(nterms, gsub,
                          pattern = paste0(" ", op, " "),
                          replacement = op)
-    }    
+    }
     ## End experimenting --------------------------------------------
-       
+
     for (sep in c("I\\(", "\\)", "\\*", ":", "  ", "  ")) {
               nterms <- lapply(nterms, gsub, pattern = sep, replacement = " ")
         }
@@ -150,9 +150,9 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         }
         return(x)
     })
-    
+
     ## End experimenting -------------------------------------------------------
-    
+
     ## Find monomials of degree 1 ('degree' is with respect to u)
     u_pos <- lapply(nterms, whichforlist, obj = uname)
     u_pos <- which(u_pos > 0)
@@ -203,7 +203,7 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     exptab <- rbind(exptab0, exptab)
 
     if (!is.null(dim(exptab))) exptab <- exptab[order(exptab[, 1]), ]
-    
+
     if (is.matrix(exptab)) {
         exporder <- exptab[, 2]
         colnames(exptab) <- c("term", "degree")
@@ -214,7 +214,7 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         exporder <- NULL
     }
     names(exporder) <- NULL
-    
+
     ## generate matrix with monomial coefficients
     ## if ("(Intercept)" %in% colnames(dmat)) {
     ##     exporder <- c(0, exporder)
@@ -236,9 +236,6 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     }
     ## End of test -------------------------------------------------
 
-    print("exporder")
-    print(exptab)
-    
     ## ## Generate index for non-U variables---this is used to avoid
     ## ## collinearity issues in the GMM estimate.
     ## xIndex <- unlist(lapply(nterms, function(x) {
@@ -345,14 +342,9 @@ polyProduct <- function(poly1, poly2) {
 #'
 #' @export
 genGamma <- function(monomials, lb, ub, multiplier = 1,
-                     subset = NULL, means = TRUE) {    
+                     subset = NULL, means = TRUE) {
     exporder <- monomials$exporder
     polymat <- monomials$polymat
-    print("exp order")
-    print(exporder)
-    ## print("polymat pre")
-    ## print(head(polymat))
-    
     if (!is.null(subset)) polymat <- as.matrix(polymat[subset, ])
     nmono <- length(exporder)
 
@@ -365,11 +357,6 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
         uLbMat <- cbind(uLbMat, monoIntegral(lb, exp) * multiplier)
         uUbMat <- cbind(uUbMat, monoIntegral(ub, exp) * multiplier)
     }
-    print("dims")
-    print(dim(uUbMat))
-    print(dim(uLbMat))
-    print(dim(polymat))
-    
     preGamma <- polymat * (uUbMat - uLbMat)
     if (means) {
         if (is.matrix(preGamma)) {
@@ -437,6 +424,9 @@ removeSplines <- function(formula) {
     fterms <- attr(terms(formula), "term.labels")
     finter <- attr(terms(formula), "intercept")
 
+    print("fterms")
+    print(fterms)
+
     if (length(fterms) == 0) {
         whichspline <- 0
     } else {
@@ -452,18 +442,50 @@ removeSplines <- function(formula) {
     if (max(whichspline) == 1) {
         ftobj <- terms(formula)
         splinepos <- which(whichspline == TRUE)
-
         if (length(splinepos) == length(fterms)) {
             if (finter == 0) nosplines <- NULL
             if (finter == 1) nosplines <- ~ 1
         } else {
-            nosplines <- drop.terms(ftobj, splinepos)
+            ## Experimenting --------------------------------------
+            nosplineterms <- fterms[-splinepos]
+
+            print("nosplinetemrs")
+            print(nosplineterms)
+
+            ## Clean up boolean expressions
+            ## nosplineterms <- lapply(nosplineterms, function(x) {
+            ##     tmpTerms <- unlist(strsplit(x, ":"))
+            ##     for (op in c("==", "!=", ">", ">=", "<", "<=")) {
+            ##         boolPos <- grep(op, tmpTerms)
+            ##         if (length(boolPos > 0)) {
+            ##             for (j in boolPos) {
+            ##                 if (substr(tmpTerms[j], 1, 1) != "(") {
+            ##                     tmpTerms[j] <- paste0("(", tmpTerms[j], ")")
+            ##                 }
+            ##             }
+            ##         }
+            ##     }
+            ##     paste(tmpTerms, collapse = ":")
+            ## })
+            ## nosplineterms <- unlist(nosplineterms)
+            nosplineterms <- parenthBoolean(nosplineterms)
+
+            nosplines <- paste("~", paste(nosplineterms,
+                                          collapse = " + "))
+            if (finter != 1) {
+                nosplines <- paste0(nosplines, " + 0")
+            }
             nosplines <- Formula::as.Formula(nosplines)
+
+            ## End experimenting ----------------------------------
+            ## Original ------------------------------------------
+            ## nosplines <- drop.terms(ftobj, splinepos)
+            ## nosplines <- Formula::as.Formula(nosplines)
+            ## End original --------------------------------------
         }
-
         splineterms <- fterms[whichspline]
+        splineterms <- parenthBoolean(splineterms)
         splineslist <- list()
-
         for (splineobj in splineterms) {
             splinepos1 <- regexpr("uSplines\\(", splineobj)
             splinepos2 <- regexpr("uSpline\\(", splineobj)
@@ -475,23 +497,19 @@ removeSplines <- function(formula) {
                 splinepos <- splinepos1
                 splineposadd <- 8
             }
-
             degreepos  <- regexpr("degree = ", splineobj)
             knotspos   <- regexpr("knots = ", splineobj)
             knotslpos  <- regexpr("knots = c\\(", splineobj)
             interpos   <- regexpr("intercept = ", splineobj)
-
             ## Check if vectors or sequences are declared to adjust parsing
             firstopen  <- regexpr("\\(",
                                   substr(splineobj,
                                          splinepos + splineposadd + 1,
                                          nchar(splineobj)))
-
             firstclose <- regexpr("\\)",
                                   substr(splineobj,
                                          splinepos + splineposadd + 1,
                                          nchar(splineobj)))
-
             secondclose <- regexpr("\\)",
                                    substr(splineobj,
                                           splinepos + splineposadd + 1 +
@@ -511,7 +529,8 @@ removeSplines <- function(formula) {
                                     firstclose - 1)
             }
 
-            ## Separate uSpline/uSplines command from terms interacting with the spline
+            ## Separate uSpline/uSplines command from terms
+            ## interacting with the spline
             splinecmdstr <- gsub("\\)", "\\\\)",
                                  gsub("\\(", "\\\\(", splinecmd))
 
@@ -532,7 +551,6 @@ removeSplines <- function(formula) {
         ## Now construct spline dictionary and spline keys
         splinesDict <- list()
         splinesKey <- NULL
-
         for (i in 1:length(splineslist)) {
             inDict <- FALSE
             splinesSpecCmd <- gsub("uSplines\\(",
@@ -546,7 +564,6 @@ removeSplines <- function(formula) {
             if (! "intercept" %in% names(splinesSpec)) {
                 splinesSpec$intercept = TRUE
             }
-
             ## Check if the spline is already in the dictionary
             if (length(splinesDict) > 0) {
                 j <- 1
@@ -560,7 +577,6 @@ removeSplines <- function(formula) {
                     j <- j + 1
                 }
             }
-
             ## Update dictionary and key
             if (inDict == FALSE) {
                 splinesDict[[length(splinesDict) + 1]] <-
@@ -794,7 +810,7 @@ uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 #'     to. "[b]" will be an integer reflect which component of the
 #'     basis the column pertains to.
 genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
-                                subset, d = NULL, means = TRUE) {
+                            subset, d = NULL, means = TRUE) {
 
     splines <- splines$splineslist
 
@@ -961,4 +977,36 @@ constructConstant <- function(x) {
         x
     }
     return(fun)
+}
+
+
+#' Correct boolean expressions in terms lists
+#'
+#' This function takes a vector of terms and places parentheses around
+#' boolean expressions.
+#' @param termsList character vector, the vector of terms.
+#' @return character vector.
+parenthBoolean <- function(termsList) {
+    termsList <- lapply(termsList, function(x) {
+        tmpTerms <- unlist(strsplit(x, ":"))
+        for (op in c("==", "!=", ">", ">=", "<", "<=")) {
+            boolPos <- grep(op, tmpTerms)
+            if (length(boolPos > 0)) {
+                for (j in boolPos) {
+                    if (substr(tmpTerms[j], 1, 1) != "(") {
+                        tmpTerms[j] <- paste0("(", tmpTerms[j], ")")
+                        tmpTerms[j] <- gsub("TRUE)",
+                                            ")TRUE",
+                                            tmpTerms[j])
+                        tmpTerms[j] <- gsub("FALSE)",
+                                            ")FALSE",
+                                            tmpTerms[j])
+                    }
+                }
+            }
+        }
+        paste(tmpTerms, collapse = ":")
+    })
+    termsList <- unlist(termsList)
+    return(termsList)
 }
