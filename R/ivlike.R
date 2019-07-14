@@ -178,7 +178,8 @@ ivEstimate <- function(formula, data, subset, components, treat,
     }
     ## Deal with boolean expressions (the user will have to fllow a
     ## naming convention, e.g. var1==1TRUE.
-    for (op in c("==", "!=", ">", ">=", "<", "<=")) {
+    for (op in c("==", "!=",
+                 ">", ">=", "<", "<=")) {
         boolPos <- grep(op, components)
         if (length(boolPos) > 0) {
             boolVars <- components[boolPos]

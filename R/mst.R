@@ -932,10 +932,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
            length(Formula::as.Formula(m1))[1] != 0) {
             stop("m0 and m1 must be one-sided formulas.")
         }
-        print("about to remove spliens")
         splinesobj <- list(removeSplines(m0),
                            removeSplines(m1))
-        print("did I successfully finish runnign this?")
         m0 <- splinesobj[[1]]$formula
         m1 <- splinesobj[[2]]$formula
         vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
@@ -2173,9 +2171,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
-
-    print("This is gstar0")
-    print(gstar0)
 
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands

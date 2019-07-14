@@ -423,10 +423,6 @@ removeSplines <- function(formula) {
 
     fterms <- attr(terms(formula), "term.labels")
     finter <- attr(terms(formula), "intercept")
-
-    print("fterms")
-    print(fterms)
-
     if (length(fterms) == 0) {
         whichspline <- 0
     } else {
@@ -448,10 +444,6 @@ removeSplines <- function(formula) {
         } else {
             ## Experimenting --------------------------------------
             nosplineterms <- fterms[-splinepos]
-
-            print("nosplinetemrs")
-            print(nosplineterms)
-
             ## Clean up boolean expressions
             ## nosplineterms <- lapply(nosplineterms, function(x) {
             ##     tmpTerms <- unlist(strsplit(x, ":"))
@@ -827,13 +819,12 @@ genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
 
         if (length(lb) == 1) lb <- replicate(nrow(data[subset, ]), lb)
         if (length(ub) == 1) ub <- replicate(nrow(data[subset, ]), ub)
-
+        
         splinesGamma <- NULL
         splinesNames <- NULL
         splinesInter <- NULL
-
+        
         for (j in 1:length(splines)) {
-
             ## Design matrix for covariates
             if ("1" %in% splines[[j]]) {
                 nonSplineFormula <- as.formula(paste("~",
@@ -845,8 +836,8 @@ genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
                                                            collapse = " + ")))
             }
             nonSplinesDmat <- design(nonSplineFormula,
-                                         data[subset, ])$X
-
+                                     data[subset, ])$X
+            colnames(nonSplinesDmat) <- parenthBoolean(colnames(nonSplinesDmat))
             ## Spline integral matrices
             splinesLB <- eval(parse(text = gsub("uSpline\\(",
                                                 "uSplineInt(x = lb, ",
@@ -858,29 +849,34 @@ genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
             splinesInt <- splinesUB - splinesLB
 
             ## Combine the design and integral matrices
-            for (l in 1:length(splines[[j]])) {
-
+            ## for (l in 1:length(splines[[j]])) {
+            for (l in 1:length(colnames(nonSplinesDmat))) {
                 tmpGamma <- sweep(splinesInt,
                                   MARGIN = 1,
                                   STATS = nonSplinesDmat[, l],
                                   FUN = "*")
-
                 tmpGamma <- sweep(x = tmpGamma,
                                   MARGIN = 1,
                                   STATS = multiplier,
                                   FUN = "*")
-
+                ## splinesNames <- c(splinesNames,
+                ##                   paste0(paste0("u", d, "S", j, "."),
+                ##                          seq(1, ncol(tmpGamma)),
+                ##                          paste0(":", splines[[j]][l])))
                 splinesNames <- c(splinesNames,
                                   paste0(paste0("u", d, "S", j, "."),
                                          seq(1, ncol(tmpGamma)),
-                                         paste0(":", splines[[j]][l])))
+                                         paste0(":",
+                                                colnames(nonSplinesDmat)[l])))
                 splinesGamma <- cbind(splinesGamma, tmpGamma)
+                ## splinesInter <- c(splinesInter,
+                ##                   rep(splines[[j]][[l]],
+                ##                       ncol(tmpGamma)))
                 splinesInter <- c(splinesInter,
-                                  rep(splines[[j]][[l]],
+                                  rep(colnames(nonSplinesDmat)[l],
                                       ncol(tmpGamma)))
             }
-        }
-
+        }        
         if (means == TRUE) {
             splinesGamma <- colMeans(splinesGamma)
             names(splinesGamma) <- splinesNames
@@ -888,7 +884,6 @@ genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
             colnames(splinesGamma) <- splinesNames
             rownames(splinesGamma) <- gmmRownames
         }
-
         ## return(splinesGamma)
         return(list(gamma = splinesGamma,
                     interactions = splinesInter))

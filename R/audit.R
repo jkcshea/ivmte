@@ -216,7 +216,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   mte.dec = FALSE, mte.inc = FALSE,
                   sset, gstar0, gstar1, obseq.tol = 0.05, lpsolver,
                   noisy = TRUE, seed = 12345) {
-
+    
     set.seed(seed)
     call  <- match.call()
     lpsolver <- tolower(lpsolver)
@@ -224,29 +224,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                     splinesobj[[2]]$splineslist)
 
     ## Clean boolean terms
-    ## for (m in c("terms_mtr0", "terms_mtr1")) {
-    ##     terms_mtr <- get(m)
-    ##     terms_mtr <- lapply(terms_mtr, function(x) {
-    ##         tmpTerms <- unlist(strsplit(x, ":"))
-    ##         for (op in c("==", "!=", ">", ">=", "<", "<=")) {
-    ##             boolPos <- grep(op, tmpTerms)
-    ##             if (length(boolPos > 0)) {
-    ##                 for (j in boolPos) {
-    ##                     if (substr(tmpTerms[j], 1, 1) != "(") {
-    ##                         tmpTerms[j] <- paste0("(", tmpTerms[j], ")")
-    ##                     }
-    ##                 }
-    ##             }
-    ##         }
-    ##         paste(tmpTerms, collapse = ":")
-    ##     })
-    ##     assign(m, unlist(terms_mtr))
-    ## }
     terms_mtr0 <- parenthBoolean(terms_mtr0)
     terms_mtr1 <- parenthBoolean(terms_mtr1)
-
-    print("temrs of mtr0")
-    print(terms_mtr0)
     
     ## Update MTR formulas to include all terms that interact with
     ## splines. This is required for generating the matrices to impose
@@ -265,6 +244,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
             m0 <- paste(m0, "+ 0")
         }
         m0 <- as.formula(m0)
+        ## ## You may be losing a lot of factor variables because you do
+        ## ## not have sufficient variation: your grids are based on a
+        ## ## subsample.
+        ## print('audit design matrix')
+        ## data$u <- 1 ## Experimenting
+        ## print(colnames(design(m0, data)$X))
+        ## stop('end of test')
         ## End experimenting ---------------------
     } else {
         if (length(terms_mtr0) > 0) {
@@ -334,7 +320,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
     } else {
         noX <- FALSE
         rownames(support) <- seq(1, nrow(support))
-
         ## Select first iteration of the grid
         full_index <- seq(1, nrow(support))
         initgrid.nx <- min(initgrid.nx, nrow(support))
@@ -355,8 +340,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Generate all monotonicity and boundedness matrices for initial grid
         if (audit_count == 1) {
             message("    Generating initial grid...")
-            monoboundAlist <- c('m0', 'm1',
-                                'sset', 'gstar0', 'gstar1',
+                        
+            monoboundAlist <- c('sset', 'gstar0', 'gstar1',
                                 'm1.ub', 'm0.ub',
                                 'm1.lb', 'm0.lb',
                                 'mte.ub', 'mte.lb',
@@ -366,7 +351,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
             monoboundAcall <- modcall(call,
                                       newcall = genmonoboundA,
                                       keepargs = monoboundAlist,
-                                      newargs = list(uname = uname,
+                                      newargs = list(m0 = m0,
+                                                     m1 = m1,
+                                                     uname = uname,
                                                      support = support,
                                                      grid_index = grid_index,
                                                      uvec = uvec,
