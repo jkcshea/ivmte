@@ -1291,10 +1291,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 altNames[[k]] <- parenthBoolean(tmpColNames[c(inter1, inter2)])
                 altNames[[k]] <- gsub(paste0(":", tmpName), "", altNames[[k]])
                 altNames[[k]] <- gsub(paste0(tmpName, ":"), "", altNames[[k]])
-            }            
-        }
+            }
+            splinesobj[[d + 1]]$splinesinter <- altNames
+        } else {
+            splinesobj[[d + 1]]$splinesinter <- NULL
+        }        
     }
-    stop('end of experimenting')
     ## End experiment -----------------------------
     
     ##---------------------------
@@ -2595,7 +2597,7 @@ genTarget <- function(treat, m0, m1, uname, target,
             gstar1 <- NULL
         }
         if (point == FALSE) {
-            gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
+            gstarSplineObj0 <- genGammaSplines(splinesobj = splinesobj[[1]],
                                                data = data,
                                                lb = w0$lb,
                                                ub = w0$ub,
@@ -2603,7 +2605,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                d = 0)
             gstarSpline0 <- gstarSplineObj0$gamma
 
-            gstarSplineObj1 <- genGammaSplines(splines = splinesobj[[2]],
+            gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                                data = data,
                                                lb = w1$lb,
                                                ub = w1$ub,
@@ -2611,7 +2613,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                d = 1)
             gstarSpline1 <- gstarSplineObj1$gamma
         } else {
-            gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
+            gstarSplineObj0 <- genGammaSplines(splinesobj = splinesobj[[1]],
                                                data = data,
                                                lb = w0$lb,
                                                ub = w0$ub,
@@ -2623,7 +2625,7 @@ genTarget <- function(treat, m0, m1, uname, target,
             uexporder0 <- c(uexporder0,
                             rep(-1, length(xindex0) - length(uexporder0)))
 
-            gstarSplineObj1 <- genGammaSplines(splines = splinesobj[[2]],
+            gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                                data = data,
                                                lb = w1$lb,
                                                ub = w1$ub,
@@ -2840,7 +2842,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                     if (point == FALSE) {
 
                         gammaSplines <- gammaSplines +
-                            genGammaSplines(splines = noSplineMtr,
+                            genGammaSplines(splinesobj = noSplineMtr,
                                             data = data,
                                             lb = lb,
                                             ub = ub,
@@ -2848,7 +2850,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                                             d = d)$gamma
                     } else {
                         gammaSplines <- gammaSplines +
-                            genGammaSplines(splines = noSplineMtr,
+                            genGammaSplines(splinesobj = noSplineMtr,
                                             data = data,
                                             lb = lb,
                                             ub = ub,
@@ -3031,14 +3033,14 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                          ub = pmodobj,
                          multiplier = sest$sw1[, j])
         if (means == TRUE) {
-            gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
+            gsSpline0 <- genGammaSplines(splinesobj = splinesobj[[1]],
                                          data = data,
                                          lb = pmodobj,
                                          ub = 1,
                                          multiplier = sest$sw0[, j],
                                          subset = subset_index,
                                          d = 0)$gamma
-            gsSpline1 <- genGammaSplines(splines = splinesobj[[2]],
+            gsSpline1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                          data = data,
                                          lb = 0,
                                          ub = pmodobj,
@@ -3046,7 +3048,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          subset = subset_index,
                                          d = 1)$gamma
         } else {
-            gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
+            gsSpline0 <- genGammaSplines(splinesobj = splinesobj[[1]],
                                          data = data,
                                          lb = pmodobj,
                                          ub = 1,
@@ -3054,7 +3056,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          subset = subset_index,
                                          d = 0,
                                          means = FALSE)$gamma
-            gsSpline1 <- genGammaSplines(splines = splinesobj[[2]],
+            gsSpline1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                          data = data,
                                          lb = 0,
                                          ub = pmodobj,

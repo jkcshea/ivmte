@@ -521,7 +521,7 @@ removeSplines <- function(formula) {
             }
 
             ## Experimenting -------------------------------------
-            ## Recover original spline names            
+            ## Recover original spline names
             interobjStr <- gsub("\\)", "\\\\)",
                                 gsub("\\(", "\\\\(", interobj))
 
@@ -796,16 +796,10 @@ uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 #'     which element of the list \code{splines} the column pertains
 #'     to. "[b]" will be an integer reflect which component of the
 #'     basis the column pertains to.
-genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
+genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
                             subset, d = NULL, means = TRUE) {
-    splines <- splines$splineslist
-
-
-    ## Experimenting -------------------------------------------
-    ## print(splines)
-    ## stop('end of experiment')
-    ## Stop experimenting --------------------------------------
-
+    splines <- splinesobj$splineslist
+    inters  <- splinesobj$splinesinter
     if (is.null(splines)) {
         return(list(gamma = NULL,
                     interactions = NULL))
@@ -823,21 +817,45 @@ genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
         splinesGamma <- NULL
         splinesNames <- NULL
         splinesInter <- NULL
-
         for (j in 1:length(splines)) {
-            ## Design matrix for covariates
-            if ("1" %in% splines[[j]]) {
-                nonSplineFormula <- as.formula(paste("~",
-                                                     paste(splines[[j]],
-                                                           collapse = " + ")))
-            } else {
-                nonSplineFormula <- as.formula(paste("~ 0 + ",
-                                                     paste(splines[[j]],
-                                                           collapse = " + ")))
+            ## Experimenting
+            ## -------------------------------------------------------
+            ## Construct design matrix for each interaction at a
+            ## time. Only include the interactions contained in the
+            ## 'inters' object.
+            nonSplinesDmat <- NULL
+            for (k in 1:length(splines[[j]])) {
+                if (splines[[j]][k] != "1") {
+                    tmpDmat <- design(as.formula(paste("~ 0 +",
+                                                       splines[[j]][k])),
+                                      data)$X
+                    nonSplinesDmat <- cbind(nonSplinesDmat, tmpDmat)
+                } else {
+                    nonSplinesDmat <- cbind(nonSplinesDmat,
+                                                design(~ 1, data)$X)
+                }
             }
-            nonSplinesDmat <- design(nonSplineFormula,
-                                     data[subset, ])$X
             colnames(nonSplinesDmat) <- parenthBoolean(colnames(nonSplinesDmat))
+            nonSplinesDmat <-
+                nonSplinesDmat[, colnames(nonSplinesDmat) %in% inters[[j]]]
+
+            ## End Experimenting -----------------------------------------------
+            ## Orignal ---------------------------------------------------------
+            ## Design matrix for covariates
+            ## if ("1" %in% splines[[j]]) {
+            ##     nonSplineFormula <- as.formula(paste("~",
+            ##                                          paste(splines[[j]],
+            ##                                                collapse = " + ")))
+            ## } else {
+            ##     nonSplineFormula <- as.formula(paste("~ 0 + ",
+            ##                                          paste(splines[[j]],
+            ##                                                collapse = " + ")))
+            ## }
+            ## nonSplinesDmat <- design(nonSplineFormula,
+            ##                          data[subset, ])$X
+            ## colnames(nonSplinesDmat) <- parenthBoolean(colnames(nonSplinesDmat))
+            ## End original ----------------------------------------------------
+
             ## Experimenting ---------------------------------------------------
             ##
             ## Could the inclusion of FALSE dummies be problematic?
@@ -897,7 +915,6 @@ genGammaSplines <- function(splines, data, lb, ub, multiplier = 1,
             colnames(splinesGamma) <- splinesNames
             rownames(splinesGamma) <- gmmRownames
         }
-        ## return(splinesGamma)
         return(list(gamma = splinesGamma,
                     interactions = splinesInter))
     }
