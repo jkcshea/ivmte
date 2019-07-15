@@ -838,6 +838,14 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
             colnames(nonSplinesDmat) <- parenthBoolean(colnames(nonSplinesDmat))
             nonSplinesDmat <-
                 nonSplinesDmat[, colnames(nonSplinesDmat) %in% inters[[j]]]
+            missingVars <- inters[[j]][!inters[[j]] %in% colnames(nonSplinesDmat)]
+            print("REMEMBER TO CHECK HERE IF THE BOOTSTRAP WORKS WHEN CERTAIN FACTORS ARE OMITTED BECAUSE OF SAMPLING")
+            if (length(missingVars) > 0) {
+                for (mv in missingVars) {
+                    nonSplinesDmat[, mv] <- 0
+                }
+                nonSplinesDmat <- nonSplinesDmat[, inters[[j]]]
+            }
 
             ## End Experimenting -----------------------------------------------
             ## Orignal ---------------------------------------------------------
@@ -915,6 +923,8 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
             colnames(splinesGamma) <- splinesNames
             rownames(splinesGamma) <- gmmRownames
         }
+        print(colnames(nonSplinesDmat))
+        stop('end')
         return(list(gamma = splinesGamma,
                     interactions = splinesInter))
     }
