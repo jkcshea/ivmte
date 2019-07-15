@@ -458,7 +458,6 @@ removeSplines <- function(formula) {
         }
         splineterms <- fterms[whichspline]
         splineterms <- parenthBoolean(splineterms)
-
         splineslist <- list()
         splinescall <- list()
         for (splineobj in splineterms) {
@@ -570,7 +569,10 @@ removeSplines <- function(formula) {
         }
         colnames(splinesKey) <- c("spline", "dictKey")
 
-        ## Using dictionary, generate new condensed splines list
+        ## Using dictionary, generate new condensed splines list. In
+        ## addition, store all the original calls for each spline
+        ## (this will be used to determine which variables interact
+        ## with splines).
         splinesList2 <- list()
         splinesCall2 <- list()
         for (j in 1:length(splinesDict)) {
@@ -823,6 +825,7 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
             ## Construct design matrix for each interaction at a
             ## time. Only include the interactions contained in the
             ## 'inters' object.
+            inters[[j]][which(inters[[j]] == "1")] <- "(Intercept)"
             nonSplinesDmat <- NULL
             for (k in 1:length(splines[[j]])) {
                 if (splines[[j]][k] != "1") {
@@ -832,12 +835,17 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
                     nonSplinesDmat <- cbind(nonSplinesDmat, tmpDmat)
                 } else {
                     nonSplinesDmat <- cbind(nonSplinesDmat,
-                                                design(~ 1, data)$X)
+                                            design(~ 1, data)$X)
                 }
             }
             colnames(nonSplinesDmat) <- parenthBoolean(colnames(nonSplinesDmat))
-            nonSplinesDmat <-
-                nonSplinesDmat[, colnames(nonSplinesDmat) %in% inters[[j]]]
+            currentNames <- colnames(nonSplinesDmat)
+            keepPos <- colnames(nonSplinesDmat) %in% inters[[j]]
+            nonSplinesDmat <- as.matrix(nonSplinesDmat[, keepPos])
+            colnames(nonSplinesDmat) <- currentNames[keepPos]
+            ## Fill in the gstar with any missing variables---if
+            ## assigned values of 0, they will not affect the LP
+            ## optimization
             missingVars <- inters[[j]][!inters[[j]] %in% colnames(nonSplinesDmat)]
             print("REMEMBER TO CHECK HERE IF THE BOOTSTRAP WORKS WHEN CERTAIN FACTORS ARE OMITTED BECAUSE OF SAMPLING")
             if (length(missingVars) > 0) {
@@ -923,8 +931,6 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
             colnames(splinesGamma) <- splinesNames
             rownames(splinesGamma) <- gmmRownames
         }
-        print(colnames(nonSplinesDmat))
-        stop('end')
         return(list(gamma = splinesGamma,
                     interactions = splinesInter))
     }

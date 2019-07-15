@@ -1260,7 +1260,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     rownames(data) <- as.character(seq(1, nrow(data)))
 
     ## Experimenting ------------------------------
-    ## See what interacts with what
+    
+    ## Construct a list of what variables interact with the
+    ## spline. The reason for this is that certain interactions with
+    ## factor variables should be dropped to avoid collinearity. Note
+    ## that only interaction terms need to be omitted, so you do not
+    ## need to worry about the formula contained in
+    ## removeSplines$formula.    
     tmpInterName <- "..t.i.n"
     for (d in 0:1) {
         if (!is.null(splinesobj[[d + 1]]$splineslist)) {
@@ -1288,14 +1294,25 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                tmpColNames)
                 inter2 <- grep(paste0(altNames[[k]], ":"),
                                tmpColNames)
-                altNames[[k]] <- parenthBoolean(tmpColNames[c(inter1, inter2)])
-                altNames[[k]] <- gsub(paste0(":", tmpName), "", altNames[[k]])
-                altNames[[k]] <- gsub(paste0(tmpName, ":"), "", altNames[[k]])
+                interpos <- c(inter1, inter2)
+                if (length(interpos) > 0) {
+                    ## The case where there are interactions with splines
+                    altNames[[k]] <- parenthBoolean(tmpColNames[c(inter1,
+                                                                  inter2)])
+                    altNames[[k]] <- gsub(paste0(":", tmpName), "",
+                                          altNames[[k]])
+                    altNames[[k]] <- gsub(paste0(tmpName, ":"), "",
+                                          altNames[[k]])
+                } else {
+                    ## The case where there are no interactions with
+                    ## splines, i.e spline enters on its own
+                    altNames[[k]] <- "1"
+                }
             }
             splinesobj[[d + 1]]$splinesinter <- altNames
         } else {
             splinesobj[[d + 1]]$splinesinter <- NULL
-        }        
+        }
     }
     ## End experiment -----------------------------
     

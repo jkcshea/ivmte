@@ -220,8 +220,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
     set.seed(seed)
     call  <- match.call()
     lpsolver <- tolower(lpsolver)
-    splines <- list(splinesobj[[1]]$splineslist,
-                    splinesobj[[2]]$splineslist)
+    ## splines <- list(splinesobj[[1]]$splineslist,
+    ##                 splinesobj[[2]]$splineslist)
 
     ## Clean boolean terms
     terms_mtr0 <- parenthBoolean(terms_mtr0)
@@ -232,58 +232,60 @@ audit <- function(data, uname, m0, m1, splinesobj,
     ## monotoncity and bounds. The terms that interact wtih the
     ## splines, but do not enter into the MTRs on their own, will be
     ## removed in the function genmonoboundA.
-    if (!is.null(m0) & length(terms_mtr0) > 0) {
-        ## Original -------------
-        ## m0 <- update(m0, as.formula(paste("~ . +",
-        ##                                   paste(unique(terms_mtr0),
-        ##                                         collapse = " + "))))
-        ## Experimenting -----------------
-        m0int <- attr(terms(m0), "intercept")
-        m0 <- paste("~", paste(unique(terms_mtr0), collapse = " + "))
-        if (m0int == 0) {
-            m0 <- paste(m0, "+ 0")
-        }
-        m0 <- as.formula(m0)
-        ## ## You may be losing a lot of factor variables because you do
-        ## ## not have sufficient variation: your grids are based on a
-        ## ## subsample.
-        ## print('audit design matrix')
-        ## data$u <- 1 ## Experimenting
-        ## print(colnames(design(m0, data)$X))
-        ## stop('end of test')
-        ## End experimenting ---------------------
-    } else {
-        if (length(terms_mtr0) > 0) {
-            m0 <- as.formula(paste("~",
-                                   paste(unique(terms_mtr0),
-                                         collapse = " + ")))
-        } else {
-            m0 <- as.formula("~ 1")
-        }
-    }
+
+    ## NOTE: THE CODE BELOW IS REMOVED SINCE THE MTRS DO NOT NEED TO
+    ## BE UPDATED AT ALL. THE A0 AND A1 MATRICES WILL EACH BE
+    ## GENERATED IN TWO STEPS, JUST LIKE THE GAMMASTAR TERMS. THE
+    ## FIRST STEP IS FOR THE NON-SPLINE TERMS, THE SECOND STEP IS FOR
+    ## THE SPLINE TERMS.
     
-    if (!is.null(m1) & length(terms_mtr1) > 0) {
-        ## Original -------------------------
-        ## m1 <- update(m1, as.formula(paste("~ . +",
-        ##                                   paste(unique(terms_mtr1),
-        ##                                         collapse = " + "))))
-        ## Experimenting -------------------
-        m1int <- attr(terms(m1), "intercept")
-        m1 <- paste("~", paste(unique(terms_mtr1), collapse = " + "))
-        if (m1int == 0) {
-            m1 <- paste(m1, "+ 0")
-        }
-        m1 <- as.formula(m1)
-        ## End experimenting ---------------------
-    } else {
-        if (length(terms_mtr1) > 0) {
-            m1 <- as.formula(paste("~",
-                                   paste(unique(terms_mtr1),
-                                         collapse = " + ")))
-        } else {
-            m1 <- as.formula("~ 1")
-        }
-    }
+    ## if (!is.null(m0) & length(terms_mtr0) > 0) {
+    ##     ## Original -------------
+    ##     ## m0 <- update(m0, as.formula(paste("~ . +",
+    ##     ##                                   paste(unique(terms_mtr0),
+    ##     ##                                         collapse = " + "))))
+    ##     ## Experimenting -----------------
+    ##     m0int <- attr(terms(m0), "intercept")
+    ##     m0 <- paste("~", paste(unique(terms_mtr0), collapse = " + "))
+    ##     if (m0int == 0) {
+    ##         m0 <- paste(m0, "+ 0")
+    ##     }
+    ##     m0 <- as.formula(m0)
+    ##     ## ## You may be losing a lot of factor variables because you do
+    ##     ## ## not have sufficient variation: your grids are based on a
+    ##     ## ## subsample.
+    ##     ## End experimenting ---------------------
+    ## } else {
+    ##     if (length(terms_mtr0) > 0) {
+    ##         m0 <- as.formula(paste("~",
+    ##                                paste(unique(terms_mtr0),
+    ##                                      collapse = " + ")))
+    ##     } else {
+    ##         m0 <- as.formula("~ 1")
+    ##     }
+    ## }
+    ## if (!is.null(m1) & length(terms_mtr1) > 0) {
+    ##     ## Original -------------------------
+    ##     ## m1 <- update(m1, as.formula(paste("~ . +",
+    ##     ##                                   paste(unique(terms_mtr1),
+    ##     ##                                         collapse = " + "))))
+    ##     ## Experimenting -------------------
+    ##     m1int <- attr(terms(m1), "intercept")
+    ##     m1 <- paste("~", paste(unique(terms_mtr1), collapse = " + "))
+    ##     if (m1int == 0) {
+    ##         m1 <- paste(m1, "+ 0")
+    ##     }
+    ##     m1 <- as.formula(m1)
+    ##     ## End experimenting ---------------------
+    ## } else {
+    ##     if (length(terms_mtr1) > 0) {
+    ##         m1 <- as.formula(paste("~",
+    ##                                paste(unique(terms_mtr1),
+    ##                                      collapse = " + ")))
+    ##     } else {
+    ##         m1 <- as.formula("~ 1")
+    ##     }
+    ## }
     
     ## Obtain name of unobservable variable
     if(hasArg(uname)) {
@@ -357,7 +359,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                      support = support,
                                                      grid_index = grid_index,
                                                      uvec = uvec,
-                                                     splines = splines,
+                                                     splinesobj = splinesobj,
                                                      monov = monov))
             mbobj <- eval(monoboundAcall)
         }
@@ -542,7 +544,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                      support = support,
                                                      grid_index = a_grid_index,
                                                      uvec = a_uvec,
-                                                     splines = splines,
+                                                     splinesobj = splinesobj,
                                                      monov = monov))
             a_mbobj <- eval(monoboundAcall)
             a_mbA <- a_mbobj$mbA[, (2 * sn + 1) : ncol(a_mbobj$mbA)]

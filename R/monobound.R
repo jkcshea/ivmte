@@ -599,11 +599,15 @@ combinemonobound <- function(bdA, monoA) {
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
 #'     boundedness and monotonicity constraints of an LP problem.
-genmonoboundA <- function(support, grid_index, uvec, splines, monov,
+genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                           uname, m0, m1, sset, gstar0, gstar1,
                           m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub,
                           m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc) {
     call <- match.call()
+    splines <- list(splinesobj[[1]]$splineslist,
+                    splinesobj[[2]]$splineslist)
+    splinesinter <- list(splinesobj[[1]]$splinesinter,
+                         splinesobj[[2]]$splinesinter)
     if (is.null(grid_index)) {
         noX <- TRUE
     } else {
@@ -625,7 +629,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                            uvec,
                            uname)
     }
-    if (is.null(splines[[1]]) & is.null(splines[[2]])) {
+    if (is.null(splines[[1]]) && is.null(splines[[2]])) {
         A0 <- design(formula = m0, data = gridobj$grid)$X
         A1 <- design(formula = m1, data = gridobj$grid)$X
         A0 <- cbind(A0,
@@ -635,14 +639,69 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                     .grid.order = gridobj$grid$.grid.order,
                     .u.order = gridobj$grid$.u.order)
     } else {
-        m0 <- as.formula(paste(gsub("\\s+", " ",
-                                    Reduce(paste, deparse(m0))), "+", uname))
-        m1 <- as.formula(paste(gsub("\\s+", " ",
-                                    Reduce(paste, deparse(m1))), "+", uname))
+        ## New experimenting -------------------------------
+
+        ## Construct base A0 and A1 matrices using the non-spline
+        ## formulas. The variables interacting with the splines will
+        ## be appended to this.
+        if (is.null(m0)) {
+            A0 <- design(formula = as.formula(paste("~ 0 +", uname)),
+                         data = gridobj$grid)
+        } else {
+            m0 <- as.formula(paste(gsub("\\s+", " ",
+                                        Reduce(paste, deparse(m0))), "+",
+                                   uname))
+            A0 <- design(formula = m0, data = gridobj$grid)$X
+            colnames(A0) <- parenthBoolean(colnames(A0))
+        }
+        if (is.null(m1)) {
+            A1 <- design(formula = as.formula(paste("~ 0 +", uname)),
+                         data = gridobj$grid)
+        } else {
+            m1 <- as.formula(paste(gsub("\\s+", " ",
+                                        Reduce(paste, deparse(m1))), "+",
+                                   uname))
+            A1 <- design(formula = m1, data = gridobj$grid)$X
+            colnames(A1) <- parenthBoolean(colnames(A1))
+        }
+        for (d in 0:1) {
+            nonSplinesDmat <- NULL
+            splinesD <- splines[[d + 1]]
+            for (j in 1:length(splinesD)) {
+                for (k in 1:length(splinesD[[j]])) {
+                    if (splinesD[[j]][k] != "1") {
+                        tmpDmat <- design(as.formula(paste("~ 0 +",
+                                                           splinesD[[j]][k])),
+                                          gridobj$grid)$X
+                    nonSplinesDmat <- cbind(nonSplinesDmat, tmpDmat)
+                    } else {
+                        nonSplinesDmat <- cbind(nonSplinesDmat,
+                                                design(~ 1, gridobj$grid)$X)
+                    }
+                }
+                colnames(nonSplinesDmat) <-
+                    parenthBoolean(colnames(nonSplinesDmat))
+            }
+            ## Only keep the variables that are not already in A0 or A1
+            currentNames <- colnames(nonSplinesDmat)
+            keepPos <- ! colnames(nonSplinesDmat) %in%
+                colnames(get(paste0("A", d)))
+            nonSplinesDmat <- as.matrix(nonSplinesDmat[, keepPos])
+            colnames(nonSplinesDmat) <- currentNames[keepPos]
+            assign(paste0("A", d),
+                   cbind(get(paste0("A", d)), nonSplinesDmat))
+        }
+        ## Experimenting -----------------------------------
+        ## m0 <- as.formula(paste(gsub("\\s+", " ",
+        ##                             Reduce(paste, deparse(m0))), "+", uname))
+        ## m1 <- as.formula(paste(gsub("\\s+", " ",
+        ##                             Reduce(paste, deparse(m1))), "+", uname))
+        ## Original --------------------------------------
         ## m0 <- update(m0, as.formula(paste("~ . +", uname)))
         ## m1 <- update(m1, as.formula(paste("~ . +", uname)))
-        A0 <- design(formula = m0, data = gridobj$grid)$X
-        A1 <- design(formula = m1, data = gridobj$grid)$X
+        ## End original ----------------------------------
+        ## A0 <- design(formula = m0, data = gridobj$grid)$X
+        ## A1 <- design(formula = m1, data = gridobj$grid)$X
         A0 <- cbind(A0,
                     .grid.order = gridobj$grid$.grid.order,
                     .u.order = gridobj$grid$.u.order)
@@ -717,10 +776,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                             ##         which(colnames(get(paste0("A", d))) ==
                             ##               iName)
                             ## }
-                            print("iname")
-                            print(iName)
-                            print("namesA")
-                            print(namesA)
                             iNameList <- unlist(strsplit(iName, ":"))
                             namesAscore <- rep(0, times = length(namesA))
                             for (q in iNameList) {
@@ -839,15 +894,12 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     missingA0 <- !(names(gstar0) %in% colnames(A0))
     for (i in names(gstar0)[missingA0]) {
         A0[, i] <- 0
-    }   
+    }
     missingA1 <- !(names(gstar1) %in% colnames(A1))
     for (i in names(gstar1)[missingA1]) {
         A1[, i] <- 0
     }
 
-    print(names(gstar0))
-    stop('end of test')
-    
     ## keep only the columns that are in the MTRs (A0 and A1 matrices
     ## potentially include extraneous columns)
     A0 <- as.matrix(A0[, names(gstar0)])
