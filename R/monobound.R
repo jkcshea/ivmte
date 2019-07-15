@@ -363,7 +363,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
         monoA1 <- A1[uMaxIndex, ] - A1[uMinIndex, ]
         if (is.null(dim(monoA1))) monoA1 <- matrix(monoA1, nrow = 1)
         monoA1 <- cbind(matrix(0, nrow = nrow(monoA1), ncol = 2 * sn),
-                        matrix(0, nrow = nrow(monoA1), ncol = ncol(A1)),
+                        matrix(0, nrow = nrow(monoA1), ncol = ncol(A0)),
                         monoA1)
         colnames(monoA1) <- namesA
 
