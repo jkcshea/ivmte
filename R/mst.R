@@ -934,6 +934,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
         splinesobj <- list(removeSplines(m0),
                            removeSplines(m1))
+        origm0 <- m0
+        origm1 <- m1
         m0 <- splinesobj[[1]]$formula
         m1 <- splinesobj[[2]]$formula
         vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
@@ -967,14 +969,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         stop("m0 and m1 must be one-sided formulas.")
     }
 
-    ## print("first terms mtr0")
-    ## print(terms_mtr0)
-    ## stop("end of experiment")
-    ## print("--------------------------------------------------------")
-    ## print(splinesobj[[1]])
-    ## print(splinesobj[[2]])
-    ## print("--------------------------------------------------------")
-    
     ## Collect list of variables used in custom weights (if defined)
     if (!hasArg(target)) {
 
@@ -1265,6 +1259,15 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
 
+    ## Experimenting ------------------------------
+    ## See what interacts with what
+    print('original m0')
+    print(origm0)
+    print(splinesobj[[1]])
+    
+    stop('end of experimenting')
+    ## End experiment -----------------------------
+    
     ##---------------------------
     ## 5. Implement estimates
     ##---------------------------
