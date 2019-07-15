@@ -521,7 +521,7 @@ removeSplines <- function(formula) {
             }
 
             ## Experimenting -------------------------------------
-            ## Recover original spline names
+            ## Recover original spline names            
             interobjStr <- gsub("\\)", "\\\\)",
                                 gsub("\\(", "\\\\(", interobj))
 

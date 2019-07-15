@@ -663,7 +663,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         ## Experimenting ------------------------------------------
         colnames(A0) <- parenthBoolean(colnames(A0))
         colnames(A1) <- parenthBoolean(colnames(A1))
-
         namesA0 <- colnames(A0)
         namesA1 <- colnames(A1)
         namesA0length <- sapply(namesA0, function(x) {
@@ -672,9 +671,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         namesA1length <- sapply(namesA1, function(x) {
             length(unlist(strsplit(x, ":")))
         })
-
         ## End of experiment --------------------------------------
-
         for (d in 0:1) {
             namesA <- get(paste0("namesA", d))
             namesAlength <- get(paste0("namesA", d, "length"))
@@ -720,7 +717,10 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                             ##         which(colnames(get(paste0("A", d))) ==
                             ##               iName)
                             ## }
-
+                            print("iname")
+                            print(iName)
+                            print("namesA")
+                            print(namesA)
                             iNameList <- unlist(strsplit(iName, ":"))
                             namesAscore <- rep(0, times = length(namesA))
                             for (q in iNameList) {

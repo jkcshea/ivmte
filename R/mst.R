@@ -1261,10 +1261,39 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Experimenting ------------------------------
     ## See what interacts with what
-    print('original m0')
-    print(origm0)
-    print(splinesobj[[1]])
-    
+    tmpInterName <- "..t.i.n"
+    for (d in 0:1) {
+        if (!is.null(splinesobj[[d + 1]]$splineslist)) {
+            mdata <- unique(data)
+            mdata[, deparse(substitute(uname))] <- 1
+            md <- get(paste0("origm", d))
+            md <- gsub("\\s+", " ", Reduce(paste, deparse(md)))
+            altNames <- list()
+            splineKeys <- names(splinesobj[[d + 1]]$splinescall)
+            for (i in 1:length(splinesobj[[d + 1]]$splinescall)) {
+                tmpName <- paste0(tmpInterName, i)
+                mdata[, tmpName] <- 1
+                altNames[splineKeys[i]] <- tmpName
+                for (j in 1:length(splinesobj[[d + 1]]$splinescall[[i]])) {
+                    origCall <- splinesobj[[d + 1]]$splinescall[[i]][j]
+                    origCall <- gsub("\\)", "\\\\)",
+                                     gsub("\\(", "\\\\(", origCall))
+                    md <- gsub(origCall, tmpName, md)
+                }
+            }
+            tmpColNames <- colnames(design(as.formula(md), mdata)$X)
+            for (k in 1:length(altNames)) {
+                tmpName <- paste0(tmpInterName, k)
+                inter1 <- grep(paste0(":", altNames[[k]]),
+                               tmpColNames)
+                inter2 <- grep(paste0(altNames[[k]], ":"),
+                               tmpColNames)
+                altNames[[k]] <- parenthBoolean(tmpColNames[c(inter1, inter2)])
+                altNames[[k]] <- gsub(paste0(":", tmpName), "", altNames[[k]])
+                altNames[[k]] <- gsub(paste0(tmpName, ":"), "", altNames[[k]])
+            }            
+        }
+    }
     stop('end of experimenting')
     ## End experiment -----------------------------
     
