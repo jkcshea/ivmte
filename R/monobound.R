@@ -885,12 +885,10 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
         }
         colnames(Amat)[Apos] <- names(gvec)[failTerms]
         assign(paste0("A", d), Amat)
-    }
-
+    }    
     ## Some columns maybe missing relative to gstar0/gstar1 becuase
     ## the grid is not large enough, and so does not contain all
     ## factor variables. Fill these columns with 0
-
     missingA0 <- !(names(gstar0) %in% colnames(A0))
     for (i in names(gstar0)[missingA0]) {
         A0[, i] <- 0
@@ -899,7 +897,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     for (i in names(gstar1)[missingA1]) {
         A1[, i] <- 0
     }
-
     ## keep only the columns that are in the MTRs (A0 and A1 matrices
     ## potentially include extraneous columns)
     A0 <- as.matrix(A0[, names(gstar0)])
