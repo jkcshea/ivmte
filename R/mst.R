@@ -1315,6 +1315,52 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
     }
     ## End experiment -----------------------------
+
+    ## Experimenting -----------------
+
+    ## Check that all boolean variables have non-zero variance, and
+    ## that all factor variables are complete.
+    allterms <- unlist(c(terms_formulas_x, terms_formulas_z, terms_mtr0,
+                         terms_mtr1, terms_components))
+    allterms <- unique(unlist(sapply(allterms, strsplit, split = ":")))
+    allterms <- parenthBoolean(allterms)    
+    ## Check factors
+    factorPos <- grep("factor\\([[:alnum:]]*\\)", allterms)
+    if (length(factorPos) > 0) {
+        factorDict <- list()
+        for (i in allterms[factorPos]) {
+            var <- substr(i, start = 8, stop = (nchar(i) - 1))
+            factorDict[[var]] <- sort(unique(data[, var]))
+        }
+    } else {
+        factorDict <- NULL
+    }
+
+    ## To check for binary variables
+    binMinCheck <- apply(data, 2, min)
+    binMaxCheck <- apply(data, 2, max)
+    binUniqueCheck <- apply(data, 2, function(x) length(unique(x)))
+    binaryPos <- as.logical((binMinCheck == 0) *
+                           (binMaxCheck == 1) *
+                           (binUniqueCheck == 2))
+    binaryVars <- colnames(data)[binaryPos]
+    if (length(binaryVars) == 0) binaryVars <- NULL
+    
+    ## To check booleans expressions, you just need to ensure there is
+    ## non-zero variance in the design matrix.
+    boolPos <- NULL
+    for (op in c("==", "!=", ">=", "<=", ">",  "<")) {
+        boolPos <- c(boolPos, grep(op, allterms))
+    }
+    if (length(boolPos) > 0) {
+        boolPos <- unique(boolPos)
+        boolVars <- allterms[boolPos]
+    } else {
+        boolVars <- NULL
+    }
+    ## But what about checking if there is sufficient variation in the
+    ## boolean variables? If not, then they may as well remove it.    
+    ## End experimenting -------------
     
     ##---------------------------
     ## 5. Implement estimates
@@ -1368,9 +1414,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Estimate bounds
     if (point == FALSE) {
-
         origEstimate <- eval(estimateCall)
-
         ## Estimate bounds without resampling
         if (bootstraps == 0) {
             return(origEstimate)
@@ -1597,11 +1641,67 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                       "Cannot draw more observations than the number of rows
                            in the data set when 'bootstraps.replace = FALSE'."))
         }
+        totalBootstraps <- 0
+        factorMessage <- 0
+        factorText <- gsub("\\s+", " ",
+                           "Insufficient variation in categorical variables
+                           (i.e. factor variables, binary variables,
+                           boolean expressions) in the bootstrap sample.
+                           Additional bootstrap samples will be drawn.")
         while (b <= bootstraps) {
+            totalBootstraps <- totalBootstraps + 1
             bootIDs  <- sample(seq(1, nrow(data)),
                                  size = bootstraps.m,
                                  replace = bootstraps.replace)
             bdata <- data[bootIDs, ]
+            ## Experimenting ----------------------------------            
+            ## Check if the bootstrap data contains sufficient
+            ## variation in all boolean and factor expressions.
+            if (!is.null(factorDict)) {
+                for (i in 1:length(factorDict)) {
+                    factorCheck <-
+                        suppressWarnings(
+                            all(sort(unique(bdata[, names(factorDict)[i]])) ==
+                            factorDict[[i]]))
+                    if (!factorCheck) break
+                }
+                if (!factorCheck) {
+                    if (factorMessage == 0) {
+                        factorMessage <- 1
+                        warning(factorText, call. = FALSE, immediate. = TRUE)
+                    }
+                    next
+                    }
+            }
+
+            ## Check if the binary variables contain sufficient variation
+            if (!is.null(binaryVars)) {
+                binarySd <- apply(as.matrix(bdata[, binaryVars]), 2, sd)
+                if (! all(binarySd > 0)) {
+                    if (factorMessage == 0) {
+                        factorMessage <- 1
+                        warning(factorText, call. = FALSE, immediate. = TRUE)
+                    }
+                    next
+                    }
+            }
+            
+            ## Check if the boolean variables contain sufficient variation
+            if (!is.null(boolVars)) {
+                boolFormula <-
+                    as.formula(paste("~ 0 +", paste(boolVars,
+                                                    collapse = " + ")))
+                boolDmat <- design(boolFormula, bdata)$X
+                boolSd <- apply(boolDmat, 2, sd)
+                if (! all(boolSd > 0)) {
+                    if (factorMessage == 0) {
+                        factorMessage <- 1
+                        warning(factorText, call. = FALSE, immediate. = TRUE)
+                    }
+                    next
+                }
+            }
+            ## End experimenting ------------------------------
             if (noisy == TRUE) {
                 message(paste0("Bootstrap iteration ", b, "..."))
             }
@@ -1749,6 +1849,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
         message(paste0("\nBootstrapped p-value: ",
                        fmtResult(pvalue), "\n"))
+        if (totalBootstraps > bootstraps) {
+            warning(gsub("\\s+", " ",
+                         paste0("In order to obtain ", bootstraps, " boostrap
+                         samples without omiting any
+                         levels from all categorical variables,
+                         a total of ", totalBootstraps, " samples
+                         had to be drawn. This is due to factor variables
+                         and/or boolean variables potentially being omitted from
+                         boostrap samples.")), call. = FALSE)
+        }
         return(output)
     }
 }
@@ -2547,12 +2657,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                       point = FALSE, noisy = TRUE) {
 
     if (hasArg(target)) target   <- tolower(target)
-
-    xindex0 <- NULL
-    xindex1 <- NULL
-    uexporder0 <- NULL
-    uexporder1 <- NULL
-
     if (hasArg(target)) {
         if (target == "ate") {
             w1 <- wate1(data)
@@ -2592,8 +2696,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
             } else {
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
-                xindex0 <- c(xindex0, pm0$xindex)
-                uexporder0 <- c(uexporder0, pm0$exporder)
             }
         } else {
             gstar0 <- NULL
@@ -2607,8 +2709,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                 gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp)
             } else {
                 gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp, means = FALSE)
-                xindex1 <- c(xindex1, pm1$xindex)
-                uexporder1 <- c(uexporder1, pm1$exporder)
             }
         } else {
             gstar1 <- NULL
@@ -2638,10 +2738,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                d = 0,
                                                means = FALSE)
             gstarSpline0 <- gstarSplineObj0$gamma
-            xindex0 <- c(xindex0, gstarSplineObj0$interactions)
-            uexporder0 <- c(uexporder0,
-                            rep(-1, length(xindex0) - length(uexporder0)))
-
             gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                                data = data,
                                                lb = w1$lb,
@@ -2650,9 +2746,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                d = 1,
                                                means = FALSE)
             gstarSpline1 <- gstarSplineObj1$gamma
-            xindex1 <- c(xindex1, gstarSplineObj1$interactions)
-            uexporder1 <- c(uexporder1,
-                            rep(-1, length(xindex1) - length(uexporder1)))
         }
     } else {
 
@@ -2891,11 +2984,7 @@ genTarget <- function(treat, m0, m1, uname, target,
         gstar1 <- cbind(gstar1, gstarSpline1)
     }
     output <- list(gstar0 = gstar0,
-                   gstar1 = gstar1,
-                   xindex0 = xindex0,
-                   xindex1 = xindex1,
-                   uexporder0 = uexporder0,
-                   uexporder1 = uexporder1)
+                   gstar1 = gstar1)
     if (hasArg(target)) {
         output$w1 <- w1
         output$w0 <- w0

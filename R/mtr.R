@@ -235,34 +235,8 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         rownames(polymat) <- rownames(data)
     }
     ## End of test -------------------------------------------------
-
-    ## ## Generate index for non-U variables---this is used to avoid
-    ## ## collinearity issues in the GMM estimate.
-    ## xIndex <- unlist(lapply(nterms, function(x) {
-    ##     paste(sort(x), collapse = ":")
-    ## }))
-    ## xIndex[u_pos] <- unlist(lapply(nterms[u_pos], function(x) {
-    ##     paste(sort(x[which(x != uname)]), collapse = ":")
-    ## }))
-    ## if (length(uexp_pos) > 0) {
-    ##     xIndex[uexp_pos] <- unlist(lapply(seq(1, length(uexp_pos)),
-    ##         function(x) {
-    ##         if (length(nterms[[uexp_pos[x]]]) > 1) {
-    ##             return(paste(sort(nterms[[uexp_pos[x]]][-uexp_subpos[[x]]]),
-    ##                          collapse = ":"))
-    ##         } else {
-    ##             return("")
-    ##         }
-    ##     }))
-    ## }
-    ## xIndex[xIndex == ""] <- "1"
-    ## if ("(Intercept)" %in% colnames(dmat)) {
-    ##     xIndex <- c("1", xIndex)
-    ## }
-
     return(list(polymat = polymat,
                 exporder = exporder,
-                ## xindex = xIndex,
                 terms = oterms))
 }
 
