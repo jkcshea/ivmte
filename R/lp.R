@@ -464,17 +464,14 @@ obsEqMin <- function(sset, lpobj, lpsolver) {
 bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
 
     lpsolver <- tolower(lpsolver)
-    
     if (lpsolver %in% c("gurobi", "rcplex",
                         "cplexapi", "lpsolveapi")) {
-        
         ## define model
         model <- list()
         model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1)
         model$rhs <- c(obseq.factor, lpobj$rhs)
         model$ub  <- lpobj$ub
         model$lb  <- lpobj$lb
-
         avec <- c(replicate(2 * lpobj$sn, 1),
                   replicate(lpobj$gn0 + lpobj$gn1, 0))
         model$A <- rbind(avec, lpobj$A)
@@ -482,14 +479,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
 
         ## obtain lower and upper bounds
         if (lpsolver == "gurobi") {
-
             model$modelsense <- "min"
-
-            ## Experimenting ---------------------------------
-            ## save(model, file = "testModel.Rdata")
-            ## gurobi::gurobi_write(model, "testModel.mps")
-            ## End experimenting ------------------------------
-            
             minresult <- gurobi::gurobi(model, list(outputflag = 0,
                                                     dualreductions = 1))
             min <- minresult$objval
@@ -506,8 +496,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
             maxoptx <- maxresult$x
         }
         if (lpsolver == "rcplex") {
-            model$sense[1] <- "L" ## to satisfy minimal obs. equiv. deviation
-          
+            model$sense[1] <- "L" ## to satisfy minimal obs. equiv. deviation 
             minresult <- Rcplex::Rcplex(objsense = "min",
                                         cvec = model$obj,
                                         Amat = model$A,
@@ -516,11 +505,9 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
                                         ub = model$ub,
                                         lb = model$lb,
                                         control = list(trace = FALSE))
-
             min <- minresult$obj
             minstatus <- minresult$status
             minoptx   <- minresult$xopt
-
             maxresult <- Rcplex::Rcplex(objsense = "max",
                                         cvec = model$obj,
                                         Amat = model$A,
@@ -529,7 +516,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
                                         ub = model$ub,
                                         lb = model$lb,
                                         control = list(trace = FALSE))
-
             max <- maxresult$obj
             maxstatus <- maxresult$status
             maxoptx   <- maxresult$xopt
@@ -553,17 +539,13 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
                 }
             }
         }
-
         if (lpsolver == "cplexapi") {
-
             minresult <- runCplexAPI(model, cplexAPI::CPX_MIN)
-
             min       <- minresult$objval
             minoptx   <- minresult$optx
             minstatus <- minresult$status
-
+            
             maxresult <- runCplexAPI(model, cplexAPI::CPX_MAX)
-
             max       <- maxresult$objval
             maxoptx   <- maxresult$optx
             maxstatus <- maxresult$status
@@ -572,23 +554,17 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         if (lpsolver == "lpsolveapi") {
             
             minresult <- runLpSolveAPI(model, 'min')
-
             min       <- minresult$objval
             minoptx   <- minresult$optx
             minstatus <- minresult$status
 
             maxresult <- runLpSolveAPI(model, 'max')
-
             max       <- maxresult$objval
             maxoptx   <- maxresult$optx
             maxstatus <- maxresult$status
         }
     }
-
     if (lpsolver == "lpsolve") {
-
-        print("I am using lpsolve")
-        
         ## define model
         model <- list()
         model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1, -g0, -g1)
@@ -635,7 +611,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         if (maxresult$status == 0) maxstatus <- 1
         if (maxresult$status != 0) maxstatus <- 0
     }
-
     ming0 <- minoptx[(2 * lpobj$sn + 1) : (2 * lpobj$sn + lpobj$gn0)]
     ming1 <- minoptx[(2 * lpobj$sn + lpobj$gn0 + 1) :
                      (2 * lpobj$sn + lpobj$gn0 + lpobj$gn1)]
@@ -643,7 +618,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
     maxg0 <- maxoptx[(2 * lpobj$sn + 1) : (2 * lpobj$sn + lpobj$gn0)]
     maxg1 <- maxoptx[(2 * lpobj$sn + lpobj$gn0 + 1) :
                      (2 * lpobj$sn + lpobj$gn0 + lpobj$gn1)]
-
     if (hasArg(sset)) {
         names(ming0) <- names(sset$gstar$g0)
         names(ming1) <- names(sset$gstar$g1)
@@ -651,7 +625,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         names(maxg0) <- names(sset$gstar$g0)
         names(maxg1) <- names(sset$gstar$g1)
     }
-    
     if (noisy) {
         message(paste0("Min status: ", minstatus, "\n"))
         message(paste0("Max status: ", maxstatus, "\n"))
@@ -699,17 +672,12 @@ runCplexAPI <- function(lpobj, lpdir) {
 
     ub <- lpobj$ub
     ub[ub == Inf] <- cplexAPI::CPX_INFBOUND
-
     lb <- lpobj$lb
     lb[lb == -Inf] <- - cplexAPI::CPX_INFBOUND
-
     cnt <- apply(lpobj$A, MARGIN = 2, function(x) length(which(x != 0)))
-
     beg <- rep(0, ncol(lpobj$A))
     beg[-1] <- cumsum(cnt[-length(cnt)])
-
     ind <- unlist(apply(lpobj$A, MARGIN = 2, function(x) which(x != 0) - 1))
-
     val <- c(lpobj$A)
     val <- val[val != 0]
 
@@ -727,12 +695,10 @@ runCplexAPI <- function(lpobj, lpdir) {
                                 matval = val,
                                 lb = lb,
                                 ub = ub)
-
     cplexAPI::lpoptCPLEX(env, prob)
     solution <- cplexAPI::solutionCPLEX(env, prob)
     cplexAPI::delProbCPLEX(env, prob)
     cplexAPI::closeEnvCPLEX(env)
-
     if (typeof(solution) == "S4") {
         if (attr(solution, "class") == "cplexError") {
             status <- 0
@@ -744,7 +710,6 @@ runCplexAPI <- function(lpobj, lpdir) {
         if (solution$lpstat == 1) status <- 1
         if (solution$lpstat != 1) status <- 0
     }
-
     return(list(objval = solution$objval,
                 optx   = solution$x,
                 status = status))
@@ -765,38 +730,29 @@ runCplexAPI <- function(lpobj, lpdir) {
 #'     vector.
 runLpSolveAPI <- function(lpobj, modelsense) {
     lpmodel <- lpSolveAPI::make.lp(nrow(lpobj$A), ncol(lpobj$A))
-
     for (j in 1:ncol(lpobj$A)) {
         lpSolveAPI::set.column(lprec = lpmodel,
                                column = j,
                                x = lpobj$A[, j])
     }
-
     lpSolveAPI::set.constr.value(lprec = lpmodel,
                                  rhs = lpobj$rhs)
-
     sense <- lpobj$sense
     sense[sense == "<"]  <- "<="
     sense[sense == ">"]  <- ">="
     sense[sense == "=="] <- "="
-
     lpSolveAPI::set.constr.type(lprec = lpmodel,
                                 types = sense)
-
     lpSolveAPI::set.objfn(lprec = lpmodel,
                           obj = lpobj$obj)
-
     lpSolveAPI::lp.control(lprec = lpmodel,
                            sense = modelsense)
-
     lpSolveAPI::set.bounds(lprec = lpmodel,
                            lower = lpobj$lb,
                            upper = lpobj$ub)
-
     solved <- lpSolveAPI::solve.lpExtPtr(lpmodel)
     if (solved == 0) status <- 1
     if (solved != 0) status <- 0
-
     return(list(objval = lpSolveAPI::get.objective(lpmodel),
                 optx   = lpSolveAPI::get.variables(lpmodel),
                 status = status))

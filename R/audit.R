@@ -220,43 +220,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
     set.seed(seed)
     call  <- match.call()
     lpsolver <- tolower(lpsolver)
-    splines <- list(splinesobj[[1]]$splineslist,
-                    splinesobj[[2]]$splineslist)
-
-    ## Update MTR formulas to include all terms that interact with
-    ## splines. This is required for generating the matrices to impose
-    ## monotoncity and bounds. The terms that interact wtih the
-    ## splines, but do not enter into the MTRs on their own, will be
-    ## removed in the function genmonoboundA.
-
-    if (!is.null(m0) & length(terms_mtr0) > 0) {
-        m0 <- update(m0, as.formula(paste("~ . +",
-                                          paste(unique(terms_mtr0),
-                                                collapse = " + "))))
-    } else {
-        if (length(terms_mtr0) > 0) {
-            m0 <- as.formula(paste("~",
-                                   paste(unique(terms_mtr0),
-                                         collapse = " + ")))
-        } else {
-            m0 <- as.formula("~ 1")
-        }
-    }
-
-    if (!is.null(m1) & length(terms_mtr1) > 0) {
-        m1 <- update(m1, as.formula(paste("~ . +",
-                                          paste(unique(terms_mtr1),
-                                                collapse = " + "))))
-    } else {
-        if (length(terms_mtr1) > 0) {
-            m1 <- as.formula(paste("~",
-                                   paste(unique(terms_mtr1),
-                                         collapse = " + ")))
-        } else {
-            m1 <- as.formula("~ 1")
-        }
-    }
-
+    ## Clean boolean terms
+    terms_mtr0 <- parenthBoolean(terms_mtr0)
+    terms_mtr1 <- parenthBoolean(terms_mtr1)
     ## Obtain name of unobservable variable
     if(hasArg(uname)) {
         if (!suppressWarnings(try(class(uname), silent = TRUE) ==
@@ -266,7 +232,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
     } else {
         uname <- "u"
     }
-
     ## Organize variables
     sn      <- length(sset)
     monov   <- uname ## `monov' is a placeholder name for the monotone
@@ -278,7 +243,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
     xvars   <- xvars[xvars != uname]
     otherx  <- xvars[xvars != monov]
     support <- unique(data[, xvars])
-
     ## check if support is vector or matrix; it can be a vector if
     ## there is only one X term
     if (is.null(dim(support))) {
@@ -292,7 +256,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
     } else {
         noX <- FALSE
         rownames(support) <- seq(1, nrow(support))
-
         ## Select first iteration of the grid
         full_index <- seq(1, nrow(support))
         initgrid.nx <- min(initgrid.nx, nrow(support))
@@ -310,12 +273,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (noisy) {
             message(paste0("\n    Audit count: ", audit_count))
         }
-
         ## Generate all monotonicity and boundedness matrices for initial grid
         if (audit_count == 1) {
             message("    Generating initial grid...")
-            monoboundAlist <- c('m0', 'm1',
-                                'sset', 'gstar0', 'gstar1',
+
+            monoboundAlist <- c('sset', 'gstar0', 'gstar1',
                                 'm1.ub', 'm0.ub',
                                 'm1.lb', 'm0.lb',
                                 'mte.ub', 'mte.lb',
@@ -325,11 +287,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
             monoboundAcall <- modcall(call,
                                       newcall = genmonoboundA,
                                       keepargs = monoboundAlist,
-                                      newargs = list(uname = uname,
+                                      newargs = list(m0 = m0,
+                                                     m1 = m1,
+                                                     uname = uname,
                                                      support = support,
                                                      grid_index = grid_index,
                                                      uvec = uvec,
-                                                     splines = splines,
+                                                     splinesobj = splinesobj,
                                                      monov = monov))
             mbobj <- eval(monoboundAcall)
         }
@@ -474,7 +438,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 }
             }
         }
-
         ## Generate a new grid for the audit
         if (audit_count == 1) {
             a_uvec <- sort(c(round(runif(audit.nu), 8), 0, 1))
@@ -508,11 +471,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
             monoboundAcall <- modcall(call,
                                       newcall = genmonoboundA,
                                       keepargs = monoboundAlist,
-                                      newargs = list(uname = uname,
+                                      newargs = list(m0 = m0,
+                                                     m1 = m1,
+                                                     uname = uname,
                                                      support = support,
                                                      grid_index = a_grid_index,
                                                      uvec = a_uvec,
-                                                     splines = splines,
+                                                     splinesobj = splinesobj,
                                                      monov = monov))
             a_mbobj <- eval(monoboundAcall)
             a_mbA <- a_mbobj$mbA[, (2 * sn + 1) : ncol(a_mbobj$mbA)]

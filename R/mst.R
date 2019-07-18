@@ -934,6 +934,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
         splinesobj <- list(removeSplines(m0),
                            removeSplines(m1))
+        origm0 <- m0
+        origm1 <- m1
         m0 <- splinesobj[[1]]$formula
         m1 <- splinesobj[[2]]$formula
         vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
@@ -963,7 +965,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             vars_mtr   <- c(vars_mtr, all.vars(sf1))
             terms_mtr1 <- c(terms_mtr1, attr(terms(sf1), "term.labels"))
         }
-
     } else {
         stop("m0 and m1 must be one-sided formulas.")
     }
@@ -1252,11 +1253,103 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                           ".")
         stop(gsub("\\s+", " ", varError), call. = FALSE)
     }
-
     data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
-
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
+
+    ## Construct a list of what variables interact with the
+    ## spline. The reason for this is that certain interactions with
+    ## factor variables should be dropped to avoid collinearity. Note
+    ## that only interaction terms need to be omitted, so you do not
+    ## need to worry about the formula contained in
+    ## removeSplines$formula.
+    tmpInterName <- "..t.i.n"
+    for (d in 0:1) {
+        if (!is.null(splinesobj[[d + 1]]$splineslist)) {
+            mdata <- unique(data)
+            mdata[, deparse(substitute(uname))] <- 1
+            md <- get(paste0("origm", d))
+            md <- gsub("\\s+", " ", Reduce(paste, deparse(md)))
+            altNames <- list()
+            splineKeys <- names(splinesobj[[d + 1]]$splinescall)
+            for (i in 1:length(splinesobj[[d + 1]]$splinescall)) {
+                tmpName <- paste0(tmpInterName, i)
+                mdata[, tmpName] <- 1
+                altNames[splineKeys[i]] <- tmpName
+                for (j in 1:length(splinesobj[[d + 1]]$splinescall[[i]])) {
+                    origCall <- splinesobj[[d + 1]]$splinescall[[i]][j]
+                    origCall <- gsub("\\)", "\\\\)",
+                                     gsub("\\(", "\\\\(", origCall))
+                    md <- gsub(origCall, tmpName, md)
+                }
+            }
+            tmpColNames <- colnames(design(as.formula(md), mdata)$X)
+            for (k in 1:length(altNames)) {
+                tmpName <- paste0(tmpInterName, k)
+                inter1 <- grep(paste0(":", altNames[[k]]),
+                               tmpColNames)
+                inter2 <- grep(paste0(altNames[[k]], ":"),
+                               tmpColNames)
+                interpos <- c(inter1, inter2)
+                if (length(interpos) > 0) {
+                    ## The case where there are interactions with splines
+                    altNames[[k]] <- parenthBoolean(tmpColNames[c(inter1,
+                                                                  inter2)])
+                    altNames[[k]] <- gsub(paste0(":", tmpName), "",
+                                          altNames[[k]])
+                    altNames[[k]] <- gsub(paste0(tmpName, ":"), "",
+                                          altNames[[k]])
+                } else {
+                    ## The case where there are no interactions with
+                    ## splines, i.e spline enters on its own
+                    altNames[[k]] <- "1"
+                }
+            }
+            splinesobj[[d + 1]]$splinesinter <- altNames
+        } else {
+            splinesobj[[d + 1]]$splinesinter <- NULL
+        }
+    }
+    ## Check that all boolean variables have non-zero variance, and
+    ## that all factor variables are complete.
+    allterms <- unlist(c(terms_formulas_x, terms_formulas_z, terms_mtr0,
+                         terms_mtr1, terms_components))
+    allterms <- unique(unlist(sapply(allterms, strsplit, split = ":")))
+    allterms <- parenthBoolean(allterms)
+    ## Check factors
+    factorPos <- grep("factor\\([[:alnum:]]*\\)", allterms)
+    if (length(factorPos) > 0) {
+        factorDict <- list()
+        for (i in allterms[factorPos]) {
+            var <- substr(i, start = 8, stop = (nchar(i) - 1))
+            factorDict[[var]] <- sort(unique(data[, var]))
+        }
+    } else {
+        factorDict <- NULL
+    }
+    ## To check for binary variables
+    binMinCheck <- apply(data, 2, min)
+    binMaxCheck <- apply(data, 2, max)
+    binUniqueCheck <- apply(data, 2, function(x) length(unique(x)))
+    binaryPos <- as.logical((binMinCheck == 0) *
+                           (binMaxCheck == 1) *
+                           (binUniqueCheck == 2))
+    binaryVars <- colnames(data)[binaryPos]
+    if (length(binaryVars) == 0) binaryVars <- NULL
+    ## To check booleans expressions, you just need to ensure there is
+    ## non-zero variance in the design matrix.
+    boolPos <- NULL
+    for (op in c("==", "!=", ">=", "<=", ">",  "<")) {
+        boolPos <- c(boolPos, grep(op, allterms))
+    }
+    if (length(boolPos) > 0) {
+        boolPos <- unique(boolPos)
+        boolVars <- allterms[boolPos]
+    } else {
+        boolVars <- NULL
+    }
+    ## But what about checking if there is sufficient variation in the
+    ## boolean variables? If not, then they may as well remove it.
 
     ##---------------------------
     ## 5. Implement estimates
@@ -1310,9 +1403,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Estimate bounds
     if (point == FALSE) {
-
         origEstimate <- eval(estimateCall)
-
         ## Estimate bounds without resampling
         if (bootstraps == 0) {
             return(origEstimate)
@@ -1539,11 +1630,65 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                       "Cannot draw more observations than the number of rows
                            in the data set when 'bootstraps.replace = FALSE'."))
         }
+        totalBootstraps <- 0
+        factorMessage <- 0
+        factorText <- gsub("\\s+", " ",
+                           "Insufficient variation in categorical variables
+                           (i.e. factor variables, binary variables,
+                           boolean expressions) in the bootstrap sample.
+                           Additional bootstrap samples will be drawn.")
         while (b <= bootstraps) {
+            totalBootstraps <- totalBootstraps + 1
             bootIDs  <- sample(seq(1, nrow(data)),
                                  size = bootstraps.m,
                                  replace = bootstraps.replace)
             bdata <- data[bootIDs, ]
+
+            ## Check if the bootstrap data contains sufficient
+            ## variation in all boolean and factor expressions.
+            if (!is.null(factorDict)) {
+                for (i in 1:length(factorDict)) {
+                    factorCheck <-
+                        suppressWarnings(
+                            all(sort(unique(bdata[, names(factorDict)[i]])) ==
+                            factorDict[[i]]))
+                    if (!factorCheck) break
+                }
+                if (!factorCheck) {
+                    if (factorMessage == 0) {
+                        factorMessage <- 1
+                        warning(factorText, call. = FALSE, immediate. = TRUE)
+                    }
+                    next
+                    }
+            }
+            ## Check if the binary variables contain sufficient variation
+            if (!is.null(binaryVars)) {
+                binarySd <- apply(as.matrix(bdata[, binaryVars]), 2, sd)
+                if (! all(binarySd > 0)) {
+                    if (factorMessage == 0) {
+                        factorMessage <- 1
+                        warning(factorText, call. = FALSE, immediate. = TRUE)
+                    }
+                    next
+                    }
+            }
+            ## Check if the boolean variables contain sufficient variation
+            if (!is.null(boolVars)) {
+                boolFormula <-
+                    as.formula(paste("~ 0 +", paste(boolVars,
+                                                    collapse = " + ")))
+                boolDmat <- design(boolFormula, bdata)$X
+                boolSd <- apply(boolDmat, 2, sd)
+                if (! all(boolSd > 0)) {
+                    if (factorMessage == 0) {
+                        factorMessage <- 1
+                        warning(factorText, call. = FALSE, immediate. = TRUE)
+                    }
+                    next
+                }
+            }
+            
             if (noisy == TRUE) {
                 message(paste0("Bootstrap iteration ", b, "..."))
             }
@@ -1691,6 +1836,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
         message(paste0("\nBootstrapped p-value: ",
                        fmtResult(pvalue), "\n"))
+        if (totalBootstraps > bootstraps) {
+            warning(gsub("\\s+", " ",
+                         paste0("In order to obtain ", bootstraps, " boostrap
+                         samples without omiting any
+                         levels from all categorical variables,
+                         a total of ", totalBootstraps, " samples
+                         had to be drawn. This is due to factor variables
+                         and/or boolean variables potentially being omitted from
+                         boostrap samples.")), call. = FALSE)
+        }
         return(output)
     }
 }
@@ -2063,13 +2218,11 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     call <- match.call(expand.dots = FALSE)
 
     if (classFormula(ivlike)) ivlike <- c(ivlike)
-
     ## Character arguments will be converted to lowercase
     if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
     if (hasArg(target))   target   <- tolower(target)
     if (hasArg(link))     link     <- tolower(link)
     if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
-
 
     ##---------------------------
     ## 1. Obtain propensity scores
@@ -2078,9 +2231,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Obtaining propensity scores...")
     }
-
     ## Estimate propensity scores
-
     pcall <- modcall(call,
                      newcall = propensity,
                      keepargs = c("link", "late.Z", "late.X"),
@@ -2096,9 +2247,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Generating target moments...")
     }
-
     ## Parse polynomials
-
     if (!is.null(m0)) {
         m0call <- modcall(call,
                           newcall = polyparse,
@@ -2109,7 +2258,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     } else {
         pm0 <- NULL
     }
-
     if (!is.null(m1)) {
         m1call <- modcall(call,
                           newcall = polyparse,
@@ -2120,14 +2268,11 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     } else {
         pm1 <- NULL
     }
-
     ## Generate target weights
     if (!hasArg(target.weight0) & !hasArg(target.weight1)) {
         target.weight0 <- NULL
         target.weight1 <- NULL
     }
-
-
     if (is.null(target.weight0) & is.null(target.weight1)) {
         gentargetcall <- modcall(call,
                                  newcall = genTarget,
@@ -2160,7 +2305,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                                 pm0 = quote(pm0),
                                                 pm1 = quote(pm1)))
     }
-
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
@@ -2172,11 +2316,9 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Generating IV-like moments...")
     }
-
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
     scount <- 1     ## counter for S-set constraints
-
     if (classList(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
@@ -2273,7 +2415,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Performing audit procedure...")
     }
-
     audit.args <- c("uname", "initgrid.nu", "initgrid.nx",
                     "audit.nx", "audit.nu", "audit.add",
                     "audit.max", "audit.tol",
@@ -2282,7 +2423,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                     "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
                     "mte.inc", "obseq.tol", "noisy", "seed")
-
     audit_call <- modcall(call,
                           newcall = audit,
                           keepargs = audit.args,
@@ -2297,7 +2437,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                          gstar0 = quote(gstar0),
                                          gstar1 = quote(gstar1),
                                          lpsolver = quote(lpsolver)))
-
     ## Impose default upper and lower bounds on m0 and m1
     if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
         maxy <- max(data[, vars_y])
@@ -2350,7 +2489,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                 splinesdict = list(splinesobj[[1]]$splinesdict,
                                    splinesobj[[2]]$splinesdict)))
 }
-
 
 
 #' Generating LP moments for IV-like estimands
@@ -2489,12 +2627,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                       point = FALSE, noisy = TRUE) {
 
     if (hasArg(target)) target   <- tolower(target)
-
-    xindex0 <- NULL
-    xindex1 <- NULL
-    uexporder0 <- NULL
-    uexporder1 <- NULL
-
     if (hasArg(target)) {
         if (target == "ate") {
             w1 <- wate1(data)
@@ -2534,8 +2666,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
             } else {
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
-                xindex0 <- c(xindex0, pm0$xindex)
-                uexporder0 <- c(uexporder0, pm0$exporder)
             }
         } else {
             gstar0 <- NULL
@@ -2549,14 +2679,12 @@ genTarget <- function(treat, m0, m1, uname, target,
                 gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp)
             } else {
                 gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp, means = FALSE)
-                xindex1 <- c(xindex1, pm1$xindex)
-                uexporder1 <- c(uexporder1, pm1$exporder)
             }
         } else {
             gstar1 <- NULL
         }
         if (point == FALSE) {
-            gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
+            gstarSplineObj0 <- genGammaSplines(splinesobj = splinesobj[[1]],
                                                data = data,
                                                lb = w0$lb,
                                                ub = w0$ub,
@@ -2564,7 +2692,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                d = 0)
             gstarSpline0 <- gstarSplineObj0$gamma
 
-            gstarSplineObj1 <- genGammaSplines(splines = splinesobj[[2]],
+            gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                                data = data,
                                                lb = w1$lb,
                                                ub = w1$ub,
@@ -2572,7 +2700,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                d = 1)
             gstarSpline1 <- gstarSplineObj1$gamma
         } else {
-            gstarSplineObj0 <- genGammaSplines(splines = splinesobj[[1]],
+            gstarSplineObj0 <- genGammaSplines(splinesobj = splinesobj[[1]],
                                                data = data,
                                                lb = w0$lb,
                                                ub = w0$ub,
@@ -2580,11 +2708,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                d = 0,
                                                means = FALSE)
             gstarSpline0 <- gstarSplineObj0$gamma
-            xindex0 <- c(xindex0, gstarSplineObj0$interactions)
-            uexporder0 <- c(uexporder0,
-                            rep(-1, length(xindex0) - length(uexporder0)))
-
-            gstarSplineObj1 <- genGammaSplines(splines = splinesobj[[2]],
+            gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                                data = data,
                                                lb = w1$lb,
                                                ub = w1$ub,
@@ -2592,9 +2716,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                d = 1,
                                                means = FALSE)
             gstarSpline1 <- gstarSplineObj1$gamma
-            xindex1 <- c(xindex1, gstarSplineObj1$interactions)
-            uexporder1 <- c(uexporder1,
-                            rep(-1, length(xindex1) - length(uexporder1)))
         }
     } else {
 
@@ -2801,7 +2922,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                     if (point == FALSE) {
 
                         gammaSplines <- gammaSplines +
-                            genGammaSplines(splines = noSplineMtr,
+                            genGammaSplines(splinesobj = noSplineMtr,
                                             data = data,
                                             lb = lb,
                                             ub = ub,
@@ -2809,7 +2930,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                                             d = d)$gamma
                     } else {
                         gammaSplines <- gammaSplines +
-                            genGammaSplines(splines = noSplineMtr,
+                            genGammaSplines(splinesobj = noSplineMtr,
                                             data = data,
                                             lb = lb,
                                             ub = ub,
@@ -2833,11 +2954,7 @@ genTarget <- function(treat, m0, m1, uname, target,
         gstar1 <- cbind(gstar1, gstarSpline1)
     }
     output <- list(gstar0 = gstar0,
-                   gstar1 = gstar1,
-                   xindex0 = xindex0,
-                   xindex1 = xindex1,
-                   uexporder0 = uexporder0,
-                   uexporder1 = uexporder1)
+                   gstar1 = gstar1)
     if (hasArg(target)) {
         output$w1 <- w1
         output$w0 <- w0
@@ -2963,12 +3080,12 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                 subset = subset_index,
                                 means = FALSE)
             }
-            sweight0 <- list(lb = pmodobj,
-                             ub = 1,
-                             multiplier = sest$sw0[, j])
         } else {
             gs0 <- NULL
         }
+        sweight0 <- list(lb = pmodobj,
+                         ub = 1,
+                         multiplier = sest$sw0[, j])
         if (!is.null(pm1)) {
             if (means == TRUE) {
 
@@ -2985,22 +3102,21 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                 subset = subset_index,
                                 means = FALSE)
             }
-           sweight1 <- list(lb = 0,
-                             ub = pmodobj,
-                             multiplier = sest$sw1[, j])
         } else {
             gs1 <- NULL
         }
+        sweight1 <- list(lb = 0,
+                         ub = pmodobj,
+                         multiplier = sest$sw1[, j])
         if (means == TRUE) {
-
-            gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
+            gsSpline0 <- genGammaSplines(splinesobj = splinesobj[[1]],
                                          data = data,
                                          lb = pmodobj,
                                          ub = 1,
                                          multiplier = sest$sw0[, j],
                                          subset = subset_index,
                                          d = 0)$gamma
-            gsSpline1 <- genGammaSplines(splines = splinesobj[[2]],
+            gsSpline1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                          data = data,
                                          lb = 0,
                                          ub = pmodobj,
@@ -3008,7 +3124,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          subset = subset_index,
                                          d = 1)$gamma
         } else {
-            gsSpline0 <- genGammaSplines(splines = splinesobj[[1]],
+            gsSpline0 <- genGammaSplines(splinesobj = splinesobj[[1]],
                                          data = data,
                                          lb = pmodobj,
                                          ub = 1,
@@ -3016,7 +3132,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                          subset = subset_index,
                                          d = 0,
                                          means = FALSE)$gamma
-            gsSpline1 <- genGammaSplines(splines = splinesobj[[2]],
+            gsSpline1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                          data = data,
                                          lb = 0,
                                          ub = pmodobj,

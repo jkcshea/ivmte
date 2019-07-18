@@ -599,11 +599,15 @@ combinemonobound <- function(bdA, monoA) {
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
 #'     boundedness and monotonicity constraints of an LP problem.
-genmonoboundA <- function(support, grid_index, uvec, splines, monov,
+genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                           uname, m0, m1, sset, gstar0, gstar1,
                           m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub,
                           m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc) {
     call <- match.call()
+    splines <- list(splinesobj[[1]]$splineslist,
+                    splinesobj[[2]]$splineslist)
+    splinesinter <- list(splinesobj[[1]]$splinesinter,
+                         splinesobj[[2]]$splinesinter)
     if (is.null(grid_index)) {
         noX <- TRUE
     } else {
@@ -625,8 +629,7 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                            uvec,
                            uname)
     }
-
-    if (is.null(splines[[1]]) & is.null(splines[[2]])) {
+    if (is.null(splines[[1]]) && is.null(splines[[2]])) {
         A0 <- design(formula = m0, data = gridobj$grid)$X
         A1 <- design(formula = m1, data = gridobj$grid)$X
         A0 <- cbind(A0,
@@ -636,10 +639,56 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                     .grid.order = gridobj$grid$.grid.order,
                     .u.order = gridobj$grid$.u.order)
     } else {
-        m0 <- update(m0, as.formula(paste("~ . +", uname)))
-        m1 <- update(m1, as.formula(paste("~ . +", uname)))
-        A0 <- design(formula = m0, data = gridobj$grid)$X
-        A1 <- design(formula = m1, data = gridobj$grid)$X
+        ## Construct base A0 and A1 matrices using the non-spline
+        ## formulas. The variables interacting with the splines will
+        ## be appended to this.
+        if (is.null(m0)) {
+            A0 <- design(formula = as.formula(paste("~ 0 +", uname)),
+                         data = gridobj$grid)
+        } else {
+            m0 <- as.formula(paste(gsub("\\s+", " ",
+                                        Reduce(paste, deparse(m0))), "+",
+                                   uname))
+            A0 <- design(formula = m0, data = gridobj$grid)$X
+            colnames(A0) <- parenthBoolean(colnames(A0))
+        }
+        if (is.null(m1)) {
+            A1 <- design(formula = as.formula(paste("~ 0 +", uname)),
+                         data = gridobj$grid)
+        } else {
+            m1 <- as.formula(paste(gsub("\\s+", " ",
+                                        Reduce(paste, deparse(m1))), "+",
+                                   uname))
+            A1 <- design(formula = m1, data = gridobj$grid)$X
+            colnames(A1) <- parenthBoolean(colnames(A1))
+        }
+        for (d in 0:1) {
+            nonSplinesDmat <- NULL
+            splinesD <- splines[[d + 1]]
+            for (j in 1:length(splinesD)) {
+                for (k in 1:length(splinesD[[j]])) {
+                    if (splinesD[[j]][k] != "1") {
+                        tmpDmat <- design(as.formula(paste("~ 0 +",
+                                                           splinesD[[j]][k])),
+                                          gridobj$grid)$X
+                    nonSplinesDmat <- cbind(nonSplinesDmat, tmpDmat)
+                    } else {
+                        nonSplinesDmat <- cbind(nonSplinesDmat,
+                                                design(~ 1, gridobj$grid)$X)
+                    }
+                }
+                colnames(nonSplinesDmat) <-
+                    parenthBoolean(colnames(nonSplinesDmat))
+            }
+            ## Only keep the variables that are not already in A0 or A1
+            currentNames <- colnames(nonSplinesDmat)
+            keepPos <- ! colnames(nonSplinesDmat) %in%
+                colnames(get(paste0("A", d)))
+            nonSplinesDmat <- as.matrix(nonSplinesDmat[, keepPos])
+            colnames(nonSplinesDmat) <- currentNames[keepPos]
+            assign(paste0("A", d),
+                   cbind(get(paste0("A", d)), nonSplinesDmat))
+        }
         A0 <- cbind(A0,
                     .grid.order = gridobj$grid$.grid.order,
                     .u.order = gridobj$grid$.u.order)
@@ -652,39 +701,76 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                           genBasisSplines(splines = splines[[2]],
                                           x = uvec,
                                           d = 1))
-
         ## Generate interaction with the splines.
         ## Indexing in the loops takes the following structure:
         ## j: splines index
         ## v: interaction index
+        colnames(A0) <- parenthBoolean(colnames(A0))
+        colnames(A1) <- parenthBoolean(colnames(A1))
+        namesA0 <- colnames(A0)
+        namesA1 <- colnames(A1)
+        namesA0length <- sapply(namesA0, function(x) {
+            length(unlist(strsplit(x, ":")))
+        })
+        namesA1length <- sapply(namesA1, function(x) {
+            length(unlist(strsplit(x, ":")))
+        })
         for (d in 0:1) {
+            namesA <- get(paste0("namesA", d))
+            namesAlength <- get(paste0("namesA", d, "length"))
             if (!is.null(basisList[[d + 1]])) {
                 for (j in 1:length(splines[[d + 1]])) {
                     for (v in 1:length(splines[[d + 1]][[j]])) {
                         bmat <- cbind(uvec, basisList[[d + 1]][[j]])
+
                         colnames(bmat)[1] <- uname
                         iName <- splines[[d + 1]][[j]][v]
                         if (iName != "1") {
-                            namesA <- colnames(get(paste0("A", d)))
-                            bmat <-
-                                merge(
-                                    get(paste0("A", d))[, c(uname,
-                                                            iName,
-                                                            ".grid.order")],
-                                    bmat, by = uname)
-                            bmat[, 4:ncol(bmat)] <-
-                                sweep(x = bmat[, 4:ncol(bmat)],
-                                      MARGIN = 1,
-                                      STATS = bmat[, iName],
-                                      FUN = "*")
-                            namesB <- paste0(colnames(bmat)[4:ncol(bmat)],
-                                             ":", iName)
-                            colnames(bmat)[4:ncol(bmat)] <- namesB
-                            newA <- merge(get(paste0("A", d)),
-                                          bmat[, c(".grid.order", namesB)],
-                                          by = ".grid.order")
-                            newA <- newA[, c(namesA, namesB)]
-                            assign(paste0("A", d), newA)
+                            isFactor  <- FALSE
+                            isBoolean <- FALSE
+                            iNamePos  <- NULL
+                            iNameList <- unlist(strsplit(iName, ":"))
+                            namesAscore <- rep(0, times = length(namesA))
+                            for (q in iNameList) {
+                                if (substr(q, nchar(q), nchar(q)) == ")") {
+                                    q <- gsub("\\)", "\\\\)",
+                                              gsub("\\(", "\\\\(", q))
+                                    namesApos <-
+                                        as.integer(
+                                            grepl(paste0(q, "[[:alnum:]]*"),
+                                                  namesA))
+
+                                } else {
+                                    namesApos <-
+                                        as.integer(
+                                            grepl(q, namesA))
+                                }
+                                namesAscore <- namesAscore + namesApos
+                            }
+                            iNamePos <- (namesAscore == length(iNameList)) *
+                                (namesAscore == namesAlength)
+                            iNamePos <- which(iNamePos == 1)
+                            for (r in iNamePos) {
+                                bmatTmp <-
+                                    merge(
+                                        get(paste0("A", d))[, c(uname,
+                                                                namesA[r],
+                                                                ".grid.order")],
+                                        bmat, by = uname)
+                                bmatTmp[, 4:ncol(bmatTmp)] <-
+                                    sweep(x = bmatTmp[, 4:ncol(bmatTmp)],
+                                          MARGIN = 1,
+                                          STATS = bmatTmp[, namesA[r]],
+                                          FUN = "*")
+                                namesB <- paste0(colnames(bmatTmp)[4:ncol(bmatTmp)],
+                                                 ":", namesA[r])
+                                colnames(bmatTmp)[4:ncol(bmatTmp)] <- namesB
+                                newA <- merge(get(paste0("A", d)),
+                                              bmatTmp[, c(".grid.order",
+                                                          namesB)],
+                                              by = ".grid.order")
+                                assign(paste0("A", d), newA)
+                            }
                         } else {
                             namesA <- colnames(get(paste0("A", d)))
                             namesB <- paste0(colnames(bmat)[2:ncol(bmat)],
@@ -693,7 +779,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                             newA <- merge(get(paste0("A", d)),
                                           bmat,
                                           by = uname)
-                            newA <- newA[, c(namesA, namesB)]
                             assign(paste0("A", d), newA)
                         }
                     }
@@ -705,7 +790,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     }
     A0 <- A0[order(A0[, ".grid.order"]), ]
     A1 <- A1[order(A1[, ".grid.order"]), ]
-
     ## Rename columns so they match with the names in vectors gstar0
     ## and gstar1 (the problem stems from the unpredictable ordering
     ## of variables in interaction terms).
@@ -728,6 +812,17 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
         colnames(Amat)[Apos] <- names(gvec)[failTerms]
         assign(paste0("A", d), Amat)
     }
+    ## Some columns maybe missing relative to gstar0/gstar1 becuase
+    ## the grid is not large enough, and so does not contain all
+    ## factor variables. Fill these columns with 0
+    missingA0 <- !(names(gstar0) %in% colnames(A0))
+    for (i in names(gstar0)[missingA0]) {
+        A0[, i] <- 0
+    }
+    missingA1 <- !(names(gstar1) %in% colnames(A1))
+    for (i in names(gstar1)[missingA1]) {
+        A1[, i] <- 0
+    }
     ## keep only the columns that are in the MTRs (A0 and A1 matrices
     ## potentially include extraneous columns)
     A0 <- as.matrix(A0[, names(gstar0)])
@@ -735,9 +830,8 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     colnames(A0) <- names(gstar0)
     colnames(A1) <- names(gstar1)
 
-    ## generate null objects
-    bdA     <- NULL
-    monoA   <- NULL
+    bdA <- NULL
+    monoA <- NULL
     lb0seq <- NULL
     lb1seq <- NULL
     lbteseq <- NULL
@@ -747,7 +841,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     mono0seq <- NULL
     mono1seq <- NULL
     monomteseq <- NULL
-
     ## generate matrices for imposing bounds on m0 and m1 and
     ## treatment effects
     if (hasArg(m0.lb) | hasArg(m0.ub) |
@@ -766,7 +859,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                              gridobj = quote(gridobj)))
         bdA <- eval(boundAcall)
     }
-
     ## Prepare to generate matrices for monotonicity constraints
     if (hasArg(m0.inc)  | hasArg(m0.dec) |
         hasArg(m1.inc)  | hasArg(m1.dec) |
@@ -786,7 +878,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
                                             gstar1 = quote(gstar1)))
         monoA <- eval(monoAcall)
     }
-
     ## Update bound sequence counts
     if (!is.null(bdA$lb0seq)) lb0seq <- bdA$lb0seq
     if (!is.null(bdA$lb1seq)) lb1seq <- bdA$lb1seq
@@ -794,7 +885,6 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     if (!is.null(bdA$ub0seq)) ub0seq <- bdA$ub0seq
     if (!is.null(bdA$ub1seq)) ub1seq <- bdA$ub1seq
     if (!is.null(bdA$ubteseq)) ubteseq <- bdA$ubteseq
-
     output <- combinemonobound(bdA, monoA)
     output$gridobj <- gridobj
     output$lb0seq  <- lb0seq
@@ -803,10 +893,8 @@ genmonoboundA <- function(support, grid_index, uvec, splines, monov,
     output$ub0seq  <- ub0seq
     output$ub1seq  <- ub1seq
     output$ubteseq <- ubteseq
-
     boundLength <- length(lb0seq) + length(lb1seq) + length(lbteseq) +
         length(ub0seq) + length(ub1seq) + length(ubteseq)
-
     ## Update monotonicity sequence counts
     if (!is.null(monoA$mono0seq)) {
         mono0seq <- monoA$mono0seq
