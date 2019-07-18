@@ -75,47 +75,20 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     ## specifications correspond polynomial coefficients on u
     ## monomials
     data[[uname]] <- 1
-    ## Experimenting
-    ## -----------------------------------------------------------
-    ## Allowing for factor variables. This is done by removing all
-    ## factor-terms from the MTR. Their own design matrices will be
-    ## included so every possible dummy is available for selection.
-    ## sFormula <- deparse(formula)
-
-    ## dmat <- design(altFormula, data)$X
-    ## stop("end of exp")
-    ## THIS EXPERIMENT MAY BE UNNECESSARY
-    ## Original ----------------------------------------------------------------
     dmat <- design(formula, data)$X
-    ## End original ------------------------------------------------------------
-
-    ## Question: why did you need to save the original terms from the
-    ## formula in oterms? Why could you not use the variable names
-    ## from the design matrix?
-
-    ## Save original terms for reference as later
-    ## oterms <- attr(terms(formula), "term.labels") ## ORIGINAL
-    oterms <- colnames(dmat) ## EXPERIMENTING
-
+    oterms <- colnames(dmat)
     ## Separate and parse the original terms
     nterms <- oterms
-
-    ## Experimenting ------------------------------------------------
     ## Address booleans and their splitting
     for (op in c("==", "!=", ">", ">=", "<", "<=")) {
         nterms <- sapply(nterms, gsub,
                          pattern = paste0(" ", op, " "),
                          replacement = op)
     }
-    ## End experimenting --------------------------------------------
-
     for (sep in c("I\\(", "\\)", "\\*", ":", "  ", "  ")) {
               nterms <- lapply(nterms, gsub, pattern = sep, replacement = " ")
         }
     nterms <- strsplit(trimws(unlist(nterms)), " ")
-
-    ## Experimenting ----------------------------------------------
-
     ## Correct the spltting for factors
     nterms <- lapply(nterms, function(x) {
         factorPos <- grep("factor\\(" , x = x)
@@ -126,7 +99,6 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         }
         return(x)
     })
-
     ## Correct the spltting for booleans
     nterms <- lapply(nterms, function(x) {
         for (op in c("==", "!=", ">=", "<=", ">",  "<")) {
@@ -151,12 +123,9 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         return(x)
     })
 
-    ## End experimenting -------------------------------------------------------
-
     ## Find monomials of degree 1 ('degree' is with respect to u)
     u_pos <- lapply(nterms, whichforlist, obj = uname)
     u_pos <- which(u_pos > 0)
-
     ## Find monomials of degree exceeding 1, and determine their degree
     trunc_nterms <- lapply(nterms, substr, 0, nchar(uname) + 1)
     uexp_pos     <- lapply(trunc_nterms, whichforlist, obj = paste0(uname, "^"))
@@ -165,7 +134,6 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
                            whichforlist, obj =  paste0(uname, "^"))
     deggtr2      <- FALSE
     if (length(unlist(uexp_subpos)) > 0) deggtr2 <- TRUE
-
     ## Create a matrix stating the degree for each monomial with degree >= 1
     if(length(u_pos) == 0){
         exptab1 <- NULL
@@ -185,7 +153,6 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
     if(!is.null(exptab)) {
         colnames(exptab) <- c("term", "degree")
     }
-
     ## Determine which terms do not involve u
     if (length(oterms) > 0) {
         nonuterms    <- unlist(oterms[!seq(1, length(oterms)) %in% exptab[, 1]])
@@ -201,9 +168,7 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         exptab0  <- NULL
     }
     exptab <- rbind(exptab0, exptab)
-
     if (!is.null(dim(exptab))) exptab <- exptab[order(exptab[, 1]), ]
-
     if (is.matrix(exptab)) {
         exporder <- exptab[, 2]
         colnames(exptab) <- c("term", "degree")
@@ -214,27 +179,12 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         exporder <- NULL
     }
     names(exporder) <- NULL
-
-    ## generate matrix with monomial coefficients
-    ## if ("(Intercept)" %in% colnames(dmat)) {
-    ##     exporder <- c(0, exporder)
-    ##     oterms   <- c("(Intercept)", oterms)
-    ## }
-    ## print("oterms")
-    ## print(oterms)
-    ## Original ----------------------------------------------------
-    ## polymat <- as.matrix(dmat[, oterms])
-    ## if (length(oterms) == 1) {
-    ##     polymat <- matrix(polymat, ncol = 1)
-    ##     rownames(polymat) <- rownames(data)
-    ## }
-    ## Testing -----------------------------------------------------
     polymat <- as.matrix(dmat)
     if (is.null(dim(polymat))) {
         polymat <- matrix(polymat, ncol = 1)
         rownames(polymat) <- rownames(data)
     }
-    ## End of test -------------------------------------------------
+
     return(list(polymat = polymat,
                 exporder = exporder,
                 terms = oterms))
@@ -415,7 +365,6 @@ removeSplines <- function(formula) {
             if (finter == 0) nosplines <- NULL
             if (finter == 1) nosplines <- ~ 1
         } else {
-            ## Experimenting --------------------------------------
             nosplineterms <- fterms[-splinepos]
             nosplineterms <- parenthBoolean(nosplineterms)
             nosplines <- paste("~", paste(nosplineterms,
@@ -424,11 +373,6 @@ removeSplines <- function(formula) {
                 nosplines <- paste0(nosplines, " + 0")
             }
             nosplines <- Formula::as.Formula(nosplines)
-            ## End experimenting ----------------------------------
-            ## Original ------------------------------------------
-            ## nosplines <- drop.terms(ftobj, splinepos)
-            ## nosplines <- Formula::as.Formula(nosplines)
-            ## End original --------------------------------------
         }
         splineterms <- fterms[whichspline]
         splineterms <- parenthBoolean(splineterms)
@@ -492,17 +436,13 @@ removeSplines <- function(formula) {
             } else {
                 splineslist[[splinecmd]] <- c(interobj)
             }
-
-            ## Experimenting -------------------------------------
             ## Recover original spline names
             interobjStr <- gsub("\\)", "\\\\)",
                                 gsub("\\(", "\\\\(", interobj))
 
             origSpline <- gsub(":", "", gsub(interobjStr, "", splineobj))
             splinescall[[splinecmd]] <- origSpline
-            ## -------------------------------------
         }
-
         ## Now construct spline dictionary and spline keys
         splinesDict <- list()
         splinesKey <- NULL
@@ -794,8 +734,6 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
         splinesNames <- NULL
         splinesInter <- NULL
         for (j in 1:length(splines)) {
-            ## Experimenting
-            ## -------------------------------------------------------
             ## Construct design matrix for each interaction at a
             ## time. Only include the interactions contained in the
             ## 'inters' object.
@@ -820,45 +758,14 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
             ## Fill in the gstar with any missing variables---if
             ## assigned values of 0, they will not affect the LP
             ## optimization
-            missingVars <- inters[[j]][!inters[[j]] %in% colnames(nonSplinesDmat)]
-            print("REMEMBER TO CHECK HERE IF THE BOOTSTRAP WORKS WHEN CERTAIN FACTORS ARE OMITTED BECAUSE OF SAMPLING")
+            missingVars <- inters[[j]][!inters[[j]] %in%
+                                       colnames(nonSplinesDmat)]
             if (length(missingVars) > 0) {
                 for (mv in missingVars) {
                     nonSplinesDmat[, mv] <- 0
                 }
                 nonSplinesDmat <- nonSplinesDmat[, inters[[j]]]
             }
-
-            ## End Experimenting -----------------------------------------------
-            ## Orignal ---------------------------------------------------------
-            ## Design matrix for covariates
-            ## if ("1" %in% splines[[j]]) {
-            ##     nonSplineFormula <- as.formula(paste("~",
-            ##                                          paste(splines[[j]],
-            ##                                                collapse = " + ")))
-            ## } else {
-            ##     nonSplineFormula <- as.formula(paste("~ 0 + ",
-            ##                                          paste(splines[[j]],
-            ##                                                collapse = " + ")))
-            ## }
-            ## nonSplinesDmat <- design(nonSplineFormula,
-            ##                          data[subset, ])$X
-            ## colnames(nonSplinesDmat) <- parenthBoolean(colnames(nonSplinesDmat))
-            ## End original ----------------------------------------------------
-
-            ## Experimenting ---------------------------------------------------
-            ##
-            ## Could the inclusion of FALSE dummies be problematic?
-            ## Let's remove them. You're interacting those dummies with a family
-            ## of variables, so the exclusion of a constant shouldn't lead to
-            ## the inclusion of all values of the dummy.
-            ##
-            ## Should it not also be the same with the regular factor
-            ## variables, then?
-            ##
-            ## End experimenting
-            ## -----------------------------------------------
-
             ## Spline integral matrices
             splinesLB <- eval(parse(text = gsub("uSpline\\(",
                                                 "uSplineInt(x = lb, ",
@@ -880,19 +787,12 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
                                   MARGIN = 1,
                                   STATS = multiplier,
                                   FUN = "*")
-                ## splinesNames <- c(splinesNames,
-                ##                   paste0(paste0("u", d, "S", j, "."),
-                ##                          seq(1, ncol(tmpGamma)),
-                ##                          paste0(":", splines[[j]][l])))
                 splinesNames <- c(splinesNames,
                                   paste0(paste0("u", d, "S", j, "."),
                                          seq(1, ncol(tmpGamma)),
                                          paste0(":",
                                                 colnames(nonSplinesDmat)[l])))
                 splinesGamma <- cbind(splinesGamma, tmpGamma)
-                ## splinesInter <- c(splinesInter,
-                ##                   rep(splines[[j]][[l]],
-                ##                       ncol(tmpGamma)))
                 splinesInter <- c(splinesInter,
                                   rep(colnames(nonSplinesDmat)[l],
                                       ncol(tmpGamma)))
@@ -941,24 +841,18 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
 #'     \code{splines} the column pertains to. "[b]" will be an integer
 #'     reflect which component of the basis the column pertains to.
 genBasisSplines <- function(splines, x, d = NULL) {
-
     if (is.null(splines)) {
         return(NULL)
     } else {
-
         bmatList <- list()
-
         for (j in 1:length(splines)) {
             splinesBasis <- NULL
             splinesNames <- NULL
-
             bmat <- eval(parse(text = gsub("uSpline\\(",
                                            "uSplineBasis(x = x, ",
                                            names(splines[j]))))
-
             colnames(bmat) <- paste0(paste0("u", d, "S", j, "."),
                                      seq(1, ncol(bmat)))
-
             bmatList[[j]] <- bmat
         }
         return(bmatList)

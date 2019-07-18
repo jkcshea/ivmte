@@ -1253,20 +1253,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                           ".")
         stop(gsub("\\s+", " ", varError), call. = FALSE)
     }
-
     data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
-
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
 
-    ## Experimenting ------------------------------
-    
     ## Construct a list of what variables interact with the
     ## spline. The reason for this is that certain interactions with
     ## factor variables should be dropped to avoid collinearity. Note
     ## that only interaction terms need to be omitted, so you do not
     ## need to worry about the formula contained in
-    ## removeSplines$formula.    
+    ## removeSplines$formula.
     tmpInterName <- "..t.i.n"
     for (d in 0:1) {
         if (!is.null(splinesobj[[d + 1]]$splineslist)) {
@@ -1314,16 +1310,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             splinesobj[[d + 1]]$splinesinter <- NULL
         }
     }
-    ## End experiment -----------------------------
-
-    ## Experimenting -----------------
-
     ## Check that all boolean variables have non-zero variance, and
     ## that all factor variables are complete.
     allterms <- unlist(c(terms_formulas_x, terms_formulas_z, terms_mtr0,
                          terms_mtr1, terms_components))
     allterms <- unique(unlist(sapply(allterms, strsplit, split = ":")))
-    allterms <- parenthBoolean(allterms)    
+    allterms <- parenthBoolean(allterms)
     ## Check factors
     factorPos <- grep("factor\\([[:alnum:]]*\\)", allterms)
     if (length(factorPos) > 0) {
@@ -1335,7 +1327,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     } else {
         factorDict <- NULL
     }
-
     ## To check for binary variables
     binMinCheck <- apply(data, 2, min)
     binMaxCheck <- apply(data, 2, max)
@@ -1345,7 +1336,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                            (binUniqueCheck == 2))
     binaryVars <- colnames(data)[binaryPos]
     if (length(binaryVars) == 0) binaryVars <- NULL
-    
     ## To check booleans expressions, you just need to ensure there is
     ## non-zero variance in the design matrix.
     boolPos <- NULL
@@ -1359,9 +1349,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         boolVars <- NULL
     }
     ## But what about checking if there is sufficient variation in the
-    ## boolean variables? If not, then they may as well remove it.    
-    ## End experimenting -------------
-    
+    ## boolean variables? If not, then they may as well remove it.
+
     ##---------------------------
     ## 5. Implement estimates
     ##---------------------------
@@ -1654,7 +1643,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                  size = bootstraps.m,
                                  replace = bootstraps.replace)
             bdata <- data[bootIDs, ]
-            ## Experimenting ----------------------------------            
+
             ## Check if the bootstrap data contains sufficient
             ## variation in all boolean and factor expressions.
             if (!is.null(factorDict)) {
@@ -1673,7 +1662,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     next
                     }
             }
-
             ## Check if the binary variables contain sufficient variation
             if (!is.null(binaryVars)) {
                 binarySd <- apply(as.matrix(bdata[, binaryVars]), 2, sd)
@@ -1685,7 +1673,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     next
                     }
             }
-            
             ## Check if the boolean variables contain sufficient variation
             if (!is.null(boolVars)) {
                 boolFormula <-
@@ -1701,7 +1688,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     next
                 }
             }
-            ## End experimenting ------------------------------
+            
             if (noisy == TRUE) {
                 message(paste0("Bootstrap iteration ", b, "..."))
             }
@@ -2231,13 +2218,11 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     call <- match.call(expand.dots = FALSE)
 
     if (classFormula(ivlike)) ivlike <- c(ivlike)
-
     ## Character arguments will be converted to lowercase
     if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
     if (hasArg(target))   target   <- tolower(target)
     if (hasArg(link))     link     <- tolower(link)
     if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
-
 
     ##---------------------------
     ## 1. Obtain propensity scores
@@ -2246,9 +2231,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Obtaining propensity scores...")
     }
-
     ## Estimate propensity scores
-
     pcall <- modcall(call,
                      newcall = propensity,
                      keepargs = c("link", "late.Z", "late.X"),
@@ -2264,9 +2247,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Generating target moments...")
     }
-
     ## Parse polynomials
-
     if (!is.null(m0)) {
         m0call <- modcall(call,
                           newcall = polyparse,
@@ -2277,7 +2258,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     } else {
         pm0 <- NULL
     }
-
     if (!is.null(m1)) {
         m1call <- modcall(call,
                           newcall = polyparse,
@@ -2288,14 +2268,11 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     } else {
         pm1 <- NULL
     }
-
     ## Generate target weights
     if (!hasArg(target.weight0) & !hasArg(target.weight1)) {
         target.weight0 <- NULL
         target.weight1 <- NULL
     }
-
-
     if (is.null(target.weight0) & is.null(target.weight1)) {
         gentargetcall <- modcall(call,
                                  newcall = genTarget,
@@ -2328,7 +2305,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                                 pm0 = quote(pm0),
                                                 pm1 = quote(pm1)))
     }
-
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
@@ -2340,11 +2316,9 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Generating IV-like moments...")
     }
-
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
     scount <- 1     ## counter for S-set constraints
-
     if (classList(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
@@ -2441,7 +2415,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Performing audit procedure...")
     }
-
     audit.args <- c("uname", "initgrid.nu", "initgrid.nx",
                     "audit.nx", "audit.nu", "audit.add",
                     "audit.max", "audit.tol",
@@ -2450,7 +2423,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                     "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
                     "mte.inc", "obseq.tol", "noisy", "seed")
-
     audit_call <- modcall(call,
                           newcall = audit,
                           keepargs = audit.args,
@@ -2465,7 +2437,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                          gstar0 = quote(gstar0),
                                          gstar1 = quote(gstar1),
                                          lpsolver = quote(lpsolver)))
-
     ## Impose default upper and lower bounds on m0 and m1
     if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
         maxy <- max(data[, vars_y])
@@ -2518,7 +2489,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                 splinesdict = list(splinesobj[[1]]$splinesdict,
                                    splinesobj[[2]]$splinesdict)))
 }
-
 
 
 #' Generating LP moments for IV-like estimands
@@ -3094,7 +3064,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
     for (j in 1:ncomponents) {
         if (noisy == TRUE) {
             message(paste0("    Moment ", scount, "..."))
-        }        
+        }
         if (!is.null(pm0)) {
             if (means == TRUE) {
                 gs0 <- genGamma(monomials = pm0,

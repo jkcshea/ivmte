@@ -639,8 +639,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                     .grid.order = gridobj$grid$.grid.order,
                     .u.order = gridobj$grid$.u.order)
     } else {
-        ## New experimenting -------------------------------
-
         ## Construct base A0 and A1 matrices using the non-spline
         ## formulas. The variables interacting with the splines will
         ## be appended to this.
@@ -691,17 +689,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
             assign(paste0("A", d),
                    cbind(get(paste0("A", d)), nonSplinesDmat))
         }
-        ## Experimenting -----------------------------------
-        ## m0 <- as.formula(paste(gsub("\\s+", " ",
-        ##                             Reduce(paste, deparse(m0))), "+", uname))
-        ## m1 <- as.formula(paste(gsub("\\s+", " ",
-        ##                             Reduce(paste, deparse(m1))), "+", uname))
-        ## Original --------------------------------------
-        ## m0 <- update(m0, as.formula(paste("~ . +", uname)))
-        ## m1 <- update(m1, as.formula(paste("~ . +", uname)))
-        ## End original ----------------------------------
-        ## A0 <- design(formula = m0, data = gridobj$grid)$X
-        ## A1 <- design(formula = m1, data = gridobj$grid)$X
         A0 <- cbind(A0,
                     .grid.order = gridobj$grid$.grid.order,
                     .u.order = gridobj$grid$.u.order)
@@ -714,12 +701,10 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                           genBasisSplines(splines = splines[[2]],
                                           x = uvec,
                                           d = 1))
-
         ## Generate interaction with the splines.
         ## Indexing in the loops takes the following structure:
         ## j: splines index
         ## v: interaction index
-        ## Experimenting ------------------------------------------
         colnames(A0) <- parenthBoolean(colnames(A0))
         colnames(A1) <- parenthBoolean(colnames(A1))
         namesA0 <- colnames(A0)
@@ -730,7 +715,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
         namesA1length <- sapply(namesA1, function(x) {
             length(unlist(strsplit(x, ":")))
         })
-        ## End of experiment --------------------------------------
         for (d in 0:1) {
             namesA <- get(paste0("namesA", d))
             namesAlength <- get(paste0("namesA", d, "length"))
@@ -742,40 +726,9 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                         colnames(bmat)[1] <- uname
                         iName <- splines[[d + 1]][[j]][v]
                         if (iName != "1") {
-                            ## Experimenting ---------------------
                             isFactor  <- FALSE
                             isBoolean <- FALSE
                             iNamePos  <- NULL
-                            ## ## Special case for factors
-                            ## if (grepl("factor\\([[:alnum:]]*\\)", iName)) {
-                            ##     isFactor <- TRUE
-                            ##     iNamePos <-
-                            ##         which(gsub(
-                            ##             "factor\\([[:alnum:]]*\\)[[:alnum:]]*",
-                            ##             "",
-                            ##             colnames(get(paste0("A", d)))) == "")
-                            ## }
-                            ## ## Special case for boolean
-                            ## if (!isFactor) {
-                            ##     for (op in c("==", "!=", ">", ">=", "<", "<=")){
-                            ##         if (grepl(op, iName)) {
-                            ##             isBoolean <- TRUE
-                            ##             iName <- parenthBoolean(iName)
-                            ##             print("NEW INAME BOOL")
-                            ##             print(iName)
-                            ##             ## iNamePos <-
-                            ##             ##     which(colnames(get(paste0("A", d)))
-                            ##             ##           == paste0(iName, "TRUE"))
-                            ##             break
-                            ##         }
-                            ##     }
-                            ## }
-                            ## ## Standard case
-                            ## if (!isFactor && !isBoolean) {
-                            ##     iNamePos <-
-                            ##         which(colnames(get(paste0("A", d))) ==
-                            ##               iName)
-                            ## }
                             iNameList <- unlist(strsplit(iName, ":"))
                             namesAscore <- rep(0, times = length(namesA))
                             for (q in iNameList) {
@@ -816,33 +769,8 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                               bmatTmp[, c(".grid.order",
                                                           namesB)],
                                               by = ".grid.order")
-                                ## newA <- newA[, c(namesA, namesB)]
                                 assign(paste0("A", d), newA)
                             }
-                            ## End experimenting -----------------
-
-                            ## Original -------------------------------------
-                            ## bmat <-
-                            ##     merge(
-                            ##         get(paste0("A", d))[, c(uname,
-                            ##                                 iName,
-                            ##                                 ".grid.order")],
-                            ##         bmat, by = uname)
-                            ## bmat[, 4:ncol(bmat)] <-
-                            ##     sweep(x = bmat[, 4:ncol(bmat)],
-                            ##           MARGIN = 1,
-                            ##           STATS = bmat[, iName],
-                            ##           FUN = "*")
-                            ## namesB <- paste0(colnames(bmat)[4:ncol(bmat)],
-                            ##                  ":", iName)
-                            ## colnames(bmat)[4:ncol(bmat)] <- namesB
-                            ## newA <- merge(get(paste0("A", d)),
-                            ##               bmat[, c(".grid.order", namesB)],
-                            ##               by = ".grid.order")
-                            ## newA <- newA[, c(namesA, namesB)]
-                            ## assign(paste0("A", d), newA)
-                            ## End original -------------------------------------
-
                         } else {
                             namesA <- colnames(get(paste0("A", d)))
                             namesB <- paste0(colnames(bmat)[2:ncol(bmat)],
@@ -851,7 +779,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                             newA <- merge(get(paste0("A", d)),
                                           bmat,
                                           by = uname)
-                            ## newA <- newA[, c(namesA, namesB)]
                             assign(paste0("A", d), newA)
                         }
                     }
@@ -863,7 +790,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     }
     A0 <- A0[order(A0[, ".grid.order"]), ]
     A1 <- A1[order(A1[, ".grid.order"]), ]
-
     ## Rename columns so they match with the names in vectors gstar0
     ## and gstar1 (the problem stems from the unpredictable ordering
     ## of variables in interaction terms).
@@ -885,7 +811,7 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
         }
         colnames(Amat)[Apos] <- names(gvec)[failTerms]
         assign(paste0("A", d), Amat)
-    }    
+    }
     ## Some columns maybe missing relative to gstar0/gstar1 becuase
     ## the grid is not large enough, and so does not contain all
     ## factor variables. Fill these columns with 0
@@ -904,9 +830,8 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     colnames(A0) <- names(gstar0)
     colnames(A1) <- names(gstar1)
 
-    ## generate null objects
-    bdA     <- NULL
-    monoA   <- NULL
+    bdA <- NULL
+    monoA <- NULL
     lb0seq <- NULL
     lb1seq <- NULL
     lbteseq <- NULL
@@ -916,7 +841,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     mono0seq <- NULL
     mono1seq <- NULL
     monomteseq <- NULL
-
     ## generate matrices for imposing bounds on m0 and m1 and
     ## treatment effects
     if (hasArg(m0.lb) | hasArg(m0.ub) |
@@ -935,7 +859,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                              gridobj = quote(gridobj)))
         bdA <- eval(boundAcall)
     }
-
     ## Prepare to generate matrices for monotonicity constraints
     if (hasArg(m0.inc)  | hasArg(m0.dec) |
         hasArg(m1.inc)  | hasArg(m1.dec) |
@@ -955,7 +878,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                             gstar1 = quote(gstar1)))
         monoA <- eval(monoAcall)
     }
-
     ## Update bound sequence counts
     if (!is.null(bdA$lb0seq)) lb0seq <- bdA$lb0seq
     if (!is.null(bdA$lb1seq)) lb1seq <- bdA$lb1seq
@@ -963,7 +885,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     if (!is.null(bdA$ub0seq)) ub0seq <- bdA$ub0seq
     if (!is.null(bdA$ub1seq)) ub1seq <- bdA$ub1seq
     if (!is.null(bdA$ubteseq)) ubteseq <- bdA$ubteseq
-
     output <- combinemonobound(bdA, monoA)
     output$gridobj <- gridobj
     output$lb0seq  <- lb0seq
@@ -972,10 +893,8 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     output$ub0seq  <- ub0seq
     output$ub1seq  <- ub1seq
     output$ubteseq <- ubteseq
-
     boundLength <- length(lb0seq) + length(lb1seq) + length(lbteseq) +
         length(ub0seq) + length(ub1seq) + length(ubteseq)
-
     ## Update monotonicity sequence counts
     if (!is.null(monoA$mono0seq)) {
         mono0seq <- monoA$mono0seq
