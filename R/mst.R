@@ -289,6 +289,23 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## 2. Check format of non-numeric arguments
     ##---------------------------
 
+    ## Ensure MTRs are formulas
+    if (classFormula(m0) && classFormula(m1)) {
+        if (all(length(Formula::as.Formula(m0)) == c(0, 1)) &&
+            all(length(Formula::as.Formula(m1)) == c(0, 1))) {
+            mtrFail <- FALSE
+        } else {
+            mtrFail <- TRUE
+        }
+    } else {
+        mtrFail <- TRUE
+    }
+    if (mtrFail) {
+        stop(gsub("\\s+", " ",
+                  "Arguments 'm0' and 'm1' must be one-sided formulas,
+                   e.g. m0 = ~ 1 + u + x:I(u ^ 2)."))
+    }
+
     ## Character arguments will be converted to lowercase
     if (hasArg(target))   target   <- tolower(target)
     if (hasArg(link))     link     <- tolower(link)
@@ -1688,7 +1705,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     next
                 }
             }
-            
+
             if (noisy == TRUE) {
                 message(paste0("Bootstrap iteration ", b, "..."))
             }
