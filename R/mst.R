@@ -944,46 +944,38 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ## Collect list of all terms used in MTRs
-    if (classFormula(m1) & classFormula(m0)) {
-        if(length(Formula::as.Formula(m0))[1] != 0 |
-           length(Formula::as.Formula(m1))[1] != 0) {
-            stop("m0 and m1 must be one-sided formulas.")
-        }
-        splinesobj <- list(removeSplines(m0),
-                           removeSplines(m1))
-        origm0 <- m0
-        origm1 <- m1
-        m0 <- splinesobj[[1]]$formula
-        m1 <- splinesobj[[2]]$formula
-        vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
-                      all.vars(splinesobj[[2]]$formula))
+    splinesobj <- list(removeSplines(m0),
+                       removeSplines(m1))
+    origm0 <- m0
+    origm1 <- m1
+    m0 <- splinesobj[[1]]$formula
+    m1 <- splinesobj[[2]]$formula
+    vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
+                  all.vars(splinesobj[[2]]$formula))
 
-        if (!is.null(splinesobj[[1]]$formula)) {
-            terms_mtr0 <- attr(terms(splinesobj[[1]]$formula),
-                               "term.labels")
-        }
-        if (!is.null(splinesobj[[2]]$formula)) {
-            terms_mtr1 <- attr(terms(splinesobj[[2]]$formula),
-                               "term.labels")
-        }
+    if (!is.null(splinesobj[[1]]$formula)) {
+        terms_mtr0 <- attr(terms(splinesobj[[1]]$formula),
+                           "term.labels")
+    }
+    if (!is.null(splinesobj[[2]]$formula)) {
+        terms_mtr1 <- attr(terms(splinesobj[[2]]$formula),
+                           "term.labels")
+    }
 
-        if (!is.null(splinesobj[[1]]$splineslist)) {
-            sf0 <- as.formula(paste("~",
-                                    paste(unlist(splinesobj[[1]]$splineslist),
-                                          collapse = " + ")))
-            vars_mtr   <- c(vars_mtr, all.vars(sf0))
-            terms_mtr0 <- c(terms_mtr0, attr(terms(sf0), "term.labels"))
-        }
+    if (!is.null(splinesobj[[1]]$splineslist)) {
+        sf0 <- as.formula(paste("~",
+                                paste(unlist(splinesobj[[1]]$splineslist),
+                                      collapse = " + ")))
+        vars_mtr   <- c(vars_mtr, all.vars(sf0))
+        terms_mtr0 <- c(terms_mtr0, attr(terms(sf0), "term.labels"))
+    }
 
-        if (!is.null(splinesobj[[2]]$splineslist)) {
-            sf1 <- as.formula(paste("~",
-                                    paste(unlist(splinesobj[[2]]$splineslist),
-                                          collapse = " + ")))
-            vars_mtr   <- c(vars_mtr, all.vars(sf1))
-            terms_mtr1 <- c(terms_mtr1, attr(terms(sf1), "term.labels"))
-        }
-    } else {
-        stop("m0 and m1 must be one-sided formulas.")
+    if (!is.null(splinesobj[[2]]$splineslist)) {
+        sf1 <- as.formula(paste("~",
+                                paste(unlist(splinesobj[[2]]$splineslist),
+                                      collapse = " + ")))
+        vars_mtr   <- c(vars_mtr, all.vars(sf1))
+        terms_mtr1 <- c(terms_mtr1, attr(terms(sf1), "term.labels"))
     }
 
     ## Collect list of variables used in custom weights (if defined)

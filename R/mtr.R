@@ -381,7 +381,7 @@ removeSplines <- function(formula) {
         for (splineobj in splineterms) {
             splinepos1 <- regexpr("uSplines\\(", splineobj)
             splinepos2 <- regexpr("uSpline\\(", splineobj)
-
+            
             if (splinepos1 == -1) {
                 splinepos <- splinepos2
                 splineposadd <- 7
@@ -389,10 +389,6 @@ removeSplines <- function(formula) {
                 splinepos <- splinepos1
                 splineposadd <- 8
             }
-            degreepos  <- regexpr("degree = ", splineobj)
-            knotspos   <- regexpr("knots = ", splineobj)
-            knotslpos  <- regexpr("knots = c\\(", splineobj)
-            interpos   <- regexpr("intercept = ", splineobj)
             ## Check if vectors or sequences are declared to adjust parsing
             firstopen  <- regexpr("\\(",
                                   substr(splineobj,
@@ -420,12 +416,10 @@ removeSplines <- function(formula) {
                                     splinepos + splineposadd + 1 +
                                     firstclose - 1)
             }
-
             ## Separate uSpline/uSplines command from terms
             ## interacting with the spline
             splinecmdstr <- gsub("\\)", "\\\\)",
                                  gsub("\\(", "\\\\(", splinecmd))
-
             interobj <- gsub(paste0(":", splinecmdstr), "", splineobj)
             interobj <- gsub(paste0(splinecmdstr, ":"), "", interobj)
             interobj <- gsub("::", ":", interobj)
@@ -439,8 +433,11 @@ removeSplines <- function(formula) {
             ## Recover original spline names
             interobjStr <- gsub("\\)", "\\\\)",
                                 gsub("\\(", "\\\\(", interobj))
-
-            origSpline <- gsub(":", "", gsub(interobjStr, "", splineobj))
+            if (interobjStr != "1") {
+                origSpline <- gsub(":", "", gsub(interobjStr, "", splineobj))
+            } else {
+                origSpline <- splineobj
+            }
             splinescall[[splinecmd]] <- origSpline
         }
         ## Now construct spline dictionary and spline keys
@@ -454,8 +451,8 @@ removeSplines <- function(formula) {
             splinesSpecCmd <- gsub("uSpline\\(",
                                    "list(",
                                    splinesSpecCmd)
-            splinesSpec <- eval(parse(text = splinesSpecCmd))
-
+            splinesSpec <- eval(parse(text = splinesSpecCmd),
+                                envir = .GlobalEnv)
             if (! "intercept" %in% names(splinesSpec)) {
                 splinesSpec$intercept = TRUE
             }
@@ -501,10 +498,9 @@ removeSplines <- function(formula) {
             newEntry <- sort(unlist(splineslist[splinesKey[splinesKey[, 2] == j,
                                                            1]]))
             origNameEntry <- unlist(splinescall[splinesKey[splinesKey[, 2] == j,
-                                                                1]])
+                                                           1]])
             names(origNameEntry) <- NULL
             splinesCall2[[dictKey]] <- origNameEntry
-
             ## Convert I() as-is declarations to interactions, if possible
             newEntry <- sapply(newEntry, function(x) {
                 multiply <- grepl("*", x)
