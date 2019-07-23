@@ -950,6 +950,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ## Collect list of all terms used in MTRs
+    parentFrame <- parent.frame()
     splinesobj <- list(removeSplines(m0, env = parentFrame),
                        removeSplines(m1, env = parentFrame))
     origm0 <- m0
