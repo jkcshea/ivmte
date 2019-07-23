@@ -538,7 +538,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Variable and weight checks
     if (hasArg(treat)) {
-        if (! deparse(substitute(treat)) %in% colnames(data)) {
+        treatStr <- deparse(substitute(treat))
+        treatStr <- gsub("~", "", treatStr)
+        treatStr <- gsub("\\\"", "", treatStr)        
+        if (! treatStr %in% colnames(data)) {
             stop("Declared treatment indicator not found in data")
         }
     }
@@ -1057,7 +1060,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                            using the argument 'treat'."),
                          call. = FALSE)
                 } else {
-                    treat <- deparse(substitute(treat))
+                    treat <- treatStr
                 }
             }
         } else {
@@ -1072,7 +1075,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
             ## Determine treatment variable
             if (hasArg(treat)) {
-                treat <- deparse(substitute(treat))
+                treat <- treatStr
                 vars_propensity <- c(vars_propensity,
                                       treat)
             } else {
@@ -1100,7 +1103,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     } else {
         ## Determine treatment variable
         if (hasArg(treat)) {
-            treat <- deparse(substitute(treat))
+            treat <- treatStr
             vars_propensity <- treat
         } else if (is.list(ivlike)) {
             warning(gsub("\\s+", " ",
