@@ -343,7 +343,7 @@ monoIntegral <- function(u, exp) {
 #' removeSplines(m0)
 #'
 #' @export
-removeSplines <- function(formula) {
+removeSplines <- function(formula, env = parent.frame()) {
     fterms <- attr(terms(formula), "term.labels")
     finter <- attr(terms(formula), "intercept")
     if (length(fterms) == 0) {
@@ -452,7 +452,7 @@ removeSplines <- function(formula) {
                                    "list(",
                                    splinesSpecCmd)
             splinesSpec <- eval(parse(text = splinesSpecCmd),
-                                envir = .GlobalEnv)
+                                envir = env)
             if (! "intercept" %in% names(splinesSpec)) {
                 splinesSpec$intercept = TRUE
             }

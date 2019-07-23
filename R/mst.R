@@ -244,8 +244,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## A detailed description of the module and its features
     ## can be found in
     ## \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea and
-    ## Torgovitsky (2019)}.
-
+    ## Torgovitsky (2019)}.   
     call <- match.call(expand.dots = FALSE)
 
     ##---------------------------
@@ -951,8 +950,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ## Collect list of all terms used in MTRs
-    splinesobj <- list(removeSplines(m0),
-                       removeSplines(m1))
+    splinesobj <- list(removeSplines(m0, env = parentFrame),
+                       removeSplines(m1, env = parentFrame))
     origm0 <- m0
     origm1 <- m1
     m0 <- splinesobj[[1]]$formula
@@ -3445,7 +3444,8 @@ gmmEstimate <- function(sset, gstar0, gstar1, identity = FALSE, noisy = TRUE) {
     }
     return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta,
-                Jtest = Jtest))
+                Jtest = Jtest,
+                Jdf = length(sset) - gn0 - gn1))
 }
 
 #' Format result for display
