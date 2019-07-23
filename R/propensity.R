@@ -49,7 +49,7 @@
 #'
 #' @export
 propensity <- function(formula, data, link = "logit", late.Z,
-                           late.X) {
+                       late.X) {
 
     formula <- Formula::as.Formula(formula)
 
@@ -68,32 +68,7 @@ propensity <- function(formula, data, link = "logit", late.Z,
         phat <- prop$fitted.values
         phat[which(phat < 0)] <- 0
         phat[which(phat > 1)] <- 1
-        
-        ## Reduce the size of the object returned
-        prop$residuals <- NULL
-        prop$fitted.values <- NULL
-        prop$effects <- NULL
-        prop$linear.predictors <- NULL
-        prop$weights <- NULL
-        prop$prior.weights <- NULL
-        prop$data <- NULL
-        prop$R <- NULL
-        ## prop$deviance <- NULL
-        ## prop$aic <- NULL
-        ## prop$null.deviance <- NULL
-        prop$iter <- NULL
-        prop$df.null <- NULL
-        prop$df.residual <- NULL
-        prop$converged <- NULL
-        prop$boundary <- NULL
-        prop$offset <- NULL
-        prop$control <- NULL
-        prop$method <- NULL
-        prop$contrasts <- NULL
-        prop$xlevels <- NULL
-        
         return(list(model = prop, phat = phat))
-
     } else if (length(formula)[1] == 0 & length(formula)[2] == 1) {
         ## If one-sided formula is provided, containing only one
         ## variable, then that variable is the propensity score
@@ -109,9 +84,7 @@ propensity <- function(formula, data, link = "logit", late.Z,
                       variable on the RHS (where the variable listed is included
                       in the data, and corresponds to propensity scores.")))
         }
-
         pname <- all.vars(formula)
-
         ## Check that the variable is indeed a propensity,
         ## i.e. bounded between 0 and 1
         phat <- data[[pname]]
@@ -119,7 +92,6 @@ propensity <- function(formula, data, link = "logit", late.Z,
         if (max(phat) > 1 | min(phat) < 0) {
             stop('Provided propensity scores are not between 0 and 1.')
         }
-
         model <- NULL
         if (hasArg(late.Z)) {
             ## Generate a matrix of propensity scores corresponding to
@@ -130,7 +102,6 @@ propensity <- function(formula, data, link = "logit", late.Z,
             if (hasArg(late.Z)) propVars <- c(propVars, late.Z)
             propVars <- c(propVars, pname)
             model <- unique(data[, propVars])
-
             ## There should be no duplicate (X, Z)s in the model
             ## (i.e. for each set of (X, Z), there should only be one
             ## propensity score)

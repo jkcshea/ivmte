@@ -189,6 +189,9 @@ utils::globalVariables("u")
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
 #'     e.g. when performing the bootstrap.
+#' @param smallreturnlist boolean, default set to \code{FALSE}. Set to
+#'     \code{TRUE} to exclude large intermediary components
+#'     (i.e. propensity score model, LP model, bootstrap iterations).
 #' @param seed integer, the seed that determines the random grid in
 #'     the audit procedure.
 #' @return Returns a list of results from throughout the estimation
@@ -234,7 +237,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
                   mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc,
                   mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
-                  point.eyeweight = FALSE, noisy = TRUE, seed = 12345) {
+                  point.eyeweight = FALSE, noisy = TRUE,
+                  smallreturnlist = FALSE, seed = 12345) {
 
     ## Include into Roxygen documentation once document is published..
     ## A detailed description of the module and its features
@@ -1157,6 +1161,14 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         propensity <- as.formula(propensity)
     }
 
+    ## Experimenting ---------------
+    ## if (length(Formula::as.Formula(propensity))[1] == 1) {
+    ##     propFormula <- TRUE
+    ## } else {
+    ##     propFormula <- FALSE
+    ## }
+    ## End experimenting -----------
+
     ## Collect all variables declared, and remove unobserved variable
     ## from list
     allvars <- c(vars_y,
@@ -1710,8 +1722,14 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             if (is.list(bootEstimate)) {
                 teEstimates  <- c(teEstimates, bootEstimate$pointestimate)
                 mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
-                propEstimates <- cbind(propEstimates,
-                                       bootEstimate$propensity$model$coef)
+
+                if (!"propensity.coef" %in% names(bootEstimate)) {
+                    propEstimates <- cbind(propEstimates,
+                                           bootEstimate$propensity$model$coef)
+                } else {
+                    propEstimates <- cbind(propEstimates,
+                                           bootEstimate$propensity.coef)
+                }
                 b <- b + 1
                 bootFailN <- 0
                 if (noisy == TRUE) {
@@ -1772,10 +1790,15 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                                 qnorm(pUpper)),
                                               mtrSE),
                                MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
+            if (!"propensity.coef" %in% names(origEstimate)) {
+                propCoef <- origEstimate$propensity$model$coef
+            } else {
+                propCoef <- origEstimate$propensity.coef
+            }
             tmpPropCi2 <- sweep(x = tcrossprod(c(qnorm(pLower),
                                                  qnorm(pUpper)),
                                                propSE), MARGIN = 2,
-                                origEstimate$prop$model$coef, FUN = "+")
+                                propCoef, FUN = "+")
             colnames(tmpMtrCi2) <- colnames(get(paste0("mtrci1",
                                                        level * 100)))
             rownames(tmpMtrCi2) <- rownames(get(paste0("mtrci1",
@@ -1790,9 +1813,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             assign(paste0("propci2", level * 100), tmpPropCi2)
         }
 
-        ## Prepare output
+        ## Prepare output        
         output1 <- c(origEstimate,
-                     list(pointestimate.se  = bootSE,
+                     list(pointestimate.se = bootSE,
                           mtr.se = mtrSE,
                           prop.se = propSE,
                           pointestimate.bootstraps = teEstimates,
@@ -2200,6 +2223,9 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
 #'     e.g. when performing the bootstrap.
+#' @param smallreturnlist boolean, default set to \code{FALSE}. Set to
+#'     \code{TRUE} to exclude large intermediary components
+#'     (i.e. propensity score model, LP model, bootstrap iterations).
 #' @param seed integer, the seed that determines the random grid in
 #'     the audit procedure.
 #' @return Returns a list of results from throughout the estimation
@@ -2222,10 +2248,10 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           m1.dec, m1.inc, mte.dec, mte.inc,
                           lpsolver = NULL, point = FALSE,
                           point.eyeweight = FALSE,
-                          noisy = TRUE, seed = 12345) {
+                          noisy = TRUE, smallreturnlist = FALSE,
+                          seed = 12345) {
 
     call <- match.call(expand.dots = FALSE)
-
     if (classFormula(ivlike)) ivlike <- c(ivlike)
     ## Character arguments will be converted to lowercase
     if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
@@ -2405,16 +2431,38 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                  gstar1 = gstar1,
                                  identity = point.eyeweight,
                                  noisy = noisy)
-
-        return(list(sset  = sset,
-                    gstar = list(g0 = colMeans(gstar0),
-                                 g1 = colMeans(gstar1)),
-                    propensity = pmodel,
-                    pointestimate = gmmResult$pointestimate,
-                    Jtest = gmmResult$Jtest,
-                    bounds = c(gmmResult$pointestimate,
-                               gmmResult$pointestimate),
-                    mtr.coef = gmmResult$coef))
+        if (!smallreturnlist) {
+            return(list(sset  = sset,
+                        gstar = list(g0 = colMeans(gstar0),
+                                     g1 = colMeans(gstar1)),
+                        propensity = pmodel,
+                        pointestimate = gmmResult$pointestimate,
+                        Jtest = gmmResult$Jtest,
+                        bounds = c(gmmResult$pointestimate,
+                                   gmmResult$pointestimate),
+                        mtr.coef = gmmResult$coef))
+        } else {
+            sset <- lapply(sset, function(x) {
+                output <- list()
+                output$ivspec <- x$ivspec
+                output$beta <- x$beta
+                output$g0 <- colMeans(x$g0)
+                output$g1 <- colMeans(x$g1)
+                return(output)
+            })
+            output <- list(sset = sset,
+                           gstar = list(g0 = colMeans(gstar0),
+                                        g1 = colMeans(gstar1)),
+                           pointestimate = gmmResult$pointestimate,
+                           Jtest = gmmResult$Jtest,
+                           bounds = c(gmmResult$pointestimate,
+                                      gmmResult$pointestimate),
+                           mtr.coef = gmmResult$coef)            
+            if (all(class(pmodel$model) != "NULL")) {
+                output$propensity.coef <- pmodel$model$coef
+            }
+            return(output)
+        }
     }
 
     ##---------------------------
@@ -2483,20 +2531,41 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                        fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n"))
     }
     ## include additional output material
-    return(list(sset  = sset,
-                gstar = list(g0 = gstar0,
-                             g1 = gstar1,
-                             w0 = targetGammas$w0,
-                             w1 = targetGammas$w1),
-                propensity = pmodel,
-                pointestimate = NULL,
-                bounds = c(audit$min, audit$max),
-                lpresult =  audit$lpresult,
-                auditgrid = audit$gridobj,
-                auditcount = audit$auditcount,
-                minobseq = audit$minobseq,
-                splinesdict = list(splinesobj[[1]]$splinesdict,
-                                   splinesobj[[2]]$splinesdict)))
+    if (!smallreturnlist) {
+        return(list(sset  = sset,
+                    gstar = list(g0 = gstar0,
+                                 g1 = gstar1,
+                                 w0 = targetGammas$w0,
+                                 w1 = targetGammas$w1),
+                    propensity = pmodel,
+                    pointestimate = NULL,
+                    bounds = c(audit$min, audit$max),
+                    lpresult =  audit$lpresult,
+                    auditgrid = audit$gridobj,
+                    auditcount = audit$auditcount,
+                    minobseq = audit$minobseq,
+                    splinesdict = list(splinesobj[[1]]$splinesdict,
+                                       splinesobj[[2]]$splinesdict)))
+    } else {
+        sset <- lapply(sset, function(x) {
+            x[c("ivspec", "beta", "g0", "g1")]
+        })
+        output <- list(sset  = sset,
+                    gstar = list(g0 = gstar0,
+                                 g1 = gstar1,
+                                 w0 = targetGammas$w0,
+                                 w1 = targetGammas$w1),
+                    pointestimate = NULL,
+                    bounds = c(audit$min, audit$max),
+                    auditcount = audit$auditcount,
+                    minobseq = audit$minobseq,
+                    splinesdict = list(splinesobj[[1]]$splinesdict,
+                                       splinesobj[[2]]$splinesdict))
+        if (all(class(pmodel$model) != "NULL")) {
+            output$propensity.coef <- pmodel$model$coef
+        }
+        return(output)
+    }
 }
 
 
