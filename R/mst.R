@@ -1026,7 +1026,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 vars_propensity <- all.vars(propensity)
 
                 if (hasArg(treat)) {
-                    if (ptreat != deparse(substitute(treat))) {
+                    if (ptreat != treatStr) {
                         stop(gsub("\\s+", " ",
                                   "Variable listed in 'treat' argument
                                  differs from dependent variable in propensity
@@ -1712,7 +1712,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     next
                 }
             }
-
             if (noisy == TRUE) {
                 message(paste0("Bootstrap iteration ", b, "..."))
             }
@@ -1756,7 +1755,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
         bootSE <- sd(teEstimates)
         mtrSE  <- apply(mtrEstimates, 1, sd)
-        propSE  <- apply(propEstimates, 1, sd)
+        if (!is.null(propEstimates)) {
+            propSE  <- apply(propEstimates, 1, sd)
+        }
 
         ## Construct p-value
         pvalue <- (sum(teEstimates - origEstimate$pointestimate >=
@@ -1779,11 +1780,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 apply(mtrEstimates, 1, quantile,
                       probs = probVec,
                       type = 1))
-            assign(paste0("propci1", level * 100),
-                apply(propEstimates, 1, quantile,
-                      probs = probVec,
-                      type = 1))
-
+            if (!is.null(propEstimates)) {
+                assign(paste0("propci1", level * 100),
+                       apply(propEstimates, 1, quantile,
+                             probs = probVec,
+                             type = 1))
+            }
             ## Conf. int. 2: percentile method using Z statistics
             tmpCi2 <- origEstimate$pointestimate +
                 c(qnorm(pLower), qnorm(pUpper)) * bootSE
@@ -1793,35 +1795,39 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                                 qnorm(pUpper)),
                                               mtrSE),
                                MARGIN = 2, origEstimate$mtr.coef, FUN = "+")
+            colnames(tmpMtrCi2) <- colnames(get(paste0("mtrci1",
+                                                       level * 100)))
+            rownames(tmpMtrCi2) <- rownames(get(paste0("mtrci1",
+                                                       level * 100)))
+           
+            assign(paste0("ci2", level * 100), tmpCi2)
+            assign(paste0("mtrci2", level * 100), tmpMtrCi2)
+            ## Special case for propensity scores, which may not exist
             if (!"propensity.coef" %in% names(origEstimate)) {
                 propCoef <- origEstimate$propensity$model$coef
             } else {
                 propCoef <- origEstimate$propensity.coef
             }
-            tmpPropCi2 <- sweep(x = tcrossprod(c(qnorm(pLower),
-                                                 qnorm(pUpper)),
-                                               propSE), MARGIN = 2,
-                                propCoef, FUN = "+")
-            colnames(tmpMtrCi2) <- colnames(get(paste0("mtrci1",
-                                                       level * 100)))
-            rownames(tmpMtrCi2) <- rownames(get(paste0("mtrci1",
-                                                       level * 100)))
-            colnames(tmpPropCi2) <- colnames(get(paste0("propci1",
-                                                        level * 100)))
-            rownames(tmpPropCi2) <- rownames(get(paste0("propci1",
-                                                        level * 100)))
-
-            assign(paste0("ci2", level * 100), tmpCi2)
-            assign(paste0("mtrci2", level * 100), tmpMtrCi2)
-            assign(paste0("propci2", level * 100), tmpPropCi2)
+            if (!is.null(propEstimates)) {
+                tmpPropCi2 <- sweep(x = tcrossprod(c(qnorm(pLower),
+                                                     qnorm(pUpper)),
+                                                   propSE), MARGIN = 2,
+                                    propCoef, FUN = "+")
+                colnames(tmpPropCi2) <- colnames(get(paste0("propci1",
+                                                            level * 100)))
+                rownames(tmpPropCi2) <- rownames(get(paste0("propci1",
+                                                            level * 100)))
+                assign(paste0("propci2", level * 100), tmpPropCi2)
+            }
         }
 
         ## Prepare output        
         output1 <- c(origEstimate,
                      list(pointestimate.se = bootSE,
-                          mtr.se = mtrSE,
-                          prop.se = propSE,
-                          pointestimate.bootstraps = teEstimates,
+                          mtr.se = mtrSE))
+        if (!is.null(propEstimates)) output1$prop.se <- propSE
+        output1 <- c(output1,
+                     list(pointestimate.bootstraps = teEstimates,
                           mtr.bootstraps = t(mtrEstimates)))
         output2 <- list()
         for (level in levels) {
@@ -1829,14 +1835,18 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 get(paste0("ci1", level * 100))
             output2[[paste0("mtr.ci1.", level * 100)]] <-
                 t(get(paste0("mtrci1", level * 100)))
-            output2[[paste0("prop.ci1.", level * 100)]] <-
-                t(get(paste0("propci1", level * 100)))
+            if (!is.null(propEstimates)) {
+                output2[[paste0("prop.ci1.", level * 100)]] <-
+                    t(get(paste0("propci1", level * 100)))
+            }
             output2[[paste0("pointestimate.ci2.", level * 100)]] <-
                 get(paste0("ci2", level * 100))
             output2[[paste0("mtr.ci2.", level * 100)]] <-
                 t(get(paste0("mtrci2", level * 100)))
-            output2[[paste0("prop.ci2.", level * 100)]] <-
-                t(get(paste0("propci2", level * 100)))
+            if (!is.null(propEstimates)) {
+                output2[[paste0("prop.ci2.", level * 100)]] <-
+                    t(get(paste0("propci2", level * 100)))
+            }
         }
         output3 <- list(pvalue = pvalue,
                         bootstraps = bootstraps,
