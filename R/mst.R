@@ -1638,11 +1638,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (point == TRUE & bootstraps > 0) {
         set.seed(seed)
         origEstimate <- eval(estimateCall)
-
         teEstimates  <- NULL
         mtrEstimates <- NULL
         propEstimates <- NULL
-
+        jstats <- NULL
+        
         b <- 1
         bootFailN <- 0
         bootFailNote <- ""
@@ -1723,8 +1723,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             bootEstimate <- try(eval(bootCall), silent = TRUE)
             if (is.list(bootEstimate)) {
                 teEstimates  <- c(teEstimates, bootEstimate$pointestimate)
-                mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
-
+                mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef) 
                 if (!"propensity.coef" %in% names(bootEstimate)) {
                     propEstimates <- cbind(propEstimates,
                                            bootEstimate$propensity$model$coef)
@@ -1732,12 +1731,14 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     propEstimates <- cbind(propEstimates,
                                            bootEstimate$propensity.coef)
                 }
+                if (!is.null(bootEstimate$Jtest)) {
+                    jstats <- c(jstats, bootEstimate$Jtest[1])
+                }
                 b <- b + 1
-                bootFailN <- 0
                 if (noisy == TRUE) {
                     message(paste0("    Point estimate:",
                                    fmtResult(bootEstimate$pointestimate)))
-                }
+                }                
             } else {
                 if (noisy == TRUE) {
                     message(paste0("    Error, resampling..."))
@@ -1759,12 +1760,21 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             propSE  <- apply(propEstimates, 1, sd)
         }
 
-        ## Construct p-value
+        ## Construct p-values (point estimate and J-test)
         pvalue <- (sum(teEstimates - origEstimate$pointestimate >=
                        abs(origEstimate$pointestimate)) +
                    sum(teEstimates - origEstimate$pointestimate <=
                        -abs(origEstimate$pointestimate))) / bootstraps
 
+        if (!is.null(jstats)) {
+            jstats <- jstats - mean(jstats) + origEstimate$Jtest[3]
+            jtest <- c(mean(jstats >= origEstimate$Jtest[1]),
+                       origEstimate$Jtest[3])
+            names(jtest) <- c("p-value", "df")
+        } else {
+            jtest <- NULL
+        }
+        
         ## Construct confidence intervals for various levels
         for (level in levels) {
             pLower <- (1 - level) / 2
@@ -1850,7 +1860,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
         output3 <- list(pvalue = pvalue,
                         bootstraps = bootstraps,
-                        failed.bootstraps = length(bootFailIndex))
+                        failed.bootstraps = length(bootFailIndex),
+                        jtest = jtest)
         output <- c(output1, output2, output3)
 
         message("\nBootstrapped confidence intervals (nonparametric):")
@@ -3428,8 +3439,9 @@ gmmEstimate <- function(sset, gstar0, gstar1, identity = FALSE, noisy = TRUE) {
     if (length(sset) > gn0 + gn1) {
         Jtest <- gmmObj$objective * nrow(gstar0)
         Jtest <- c(Jtest,
-                   1 - pchisq(Jtest, df = length(sset) - gn0 - gn1))
-        names(Jtest) <- c("J-statistic", "p-value")
+                   1 - pchisq(Jtest, df = length(sset) - gn0 - gn1),
+                   length(sset) - gn0 - gn1)
+        names(Jtest) <- c("J-statistic", "p-value", "df")
     } else {
         Jtest <- NULL
     }
@@ -3445,8 +3457,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, identity = FALSE, noisy = TRUE) {
     }
     return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta,
-                Jtest = Jtest,
-                Jdf = length(sset) - gn0 - gn1))
+                Jtest = Jtest))
 }
 
 #' Format result for display
