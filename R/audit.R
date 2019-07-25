@@ -417,26 +417,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
                           Consider increasing the size of
                           the initial grid (initgrid.nx, initgrid.nu). \n")))
             }
-         } else {
-            if (existsolution == FALSE) {
-                existsolution <- TRUE
-                prevbound <- c(lpresult$min, lpresult$max)
-            } else {
-
-                if ((abs((lpresult$min - prevbound[1]) / prevbound[1]) <
-                     audit.tol) &
-                    (abs((lpresult$max - prevbound[2]) / prevbound[2]) <
-                     audit.tol)) {
-                    if (noisy) {
-                        message(paste0("\n", gsub("\\s+", " ",
-                                     "Audit ending: change in bounds falls
-                                     below tolerance level.\n")))
-                    }
-                    break
-                } else {
-                    prevbound <- c(lpresult$min, lpresult$max)
-                }
-            }
+        } else {
+            if (existsolution == FALSE) existsolution <- TRUE
+            prevbound <- c(lpresult$min, lpresult$max)
         }
         ## Generate a new grid for the audit
         if (audit_count == 1) {
@@ -533,18 +516,16 @@ audit <- function(data, uname, m0, m1, splinesobj,
             } else {
                 if (noisy) {
                     message(gsub("\\s+", " ",
-                                 paste0("Audit ending: maximum number of audits
-                             (audit.max = ", audit.max, ") reached.\n")))
+                                 paste0("Audit finished: maximum number of
+                                 audits (audit.max = ", audit.max,
+                                 ") reached.\n")))
                 }
                 break
             }
         } else {
             if (noisy) {
-                message(paste0("\n", gsub("\\s+", " ",
-                             "Audit ending: no violations of monotonicity or
-                              boundedness restrictions by points chosen off of
-                              the grid defining shape restrictions for the LP
-                              problem.\n")))
+                message("    Violations: 0")
+                message("    Audit finished.\n")
             }
             break
         }
