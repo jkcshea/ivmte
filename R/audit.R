@@ -201,7 +201,7 @@
 #'
 #' @export
 audit <- function(data, uname, m0, m1, splinesobj,
-                  vars_mtr, terms_mtr0, terms_mtr1,
+                  vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                   initgrid.nu = 10, initgrid.nx = 20,
                   audit.nx = 2500, audit.nu = 25, audit.add = 100,
                   audit.max = 25, audit.tol = 1e-08,
@@ -216,10 +216,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   mte.dec = FALSE, mte.inc = FALSE,
                   sset, gstar0, gstar1, obseq.tol = 0.05, lpsolver,
                   noisy = TRUE, seed = 12345) {
-
     set.seed(seed)
     call  <- match.call()
-    lpsolver <- tolower(lpsolver)
+    lpsolver <- tolower(lpsolver)    
     ## Clean boolean terms
     terms_mtr0 <- parenthBoolean(terms_mtr0)
     terms_mtr1 <- parenthBoolean(terms_mtr1)
@@ -241,6 +240,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
     uvec    <- round(seq(0, 1, length.out = initgrid.nu), 8)
     xvars   <- unique(vars_mtr)
     xvars   <- xvars[xvars != uname]
+    xvars <- xvars[xvars %in% vars_data]
     otherx  <- xvars[xvars != monov]
     support <- unique(data[, xvars])
     ## check if support is vector or matrix; it can be a vector if
@@ -276,7 +276,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Generate all monotonicity and boundedness matrices for initial grid
         if (audit_count == 1) {
             message("    Generating initial grid...")
-
             monoboundAlist <- c('sset', 'gstar0', 'gstar1',
                                 'm1.ub', 'm0.ub',
                                 'm1.lb', 'm0.lb',

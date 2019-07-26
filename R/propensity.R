@@ -28,6 +28,8 @@
 #'     variables. This is required when the target parameter is the
 #'     LATE, and the estimation procedure will condition on these
 #'     variables.
+#' @param env environment, the environment for the original
+#'     propensity score formula.
 #' @return A vector of propensity scores for each observation, as well
 #'     as a `model'. If the user inputs a formula characterizing the
 #'     model for taking up treatment, then the \code{lm}/\code{glm}
@@ -49,10 +51,10 @@
 #'
 #' @export
 propensity <- function(formula, data, link = "logit", late.Z,
-                       late.X) {
+                       late.X, env) {
 
     formula <- Formula::as.Formula(formula)
-
+    environment(formula) <- env
     ## If two-sided formula is provided, estimate propensity score
     ## accordingly
     if (length(formula)[1] == 1 & length(formula)[2] == 1) {

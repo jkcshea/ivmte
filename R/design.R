@@ -18,16 +18,12 @@
 #'
 #' @export
 design <- function(formula, data, subset) {
-    
     ## Set up model.frame() call
     if (missing(data)) data <- environment(formula)
-
     ## Convert formula to Formula
     formula <- Formula::as.Formula(formula)
     onesided <- FALSE
-
     if (length(formula)[1] == 0L) onesided <- TRUE
-
     call <- match.call()
     design_call <- modcall(call,
                            newcall = model.frame,
@@ -35,16 +31,13 @@ design <- function(formula, data, subset) {
                                         "subset"),
                            newargs = list(formula = formula,
                                           drop.unused.levels = TRUE))
-    
     mf <- eval(design_call, parent.frame())
-                               
     ## extract response, terms, model matrices
     if (onesided == FALSE) Y <- model.response(mf, "numeric")
     if (onesided == TRUE)  Y <- NULL
     mt  <- terms(formula, data = data)
     mtX <- terms(formula, data = data, rhs = 1)
     X   <- model.matrix(mtX, mf)
-
     if(length(formula)[2] < 2L) {
         mtZ <- NULL
         Z   <- NULL
@@ -52,6 +45,5 @@ design <- function(formula, data, subset) {
         mtZ <- delete.response(terms(formula, data = data, rhs = 2))
         Z   <- model.matrix(mtZ, mf)
     }
-
     return(list(Y = Y, X = X, Z = Z))
 }

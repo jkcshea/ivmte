@@ -244,8 +244,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     ## A detailed description of the module and its features
     ## can be found in
     ## \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea and
-    ## Torgovitsky (2019)}.   
+    ## Torgovitsky (2019)}.
     call <- match.call(expand.dots = FALSE)
+    envList <- list(m0 = environment(m0),
+                    m1 = environment(m1),
+                    ivlike = environment(ivlike),
+                    propensity = environment(propensity),
+                    parent = parent.frame())
+    for (i in 1:length(envList)) {
+        if (is.null(envList[[i]])) envList[[i]] <- parent.frame()
+    }
 
     ##---------------------------
     ## 1. Check linear programming dependencies
@@ -539,7 +547,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (hasArg(treat)) {
         treatStr <- deparse(substitute(treat))
         treatStr <- gsub("~", "", treatStr)
-        treatStr <- gsub("\\\"", "", treatStr)        
+        treatStr <- gsub("\\\"", "", treatStr)
         if (! treatStr %in% colnames(data)) {
             stop("Declared treatment indicator not found in data")
         }
@@ -1164,14 +1172,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         propensity <- as.formula(propensity)
     }
 
-    ## Experimenting ---------------
-    ## if (length(Formula::as.Formula(propensity))[1] == 1) {
-    ##     propFormula <- TRUE
-    ## } else {
-    ##     propFormula <- FALSE
-    ## }
-    ## End experimenting -----------
-
     ## Collect all variables declared, and remove unobserved variable
     ## from list
     allvars <- c(vars_y,
@@ -1268,16 +1268,36 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ## Keep only complete cases
-    varError <- allvars[! allvars %in% colnames(data)]
-    varError <- varError[varError != "intercept"]
-    if (length(varError) > 0) {
+    ## Original ------------------------------------------------------
+    ## varError <- allvars[! allvars %in% colnames(data)]
+    ## varError <- varError[varError != "intercept"]
+    ## if (length(varError) > 0) {
+    ##     varError <- paste0("The following variables are not contained
+    ##                       in the data set: ",
+    ##                       paste(varError, collapse = ", "),
+    ##                       ".")
+    ##     stop(gsub("\\s+", " ", varError), call. = FALSE)
+    ## }
+    ## data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
+    ## Experimenting ---------------------------
+    varFound1 <- sapply(allvars, exists, where = data)
+    vars_data <- allvars[varFound1]
+    missingVars <- allvars[!varFound1]
+    missingVars <- missingVars[missingVars != "intercept"]
+    for (i in 1:length(envList)) {
+        varFound2 <- sapply(missingVars, exists, where = envList[[i]])
+        missingVars <- missingVars[!varFound2]
+    }
+    if (length(missingVars) > 0) {
         varError <- paste0("The following variables are not contained
-                          in the data set: ",
-                          paste(varError, collapse = ", "),
+                          in the data set or in the parent.frame(): ",
+                          paste(missingVars, collapse = ", "),
                           ".")
         stop(gsub("\\s+", " ", varError), call. = FALSE)
     }
-    data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
+    data  <- data[complete.cases(data[, vars_data]), ]
+    ## End experimenting -----------------------
+
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
 
@@ -1406,12 +1426,14 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                            lpsolver = quote(lpsolver),
                                            vars_y = quote(vars_y),
                                            vars_mtr = quote(vars_mtr),
+                                           vars_data = quote(vars_data),
                                            terms_mtr0 = quote(terms_mtr0),
                                            terms_mtr1 = quote(terms_mtr1),
                                            treat = quote(treat),
                                            propensity = quote(propensity),
                                            splinesobj = quote(splinesobj),
-                                           components = quote(components)))
+                                           components = quote(components),
+                                           environments = quote(envList)))
 
     if (hasArg(target) && target == "late") {
         estimateCall <- modcall(estimateCall,
@@ -1642,7 +1664,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         mtrEstimates <- NULL
         propEstimates <- NULL
         jstats <- NULL
-        
+
         b <- 1
         bootFailN <- 0
         bootFailNote <- ""
@@ -1723,7 +1745,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             bootEstimate <- try(eval(bootCall), silent = TRUE)
             if (is.list(bootEstimate)) {
                 teEstimates  <- c(teEstimates, bootEstimate$pointestimate)
-                mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef) 
+                mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
                 if (!"propensity.coef" %in% names(bootEstimate)) {
                     propEstimates <- cbind(propEstimates,
                                            bootEstimate$propensity$model$coef)
@@ -1738,7 +1760,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 if (noisy == TRUE) {
                     message(paste0("    Point estimate:",
                                    fmtResult(bootEstimate$pointestimate)))
-                }                
+                }
             } else {
                 if (noisy == TRUE) {
                     message(paste0("    Error, resampling..."))
@@ -1774,7 +1796,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         } else {
             jtest <- NULL
         }
-        
+
         ## Construct confidence intervals for various levels
         for (level in levels) {
             pLower <- (1 - level) / 2
@@ -1809,7 +1831,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                                        level * 100)))
             rownames(tmpMtrCi2) <- rownames(get(paste0("mtrci1",
                                                        level * 100)))
-           
+
             assign(paste0("ci2", level * 100), tmpCi2)
             assign(paste0("mtrci2", level * 100), tmpMtrCi2)
             ## Special case for propensity scores, which may not exist
@@ -1831,7 +1853,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             }
         }
 
-        ## Prepare output        
+        ## Prepare output
         output1 <- c(origEstimate,
                      list(pointestimate.se = bootSE,
                           mtr.se = mtrSE))
@@ -2133,6 +2155,8 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     \code{m0}.
 #' @param terms_mtr1 character, vector of terms entering into
 #'     \code{m1}.
+#' @param vars_data character, vector of variables that can be found
+#'     in the data.
 #' @param splinesobj list of spline components in the MTRs for treated
 #'     and control groups. Spline terms are extracted using
 #'     \code{\link{removeSplines}}.
@@ -2250,6 +2274,11 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #' @param smallreturnlist boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} to exclude large intermediary components
 #'     (i.e. propensity score model, LP model, bootstrap iterations).
+#' @param environments list, a list containing the environments of the
+#'     MTR formulas, the IV-like formulas, and the propensity score
+#'     formulas. If a formulas is not provided, and thus no
+#'     environment can be found, then the parent.frame() is assigned
+#'     by default.
 #' @param seed integer, the seed that determines the random grid in
 #'     the audit procedure.
 #' @return Returns a list of results from throughout the estimation
@@ -2260,19 +2289,21 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 ivmteEstimate <- function(ivlike, data, subset, components,
                           propensity, link = "logit", treat, m0, m1,
                           vars_y, vars_mtr, terms_mtr0, terms_mtr1,
+                          vars_data,
                           splinesobj, uname = u, target,
                           target.weight0, target.weight1,
                           target.knots0 = NULL, target.knots1 = NULL,
                           late.Z, late.from, late.to, late.X, eval.X,
                           genlate.lb, genlate.ub, obseq.tol = 0.05,
-                          initgrid.nu = 10, initgrid.nx = 20, audit.nx = 2500,
-                          audit.nu = 25, audit.add = 100, audit.max = 25,
+                          initgrid.nu = 10, initgrid.nx = 20,
+                          audit.nx = 2500, audit.nu = 25,
+                          audit.add = 100, audit.max = 25,
                           audit.tol = 1e-08, m1.ub, m0.ub, m1.lb,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                           m1.dec, m1.inc, mte.dec, mte.inc,
                           lpsolver = NULL, point = FALSE,
-                          point.eyeweight = FALSE,
-                          noisy = TRUE, smallreturnlist = FALSE,
+                          point.eyeweight = FALSE, noisy = TRUE,
+                          smallreturnlist = FALSE, environments,
                           seed = 12345) {
 
     call <- match.call(expand.dots = FALSE)
@@ -2296,7 +2327,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                      keepargs = c("link", "late.Z", "late.X"),
                      dropargs = "propensity",
                      newargs = list(data = quote(data),
-                                    formula = propensity))
+                                    formula = propensity,
+                                    env = environments$propensity))
     pmodel <- eval(pcall)
 
     ##---------------------------
@@ -2312,7 +2344,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           newcall = polyparse,
                           keepargs = c("uname"),
                           newargs = list(formula = m0,
-                                         data = quote(data)))
+                                         data = quote(data),
+                                         env = quote(environments$m0)))
         pm0 <- eval(as.call(m0call))
     } else {
         pm0 <- NULL
@@ -2322,7 +2355,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           newcall = polyparse,
                           keepargs = c("uname"),
                           newargs = list(formula = m1,
-                                         data = quote(data)))
+                                         data = quote(data),
+                                         env = quote(environments$m1)))
         pm1 <- eval(as.call(m1call))
     } else {
         pm1 <- NULL
@@ -2348,7 +2382,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                                 pmodobj = pmodel,
                                                 pm0 = quote(pm0),
                                                 pm1 = quote(pm1)))
-
     } else {
         gentargetcall <- modcall(call,
                                  newcall = genTarget,
@@ -2386,6 +2419,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         ivlikeCounter <- 1
         for (i in 1:length(ivlike)) {
             sformula   <- ivlike[[i]]
+            environment(sformula) <- environments$ivlike
             scomponent <- components[[i]]
             if (subset[[i]] == "") {
                 ssubset <- replicate(nrow(data), TRUE)
@@ -2481,7 +2515,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                            Jtest = gmmResult$Jtest,
                            bounds = c(gmmResult$pointestimate,
                                       gmmResult$pointestimate),
-                           mtr.coef = gmmResult$coef)            
+                           mtr.coef = gmmResult$coef)
             if (all(class(pmodel$model) != "NULL")) {
                 output$propensity.coef <- pmodel$model$coef
             }
@@ -2496,7 +2530,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (noisy == TRUE) {
         message("Performing audit procedure...")
     }
-    audit.args <- c("uname", "initgrid.nu", "initgrid.nx",
+    audit.args <- c("uname", "vars_data",
+                    "initgrid.nu", "initgrid.nx",
                     "audit.nx", "audit.nu", "audit.add",
                     "audit.max", "audit.tol",
                     "m1.ub", "m0.ub",
@@ -2725,7 +2760,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                       eval.X, genlate.lb, genlate.ub,
                       data, splinesobj, pmodobj, pm0, pm1,
                       point = FALSE, noisy = TRUE) {
-
     if (hasArg(target)) target   <- tolower(target)
     if (hasArg(target)) {
         if (target == "ate") {

@@ -80,7 +80,6 @@
 #' @export
 lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
                         lpsolver, shape = TRUE) {
-
     lpsolver <- tolower(lpsolver)
     
     ## determine lengths
@@ -101,15 +100,12 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
         avec <- replicate(2 * sn, 0)
         avec[(2 * scount + 1) :(2 * scount + 2)] <- c(-1, 1)
         ## Regarding c(-1, 1), the -1 is for w+, 1 is for w-
-        
         avec <- c(avec, sset[[s]]$g0, sset[[s]]$g1)
         A <- rbind(A, avec)
         scount <- scount + 1
     }
-
     colnames(A) <- c(seq(1, 2 * sn),
                      colnames(A)[(2 * sn + 1) : ncol(A)])
-
     ## Define bounds on parameters
     ub <- replicate(ncol(A), Inf)
     lb <- c(replicate(sn * 2, 0), replicate(gn0 + gn1, -Inf))

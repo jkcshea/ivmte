@@ -38,6 +38,8 @@ vecextract <- function(vector, position, truncation = 0) {
 #'     for each observation.
 #' @param uname variable name for unobservable used in declaring the
 #'     MTR.
+#' @param env environment, the original environment in which
+#'     the formula was declared.
 #' @param as.function boolean, if \code{FALSE} then a list of the
 #'     polynomial terms are returned; if \code{TRUE} then a list of
 #'     functions corresponding to the polynomials are returned.
@@ -65,12 +67,11 @@ vecextract <- function(vector, position, truncation = 0) {
 #'                           as.function = FALSE)
 #'
 #' @export
-polyparse <- function(formula, data, uname = u, as.function = FALSE) {
-
+polyparse <- function(formula, data, uname = u, env, as.function = FALSE) {
     ## update formula parsing
     formula <- Formula::as.Formula(formula)
+    environment(formula) <- env
     uname   <- deparse(substitute(uname))
-
     ## Include redundant variable u, so monomials in m0, m1
     ## specifications correspond polynomial coefficients on u
     ## monomials
@@ -141,10 +142,11 @@ polyparse <- function(formula, data, uname = u, as.function = FALSE) {
         exptab1 <- cbind(u_pos, 1)
     }
     if (deggtr2) {
-        uexp <- as.numeric(mapply(vecextract,
-                                  nterms[uexp_pos],
-                                  position = uexp_subpos,
-                                  truncation = nchar(uname) + 1))
+        uexpStr <- mapply(vecextract,
+                          nterms[uexp_pos],
+                          position = uexp_subpos,
+                          truncation = nchar(uname) + 1)
+        uexp <- sapply(uexpStr, function(x) eval(parse(text = x), envir = env))
         exptab2 <- cbind(uexp_pos, uexp)
         exptab  <- rbind(exptab1, exptab2)
     } else {
@@ -381,7 +383,7 @@ removeSplines <- function(formula, env = parent.frame()) {
         for (splineobj in splineterms) {
             splinepos1 <- regexpr("uSplines\\(", splineobj)
             splinepos2 <- regexpr("uSpline\\(", splineobj)
-            
+
             if (splinepos1 == -1) {
                 splinepos <- splinepos2
                 splineposadd <- 7

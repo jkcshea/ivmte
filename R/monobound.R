@@ -666,9 +666,7 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
         dlist <- NULL
         if (!is.null(splines[[1]])) dlist <- c(dlist, 0)
         if (!is.null(splines[[2]])) dlist <- c(dlist, 1)
-        
-        ## for (d in 0:1) { ORIGINAL
-        for (d in dlist) { ## EXPERIMENTING
+        for (d in dlist) {
             nonSplinesDmat <- NULL
             splinesD <- splines[[d + 1]]
             for (j in 1:length(splinesD)) {
