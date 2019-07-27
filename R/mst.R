@@ -1655,7 +1655,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (point == TRUE & bootstraps == 0) {
         return(eval(estimateCall))
     }
-
     ## Point estimate with resampling
     if (point == TRUE & bootstraps > 0) {
         set.seed(seed)
@@ -1736,12 +1735,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             }
             if (noisy == TRUE) {
                 message(paste0("Bootstrap iteration ", b, "..."))
-            }
+            }            
             bootCall <-
                 modcall(estimateCall,
                         dropargs = c("data", "noisy"),
                         newargs = list(data = quote(bdata),
-                                       noisy = FALSE))
+                                       noisy = FALSE,
+                                       point.center = origEstimate$mtr.coef))
             bootEstimate <- try(eval(bootCall), silent = TRUE)
             if (is.list(bootEstimate)) {
                 teEstimates  <- c(teEstimates, bootEstimate$pointestimate)
@@ -2267,6 +2267,11 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #' @param point.eyeweight boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
+#' @param point.center numeric, a vector of solutions to the GMM
+#'     problem. When bootstrapping, the solution to the point
+#'     identified case obtained from the original sample can be passed
+#'     through this argument to recenter the bootstrap distribution of
+#'     the J-statistic.
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
@@ -2302,7 +2307,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                           m1.dec, m1.inc, mte.dec, mte.inc,
                           lpsolver = NULL, point = FALSE,
-                          point.eyeweight = FALSE, noisy = TRUE,
+                          point.eyeweight = FALSE, point.center = NULL,
+                          noisy = TRUE,
                           smallreturnlist = FALSE, environments,
                           seed = 12345) {
 
@@ -2487,6 +2493,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
+                                 orig.solution = point.center,
                                  identity = point.eyeweight,
                                  noisy = noisy)
         if (!smallreturnlist) {
@@ -3328,6 +3335,11 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     is what is used to generate the gamma moments.
 #' @param gstar0 vector, the target gamma moments for d = 0.
 #' @param gstar1 vector, the target gamma moments for d = 1.
+#' @param orig.solution numeric, a vector of solutions to the GMM
+#'     problem. When bootstrapping, the solution to the point
+#'     identified case obtained from the original sample can be passed
+#'     through this argument to recenter the bootstrap distribution of
+#'     the J-statistic.
 #' @param identity boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
@@ -3412,7 +3424,8 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'             gstar1 = targetGamma$gstar1)
 #'
 #' @export
-gmmEstimate <- function(sset, gstar0, gstar1, identity = FALSE, noisy = TRUE) {
+gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
+                        identity = FALSE, noisy = TRUE) {
     gn0 <- ncol(gstar0)
     gn1 <- ncol(gstar1)
     if ((gn0 + gn1) > length(sset)) {
@@ -3442,23 +3455,35 @@ gmmEstimate <- function(sset, gstar0, gstar1, identity = FALSE, noisy = TRUE) {
         colnames(momentMatrix) <- momentNames
         return(momentMatrix)
     }
-
     ## This function defines the moment conditions for the GMM
-    ## estimator. The argument 'theta' is for a vector storing the
-    ## parameters of interest in the following order: (i) coefficients
-    ## for m0; (ii) coefficients for m1.
-    momentConditions <- function(theta, data) {
+    ## estimator, allowing for recentering. The argument 'theta' is
+    ## for a vector storing the parameters of interest in the
+    ## following order: (i) coefficients for m0; (ii) coefficients for
+    ## m1. The arugment 'center' is supposed to be a vector of value
+    ## of the moment conditions from the original sample---this is
+    ## used for bootstrapping.
+    momentConditionsBase <- function(theta, data, center = NULL) {
+        if (is.null(center)) center <- rep(0, length(sset))
         momentMatrix <- NULL
         for (s in 1:length(sset)) {
             yvec <- data[, paste0("s", s, "y")]
             gmat <- data[, c( paste0("s", s, "g0", seq(1, gn0)),
                              paste0("s", s, "g1", seq(1, gn1)))]
             momentMatrix <- cbind(momentMatrix,
-                                  yvec - gmat %*% theta[1:(gn0 + gn1)])
+                                  yvec - gmat %*% theta[1:(gn0 + gn1)] -
+                                  center[s])
         }
         return(momentMatrix)
     }
-
+    momentConditions <- function(theta, data) {
+        if (is.null(center))  return(momentConditionsBase(theta, data))
+        if (!is.null(center)) return(momentConditionsBase(theta, data, center))
+    }
+    ## Construct centering if necessary
+    center <- NULL
+    if (!is.null(orig.solution)) {
+        center <- colMeans(momentConditions(orig.solution, momentMatrix()))
+    } 
     ## Perform GMM
     if (identity == FALSE) {
         gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
