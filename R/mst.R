@@ -3441,9 +3441,9 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
                          length(sset),
                          " moment conditions defined by IV-like
                          specifications. Either expand the number of
-                         IV-like specifications, or modify m0 and m1.")))
+                         IV-like specifications, or adjust m0 and m1.")),
+             call. = FALSE)
     }
-
     ## This function constructs the matrix to be fed into the GMM
     ## estimator to construct the moment conditions.
     momentMatrix <- function() {
@@ -3460,6 +3460,19 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
         colnames(momentMatrix) <- momentNames
         return(momentMatrix)
     }
+    Amat <- matrix(colMeans(momentMatrix()),
+                   ncol = 1 + gn0 + gn1, byrow = TRUE)[, -1]
+    if (qr(Amat)$rank < (gn0 + gn1)) {
+        stop(gsub("\\s+", " ",
+                  paste0("System is underidentified: there are ",
+                  (gn0 + gn1),
+                  " unknown MTR coefficients and ",
+                  qr(Amat)$rank,
+                  " linearly independent moment conditions defined by the
+                    IV-like specifications. Either adjust the
+                    IV-like specifications, or adjust m0 and m1.")),
+             call. = FALSE)
+    }    
     ## This function defines the moment conditions for the GMM
     ## estimator, allowing for recentering. The argument 'theta' is
     ## for a vector storing the parameters of interest in the
