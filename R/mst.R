@@ -249,8 +249,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     envList <- list(m0 = environment(m0),
                     m1 = environment(m1),
                     ivlike = environment(ivlike),
-                    propensity = environment(propensity),
                     parent = parent.frame())
+    envProp <- try(environment(propensity), silent = TRUE)
+    if (class(envProp) != "environment") {
+        envList$propensity <- parent.frame()
+    } else {
+        envList$propensity <- envProp
+    }
     for (i in 1:length(envList)) {
         if (is.null(envList[[i]])) envList[[i]] <- parent.frame()
     }
@@ -1735,7 +1740,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             }
             if (noisy == TRUE) {
                 message(paste0("Bootstrap iteration ", b, "..."))
-            }            
+            }
             bootCall <-
                 modcall(estimateCall,
                         dropargs = c("data", "noisy"),
@@ -3483,7 +3488,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     center <- NULL
     if (!is.null(orig.solution)) {
         center <- colMeans(momentConditions(orig.solution, momentMatrix()))
-    } 
+    }
     ## Perform GMM
     if (identity == FALSE) {
         gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
