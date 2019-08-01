@@ -347,6 +347,7 @@ monoIntegral <- function(u, exp) {
 #' @export
 removeSplines <- function(formula, env = parent.frame()) {
     fterms <- attr(terms(formula), "term.labels")
+    fterms <- gsub("\\s+", " ", fterms)
     finter <- attr(terms(formula), "intercept")
     if (length(fterms) == 0) {
         whichspline <- 0
@@ -481,7 +482,6 @@ removeSplines <- function(formula, env = parent.frame()) {
             }
         }
         colnames(splinesKey) <- c("spline", "dictKey")
-
         ## Using dictionary, generate new condensed splines list. In
         ## addition, store all the original calls for each spline
         ## (this will be used to determine which variables interact
