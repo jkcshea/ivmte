@@ -92,18 +92,14 @@ wald <- function(D, Z) {
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
 ivj <- function(X, Z, components, treat, order = NULL) {
-
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
     cpos <- which(colnames(X) %in% components)
     cposcheck <- which(!components %in% colnames(X))
-
     if (length(cposcheck) > 0) {
-
         errornames  <- components[cposcheck]
         matrixnames <- paste(colnames(X), collapse = ", ")
-
         ## Address the case where a factor variable is declared as a
         ## component, but is missing from the design matrix. This will
         ## be assumed to be due to collinearities. The program will
@@ -144,17 +140,15 @@ ivj <- function(X, Z, components, treat, order = NULL) {
         if (length(errornames) > 0) {
             errornames <- paste(errornames,
                                   collapse = ", ")
-
             if (is.null(order)) {
                 emessageIV <- "This may be due to collinearity, or that the
                               variable was never included in the IV-like
                               specification."
             } else {
-                emessageIV <- paste0("This may be due to collinearity, or that the
-                              variable was never included in IV-like
+                emessageIV <- paste0("This may be due to collinearity, or that
+                              the variable was never included in IV-like
                               specification ", order, ".")
             }
-
             emessage <-
                 paste0("The following components are not found in the design
                        matrix: ", errornames, ".", emessageIV, " The variables
@@ -165,13 +159,11 @@ ivj <- function(X, Z, components, treat, order = NULL) {
             stop(emessage)
         }
     }
-
     ## construct weights
     ezx  <- (1 / nrow(X)) * t(Z) %*% X
     wvec <- solve(ezx) %*% t(Z)
     wvec <- extractcols(t(wvec), cpos)
     colnames(wvec)  <- components
-
     return(list(s0 = wvec, s1 = wvec))
 }
 
@@ -189,20 +181,14 @@ ivj <- function(X, Z, components, treat, order = NULL) {
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
 tsls <- function(X, Z, components, treat, order = NULL) {
-
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
     cpos <- which(colnames(X) %in% components)
-
     cposcheck <- which(!components %in% colnames(X))
     if (length(cposcheck) > 0) {
-
         errornames  <- components[cposcheck]
         matrixnames <- paste(colnames(X), collapse = ", ")
-
-        ## REMEMBER TO DO THIS FOR THE IVJ CASE
-
         ## Address the case where a factor variable is declared as a
         ## component, but is missing from the design matrix. This will
         ## be assumed to be due to collinearities. The program will
@@ -264,18 +250,14 @@ tsls <- function(X, Z, components, treat, order = NULL) {
             stop(emessage)
         }
     }
-
     ## construct first stage matrix
     exz <- (1 / nrow(X)) * t(X) %*% Z
     ezz <- (1 / nrow(Z)) * t(Z) %*% Z
     pi  <- exz %*% solve(ezz)
-
     ## construct weights
     wvec <- solve(pi %*% t(exz)) %*% pi %*% t(Z)
     wvec <- extractcols(t(wvec), cpos)
-
     colnames(wvec) <- components
-
     return(list(s0 = wvec,
                 s1 = wvec))
 }

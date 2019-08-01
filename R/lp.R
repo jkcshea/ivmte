@@ -76,24 +76,21 @@
 #'
 #' ## Construct the LP problem to be solved using lpSolveAPI
 #' lpSetup(sset = sSet$sset, lpsolver = "lpSolveAPI")
-#' 
+#'
 #' @export
 lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
                         lpsolver, shape = TRUE) {
     lpsolver <- tolower(lpsolver)
-    
     ## determine lengths
     sn  <- length(sset)
     gn0 <- length(sset$s1$g0)
     gn1 <- length(sset$s1$g1)
-
     ## generate all vectors/matrices for LP optimization to minimize
     ## observational equivalence
     obj <- c(replicate(sn * 2, 1),
              replicate(gn0 + gn1, 0))
     rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
     sense <- replicate(sn, "=")
-
     A <- NULL
     scount <- 0
     for (s in names(sset)) {
@@ -109,14 +106,12 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
     ## Define bounds on parameters
     ub <- replicate(ncol(A), Inf)
     lb <- c(replicate(sn * 2, 0), replicate(gn0 + gn1, -Inf))
-    
     ## Add in additional constraints if included
-    if (shape == TRUE) {        
+    if (shape == TRUE) {
         A     <- rbind(A, mbA)
         sense <- c(sense, mbs)
         rhs   <- c(rhs, mbrhs)
     }
-
     ## Adjust for Rcplex
     if (lpsolver == "rcplex") {
         sense[sense == "<"]  <- "L"
@@ -125,7 +120,6 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
         sense[sense == ">="] <- "G"
         sense[sense == "="]  <- "E"
     }
- 
     ## Adjust for lpSolve (convert the object into one of x+/x-)
     if (lpsolver == "lpsolve") {
         obj <- c(obj, -obj[(sn * 2 + 1) : ncol(A)])
@@ -134,7 +128,6 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
     if (lpsolver %in% c("gurobi", "rcplex", "lpsolveapi")) {
         A <- Matrix::Matrix(A, sparse = TRUE)
     }
-    
     return(list(obj = obj,
                 rhs = rhs,
                 sense = sense,
@@ -231,7 +224,7 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
 #'                     matrix(0, nrow = 11, ncol = 2)))
 #' A <- cbind(A, rbind(matrix(0, nrow = 11, ncol = 2),
 #'                     cbind(1, seq(0, 1, 0.1))))
-#' 
+#'
 #' sense <- c(rep(">", 11), rep("<", 11))
 #' rhs <- c(rep(0.2, 11), rep(0.8, 11))
 #'
@@ -246,7 +239,7 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
 #' obsEqMin(sset = sSet$sset,
 #'          lpobj = lpObject,
 #'          lpsolver = "lpSolveAPI")
-#' 
+#'
 #' @export
 obsEqMin <- function(sset, lpobj, lpsolver) {
 
@@ -437,7 +430,7 @@ obsEqMin <- function(sset, lpobj, lpsolver) {
 #'                     matrix(0, nrow = 11, ncol = 2)))
 #' A <- cbind(A, rbind(matrix(0, nrow = 11, ncol = 2),
 #'                     cbind(1, seq(0, 1, 0.1))))
-#' 
+#'
 #' sense <- c(rep(">", 11), rep("<", 11))
 #' rhs <- c(rep(0.2, 11), rep(0.8, 11))
 #'
@@ -455,7 +448,7 @@ obsEqMin <- function(sset, lpobj, lpsolver) {
 #'       lpobj = lpObject,
 #'       obseq.factor = 1,
 #'       lpsolver = "lpSolveAPI")
-#' 
+#'
 #' @export
 bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
 
@@ -492,7 +485,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
             maxoptx <- maxresult$x
         }
         if (lpsolver == "rcplex") {
-            model$sense[1] <- "L" ## to satisfy minimal obs. equiv. deviation 
+            model$sense[1] <- "L" ## to satisfy minimal obs. equiv. deviation
             minresult <- Rcplex::Rcplex(objsense = "min",
                                         cvec = model$obj,
                                         Amat = model$A,
@@ -515,14 +508,14 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
             max <- maxresult$obj
             maxstatus <- maxresult$status
             maxoptx   <- maxresult$xopt
-            
+
             ## Deal with cases where the bounds are contradictory,
             ## which can occur when the target parameter is
             ## unbounded. However, this can potentially be a precision
             ## issue, i.e. the min can exceed the max by a trivial
             ## amount. You suspect this is a threshold problem, so you
             ## allow for some tolerance.
-            if (min - max > 0) {            
+            if (min - max > 0) {
                 if (round(min - max, 10) > 0) {
                     min <- NULL
                     max <- NULL
@@ -540,7 +533,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
             min       <- minresult$objval
             minoptx   <- minresult$optx
             minstatus <- minresult$status
-            
+
             maxresult <- runCplexAPI(model, cplexAPI::CPX_MAX)
             max       <- maxresult$objval
             maxoptx   <- maxresult$optx
@@ -548,7 +541,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         }
 
         if (lpsolver == "lpsolveapi") {
-            
+
             minresult <- runLpSolveAPI(model, 'min')
             min       <- minresult$objval
             minoptx   <- minresult$optx
@@ -586,7 +579,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         optxB <- optxB[1 : (length(optxB) / 2)] +
             optxB[(length(optxB) / 2 + 1) : length(optxB)]
         minoptx <- c(optxA, optxB)
-       
+
         if (minresult$status == 0) minstatus <- 1
         if (minresult$status != 0) minstatus <- 0
 
@@ -603,7 +596,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         optxB <- optxB[1 : (length(optxB) / 2)] +
             optxB[(length(optxB) / 2 + 1) : length(optxB)]
         maxoptx <- c(optxA, optxB)
-        
+
         if (maxresult$status == 0) maxstatus <- 1
         if (maxresult$status != 0) maxstatus <- 0
     }
@@ -626,7 +619,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         message(paste0("Max status: ", maxstatus, "\n"))
         message(paste0("Bound: (", min, ", ", max, ")\n"))
     }
-    
+
     return(list(max = max,
                 maxg0 = maxg0,
                 maxg1 = maxg1,

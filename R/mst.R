@@ -2449,7 +2449,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands
             subset_index <- rownames(sdata)
-            ncomponents <- length(sest$betas)
+            ncomponents <- sum(!is.na(sest$betas))
             pmodobj <- pmodel$phat[subset_index]
             if (point == FALSE) {
                 setobj <- genSSet(data = data,
@@ -3472,7 +3472,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
                     IV-like specifications. Either adjust the
                     IV-like specifications, or adjust m0 and m1.")),
              call. = FALSE)
-    }    
+    }
     ## This function defines the moment conditions for the GMM
     ## estimator, allowing for recentering. The argument 'theta' is
     ## for a vector storing the parameters of interest in the

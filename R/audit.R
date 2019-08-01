@@ -307,7 +307,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpsolve" && minobseq$status == 0) |
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
-
             lpobjAlt <- lpSetup(sset, mbobj$mbA, mbobj$mbs,
                                     mbobj$mbrhs, lpsolver,
                                     shape = FALSE)

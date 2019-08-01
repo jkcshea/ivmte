@@ -48,7 +48,6 @@ permute <- function(vector) {
 #' @param weights vector of weights.
 #' @return vector of select coefficient estimates.
 piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
-
     ## project regressors x on image of instruments z
     if (ncol(Z) < ncol(X)) {
         stop(gsub("\\s+", " ",
@@ -58,14 +57,12 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
     fstage <- if (is.null(weights)) lm.fit(Z, X) else lm.wfit(Z, X, weights)
     Xhat   <- as.matrix(fstage$fitted.values)
     colnames(Xhat) <- colnames(X)
-
     ## main regression
     if (is.null(weights)) {
         fit <- lm.fit(Xhat, Y)
     } else {
         fit <- lm.wfit(Xhat, Y, weights)
     }
-
     return(fit$coefficients[lmcomponents])
 }
 
@@ -219,12 +216,41 @@ ivEstimate <- function(formula, data, subset, components, treat,
                                  newargs = list(data = quote(data))))
         }
         bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents)
-        sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat)
+        if (sum(is.na(bhat))) {
+            collinearPos <- which(is.na(bhat))
+            mfX <- mf$X[, -collinearPos]
+            mf0X <- mf0$X[, -collinearPos]
+            mf1X <- mf1$X[, -collinearPos]
+            collinearCompPos <- which(components %in% names(bhat)[collinearPos])
+            if (length(collinearCompPos) > 0) components <-
+                                                  components[-collinearCompPos]
+            sweight <- olsj(mfX, mf0X, mf1X, components, treat)
+            bhat <- bhat[-collinearPos]
+        } else {
+            sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat)
+        }
     } else {
         if (length(formula)[2] == 2 &
             dim(mf$X)[2] == dim(mf$Z)[2]) {
             bhat <- piv(mf$Y, mf$X, mf$Z, lmcomponents)
-            sweight <- ivj(mf$X, mf$Z, components, treat, order)
+            if (sum(is.na(bhat))) {
+                collinearPos <- which(is.na(bhat))
+                mfX <- mf$X[, -collinearPos]
+
+                stop("Determinign colinearity with instruments is more involved!")
+
+                
+                mfZ <- mf0$X[, -collinearPos]
+                mf1X <- mf1$X[, -collinearPos]
+                collinearCompPos <- which(components %in% names(bhat)[collinearPos])
+                if (length(collinearCompPos) > 0) components <-
+                                                      components[-collinearCompPos]
+                sweight <- olsj(mfX, mf0X, mf1X, components, treat)
+                bhat <- bhat[-collinearPos]                
+                sweight <- ivj(mfX, mfZ, components, treat, order)
+            } else {
+                sweight <- ivj(mf$X, mf$Z, components, treat, order)   
+            }
         } else if (length(formula)[2] == 2 & dim(mf$X)[2] < dim(mf$Z)[2]) {
             bhat <- piv(mf$Y, mf$X, mf$Z, lmcomponents)
             sweight <- tsls(mf$X, mf$Z, components, treat, order)
@@ -238,10 +264,8 @@ ivEstimate <- function(formula, data, subset, components, treat,
                       properly specified: ", deparse(formula), ".")))
         }
     }
-
     if (!is.null(sweight$errorfactors)) {
         bhat <- bhat[-which(lmcomponents %in% sweight$errorfactors)]
     }
-
     return(list(sw0 = sweight$s0, sw1 = sweight$s1, betas = bhat))
 }
