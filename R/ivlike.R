@@ -47,18 +47,29 @@ permute <- function(vector) {
 #'     that we want to include in the S-set of IV-like estimands.
 #' @param weights vector of weights.
 #' @return vector of select coefficient estimates.
-piv <- function(Y, X, Z, lmcomponents, weights = NULL) {
+piv <- function(Y, X, Z, lmcomponents, weights = NULL, tsls = TRUE) {
     ## project regressors x on image of instruments z
     if (ncol(Z) < ncol(X)) {
         stop(gsub("\\s+", " ",
                   paste0("More regressors than instruments in the following
-                  IV-like specification: ", formula, ".")))
+                  IV-like specification: ", formula, ".")), call. = FALSE)
+    }
+    ## Check that the instruments are different from X. If they are
+    ## the same, and 'tsls = TRUE', then the user is submitting an
+    ## unclear formula.
+    if (all(sort(colnames(X)) == sort(colnames(Z))) && tsls == TRUE) {
+        stop(gsub("\\s+", " ",
+                  paste0("Please ensure that IV-like specifications are not
+                          defined such that the first stage covariates are
+                          identical to the second stage covariates. In such
+                          specifications, simply provide the second stage
+                          regression formula.")),
+             call. = FALSE)
     }
     fstage <- if (is.null(weights)) lm.fit(Z, X) else lm.wfit(Z, X, weights)
-
     nullCheck <- apply(X = fstage$coef, MARGIN = 1,
                        FUN = function(x) any(is.na(x)))
-    Xhat   <- as.matrix(fstage$fitted.values)
+    Xhat <- as.matrix(fstage$fitted.values)
     colnames(Xhat) <- colnames(X)
     ## main regression
     if (is.null(weights)) {
@@ -190,14 +201,11 @@ ivEstimate <- function(formula, data, subset, components, treat,
             components[boolVarsPos] <- unlist(boolVarsFull)
         }
     }
-
     ## Ensure components are uniquely declared
     components <- unique(components)
-
     ## Generate the lmcomponents vector
     lmcomponents <- components
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
-
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
         ## For the OLS case, we need to obtain additional design
@@ -219,9 +227,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
                                  keepargs = c("formula", "subset"),
                                  newargs = list(data = quote(data))))
         }
-        bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents)$coef
-        print('OLS bhat')
-        print(bhat)
+        bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents, tsls = FALSE)$coef
         if (sum(is.na(bhat))) {
             collinearPos <- which(is.na(bhat))
             mfX <- mf$X[, -collinearPos]
@@ -231,8 +237,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
             if (length(collinearCompPos) > 0) components <-
                                                   components[-collinearCompPos]
             sweight <- olsj(mfX, mf0X, mf1X, components, treat)
-            print('hea dof OLS weights')
-            print(head(sweight$s1))
             bhat <- bhat[-collinearPos]
         } else {
             sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat)
@@ -245,11 +249,9 @@ ivEstimate <- function(formula, data, subset, components, treat,
         ## } else if (length(formula)[2] == 2 & dim(mf$X)[2] < dim(mf$Z)[2]) {
         if (length(formula)[2] == 2 &
             dim(mf$X)[2] <= dim(mf$Z)[2]) {
-            ivfit <- piv(mf$Y, mf$X, mf$Z, lmcomponents)
+            ivfit <- piv(mf$Y, mf$X, mf$Z, lmcomponents, tsls = TRUE)
             bhat <- ivfit$coef
             collinearInst <- ivfit$collinearInst
-            print("orig")
-            print(bhat)
             if (sum(is.na(bhat)) || sum(collinearInst)) {
                 if (sum(is.na(bhat))) {
                     collinearPos <- which(is.na(bhat))
@@ -263,18 +265,11 @@ ivEstimate <- function(formula, data, subset, components, treat,
                     mfX <- mf$X
                 }
                 if (sum(collinearInst)) {
-                    ## collinearInstPos <- which(names(colnames(mf$Z)) %in%
-                    ##                           collinearInst)
-                    ## print(collinearInst)
-                    ## print(names(colnames(mf$Z)))
-                    ## mfZ <- mf$Z[-collinearInstPos]
                     mfZ <- mf$Z[, !collinearInst]
                 } else {
                     mfZ <- mf$Z
                 }
                 sweight <- tsls(mfX, mfZ, components, treat, order)
-                print('hea dof IV weights')
-                print(head(sweight$s1))
                 bhat <- bhat[-collinearPos]
             } else {
                 sweight <- tsls(mf$X, mf$Z, components, treat, order)
