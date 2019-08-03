@@ -46,8 +46,13 @@ permute <- function(vector) {
 #' @param lmcomponents vector of variable names from the second stage
 #'     that we want to include in the S-set of IV-like estimands.
 #' @param weights vector of weights.
+#' @param order integer, the counter for which IV-like specification
+#'     and component the regression is for.
+#' @param tsls boolean, to indicate whether or not the regression
+#'     involves excluded variables.
 #' @return vector of select coefficient estimates.
-piv <- function(Y, X, Z, lmcomponents, weights = NULL, tsls = TRUE) {
+piv <- function(Y, X, Z, lmcomponents, weights = NULL, order = NULL,
+                excluded = TRUE) {
     ## project regressors x on image of instruments z
     if (ncol(Z) < ncol(X)) {
         stop(gsub("\\s+", " ",
@@ -55,9 +60,9 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL, tsls = TRUE) {
                   IV-like specification: ", formula, ".")), call. = FALSE)
     }
     ## Check that the instruments are different from X. If they are
-    ## the same, and 'tsls = TRUE', then the user is submitting an
+    ## the same, and 'excluded = TRUE', then the user is submitting an
     ## unclear formula.
-    if (all(sort(colnames(X)) == sort(colnames(Z))) && tsls == TRUE) {
+    if (all(sort(colnames(X)) == sort(colnames(Z))) && excluded == TRUE) {
         stop(gsub("\\s+", " ",
                   paste0("Please ensure that IV-like specifications are not
                           defined such that the first stage covariates are
@@ -66,7 +71,22 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL, tsls = TRUE) {
                           regression formula.")),
              call. = FALSE)
     }
-    fstage <- if (is.null(weights)) lm.fit(Z, X) else lm.wfit(Z, X, weights)
+    fstage <-
+        try(if (is.null(weights)) lm.fit(Z, X) else lm.wfit(Z, X, weights),
+            silent = TRUE)
+    if (class(fstage) == "try-error") {
+        errorMessage <- fstage[[1]]
+        errorMessage <- gsub("Error in lm.fit\\(Z, X\\) : ", "", errorMessage)
+        errorMessage <- gsub("Error in lm.wfit\\(Z, X, weights\\) : ", "",
+                             errorMessage)
+        stop(gsub("\\s+", " ",
+                  paste0("IV-like specification ",
+                         order,
+                         " generates the following error:\n ",
+                         trimws(errorMessage, which = "right"),
+                         ". Check the specification and its
+                          corresponding subset condition.")), call. = FALSE)
+    }
     nullCheck <- apply(X = fstage$coef, MARGIN = 1,
                        FUN = function(x) any(is.na(x)))
     Xhat <- as.matrix(fstage$fitted.values)
@@ -113,7 +133,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
                          list = FALSE, order = NULL) {
     formula <- Formula::as.Formula(formula)
     call <- match.call(expand.dots = FALSE)
-
     ## Select components
     if (list == TRUE) {
         if (!is.character(components)) {
@@ -125,12 +144,10 @@ ivEstimate <- function(formula, data, subset, components, treat,
                             paste(components, collapse = ", "),
                             ")")
     }
-
     ## Address deparse byte limit
     if (length(components > 1)) {
         components <- gsub("\\s+", " ", Reduce(paste, components))
     }
-
     ## Address factors whose values are listed, e.g. factor(x)-1,
     ## factor(x)-2. General declaration of factors is dealt with
     ## below.
@@ -143,7 +160,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
         components   <- substr(components, 3, nchar(components) - 1)
         components   <- strsplit(components, ", ")[[1]]
     }
-
     ## Some interactions  may need  to be  relabled by  reordering the
     ## order of the interaction
     termsR <- attr(terms(formula), "term.labels")
@@ -227,7 +243,8 @@ ivEstimate <- function(formula, data, subset, components, treat,
                                  keepargs = c("formula", "subset"),
                                  newargs = list(data = quote(data))))
         }
-        bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents, tsls = FALSE)$coef
+        bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents, order = order,
+                    excluded = FALSE)$coef
         if (sum(is.na(bhat))) {
             collinearPos <- which(is.na(bhat))
             mfX <- mf$X[, -collinearPos]
@@ -242,14 +259,10 @@ ivEstimate <- function(formula, data, subset, components, treat,
             sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat)
         }
     } else {
-        ## if (length(formula)[2] == 2 &
-        ##     dim(mf$X)[2] == dim(mf$Z)[2]) {
-        ##     bhat <- piv(mf$Y, mf$X, mf$Z, lmcomponents)
-        ##     sweight <- ivj(mf$X, mf$Z, components, treat, order)
-        ## } else if (length(formula)[2] == 2 & dim(mf$X)[2] < dim(mf$Z)[2]) {
         if (length(formula)[2] == 2 &
             dim(mf$X)[2] <= dim(mf$Z)[2]) {
-            ivfit <- piv(mf$Y, mf$X, mf$Z, lmcomponents, tsls = TRUE)
+            ivfit <- piv(mf$Y, mf$X, mf$Z, lmcomponents, order = order,
+                         excluded = TRUE)
             bhat <- ivfit$coef
             collinearInst <- ivfit$collinearInst
             if (sum(is.na(bhat)) || sum(collinearInst)) {
