@@ -3484,7 +3484,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
                                               function(x) sset[[x]]$ivspec),
                        b = redundantNames)
         colnames(redundantMat) <- c("IV specification", "Component")
-        message("\nRedundant components:\n")
+        message("\nRedundant components:")
         message(paste0(capture.output(print(redundantMat, row.names = FALSE)),
                        collapse = "\n"))
         stop(gsub("\\s+", " ",
