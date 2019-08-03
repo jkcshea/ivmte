@@ -3464,7 +3464,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
                    ncol = 1 + gn0 + gn1, byrow = TRUE)[, -1]
     if (qr(Amat)$rank < (gn0 + gn1)) {
         stop(gsub("\\s+", " ",
-                  paste0("System is underidentified: there are ",
+                  paste0("GMM system is underidentified: there are ",
                   (gn0 + gn1),
                   " unknown MTR coefficients and ",
                   qr(Amat)$rank,
@@ -3473,6 +3473,34 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
                     IV-like specifications, or adjust m0 and m1.")),
              call. = FALSE)
     }
+    if (qr(Amat)$rank < length(sset)) {
+        qAmat <- qr(Amat)
+        redundantMoments <- seq(length(sset))[-qAmat$pivot[seq(qAmat$rank)]]
+        redundantNames <- sapply(redundantMoments,
+                                 function(x) names(sset[[x]]$beta))
+        redundantNames[redundantNames == "(Intercept)"] <- "intercept"
+        redundantMat <-
+            data.frame(a = sapply(redundantMoments,
+                                              function(x) sset[[x]]$ivspec),
+                       b = redundantNames)
+        colnames(redundantMat) <- c("IV specification", "Component")
+        message("\nRedundant components:\n")
+        message(paste0(capture.output(print(redundantMat, row.names = FALSE)),
+                       collapse = "\n"))
+        stop(gsub("\\s+", " ",
+                  paste0("GMM system is collinear: there are ",
+                  length(sset),
+                  " moment conditions defined by the
+                    IV-like specifications, but only ",
+                  qr(Amat)$rank,
+                  " are linearly independent. The table above
+                  indicates the set of components whose moment conditions are
+                  linearly dependent and can be removed from the S-set.")),
+             call. = FALSE)
+    }
+
+
+    stop("SE IF YOU CAN GET HTE EXACT ONES THAT FAIL.")
     ## This function defines the moment conditions for the GMM
     ## estimator, allowing for recentering. The argument 'theta' is
     ## for a vector storing the parameters of interest in the
