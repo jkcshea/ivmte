@@ -3498,9 +3498,6 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
                   linearly dependent and can be removed from the S-set.")),
              call. = FALSE)
     }
-
-
-    stop("SE IF YOU CAN GET HTE EXACT ONES THAT FAIL.")
     ## This function defines the moment conditions for the GMM
     ## estimator, allowing for recentering. The argument 'theta' is
     ## for a vector storing the parameters of interest in the
