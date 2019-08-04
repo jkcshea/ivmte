@@ -608,11 +608,10 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
     maxg1 <- maxoptx[(2 * lpobj$sn + lpobj$gn0 + 1) :
                      (2 * lpobj$sn + lpobj$gn0 + lpobj$gn1)]
     if (hasArg(sset)) {
-        names(ming0) <- names(sset$gstar$g0)
-        names(ming1) <- names(sset$gstar$g1)
-
-        names(maxg0) <- names(sset$gstar$g0)
-        names(maxg1) <- names(sset$gstar$g1)
+        names(ming0) <- names(sset$s1$g0)
+        names(ming1) <- names(sset$s1$g1)
+        names(maxg0) <- names(sset$s1$g0)
+        names(maxg1) <- names(sset$s1$g1)
     }
     if (noisy) {
         message(paste0("Min status: ", minstatus, "\n"))

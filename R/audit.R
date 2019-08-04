@@ -382,7 +382,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                       Infeasible specifications include: ",
                       paste(unique(violateType), collapse = ", "), ".\n")))
         }
-
         if (noisy) {
             message(paste("    Minimum criterion:", fmtResult(minobseq$obj)))
         }
@@ -400,7 +399,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
         optstatus <- min(c(lpresult$minstatus,
                            lpresult$maxstatus))
-
         if (optstatus == 0) {
             if (obseq.tol == 0) {
                 stop(gsub("\\s+", " ",
@@ -530,13 +528,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
     }
     return(list(max = lpresult$max,
                 min = lpresult$min,
-                maxresult = lpresult$maxresult,
-                minresult = lpresult$minresult,
-                solutionMin = solVecMin,
-                solutionMax = solVecMax,
                 lpresult = lpresult,
                 minobseq = minobseq$obj,
-                gridobj = mbobj$gridob,
+                gridobj = mbobj$gridobj,
                 auditcount = audit_count))
 }
 

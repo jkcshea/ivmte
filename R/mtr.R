@@ -468,7 +468,6 @@ removeSplines <- function(formula, env = parent.frame()) {
                                    splinesSpec$knots) == TRUE) &
                         (splinesDict[[j]]$intercept == splinesSpec$intercept) &
                         (splinesDict[[j]]$degree == splinesSpec$degree)
-
                     j <- j + 1
                 }
             }
@@ -476,6 +475,8 @@ removeSplines <- function(formula, env = parent.frame()) {
             if (inDict == FALSE) {
                 splinesDict[[length(splinesDict) + 1]] <-
                     splinesSpec[order(names(splinesSpec))]
+
+                splinesDict[[length(splinesDict)]]$gstar.index <- i
                 splinesKey <- rbind(splinesKey, c(i, length(splinesDict)))
             } else {
                 splinesKey <- rbind(splinesKey, c(i, j - 1))
@@ -724,10 +725,8 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
         } else {
             gmmRownames <- rownames(data)[as.integer(eval(subset, data))]
         }
-
         if (length(lb) == 1) lb <- replicate(nrow(data[subset, ]), lb)
         if (length(ub) == 1) ub <- replicate(nrow(data[subset, ]), ub)
-
         splinesGamma <- NULL
         splinesNames <- NULL
         splinesInter <- NULL
@@ -773,13 +772,12 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
                                                 "uSplineInt(x = ub, ",
                                                 names(splines)[j])))
             splinesInt <- splinesUB - splinesLB
-
             ## Combine the design and integral matrices
             ## for (l in 1:length(splines[[j]])) {
             for (l in 1:length(colnames(nonSplinesDmat))) {
                 tmpGamma <- sweep(splinesInt,
                                   MARGIN = 1,
-                                  STATS = nonSplinesDmat[, l],
+                                  STATS = nonSplinesDmat[subset, l],
                                   FUN = "*")
                 tmpGamma <- sweep(x = tmpGamma,
                                   MARGIN = 1,

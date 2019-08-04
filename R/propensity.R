@@ -114,7 +114,7 @@ propensity <- function(formula, data, link = "logit", late.Z,
                           propensity."))
            }
         }
-        return(list(model = model, phat = phat))
+        return(list(variable = pname, model = model, phat = phat))
     } else {
         stop(gsub("\\s+", " ",
                   paste0("'formula' argument characterizing the

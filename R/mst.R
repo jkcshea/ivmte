@@ -2605,18 +2605,22 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (!smallreturnlist) {
         return(list(sset  = sset,
                     gstar = list(g0 = gstar0,
-                                 g1 = gstar1,
-                                 w0 = targetGammas$w0,
-                                 w1 = targetGammas$w1),
+                                 g1 = gstar1),
+                    gstar.weights = list(w0 = targetGammas$w0,
+                                         w1 = targetGammas$w1),
+                    gstar.coef = list(min.g0 = audit$lpresult$ming0,
+                                     max.g0 = audit$lpresult$maxg0,
+                                     min.g1 = audit$lpresult$ming1,
+                                     max.g1 = audit$lpresult$maxg1),
                     propensity = pmodel,
                     pointestimate = NULL,
                     bounds = c(audit$min, audit$max),
                     lpresult =  audit$lpresult,
-                    auditgrid = audit$gridobj,
-                    auditcount = audit$auditcount,
-                    minobseq = audit$minobseq,
-                    splinesdict = list(splinesobj[[1]]$splinesdict,
-                                       splinesobj[[2]]$splinesdict)))
+                    audit.grid = audit$gridobj,
+                    audit.count = audit$auditcount,
+                    audit.minobseq = audit$minobseq,
+                    splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
+                                       m1 = splinesobj[[2]]$splinesdict)))
     } else {
         sset <- lapply(sset, function(x) {
             x[c("ivspec", "beta", "g0", "g1")]
@@ -2624,12 +2628,16 @@ ivmteEstimate <- function(ivlike, data, subset, components,
         output <- list(sset  = sset,
                     gstar = list(g0 = gstar0,
                                  g1 = gstar1),
+                    gstarcoef = list(ming0 = audit$ming0,
+                                     maxg0 = audit$maxg0,
+                                     ming1 = audit$ming1,
+                                     maxg1 = audit$maxg1),
                     pointestimate = NULL,
                     bounds = c(audit$min, audit$max),
-                    auditcount = audit$auditcount,
-                    minobseq = audit$minobseq,
-                    splinesdict = list(splinesobj[[1]]$splinesdict,
-                                       splinesobj[[2]]$splinesdict))
+                    audit.count = audit$auditcount,
+                    audit.minobseq = audit$minobseq,
+                    splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
+                                       m1 = splinesobj[[2]]$splinesdict))
         if (all(class(pmodel$model) != "NULL")) {
             output$propensity.coef <- pmodel$model$coef
         }
@@ -2864,7 +2872,6 @@ genTarget <- function(treat, m0, m1, uname, target,
             gstarSpline1 <- gstarSplineObj1$gamma
         }
     } else {
-
         ## Convert fixed/numeric weights into functions
         if (is.numeric(target.weight0)) {
             target.weight0 <- sapply(target.weight0, constructConstant)
@@ -2881,7 +2888,6 @@ genTarget <- function(treat, m0, m1, uname, target,
             target.weight1[numeric] <- sapply(unlist(target.weight1[numeric]),
                                               constructConstant)
         }
-
         ## Convert fixed/numeric knots into functions
         if (!is.null(target.knots0)) {
             if (is.numeric(target.knots0)) {
@@ -2902,28 +2908,21 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                  constructConstant)
             }
         }
-
         for (d in 0:1) {
-
             mtr <- get(paste0("m", d))
-
             ## Include end points
             splitFirst <- function(...) {
                 0
             }
-
             splitLast <- function(...) {
                 1
             }
-
             target.knots <- c(splitFirst,
                               get(paste0("target.knots", d)),
                               splitLast)
 
             target.weight <- get(paste0("target.weight", d))
-
             ## Integrate non-splines terms
-
             if (!is.null(mtr)) {
                 if (noisy == TRUE) {
                     if (d == 0) {
@@ -2934,16 +2933,11 @@ genTarget <- function(treat, m0, m1, uname, target,
                             "    Integrating non-spline terms for treated group...")
                     }
                 }
-
                 pm <- get(paste0("pm", d))
-
                 gamma <- rep(0, length(pm$terms))
-
                 for(i in 1:length(target.weight)) {
-
                     wKnotVarsL <- formalArgs(target.knots[[i]])
                     wKnotVarsU <- formalArgs(target.knots[[i + 1]])
-
                     if (wKnotVarsL[1] == "...") {
                         lb <- unlist(lapply(X = seq(1, nrow(data)),
                                             FUN = funEval,
@@ -2968,9 +2962,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                                             fun = target.knots[[i + 1]],
                                             argnames = wKnotVarsU))
                     }
-
                     wValVars  <- formalArgs(target.weight[[i]])
-
                     if (wValVars[1] == "...") {
                         weights <- unlist(lapply(X = seq(1, nrow(data)),
                                                  FUN = funEval,
@@ -2982,7 +2974,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                  fun = target.weight[[i]],
                                                  argnames = wValVars))
                     }
-
                     if (point == FALSE) {
                         gamma <- gamma + genGamma(pm,
                                                   lb = lb,
@@ -2996,14 +2987,12 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                   means = FALSE)
                     }
                 }
-
                 assign(paste0("gstar", d), gamma)
                 assign(paste0("pm", d), pm)
             } else {
                 assign(paste0("gstar", d), NULL)
                 assign(paste0("pm", d), NULL)
             }
-
             ## Integrate splines terms
             if (noisy == TRUE) {
                 if (d == 0) {
@@ -3014,15 +3003,10 @@ genTarget <- function(treat, m0, m1, uname, target,
                         "    Integrating spline terms for treated group...\n")
                 }
             }
-
             noSplineMtr <- splinesobj[[d + 1]]
-
             if (!is.null(noSplineMtr$splineslist)) {
-
                 gammaSplines <- 0
-
                 for (i in 1:length(target.weight)) {
-
                     wKnotVarsL <- formalArgs(target.knots[[i]])
                     wKnotVarsU <- formalArgs(target.knots[[i + 1]])
 
@@ -3037,7 +3021,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                                             fun = target.knots[[i]],
                                             argnames = wKnotVarsL))
                     }
-
                     if (wKnotVarsU[1] == "...") {
                         ub <- unlist(lapply(X = seq(1, nrow(data)),
                                             FUN = funEval,
@@ -3052,7 +3035,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                     }
 
                     wValVars  <- formalArgs(target.weight[[i]])
-
                     if (wValVars[1] == "...") {
                         weights <- unlist(lapply(X = seq(1, nrow(data)),
                                                  FUN = funEval,
@@ -3064,9 +3046,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                  fun = target.weight[[i]],
                                                  argnames = wValVars))
                     }
-
                     if (point == FALSE) {
-
                         gammaSplines <- gammaSplines +
                             genGammaSplines(splinesobj = noSplineMtr,
                                             data = data,
