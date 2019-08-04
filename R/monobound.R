@@ -644,7 +644,7 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
         ## be appended to this.
         if (is.null(m0)) {
             A0 <- design(formula = as.formula(paste("~ 0 +", uname)),
-                         data = gridobj$grid)
+                         data = gridobj$grid)$X
         } else {
             m0 <- as.formula(paste(gsub("\\s+", " ",
                                         Reduce(paste, deparse(m0))), "+",
@@ -654,15 +654,14 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
         }
         if (is.null(m1)) {
             A1 <- design(formula = as.formula(paste("~ 0 +", uname)),
-                         data = gridobj$grid)
+                         data = gridobj$grid)$X
         } else {
             m1 <- as.formula(paste(gsub("\\s+", " ",
                                         Reduce(paste, deparse(m1))), "+",
                                    uname))
             A1 <- design(formula = m1, data = gridobj$grid)$X
             colnames(A1) <- parenthBoolean(colnames(A1))
-        }
-
+        }       
         dlist <- NULL
         if (!is.null(splines[[1]])) dlist <- c(dlist, 0)
         if (!is.null(splines[[2]])) dlist <- c(dlist, 1)

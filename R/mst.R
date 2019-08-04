@@ -1482,7 +1482,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                    replace = bootstraps.replace)
                 bdata <- data[bootIDs, ]
                 if (noisy == TRUE) {
-                    message(paste0("Bootstrap iteration ", b, "..."))
+                    cat("Bootstrap iteration ", b, "...\n", sep = "")
                 }
                 bootCall <-
                     modcall(estimateCall,
@@ -1496,16 +1496,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     b <- b + 1
                     bootFailN <- 0
                     if (noisy == TRUE) {
-                        message(paste0("    Audit count: ",
-                                       bootEstimate$auditcount))
-                        message(paste0("    Minimum criterion: ",
-                                       fmtResult(bootEstimate$minobseq)))
-                        message(paste0("    Bounds:",
-                                       paste0("[",
-                                              fmtResult(bootEstimate$bounds[1]),
-                                              ", ",
-                                              fmtResult(bootEstimate$bounds[2]),
-                                              "]")))
+                        cat("    Audit count: ",
+                            bootEstimate$auditcount, "\n", sep = "")
+                        cat("    Minimum criterion: ",
+                            fmtResult(bootEstimate$minobseq), sep = "")
+                        cat("    Bounds: ",
+                            paste0("[",
+                                   fmtResult(bootEstimate$bounds[1]),
+                                   ", ",
+                                   fmtResult(bootEstimate$bounds[2]),
+                                   "]"), "\n", sep = "")
                     }
                 } else {
                     if (noisy == TRUE) {
@@ -1603,48 +1603,46 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
             if (ci.type == "both") {
                 for (i in c("backward", "forward")) {
-                    message(paste0("\nBootstrapped confidence intervals (",
-                                   i, "):"))
+                    cat("\nBootstrapped confidence intervals (",
+                        i, "):\n", sep = "")
                     for (j in 1:length(levels)) {
                         cistr <- paste0("[",
                                         fmtResult(ci[[i]][j, 1]),
                                         ", ",
                                         fmtResult(ci[[i]][j, 2]),
                                         "]")
-                        message(paste0("    ",
-                                       levels[j] * 100,
-                                       "%: ",
-                                       cistr))
+                        cat("    ",
+                            levels[j] * 100,
+                            "%: ",
+                            cistr, "\n", sep = "")
                     }
                 }
-                message("\nBootstrapped p-values: ")
-                message(paste0("    Backward: ", fmtResult(pvalue[1])))
-                message(paste0("    Forward:  ", fmtResult(pvalue[2]), "\n"))
+                cat("\nBootstrapped p-values:\n")
+                cat("    Backward: ", fmtResult(pvalue[1]), "\n", sep = "")
+                cat("    Forward:  ", fmtResult(pvalue[2]), "\n", sep = "")
             } else {
-                message(paste0("\nBootstrapped confidence intervals (",
-                               ci.type, "):"))
+                cat("\nBootstrapped confidence intervals (",
+                    ci.type, "):", sep = "")
                 for (j in 1:length(levels)) {
                     cistr <- paste0("[",
                                     fmtResult(ci[j, 1]),
                                     ", ",
                                     fmtResult(ci[j, 2]),
                                     "]")
-                    message(paste0("    ",
-                                   levels[j] * 100,
-                                   "%: ",
-                                   cistr))
+                    cat("    ",
+                        levels[j] * 100,
+                        "%: ",
+                        cistr, "\n", sep = "")
                 }
-
                 if (ci.type == "backward") {
-                    message(paste0("\nBootstrapped p-value (backward): ",
-                                   pvalue, "\n"))
+                    cat("\nBootstrapped p-value (backward): ",
+                        pvalue, "\n", sep = "")
                 }
                 if (ci.type == "forward") {
-                    message(paste0("\nBootstrapped p-value (forward): ",
-                                   pvalue, "\n"))
+                    cat("\nBootstrapped p-value (forward): ",
+                        pvalue, "\n", sep = "")
                 }
             }
-
             ## Return output
             return(c(origEstimate,
                      list(bound.se = bootSE,
@@ -1739,7 +1737,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 }
             }
             if (noisy == TRUE) {
-                message(paste0("Bootstrap iteration ", b, "..."))
+                cat("Bootstrap iteration ", b, "...\n", sep = "")
             }
             bootCall <-
                 modcall(estimateCall,
@@ -1763,12 +1761,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 }
                 b <- b + 1
                 if (noisy == TRUE) {
-                    message(paste0("    Point estimate:",
-                                   fmtResult(bootEstimate$pointestimate)))
+                    cat("    Point estimate:",
+                        fmtResult(bootEstimate$pointestimate), "\n", sep = "")
                 }
             } else {
                 if (noisy == TRUE) {
-                    message(paste0("    Error, resampling..."))
+                    cat("    Error, resampling...\n", sep = "")
                 }
                 bootFailN <- bootFailN + 1
                 bootFailIndex <- unique(c(bootFailIndex, b))
@@ -1891,7 +1889,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         jtest = jtest)
         output <- c(output1, output2, output3)
 
-        message("\nBootstrapped confidence intervals (nonparametric):")
+        cat("\nBootstrapped confidence intervals (nonparametric):\n")
         for (level in levels) {
             ci1str <- get(paste0("ci1", level * 100))
             ci1str <- paste0("[",
@@ -1899,12 +1897,12 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              ", ",
                              fmtResult(ci1str[2]),
                              "]")
-            message(paste0("    ",
-                           level * 100,
-                           "%: ",
-                           ci1str))
+            cat("    ",
+                level * 100,
+                "%: ",
+                ci1str, sep = "")
         }
-        message("\nBootstrapped confidence intervals (normal quantiles):")
+        cat("\nBootstrapped confidence intervals (normal quantiles):\n")
         for (level in levels) {
             ci2str <- get(paste0("ci2", level * 100))
             ci2str <- paste0("[",
@@ -1912,13 +1910,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              ", ",
                              fmtResult(ci2str[2]),
                              "]")
-            message(paste0("    ",
-                           level * 100,
-                           "%: ",
-                           ci2str))
+            cat("    ",
+                level * 100,
+                "%: ",
+                ci2str, sep = "")
         }
-        message(paste0("\nBootstrapped p-value: ",
-                       fmtResult(pvalue), "\n"))
+        cat("\nBootstrapped p-value: ",
+            fmtResult(pvalue), "\n", sep = "")
         if (totalBootstraps > bootstraps) {
             warning(gsub("\\s+", " ",
                          paste0("In order to obtain ", bootstraps, " boostrap
@@ -2330,7 +2328,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
 
     if (noisy == TRUE) {
-        message("Obtaining propensity scores...")
+        cat("Obtaining propensity scores...\n")
     }
     ## Estimate propensity scores
     pcall <- modcall(call,
@@ -2347,7 +2345,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
 
     if (noisy == TRUE) {
-        message("Generating target moments...")
+        cat("Generating target moments...\n")
     }
     ## Parse polynomials
     if (!is.null(m0)) {
@@ -2417,7 +2415,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
 
     if (noisy == TRUE) {
-        message("Generating IV-like moments...")
+        cat("Generating IV-like moments...\n")
     }
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
@@ -2540,7 +2538,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
 
     if (noisy == TRUE) {
-        message("Performing audit procedure...")
+        cat("Performing audit procedure...")
     }
     audit.args <- c("uname", "vars_data",
                     "initgrid.nu", "initgrid.nx",
@@ -2598,8 +2596,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
     audit <- eval(audit_call)
     if (noisy) {
-        message(paste0("Bounds on the target parameter: [",
-                       fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n"))
+        cat("Bounds on the target parameter: [",
+            fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n\n", sep = "")
     }
     ## include additional output material
     if (!smallreturnlist) {
@@ -2814,7 +2812,7 @@ genTarget <- function(treat, m0, m1, uname, target,
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
             if (noisy == TRUE) {
-                message("    Integrating terms for control group...")
+                cat("    Integrating terms for control group...\n")
             }
             if (point == FALSE) {
                 gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
@@ -2827,7 +2825,7 @@ genTarget <- function(treat, m0, m1, uname, target,
 
         if (!is.null(m1)) {
             if (noisy == TRUE) {
-                message("    Integrating terms for treated group...")
+                cat("    Integrating terms for treated group...\n")
             }
             if (point == FALSE) {
                 gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp)
@@ -2926,11 +2924,17 @@ genTarget <- function(treat, m0, m1, uname, target,
             if (!is.null(mtr)) {
                 if (noisy == TRUE) {
                     if (d == 0) {
-                        message(
-                            "    Integrating non-spline terms for control group...")
+                        cat("    ",
+                            gsub("\\s", " ", 
+                                 "Integrating non-spline
+                                  terms for control group..."),
+                            "\n", sep = "")
                     } else {
-                        message(
-                            "    Integrating non-spline terms for treated group...")
+                        cat("    ",
+                            gsub("\\s+", " ", 
+                                 "Integrating non-spline
+                                  terms for treated group..."),
+                            "\n", sep = "")
                     }
                 }
                 pm <- get(paste0("pm", d))
@@ -2996,11 +3000,10 @@ genTarget <- function(treat, m0, m1, uname, target,
             ## Integrate splines terms
             if (noisy == TRUE) {
                 if (d == 0) {
-                    message(
-                        "    Integrating spline terms for control group...\n")
-                } else {
-                    message(
-                        "    Integrating spline terms for treated group...\n")
+                    cat("    Integrating spline terms for control group...\n")
+
+                    } else {
+                    cat("    Integrating spline terms for treated group...\n")
                 }
             }
             noSplineMtr <- splinesobj[[d + 1]]
@@ -3189,7 +3192,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
     if (!hasArg(subset_index)) subset_index <- NULL
     for (j in 1:ncomponents) {
         if (noisy == TRUE) {
-            message(paste0("    Moment ", scount, "..."))
+            cat("    Moment ", scount, "...\n", sep = "")
         }
         if (!is.null(pm0)) {
             if (means == TRUE) {
@@ -3464,9 +3467,9 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
                                               function(x) sset[[x]]$ivspec),
                        b = redundantNames)
         colnames(redundantMat) <- c("IV specification", "Component")
-        message("\nRedundant components:")
-        message(paste0(capture.output(print(redundantMat, row.names = FALSE)),
-                       collapse = "\n"))
+        cat("\nRedundant components:\n")
+        cat(paste0(capture.output(print(redundantMat, row.names = FALSE)),
+                   collapse = "\n"), sep = "")
         stop(gsub("\\s+", " ",
                   paste0("GMM system is collinear: there are ",
                   length(sset),
@@ -3533,9 +3536,8 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
                       paste0("m1.", colnames(gstar1)))
     pointestimate <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
     if (noisy == TRUE) {
-        message()
-        message(paste0("Point estimate of the target parameter: ",
-                       round(pointestimate, 4), "\n"))
+        cat("\nPoint estimate of the target parameter: ",
+            round(pointestimate, 4), "\n", sep = "")
     }
     return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta,

@@ -271,11 +271,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
     audit_count <- 1
     while (audit_count <= audit.max) {
         if (noisy) {
-            message(paste0("\n    Audit count: ", audit_count))
+            cat("\n\n    Audit count: ", audit_count, "\n", sep = "")
         }
         ## Generate all monotonicity and boundedness matrices for initial grid
         if (audit_count == 1) {
-            message("    Generating initial grid...")
+            cat("    Generating initial grid...\n")
             monoboundAlist <- c('sset', 'gstar0', 'gstar1',
                                 'm1.ub', 'm0.ub',
                                 'm1.lb', 'm0.lb',
@@ -383,11 +383,12 @@ audit <- function(data, uname, m0, m1, splinesobj,
                       paste(unique(violateType), collapse = ", "), ".\n")))
         }
         if (noisy) {
-            message(paste("    Minimum criterion:", fmtResult(minobseq$obj)))
+            cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
+                sep = "")
         }
         ## Obtain bounds
         if (noisy) {
-            message("    Obtaining bounds...")
+            cat("    Obtaining bounds...\n")
         }
         lpresult  <- bound(g0 = gstar0,
                            g1 = gstar1,
@@ -446,7 +447,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 }
             }
             ## Generate all monotonicity and boundedness matrices for the audit
-            message("    Generating audit grid...")
+            cat("    Generating audit grid...\n")
             monoboundAcall <- modcall(call,
                                       newcall = genmonoboundA,
                                       keepargs = monoboundAlist,
@@ -479,7 +480,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         violate <- as.logical(sum(violatevec))
         violatevec <- as.logical(violatevec)
         if (violate) {
-            message(paste0("    Violations: ", sum(violatevec)))
+            cat("    Violations: ", sum(violatevec), "\n")
             ## Store all points that violate the constraints
             diffVec <- violateDiffMin * as.integer(violateDiffMin -
                                                    violateDiffMax > 0) +
@@ -503,16 +504,16 @@ audit <- function(data, uname, m0, m1, splinesobj,
             if (audit_count <= audit.max) {
                 ## if (noisy) message("    Expanding initial grids...\n")
                 if (noisy) {
-                    message(paste0("    ",
-                                   gsub("\\s+", " ",
-                                        paste0("Expanding initial grids to
+                    cat("    ",
+                        gsub("\\s+", " ",
+                             paste0("Expanding initial grids to
                                         include ", length(violateIndexes),
-                                        " additional points..."))))
+                                    " additional points...")), sep = "")
                 }
             } else {
                 if (noisy) {
-                    message(gsub("\\s+", " ",
-                                 paste0("Audit finished: maximum number of
+                    cat(gsub("\\s+", " ",
+                             paste0("Audit finished: maximum number of
                                  audits (audit.max = ", audit.max,
                                  ") reached.\n")))
                 }
@@ -520,8 +521,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
             }
         } else {
             if (noisy) {
-                message("    Violations: 0")
-                message("    Audit finished.\n")
+                cat("    Violations: 0\n")
+                cat("    Audit finished.\n\n")
             }
             break
         }
