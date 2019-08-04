@@ -1497,15 +1497,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     bootFailN <- 0
                     if (noisy == TRUE) {
                         cat("    Audit count: ",
-                            bootEstimate$auditcount, "\n", sep = "")
+                            bootEstimate$audit.count, "\n", sep = "")
                         cat("    Minimum criterion: ",
-                            fmtResult(bootEstimate$minobseq), sep = "")
+                            fmtResult(bootEstimate$audit.minobseq),
+                            "\n", sep = "")
                         cat("    Bounds: ",
                             paste0("[",
                                    fmtResult(bootEstimate$bounds[1]),
                                    ", ",
                                    fmtResult(bootEstimate$bounds[2]),
-                                   "]"), "\n", sep = "")
+                                   "]"), "\n\n", sep = "")
                     }
                 } else {
                     if (noisy == TRUE) {
@@ -1603,7 +1604,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
             if (ci.type == "both") {
                 for (i in c("backward", "forward")) {
-                    cat("\nBootstrapped confidence intervals (",
+                    cat("Bootstrapped confidence intervals (",
                         i, "):\n", sep = "")
                     for (j in 1:length(levels)) {
                         cistr <- paste0("[",
@@ -1614,10 +1615,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         cat("    ",
                             levels[j] * 100,
                             "%: ",
-                            cistr, "\n", sep = "")
+                            cistr, "\n\n", sep = "")
                     }
                 }
-                cat("\nBootstrapped p-values:\n")
+                cat("Bootstrapped p-values:\n")
                 cat("    Backward: ", fmtResult(pvalue[1]), "\n", sep = "")
                 cat("    Forward:  ", fmtResult(pvalue[2]), "\n", sep = "")
             } else {
@@ -1900,7 +1901,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             cat("    ",
                 level * 100,
                 "%: ",
-                ci1str, sep = "")
+                ci1str, "\n", sep = "")
         }
         cat("\nBootstrapped confidence intervals (normal quantiles):\n")
         for (level in levels) {
@@ -1913,7 +1914,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             cat("    ",
                 level * 100,
                 "%: ",
-                ci2str, sep = "")
+                ci2str, "\n", sep = "")
         }
         cat("\nBootstrapped p-value: ",
             fmtResult(pvalue), "\n", sep = "")
@@ -2536,7 +2537,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
     ## 4. Define constraint matrices using the audit
     ##---------------------------
-
     if (noisy == TRUE) {
         cat("Performing audit procedure...")
     }
@@ -2925,13 +2925,13 @@ genTarget <- function(treat, m0, m1, uname, target,
                 if (noisy == TRUE) {
                     if (d == 0) {
                         cat("    ",
-                            gsub("\\s", " ", 
+                            gsub("\\s", " ",
                                  "Integrating non-spline
                                   terms for control group..."),
                             "\n", sep = "")
                     } else {
                         cat("    ",
-                            gsub("\\s+", " ", 
+                            gsub("\\s+", " ",
                                  "Integrating non-spline
                                   terms for treated group..."),
                             "\n", sep = "")
@@ -3537,7 +3537,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     pointestimate <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
     if (noisy == TRUE) {
         cat("\nPoint estimate of the target parameter: ",
-            round(pointestimate, 4), "\n", sep = "")
+            round(pointestimate, 4), "\n\n", sep = "")
     }
     return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta,

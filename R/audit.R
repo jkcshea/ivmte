@@ -502,7 +502,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbobj$mbs <- c(mbobj$mbs, a_mbobj$mbs[violateIndexes])
             audit_count <- audit_count + 1
             if (audit_count <= audit.max) {
-                ## if (noisy) message("    Expanding initial grids...\n")
                 if (noisy) {
                     cat("    ",
                         gsub("\\s+", " ",

@@ -571,7 +571,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
                                  const.mat = model$A,
                                  const.rhs = model$rhs,
                                  const.dir = model$sense)
-
         min <- minresult$objval
         optxA <- minresult$solution[1 : (lpobj$sn * 2)]
         optxB <- minresult$solution[(lpobj$sn * 2 + 1) :
@@ -579,10 +578,8 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         optxB <- optxB[1 : (length(optxB) / 2)] +
             optxB[(length(optxB) / 2 + 1) : length(optxB)]
         minoptx <- c(optxA, optxB)
-
         if (minresult$status == 0) minstatus <- 1
         if (minresult$status != 0) minstatus <- 0
-
         maxresult <- lpSolve::lp(direction = "max",
                                  objective.in = model$obj,
                                  const.mat = model$A,
@@ -614,11 +611,10 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         names(maxg1) <- names(sset$s1$g1)
     }
     if (noisy) {
-        message(paste0("Min status: ", minstatus, "\n"))
-        message(paste0("Max status: ", maxstatus, "\n"))
-        message(paste0("Bound: (", min, ", ", max, ")\n"))
+        cat("Min status: ", minstatus, "\n", sep = "")
+        cat("Max status: ", maxstatus, "\n", sep = "")
+        cat("Bound: (", min, ", ", max, ")\n", sep = "")
     }
-
     return(list(max = max,
                 maxg0 = maxg0,
                 maxg1 = maxg1,
