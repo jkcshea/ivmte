@@ -3469,7 +3469,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
         colnames(redundantMat) <- c("IV specification", "Component")
         cat("\nRedundant components:\n")
         cat(paste0(capture.output(print(redundantMat, row.names = FALSE)),
-                   collapse = "\n"), sep = "")
+                   collapse = "\n"), "\n", sep = "")
         stop(gsub("\\s+", " ",
                   paste0("GMM system is collinear: there are ",
                   length(sset),
