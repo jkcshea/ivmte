@@ -298,7 +298,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
-        minobseq  <- obsEqMin(sset, lpobj, lpsolver)
+        minobseq <- obsEqMin(sset, lpobj, lpsolver)
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -389,7 +389,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
-        }
+        }        
         lpresult  <- bound(g0 = gstar0,
                            g1 = gstar1,
                            sset = sset,

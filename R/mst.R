@@ -2507,8 +2507,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                         propensity = pmodel,
                         pointestimate = gmmResult$pointestimate,
                         Jtest = gmmResult$Jtest,
-                        bounds = c(gmmResult$pointestimate,
-                                   gmmResult$pointestimate),
                         mtr.coef = gmmResult$coef))
         } else {
             sset <- lapply(sset, function(x) {
@@ -2524,8 +2522,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                         g1 = colMeans(gstar1)),
                            pointestimate = gmmResult$pointestimate,
                            Jtest = gmmResult$Jtest,
-                           bounds = c(gmmResult$pointestimate,
-                                      gmmResult$pointestimate),
                            mtr.coef = gmmResult$coef)
             if (all(class(pmodel$model) != "NULL")) {
                 output$propensity.coef <- pmodel$model$coef
@@ -2611,7 +2607,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                      min.g1 = audit$lpresult$ming1,
                                      max.g1 = audit$lpresult$maxg1),
                     propensity = pmodel,
-                    pointestimate = NULL,
                     bounds = c(audit$min, audit$max),
                     lpresult =  audit$lpresult,
                     audit.grid = audit$gridobj,
@@ -2630,7 +2625,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                      maxg0 = audit$maxg0,
                                      ming1 = audit$ming1,
                                      maxg1 = audit$maxg1),
-                    pointestimate = NULL,
                     bounds = c(audit$min, audit$max),
                     audit.count = audit$auditcount,
                     audit.minobseq = audit$minobseq,
