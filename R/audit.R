@@ -202,7 +202,7 @@
 #' @export
 audit <- function(data, uname, m0, m1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1, vars_data,
-                  initgrid.nu = 10, initgrid.nx = 20,
+                  initgrid.nu = 20, initgrid.nx = 20,
                   audit.nx = 2500, audit.nu = 25, audit.add = 100,
                   audit.max = 25, audit.tol = 1e-08,
                   m1.ub, m0.ub, m1.lb, m0.lb,
