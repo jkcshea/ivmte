@@ -218,7 +218,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   noisy = TRUE, seed = 12345) {
     set.seed(seed)
     call  <- match.call()
-    lpsolver <- tolower(lpsolver)    
+    lpsolver <- tolower(lpsolver)
     ## Clean boolean terms
     terms_mtr0 <- parenthBoolean(terms_mtr0)
     terms_mtr1 <- parenthBoolean(terms_mtr1)
@@ -389,7 +389,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
-        }        
+        }
         lpresult  <- bound(g0 = gstar0,
                            g1 = gstar1,
                            sset = sset,

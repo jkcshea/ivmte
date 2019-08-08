@@ -1189,14 +1189,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## For the components, since they may be terms, we first collect
     ## all terms, and then break it down into variables.
+    print("Need to organize the parsing of components when factors exist.")
     vars_components <- NULL
     if (userComponents) {
         for (comp in components) {
-
             compString <- try(gsub("\\s+", " ",
                                    Reduce(paste, deparse(comp))),
                               silent = TRUE)
-
             if (class(compString) != "try-error") {
                 if (substr(compString, 1, 2) == "c(") {
                     vars_components <- c(vars_components,
@@ -1208,6 +1207,18 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                                   substitute = FALSE,
                                                   command = ""))
                 }
+                ## Remove all factor value specifications
+                vars_components <- strsplit(vars_components, ":")
+                vars_components <- lapply(vars_components,
+                                          function(x) {
+                                              xTmp <- sapply(x,
+                                                             strsplit,
+                                                             split = " - ")
+                                              xTmp <- lapply(xTmp,
+                                                             function(x) x[1])
+                                              unlist(xTmp)
+                                          })
+                vars_components <- unique(unlist(vars_components))
             }
         }
     }
@@ -2424,8 +2435,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     if (classList(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
-
-        ## loop across IV specifications
         ivlikeCounter <- 1
         for (i in 1:length(ivlike)) {
             sformula   <- ivlike[[i]]
@@ -2481,7 +2490,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                                   ivn = ivlikeCounter)
             }
             ivlikeCounter <- ivlikeCounter + 1
-
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
@@ -2491,6 +2499,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
+    print("here2")
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
         ## Obtain GMM estimate

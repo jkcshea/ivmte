@@ -36,16 +36,22 @@ extractcols <- function(M, components) {
 #' @param components Vector of variable names of which user wants the
 #'     S-weights for.
 #' @param treat Variable name for the treatment indicator.
+#' 
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
 olsj <- function(X, X0, X1, components, treat) {
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
+    print("here c")
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
     cpos <- which(colnames(X) %in% components)
     wvec0 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X0)
     wvec0 <- extractcols(t(wvec0), cpos)
+    print("here d")
+    print(head(wvec0))
+    print(components)
     colnames(wvec0) <- components
+    print("here e")
     wvec1 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X1)
     wvec1 <- extractcols(t(wvec1), cpos)
     colnames(wvec1) <- components

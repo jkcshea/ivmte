@@ -603,7 +603,7 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                           uname, m0, m1, sset, gstar0, gstar1,
                           m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub,
                           m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc) {
-    call <- match.call()    
+    call <- match.call()
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
     splinesinter <- list(splinesobj[[1]]$splinesinter,
@@ -661,7 +661,7 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                    uname))
             A1 <- design(formula = m1, data = gridobj$grid)$X
             colnames(A1) <- parenthBoolean(colnames(A1))
-        }       
+        }
         dlist <- NULL
         if (!is.null(splines[[1]])) dlist <- c(dlist, 0)
         if (!is.null(splines[[2]])) dlist <- c(dlist, 1)
