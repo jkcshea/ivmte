@@ -660,13 +660,11 @@ uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
 #'                        "ivmte:::uSplineBasis(x = x, ",
 #'                        names(splineslist)[2])))
 uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
-
     if (any(knots < 0) || any(knots > 1)) {
         stop(gsub("\\s+", " ",
                   "When defining splines, each knot must be inside the
                    [0, 1] interval."))
     }
-
     splines2::bSpline(x = x,
                       knots = knots,
                       degree = degree,

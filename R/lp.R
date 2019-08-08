@@ -566,6 +566,9 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         if (maxresult$status == 0) maxstatus <- 1
         if (maxresult$status != 0) maxstatus <- 0
     }
+    if (maxstatus == 0 || minstatus == 0) {
+        return(NULL)
+    }    
     ming0 <- minoptx[(2 * lpobj$sn + 1) : (2 * lpobj$sn + lpobj$gn0)]
     ming1 <- minoptx[(2 * lpobj$sn + lpobj$gn0 + 1) :
                      (2 * lpobj$sn + lpobj$gn0 + lpobj$gn1)]

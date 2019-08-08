@@ -396,6 +396,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
                            lpobj = lpobj,
                            obseq.factor = minobseq$obj * (1 + obseq.tol),
                            lpsolver = lpsolver)
+        if (is.null(lpresult)) {
+            message("    LP solutions are unbounded.")
+            cat("    Expanding initial grid, restarting audit.")
+            return("Failure to maximize/minimize.")
+        }
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
         optstatus <- min(c(lpresult$minstatus,

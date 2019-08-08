@@ -1763,7 +1763,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 }
             } else {
                 if (noisy == TRUE) {
-                    cat("    Error, resampling...\n", sep = "")
+                    message("    Error, resampling...\n", sep = "")
                 }
                 bootFailN <- bootFailN + 1
                 bootFailIndex <- unique(c(bootFailIndex, b))
@@ -2583,7 +2583,46 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
     ## 5. Obtain the bounds
     ##---------------------------
-    audit <- eval(audit_call)
+    ## Original -------------------------------------------
+    ## audit <- eval(audit_call)
+    ## Experimenting --------------------------------------
+    autoExpand <- 0
+    autoExpandMax <- 3
+    newGrid.nu <- initgrid.nu
+    newGrid.nx <- initgrid.nx
+    while(autoExpand <= autoExpandMax) {
+        audit <- eval(audit_call)
+        if (is.list(audit)) {
+            autoExpand <- Inf
+        }
+        else {
+            autoExpand <- autoExpand + 1
+            newGrid.nu <- ceiling(newGrid.nu * 1.5)
+            newGrid.nx <- ceiling(newGrid.nx * 1.5)
+            audit_call <-
+                modcall(audit_call,
+                        dropargs = c("initgrid.nu", "initgrid.nx"),
+                        newargs = list(initgrid.nu = newGrid.nu,
+                                       initgrid.nx = newGrid.nx))
+
+        }
+    }
+    if (!is.list(audit) && autoExpand > autoExpandMax) {
+        cat("\n\n")
+        stop(gsub("\\s+", " ",
+                  paste0("Automatic grid expansion limit reached.
+                         The LP problem is still unbounded.
+                         Either impose additional shape constraints,
+                         or increase the size of the initial grid
+                         for the audit.
+                         The last grid had 'initgrid.nx = ",
+                         ceiling(newGrid.nx / 1.5),
+                         "', 'initgrid.nu = ",
+                         ceiling(newGrid.nu / 1.5), "'.")),
+             call. = FALSE)
+    }
+
+    ## End experimenting ----------------------------------
     if (noisy) {
         cat("Bounds on the target parameter: [",
             fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n\n", sep = "")
