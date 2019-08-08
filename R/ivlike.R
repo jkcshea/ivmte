@@ -181,26 +181,27 @@ ivEstimate <- function(formula, data, subset, components, treat,
                            newcall = design,
                            keepargs = c("formula", "subset"),
                            newargs = list(data = quote(data))))
-    }   
+    }
     instrumented <- !is.null(mf$Z)
     ## Address factors whose values are not explicitly listed (i.e. if
     ## factor(var1) is povided as a component, this will choose every
     ## variable beginning with factor(var1) in the design matrix
-    warning("the regex check should have happened here already.")
     ## Experimenting --------------------------------------
     componentsSplit <- strsplit(components, ":")
-    print(componentsSplit)
     factorPos <- lapply(componentsSplit, function(x) {
-        grep(pattern = "factor([[:alnum:]])", x = x)
+        grep(pattern = "^factor\\(.*\\)$", x = x)
     })
-    print(factorPos)
-    stop()
+    factorSelect <- which(lapply(factorPos, length) > 0)
+    ## print(factorSelect)
+    ## print(factorPos[factorSelect])
     ## End experimenting ----------------------------------
     ## Original -------------------------------------------
     ## factorPos <- grep("factor\\(.\\)", components)
     ## End original ---------------------------------------
-    if (length(factorPos) > 0) {
-        factorVars <- components[factorPos]
+    ## if (length(factorPos) > 0) {
+    if (length(factorSelect > 0)) {
+        factorVars <- componentsSplit[factorSelect]
+        factorPos <- factorPos[factorSelect]
         ## Original --------------------------------------------------------
         ## factorPos <- sapply(factorVars,
         ##                     function(x) substr(x, nchar(x), nchar(x)) == ")")
@@ -217,30 +218,27 @@ ivEstimate <- function(formula, data, subset, components, treat,
         ## components <- c(components[! components %in% factorVars],
         ##                 unlist(factorVarsFull))
         ## Experimenting --------------------------------------------------
-        factorVars <- strsplit(factorVars, ":")
-        print('factor vars')
-        print(factorVars)
-        factorPos <- unlist(lapply(factorVars, grep, pattern = "factor(.)"))
-        factorVarsIso <- sapply(seq(length(factorVars)),
-                                function(x) factorVars[[x]][factorPos[x]])
-        interVars <- lapply(seq(length(factorVars)),
-                            function(x) {
-                                inter <- factorVars[[x]][-factorPos[x]]
-                                inter[length(inter) == 0] <- NA
-                                inter
-                            })
-        print(factorVarsIso)
-        print(interVars)
-        xVars <- colnames(mf$X)
-        print(xVars)
+        xVars <- strsplit(colnames(mf$X), ":")
+        compFactors <- NULL
+        for (i in 1:length(factorVars)) {
+            includeVec <- unlist(lapply(xVars, length)) ==
+                length(factorVars[[i]])
+            for (j in 1:length(factorVars[[i]])) {
+                tmpName <- factorVars[[i]][j]
+                tmpName <- gsub("\\(", "\\\\\\(", tmpName)
+                tmpName <- gsub("\\)", "\\\\\\)", tmpName)
 
-        
-        
-        stop("end of experiment")
+                tmpIncVec <- unlist(lapply(xVars,
+                                           function(x) max(grepl(tmpName, x))))
+                includeVec <- includeVec * tmpIncVec
+            }
+            compFactors <- c(compFactors,
+                             colnames(mf$X)[as.logical(includeVec)])
+        }
+        compFactors <- unique(compFactors)
+        components <- c(components[-factorSelect], compFactors)
         ## End experimenting ----------------------------------------------
     }
-
-    stop()
     ## Deal with boolean expressions (the user will have to fllow a
     ## naming convention, e.g. var1==1TRUE.
     for (op in c("==", "!=",
