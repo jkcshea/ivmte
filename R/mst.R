@@ -2583,9 +2583,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     ##---------------------------
     ## 5. Obtain the bounds
     ##---------------------------
-    ## Original -------------------------------------------
-    ## audit <- eval(audit_call)
-    ## Experimenting --------------------------------------
     autoExpand <- 0
     autoExpandMax <- 3
     newGrid.nu <- initgrid.nu
@@ -2621,8 +2618,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                          ceiling(newGrid.nu / 1.5), "'.")),
              call. = FALSE)
     }
-
-    ## End experimenting ----------------------------------
     if (noisy) {
         cat("Bounds on the target parameter: [",
             fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n\n", sep = "")
