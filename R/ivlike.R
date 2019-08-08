@@ -186,38 +186,14 @@ ivEstimate <- function(formula, data, subset, components, treat,
     ## Address factors whose values are not explicitly listed (i.e. if
     ## factor(var1) is povided as a component, this will choose every
     ## variable beginning with factor(var1) in the design matrix
-    ## Experimenting --------------------------------------
     componentsSplit <- strsplit(components, ":")
     factorPos <- lapply(componentsSplit, function(x) {
         grep(pattern = "^factor\\(.*\\)$", x = x)
     })
     factorSelect <- which(lapply(factorPos, length) > 0)
-    ## print(factorSelect)
-    ## print(factorPos[factorSelect])
-    ## End experimenting ----------------------------------
-    ## Original -------------------------------------------
-    ## factorPos <- grep("factor\\(.\\)", components)
-    ## End original ---------------------------------------
-    ## if (length(factorPos) > 0) {
     if (length(factorSelect > 0)) {
         factorVars <- componentsSplit[factorSelect]
         factorPos <- factorPos[factorSelect]
-        ## Original --------------------------------------------------------
-        ## factorPos <- sapply(factorVars,
-        ##                     function(x) substr(x, nchar(x), nchar(x)) == ")")
-        ## factorVars <- factorVars[factorPos]
-        ## factorVarsGrep <- sapply(factorVars, function(x) {
-        ##     x <- gsub("\\(", "\\\\\\(", x)
-        ##     x <- gsub("\\)", "\\\\\\)", x)
-        ##     x
-        ## })
-        ## xVars <- colnames(mf$X)
-        ## factorVarsPos <- sapply(factorVarsGrep, grep, x = xVars)
-        ## factorVarsFull <- lapply(factorVarsPos, function(x) xVars[x])
-        ## print(factorVarsFull)
-        ## components <- c(components[! components %in% factorVars],
-        ##                 unlist(factorVarsFull))
-        ## Experimenting --------------------------------------------------
         xVars <- strsplit(colnames(mf$X), ":")
         compFactors <- NULL
         for (i in 1:length(factorVars)) {
@@ -237,7 +213,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
         }
         compFactors <- unique(compFactors)
         components <- c(components[-factorSelect], compFactors)
-        ## End experimenting ----------------------------------------------
     }
     ## Deal with boolean expressions (the user will have to fllow a
     ## naming convention, e.g. var1==1TRUE.
@@ -254,6 +229,14 @@ ivEstimate <- function(formula, data, subset, components, treat,
     }
     ## Ensure components are uniquely declared
     components <- unique(components)
+    if (sum(!components[components != "intercept"] %in% colnames(mf$X))) {
+        errorVars <- components[!components %in% colnames(mf$X)]
+        errorVars <- errorVars[errorVars != "intercept"]
+        stop(gsub("\\s+", " ",
+                  paste0("The following components are not included in the
+                          IV-like specification ", order, ": ",
+                         paste(errorVars, sep = ", "), ".")))
+    }
     ## Generate the lmcomponents vector
     lmcomponents <- components
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
@@ -280,17 +263,8 @@ ivEstimate <- function(formula, data, subset, components, treat,
         }
         bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents, order = order,
                     excluded = FALSE)$coef
-        print(bhat)
-        stop()
         if (sum(is.na(bhat))) {
             collinearPos <- which(is.na(bhat))
-            print("bhat")
-            print(bhat)
-            print("collinearities")
-            print(collinearPos)
-            print("bhat")
-            print(bhat)
-            stop()
             mfX <- mf$X[, -collinearPos]
             mf0X <- mf0$X[, -collinearPos]
             mf1X <- mf1$X[, -collinearPos]

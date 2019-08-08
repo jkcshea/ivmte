@@ -1189,7 +1189,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## For the components, since they may be terms, we first collect
     ## all terms, and then break it down into variables.
-    print("Need to organize the parsing of components when factors exist.")
     vars_components <- NULL
     if (userComponents) {
         for (comp in components) {
@@ -1284,18 +1283,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     }
 
     ## Keep only complete cases
-    ## Original ------------------------------------------------------
-    ## varError <- allvars[! allvars %in% colnames(data)]
-    ## varError <- varError[varError != "intercept"]
-    ## if (length(varError) > 0) {
-    ##     varError <- paste0("The following variables are not contained
-    ##                       in the data set: ",
-    ##                       paste(varError, collapse = ", "),
-    ##                       ".")
-    ##     stop(gsub("\\s+", " ", varError), call. = FALSE)
-    ## }
-    ## data  <- data[(complete.cases(data[, allvars[allvars != "intercept"]])), ]
-    ## Experimenting ---------------------------
     varFound1 <- sapply(allvars, exists, where = data)
     vars_data <- allvars[varFound1]
     missingVars <- allvars[!varFound1]
@@ -1312,8 +1299,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         stop(gsub("\\s+", " ", varError), call. = FALSE)
     }
     data  <- data[complete.cases(data[, vars_data]), ]
-    ## End experimenting -----------------------
-
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
 
@@ -2499,7 +2484,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."))
     }
-    print("here2")
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
         ## Obtain GMM estimate
