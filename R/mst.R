@@ -25,64 +25,82 @@ utils::globalVariables("u")
 #' @param bootstraps.replace boolean, default set to \code{TRUE}. This
 #'     determines whether the resampling procedure used for inference
 #'     will sample with replacement.
-#' @param levels vector, real numbers between 0 and 1. Values
+#' @param levels vector of real numbers between 0 and 1. Values
 #'     correspond to the level of the confidence intervals constructed
 #'     via bootstrap.
-#' @param ci.type character, default set to 'both'. Set to 'forward'
-#'     to construct the forward confidence interval for the treatment
-#'     effect bound. Set to 'backward' to construct the backward
-#'     confidence interval for the treatment effect bound. Set to
-#'     'both' to construct both types of confidence intervals.
-#' @param pvalue.tol numeric, default set to 1e-08. Tolerance level
-#'     for determining p-value of treatment effect bound.
-#' @param ivlike formula or vector of formulas used to specify the
-#'     regressions for the IV-like estimands.
-#' @param data \code{data.frame} used to estimate the treatment
-#'     effects.
-#' @param subset single subset condition or list of subset conditions
-#'     corresponding to each IV-like estimand. The input must be
-#'     logical. See \code{\link{l}} on how to input the argument. If
-#'     the user wishes to select specific rows, construct a binary
-#'     variable in the data set, and set the condition to use only
-#'     those observations for which the binary variable is 1, e.g. the
-#'     binary variable is \code{use}, and the subset condition is
-#'     \code{use == 1}.
-#' @param components a list of vectors of the terms/components from
-#'     the regressions specifications we want to include in the set of
-#'     IV-like estimands. To select the intercept term, include in the
-#'     vector of variable names, `intercept'. If the the factorized
-#'     counterpart of a variable \code{x = 1, 2, 3} is included in the
-#'     IV-like specifications via \code{factor(x)}, the user can
-#'     select the coefficients for specific factors by declaring the
-#'     components \code{factor(x)-1, factor(x)-2, factor(x)-3}. See
-#'     \code{\link{l}} on how to input the argument. If no components
-#'     for a IV specification are given, then all components from that
-#'     IV specification will be included.
+#' @param ci.type character, default set to \code{'both'}. Set to
+#'     \code{'forward'} to construct the forward confidence interval
+#'     for the treatment effect bound. Set to \code{'backward'} to
+#'     construct the backward confidence interval for the treatment
+#'     effect bound. Set to \code{'both'} to construct both types of
+#'     confidence intervals.
+#' @param pvalue.tol numeric, default set to 1e-08. The p-value under
+#'     the partially identified case is constructed by iteratively
+#'     adjusting the confidence level to find a confidence interval
+#'     that does not contain 0. When the adjustment of the confidence
+#'     level falls below \code{pvalue.tol}, no further iterations are
+#'     performed.
+#' @param ivlike formula or vector of formulas specifying the
+#'     regressions for the IV-like estimands. Which coefficients to
+#'     use to define the constraints determining the treatment effect
+#'     bounds (alternatively, the moments determining the treatment
+#'     effect point estimate) can be selected in the arugment
+#'     \code{components}.
+#' @param data \code{data.frame} or \code{data.table} used to estimate
+#'     the treatment effects.
+#' @param subset a single subset condition or list of subset
+#'     conditions corresponding to each regression specified in
+#'     \code{ivlike}. The input must be logical. See \code{\link{l}}
+#'     on how to input the argument. If the user wishes to select
+#'     specific rows, construct a binary variable in the data set, and
+#'     set the condition to use only those observations for which the
+#'     binary variable is 1, e.g. the binary variable is \code{use},
+#'     and the subset condition is \code{use == 1}.
+#' @param components a list of vectors of the terms in the regression
+#'     specifications to include in the set of IV-like estimands. No
+#'     terms should be in quotes. To select the intercept term,
+#'     include the name \code{intercept}. If the factorized
+#'     counterpart of a variable is included in the IV-like
+#'     specifications, e.g. \code{factor(x)} where \code{x = 1, 2, 3},
+#'     the user can select the coefficients for specific factors by
+#'     declaring the components \code{factor(x)-1, factor(x)-2,
+#'     factor(x)-3}. See \code{\link{l}} on how to input the
+#'     argument. If no components for a IV specification are given,
+#'     then all coefficients from that IV specification will be used
+#'     to define constraints in the partially identified case, or to
+#'     define moments in the point identified case.
 #' @param propensity formula or variable name corresponding to
 #'     propensity to take up treatment. If a formula is declared, then
-#'     the function estimates propensity score according to the
-#'     formula and link specified. If a variable name is declared,
-#'     then the corresponding column in the data is taken as the
-#'     vector of propensity scores.
-#' @param link name of link function to estimate propensity score. Can
-#'     be chosen from \code{linear}, \code{probit}, or
-#'     \code{logit}. Default is set to "logit".
-#' @param treat variable name for treatment indicator
-#' @param m0 one-sided formula for marginal treatment response
-#'     function for control group. Splines can also be incorporated
-#'     using the expression "uSplines(degree, knots, intercept)". The
-#'     'intercept' argument may be omitted, and is set to \code{TRUE}
-#'     by default.
+#'     the function estimates the propensity score according to the
+#'     formula and link specified in \code{link}. If a variable name
+#'     is declared, then the corresponding column in the data is taken
+#'     as the vector of propensity scores. A variable name can be
+#'     passed either as a string (e.g \code{propensity = 'p'}). , a
+#'     variable (e.g. \code{propensity = p}), or a one-sided formula
+#'     (e.g. \code{propensity = ~p}.
+#' @param link character, name of link function to estimate propensity
+#'     score. Can be chosen from \code{'linear'}, \code{'probit'}, or
+#'     \code{'logit'}. Default is set to \code{'logit'}.
+#' @param treat variable name for treatment indicator. The name can be
+#'     provided with or without quotation marks.
+#' @param m0 one-sided formula for the marginal treatment response
+#'     function for the control group. Splines may also be
+#'     incorporated using the expression \code{uSpline}, e.g.
+#'     \code{uSpline(degree = 2, knots = c(0.4, 0.8), intercept =
+#'     TRUE)}. The \code{intercept} argument may be omitted, and is
+#'     set to \code{TRUE} by default.
 #' @param m1 one-sided formula for marginal treatment response
 #'     function for treated group. Splines can also be incorporated
 #'     using the expression "uSplines(degree, knots, intercept)". The
-#'     'intercept' argument may be omitted, and is set to \code{TRUE}
-#'     by default.
-#' @param uname variable name for unobservable used in declaring MTRs.
-#' @param target target parameter to be estimated. Currently function
-#'     allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
-#'     ("\code{atu}"), LATE ("\code{late}"), and generalized LATE
-#'     ("\code{genlate}").
+#'     \code{intercept} argument may be omitted, and is set to
+#'     \code{TRUE} by default.
+#' @param uname variable name for the unobservable used in declaring
+#'     the MTRs. The name canbe provided with or without quotation
+#'     marks.
+#' @param target character, target parameter to be
+#'     estimated. Currently function allows for ATE (\code{'ate'}),
+#'     ATT (\code{'att'}), ATU (\code{'atu'}), LATE (\code{'late'}),
+#'     and generalized LATE (\code{'genlate'}).
 #' @param target.weight0 user-defined weight function for the control
 #'     group defining the target parameter. A list of functions can be
 #'     submitted if the weighting function is in fact a spline. The
@@ -91,25 +109,19 @@ utils::globalVariables("u")
 #'     then the user can instead submit the value of the weight
 #'     instead of a function.
 #' @param target.weight1 user-defined weight function for the treated
-#'     group defining the target parameter. A list of functions can be
-#'     submitted if the weighting function is in fact a spline. The
-#'     arguments of the function should be variable names in
-#'     \code{data}. If the weight is constant across all observations,
-#'     then the user can instead submit the value of the weight
-#'     instead of a function.
+#'     group defining the target parameter. See \link{target.weight0}
+#'     for details.
 #' @param target.knots0 user-defined set of functions defining the
-#'     knots associated with splines weights for the control
-#'     group. The arguments of the function should consist only of
-#'     variable names in \code{data}. If the knots are constant across
-#'     all observations, then the user can instead submit the vector
-#'     of knots instead of a function.
-#' @param target.knots1 user-defined set of functions defining the
-#'     knots associated with splines weights for the treated
-#'     group. The arguments of the function should be variable names
+#'     knots associated with spline weights for the control group. The
+#'     arguments of the function should consist only of variable names
 #'     in \code{data}. If the knots are constant across all
 #'     observations, then the user can instead submit the vector of
 #'     knots instead of a function.
-#' @param late.Z vector of variable names used to define the LATE.
+#' @param target.knots1 user-defined set of functions defining the
+#'     knots associated with splines weights for the treated
+#'     group. See \link{target.knots0} for details.
+#' @param late.Z vector of variables used to define the LATE. Variable
+#'     names should be submitted without quotation marks.
 #' @param late.from baseline set of values of Z used to define the
 #'     LATE.
 #' @param late.to comparison set of values of Z used to define the
@@ -227,7 +239,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'both',
                   pvalue.tol = 1e-08, ivlike, data, subset,
-                  components, propensity, link = "logit", treat, m0,
+                  components, propensity, link = 'logit', treat, m0,
                   m1, uname = u, target, target.weight0 = NULL,
                   target.weight1, target.knots0, target.knots1 = NULL,
                   late.Z, late.from, late.to, late.X, eval.X,
