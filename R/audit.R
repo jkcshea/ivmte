@@ -52,10 +52,6 @@
 #'     \code{audit.add * 5} additional points added to the grid.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
-#' @param audit.tol tolerance for determining when to end the audit
-#'     procedure. Namely, if the percentage change in the upper and
-#'     lower bounds both fall below \code{audit.tol} between
-#'     iterations of the audit, the audit procedure ends.
 #' @param m1.ub numeric value for upper bound on MTR for treated
 #'     group.
 #' @param m0.ub numeric value for upper bound on MTR for control
@@ -204,7 +200,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                   initgrid.nu = 20, initgrid.nx = 20,
                   audit.nx = 2500, audit.nu = 25, audit.add = 100,
-                  audit.max = 25, audit.tol = 1e-08,
+                  audit.max = 25,
                   m1.ub, m0.ub, m1.lb, m0.lb,
                   m1.ub.default = FALSE,
                   m0.ub.default = FALSE,
