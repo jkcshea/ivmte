@@ -531,7 +531,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 min = lpresult$min,
                 lpresult = lpresult,
                 minobseq = minobseq$obj,
-                gridobj = mbobj$gridobj,
+                gridobj = a_mbobj$gridobj,
                 auditcount = audit_count))
 }
 

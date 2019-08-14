@@ -2,16 +2,20 @@ utils::globalVariables("u")
 
 #' Instrumental Variables: Extrapolation by Marginal Treatment Effects
 #'
-#' This function provides a general framework for using the marginal treatment
-#' effect (MTE) to extrapolate. The model is the same binary treatment
-#' instrumental variable (IV) model considered by
-#' \href{https://doi.org/10.2307/2951620}{Imbens and Angrist (1994)} and
-#' \href{https://doi.org/10.1111/j.1468-0262.2005.00594.x}{Heckman and Vytlacil
-#' (2005)}. The framework on which this function is based was developed by
-#' \href{https://doi.org/10.3982/ECTA15463}{Mogstad, Santos and Torgovitsky
-#' (2018)}. See also the recent survey paper on extrapolation in IV models by
-#' \href{https://doi.org/10.1146/annurev-economics-101617-041813}{Mogstad and
-#' Torgovitsky (2018)}.
+#' This function provides a general framework for using the marginal
+#' treatment effect (MTE) to extrapolate. The model is the same binary
+#' treatment instrumental variable (IV) model considered by
+#' \href{https://doi.org/10.2307/2951620}{Imbens and Angrist (1994)}
+#' and \href{https://doi.org/10.1111/j.1468-0262.2005.00594.x}{Heckman
+#' and Vytlacil (2005)}. The framework on which this function is based
+#' was developed by \href{https://doi.org/10.3982/ECTA15463}{Mogstad,
+#' Santos and Torgovitsky (2018)}. See also the recent survey paper on
+#' extrapolation in IV models by
+#' \href{https://doi.org/10.1146/annurev-economics-101617-041813}{Mogstad
+#' and Torgovitsky (2018)}. A detailed description of the module and
+#' its features can be found in
+#' \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea
+#' and Torgovitsky (2019)}.
 #'
 #' @import methods stats utils
 #'
@@ -254,10 +258,6 @@ utils::globalVariables("u")
 #' spline declared in each MTR.
 #' }
 #'
-#' This includes all IV-like estimands; the propensity score model;
-#' bounds on the treatment effect; the estimated expectations of each
-#' term in the MTRs; the components and results of the LP problem.
-#'
 #' @examples
 #' ivlikespecs <- c(ey ~ d | z,
 #'                  ey ~ d | factor(z),
@@ -299,10 +299,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   smallreturnlist = FALSE, seed = 12345) {
 
     ## Include into Roxygen documentation once document is published..
-    ## A detailed description of the module and its features
-    ## can be found in
-    ## \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea and
-    ## Torgovitsky (2019)}.
     call <- match.call(expand.dots = FALSE)
     envList <- list(m0 = environment(m0),
                     m1 = environment(m1),
@@ -2692,7 +2688,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                     propensity = pmodel,
                     bounds = c(audit$min, audit$max),
                     lpresult =  audit$lpresult,
-                    audit.grid = audit$gridobj,
+                    audit.grid = audit$gridobj$grid,
                     audit.count = audit$auditcount,
                     audit.minobseq = audit$minobseq,
                     splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
@@ -2885,7 +2881,6 @@ genTarget <- function(treat, m0, m1, uname, target,
         } else {
             stop("Unrecognized target parameter.")
         }
-
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
             if (noisy == TRUE) {
