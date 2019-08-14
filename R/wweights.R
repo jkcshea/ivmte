@@ -108,7 +108,6 @@ watu1 <- function(data, expd0, propensity) {
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
 wlate1 <- function(data, from, to, Z, model, X, eval.X) {
-
     if (!hasArg(eval.X)) {
         fixDataFrom <- data.frame(matrix(from, nrow = 1))
         fixDataTo   <- data.frame(matrix(to, nrow = 1))
@@ -121,7 +120,6 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
         colnames(fixDataFrom) <- c(X, Z)
         colnames(fixDataTo)   <- c(X, Z)
     }
-
     ## Determine the type of model we are working with (lm vs. glm)
     modclass <- class(model)[1]
     ## Predict propensity scores for 'from' case
@@ -140,10 +138,8 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
         bto   <- predict.glm(model, fixDataTo,
                            type = "response")
     }
-
     ## Predict propensity scores using data.frame model
     if (modclass == "data.frame") {
-
         cond_from <- mapply(function(a, b) paste(a, "==", b), Z, from)
         cond_from <- paste(cond_from, collapse = " & ")
         cond_to <- mapply(function(a, b) paste(a, "==", b), Z, to)
@@ -158,7 +154,6 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
         bfrom <- subset(model, eval(parse(text = cond_from)))[, pname]
         bto   <- subset(model, eval(parse(text = cond_to)))[, pname]
     }
-
     ## Ensure the bounds are within 0 and 1
     if (length(which(bfrom < 0)) > 0 | length(which(bto < 0)) > 0) {
         warning("Propensity scores below 0 set to 0.", immediate. = TRUE)

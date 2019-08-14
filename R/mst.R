@@ -2866,14 +2866,37 @@ genTarget <- function(treat, m0, m1, uname, target,
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "late") {
+            ## Original --------------------------------------------------------
+            ## if (!hasArg(late.X)) {
+            ##     late.X <- NULL
+            ##     eval.X <- NULL
+            ## }
+            ## w1 <- wlate1(data, late.from, late.to, late.Z,
+            ##              pmodobj$model, late.X, eval.X)
+            ## w0 <- w1
+            ## w0$mp <- -1 * w0$mp
+            ## Experimenting ---------------------------------------------------
             if (!hasArg(late.X)) {
                 late.X <- NULL
                 eval.X <- NULL
+            } else {
+                condX <- mapply(function(a, b) paste(a, "==", b),
+                                late.X, eval.X)
+                condX <- paste(condX, collapse = " & ")
+                data <- subset(data, eval(parse(text = condX)))
+                if (nrow(data) == 0) {
+                    stop(gsub("\\s+", " ",
+                              "no observations with the values specified in
+                               in 'eval.X'."), call. = FALSE)
+                }
             }
-            w1 <- wlate1(data, late.from, late.to, late.Z,
+            if (!is.null(m0)) pm0$polymat <- pm0$polymat[rownames(data), ]
+            if (!is.null(m1)) pm1$polymat <- pm1$polymat[rownames(data), ]
+            w1 <- wlate1(subsetData, late.from, late.to, late.Z,
                          pmodobj$model, late.X, eval.X)
             w0 <- w1
             w0$mp <- -1 * w0$mp
+            ## End experimenting -----------------------------------------------
         } else if (target == "genlate") {
             w1 <- wgenlate1(data, genlate.lb, genlate.ub)
             w0 <- w1
@@ -2915,7 +2938,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                multiplier = w0$mp,
                                                d = 0)
             gstarSpline0 <- gstarSplineObj0$gamma
-
             gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                                data = data,
                                                lb = w1$lb,
@@ -2950,7 +2972,6 @@ genTarget <- function(treat, m0, m1, uname, target,
             target.weight0[numeric] <- sapply(unlist(target.weight0[numeric]),
                                               constructConstant)
         }
-
         if (is.numeric(target.weight1)) {
             target.weight1 <- sapply(target.weight1, constructConstant)
         } else {
@@ -2968,7 +2989,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                                                  constructConstant)
             }
         }
-
         if (!is.null(target.knots1)) {
             if (is.numeric(target.knots1)) {
                 target.knots1 <- sapply(target.knots1, constructConstant)
@@ -3025,7 +3045,6 @@ genTarget <- function(treat, m0, m1, uname, target,
                                             fun = target.knots[[i]],
                                             argnames = wKnotVarsL))
                     }
-
                     if (wKnotVarsU[1] == "...") {
                         ub <- unlist(lapply(X = seq(1, nrow(data)),
                                             FUN = funEval,

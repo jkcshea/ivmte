@@ -273,7 +273,6 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
     polymat <- monomials$polymat
     if (!is.null(subset)) polymat <- as.matrix(polymat[subset, ])
     nmono <- length(exporder)
-
     ## Determine bounds of integrals (i.e. include weights)
     if (length(ub) == 1) ub <- replicate(nrow(polymat), ub)
     if (length(lb) == 1) lb <- replicate(nrow(polymat), lb)
