@@ -124,16 +124,17 @@ utils::globalVariables("u")
 #' @param target.knots1 user-defined set of functions defining the
 #'     knots associated with spline weights for the treated group. See
 #'     \link{target.knots0} for details.
-#' @param late.Z vector of variables used to define the LATE. Variable
-#'     names should be submitted without quotation marks.
-#' @param late.from baseline set of values of Z used to define the
-#'     LATE.
-#' @param late.to comparison set of values of Z used to define the
-#'     LATE.
-#' @param late.X vector of variable names of covariates to condition
-#'     on when defining the LATE.
-#' @param eval.X numeric vector of the values at which to condition
-#'     \code{late.X} on when estimating the LATE.
+#' @param late.from a named vector, or a list, declaring the baseline
+#'     set of values of Z used to define the LATE. The name associated
+#'     with each value should be the name of the corresponding
+#'     variable.
+#' @param late.to a named vector, or a list, declaring the comparison
+#'     set of values of Z used to define the LATE. The name associated
+#'     with each value should be the name of the corresponding
+#'     variable.
+#' @param late.X a named vector, or a list, declaring the values at
+#'     which to condition on. The name associated with each value
+#'     should be the name of the corresponding variable.
 #' @param genlate.lb lower bound value of unobservable \code{u} for
 #'     estimating the generalized LATE.
 #' @param genlate.ub upper bound value of unobservable \code{u} for
@@ -288,7 +289,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   components, propensity, link = 'logit', treat, m0,
                   m1, uname = u, target, target.weight0 = NULL,
                   target.weight1, target.knots0, target.knots1 = NULL,
-                  late.Z, late.from, late.to, late.X, eval.X,
+                  late.from, late.to, late.X,
                   genlate.lb, genlate.ub, obseq.tol = 0.05,
                   initgrid.nu = 20, initgrid.nx = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
@@ -628,19 +629,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                  call. = FALSE)
         }
         if (target == "late") {
-            if (!(hasArg(late.Z) & hasArg(late.to) & hasArg(late.from))) {
+            if (!(hasArg(late.to) & hasArg(late.from))) {
                 stop(gsub("\\s+", " ",
                           "Target paramter of 'late' requires arguments
-                          'late.Z', 'late.to', and 'late.from'."),
-                     call. = FALSE)
-            }
-            if ((hasArg(late.X) & !hasArg(eval.X)) |
-               !hasArg(late.X) & hasArg(eval.X)) {
-                stop(gsub("\\s+", " ",
-                          "If the target parameter is 'late' or 'genlate',
-                          then either both
-                          late.X and eval.X are specified, or neither are
-                          specified."),
+                          'late.to', and 'late.from'."),
                      call. = FALSE)
             }
             ## Check the LATE arguments are declared properly.
@@ -656,19 +648,33 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             } else {
                 late.Z <- deparse(substitute(late.Z))
             }
-
+            late.Z = sort(names(late.from))
+            late.Ztmp = sort(names(late.to))
             if (length(late.to) != length(late.from) |
                 length(late.to) != length(late.Z)) {
                 stop(gsub("\\s+", " ",
-                          "The number of variables declared in 'late.Z'
-                           must be equal to the length of the vectors
-                           declared in 'late.to' and 'late.from'."),
+                          "The number of variables/values declared in 'late.to'
+                           and 'late.from' must be equal."),
+                     call. = FALSE)
+            }
+            if (!all(late.Z == late.Ztmp)) {
+                stop(gsub("\\s+", " ",
+                          "The variables declared in 'late.to' and 'late.from'
+                           must be the same."),
+                     call. = FALSE)
+            }
+            if (length(unique(late.Z)) != length(late.Z)) {
+                stop(gsub("\\s+", " ",
+                          "Each variable in 'late.to' and 'late.from' can only
+                           be assigned one value."),
                      call. = FALSE)
             }
             if (!is.numeric(late.to) | !is.numeric(late.from)) {
                 stop("Vectors 'late.from' and 'late.to' must be numeric.",
                      call. = FALSE)
             }
+            late.from <- late.from[late.Z]
+            late.to <- late.to[late.Z]
             if (all(late.to == late.from)) {
                 stop(gsub("\\s+", " ",
                           "'late.to' must be different from 'late.from'."),
@@ -676,15 +682,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             }
         }
         if (target == "genlate") {
-            if ((hasArg(late.X) & !hasArg(eval.X)) |
-                !hasArg(late.X) & hasArg(eval.X)) {
-                stop(gsub("\\s+", " ",
-                          "If the target parameter is 'late' or 'genlate',
-                          then either both
-                          late.X and eval.X are specified, or neither are
-                          specified."),
-                     call. = FALSE)
-            }
             if (genlate.lb < 0 | genlate.ub > 1) {
                 stop(gsub("\\s+", " ",
                           "'genlate.lb' and 'genlate.ub' must be between 0
@@ -697,27 +694,9 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         }
         if (target == "late" | target == "genlate") {
             ## Check that included insturments are declared properly
-            if (hasArg(eval.X)) {
-                if (classList(eval.X)) eval.X <- unlist(eval.X)
-                xIsVec <- substr(deparse(substitute(late.X)), 1, 2) == "c("
-                xIsList <- substring(deparse(substitute(late.X)), 1, 2) == "l("
-                if (xIsVec) {
-                    late.X <- restring(substitute(late.X),
-                                       substitute = FALSE)
-                } else if (xIsList) {
-                    late.X <- restring(substitute(late.X),
-                                       substitute = FALSE,
-                                       command = "l")
-                } else {
-                    late.X <- deparse(substitute(late.X))
-                }
-                if (length(late.X) != length(eval.X)) {
-                    stop(gsub("\\s+", " ",
-                              "The number of variables declared in 'late.X'
-                       must be equal to the length of the vector
-                       declared in 'eval.X'."),
-                       call. = FALSE)
-                }
+            if (hasArg(late.X)) {
+                eval.X <- unlist(late.X)
+                late.X <- names(late.X)
                 if (!is.numeric(eval.X)) {
                     stop("Vector 'eval.X' must be numeric.",
                          call. = FALSE)
