@@ -336,7 +336,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                       gurobi (version 7.5-1 or later);
                       Rcplex (version 0.3.3 or later);
                       cplexAPI (version 1.3.3 or later);
-                      lpSolve (version 5.6.13 or later)."))
+                      lpSolve (version 5.6.13 or later)."),
+                 call. = FALSE)
         }
     } else {
         if (! lpsolver %in% c("gurobi",
@@ -351,7 +352,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              gurobi (version 7.5-1 or later);
                              Rcplex (version 0.3.3 or later);
                              cplexAPI (version 1.3.3 or later);
-                             lpSolve (version 5.6.13 or later).")))
+                             lpSolve (version 5.6.13 or later).")),
+                 call. = FALSE)
         }
     }
 
@@ -373,7 +375,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
     if (mtrFail) {
         stop(gsub("\\s+", " ",
                   "Arguments 'm0' and 'm1' must be one-sided formulas,
-                   e.g. m0 = ~ 1 + u + x:I(u ^ 2)."))
+                   e.g. m0 = ~ 1 + u + x:I(u ^ 2)."),
+             call. = FALSE)
     }
 
     ## Character arguments will be converted to lowercase
@@ -496,7 +499,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 stop(gsub("\\s+", " ",
                           "Subset conditions should be logical
                            expressions involving variable names from the
-                           data set and logical operators."))
+                           data set and logical operators."),
+                     call. = FALSE)
             } else if (subsetLogic == TRUE) {
                 ## Currently prohobit logical vectors. Instead
                 ## restrict to expressions only. Below is the code to
@@ -512,7 +516,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                            data set and logical operators. Make sure the name of
                            the variable is not the same as that of another
                            object in the workspace. If so, rename the object
-                           in the workspace, or the variable in the data set."))
+                           in the workspace, or the variable in the data set."),
+                     call. = FALSE)
             } else {
                 subsetStrSubs <- Reduce(paste, deparse(substitute(subset)))
                 subsetStr <- suppressWarnings(
@@ -532,7 +537,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     stop(gsub("\\s+", " ",
                               "Subset conditions should be logical
                            expressions involving variable names from the
-                           data set and logical operators."))
+                           data set and logical operators."),
+                         call. = FALSE)
                 }
                 subset <- eval(parse(text = subset))
             }
@@ -545,7 +551,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                        condition to be applied to all IV specifications; or
                        declare a list of subset conditions, one for each IV
                        specificaiton. An empty element in the list of subset
-                       conditions corresponds to using the full sample."))
+                       conditions corresponds to using the full sample."),
+                 call. = FALSE)
         }
         if (length(subset) == 1 && length_formula > 1) {
             subset <- rep(subset, length_formula)
@@ -570,7 +577,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                       logical: ",
                       paste(nonLogicSubset, collapse = ", "),
                       ". Please change the conditions so they
-                      are logical.")))
+                      are logical.")),
+                 call. = FALSE)
         }
 
         if(length(subset) < length_formula) {
@@ -608,29 +616,33 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         treatStr <- gsub("~", "", treatStr)
         treatStr <- gsub("\\\"", "", treatStr)
         if (! treatStr %in% colnames(data)) {
-            stop("Declared treatment indicator not found in data")
+            stop("Declared treatment indicator not found in data",
+                 call. = FALSE)
         }
     }
     if (hasArg(target)) {
         if (! target %in% c("ate", "att", "atu", "late", "genlate")) {
             stop(gsub("\\s+", " ",
                       "Specified target parameter is not recognized.
-                      Choose from 'ate', 'att', 'atu', 'late', or 'genlate'."))
+                      Choose from 'ate', 'att', 'atu', 'late', or 'genlate'."),
+                 call. = FALSE)
         }
         if (target == "late") {
             if (!(hasArg(late.Z) & hasArg(late.to) & hasArg(late.from))) {
                 stop(gsub("\\s+", " ",
                           "Target paramter of 'late' requires arguments
-                          'late.Z', 'late.to', and 'late.from'."))
+                          'late.Z', 'late.to', and 'late.from'."),
+                     call. = FALSE)
             }
             if ((hasArg(late.X) & !hasArg(eval.X)) |
                !hasArg(late.X) & hasArg(eval.X)) {
                 stop(gsub("\\s+", " ",
-                          "If the target parameter is 'late', then either both
+                          "If the target parameter is 'late' or 'genlate',
+                          then either both
                           late.X and eval.X are specified, or neither are
-                          specified."))
+                          specified."),
+                     call. = FALSE)
             }
-
             ## Check the LATE arguments are declared properly.
             if (classList(late.to)) late.to <- unlist(late.to)
             if (classList(late.from)) late.from <- unlist(late.from)
@@ -650,16 +662,40 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 stop(gsub("\\s+", " ",
                           "The number of variables declared in 'late.Z'
                            must be equal to the length of the vectors
-                           declared in 'late.to' and 'late.from'."))
+                           declared in 'late.to' and 'late.from'."),
+                     call. = FALSE)
             }
             if (!is.numeric(late.to) | !is.numeric(late.from)) {
-                stop("Vectors 'late.from' and 'late.to' must be numeric.")
+                stop("Vectors 'late.from' and 'late.to' must be numeric.",
+                     call. = FALSE)
             }
             if (all(late.to == late.from)) {
                 stop(gsub("\\s+", " ",
-                          "'late.to' must be different from 'late.from'."))
+                          "'late.to' must be different from 'late.from'."),
+                     call. = FALSE)
             }
-
+        }
+        if (target == "genlate") {
+            if ((hasArg(late.X) & !hasArg(eval.X)) |
+                !hasArg(late.X) & hasArg(eval.X)) {
+                stop(gsub("\\s+", " ",
+                          "If the target parameter is 'late' or 'genlate',
+                          then either both
+                          late.X and eval.X are specified, or neither are
+                          specified."),
+                     call. = FALSE)
+            }
+            if (genlate.lb < 0 | genlate.ub > 1) {
+                stop(gsub("\\s+", " ",
+                          "'genlate.lb' and 'genlate.ub' must be between 0
+                          and 1."), call. = FALSE)
+            }
+            if (genlate.lb >= genlate.ub) {
+                stop("'genlate.lb' must be strictly less than 'genlate.ub'.",
+                     call. = FALSE)
+            }
+        }
+        if (target == "late" | target == "genlate") {
             ## Check that included insturments are declared properly
             if (hasArg(eval.X)) {
                 if (classList(eval.X)) eval.X <- unlist(eval.X)
@@ -667,11 +703,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 xIsList <- substring(deparse(substitute(late.X)), 1, 2) == "l("
                 if (xIsVec) {
                     late.X <- restring(substitute(late.X),
-                                         substitute = FALSE)
+                                       substitute = FALSE)
                 } else if (xIsList) {
                     late.X <- restring(substitute(late.X),
-                                         substitute = FALSE,
-                                         command = "l")
+                                       substitute = FALSE,
+                                       command = "l")
                 } else {
                     late.X <- deparse(substitute(late.X))
                 }
@@ -679,21 +715,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     stop(gsub("\\s+", " ",
                               "The number of variables declared in 'late.X'
                        must be equal to the length of the vector
-                       declared in 'eval.X'."))
+                       declared in 'eval.X'."),
+                       call. = FALSE)
                 }
                 if (!is.numeric(eval.X)) {
-                    stop("Vector 'eval.X' must be numeric.")
+                    stop("Vector 'eval.X' must be numeric.",
+                         call. = FALSE)
                 }
-            }
-        }
-        if (target == "genlate") {
-            if (genlate.lb < 0 | genlate.ub > 1) {
-                stop(gsub("\\s+", " ",
-                          "'genlate.lb' and 'genlate.ub' must be between 0
-                          and 1."))
-            }
-            if (genlate.lb >= genlate.ub) {
-                stop("'genlate.lb' must be strictly less than 'genlate.ub'.")
             }
         }
         if (target != "genlate" &
@@ -702,16 +730,19 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                          "Unless target parameter is 'genlate', 'genlate.lb' and
                          'genlate.ub' arguments will not be used."))
         }
-        if (target != "late" & (hasArg("eval.X") | hasArg("late.X"))) {
+        if ((target != "late"  & target != "genlate") &
+            (hasArg("eval.X") | hasArg("late.X"))) {
             warning(gsub("\\s+", " ",
-                         "Unless target parameter is 'late', 'eval.X' and
-                         'late.X' arguments will not be used."))
+                         "Unless target parameter is 'late' or
+                          'genlate', the arguments eval.X' and
+                          'late.X' will not be used."))
         }
         if ((hasArg(target.weight0) | hasArg(target.weight1))) {
             stop(gsub("\\s+", " ",
                       "A preset target weight is chosen, and a custom target
                       weight is provided. Please provide an input for 'target'
-                      only, or for 'target.weight0' and 'target.weight1'."))
+                      only, or for 'target.weight0' and 'target.weight1'."),
+                 call. = FALSE)
         }
         target.weight0 <- NULL
         target.weight1 <- NULL
@@ -720,7 +751,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             stop(gsub("\\s+", " ",
                       "Only one target weight function is provided. If a custom
                       target weight is to be used, inputs for both
-                      target.weight0 and target.weight1 must be provided."))
+                      target.weight0 and target.weight1 must be provided."),
+                 call. = FALSE)
         }
 
         ## Convert all entries into lists
@@ -742,7 +774,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              must either be functions or constants. The
                              following entries of target.weight0 are neither: ",
                              paste(fails0, collapse = ", "),
-                             ".")))
+                             ".")), call. = FALSE)
         }
 
         weightCheck1 <- unlist(lapply(target.weight1, is.function))
@@ -757,7 +789,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              must either be functions or constants. The
                              following entries of target.weight1 are neither: ",
                              paste(fails1, collapse = ", "),
-                             ".")))
+                             ".")), call. = FALSE)
         }
 
         if (length(target.weight0) != (length(target.knots0) + 1)) {
@@ -768,7 +800,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                  plus 1. Currently, the number of weights
                                  declared is ", length(target.weight0),
                              ", and the number of knots declared is ",
-                             length(target.knots0), ".")))
+                             length(target.knots0), ".")),
+                 call. = FALSE)
         }
         if (length(target.weight1) != (length(target.knots1) + 1)) {
             stop(gsub("\\s+", " ",
@@ -778,7 +811,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                  plus 1. Currently, the number of weights
                                  declared is ", length(target.weight1),
                              ", and the number of knots declared is ",
-                             length(target.knots1), ".")))
+                             length(target.knots1), ".")),
+                 call. = FALSE)
         }
 
         ## Knots check
@@ -795,7 +829,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              must either be functions or constants. The
                              following entries of target.knots0 are neither: ",
                              paste(fails0, collapse = ", "),
-                             ".")))
+                             ".")), call. = FALSE)
             }
         }
 
@@ -812,7 +846,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              must either be functions or constants. The
                              following entries of target.knots1 are neither: ",
                              paste(fails0, collapse = ", "),
-                             ".")))
+                             ".")), call. = FALSE)
             }
         }
     }
@@ -821,7 +855,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         if (! link %in% c("linear", "logit", "probit")) {
             stop(gsub("\\s+", " ",
                       "Specified link is not recognized. Choose from 'linear',
-                      'logit', or 'probit'."))
+                      'logit', or 'probit'."), call. = FALSE)
         }
     }
 
@@ -843,25 +877,29 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
     ## Seed check
     if (!(is.numeric(seed) & length(seed) == 1)) {
-        stop("'seed' must be a scalar.")
+        stop("'seed' must be a scalar.", call. = FALSE)
     }
 
     ## Audit checks
     if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
-        stop("Cannot set 'obseq.tol' below 0.")
+        stop("Cannot set 'obseq.tol' below 0.", call. = FALSE)
     }
     if (!((initgrid.nu %% 1 == 0) & initgrid.nu >= 2)) {
-        stop("initgrid.nu must be an integer greater than or equal to 2.")
+        stop("initgrid.nu must be an integer greater than or equal to 2.",
+             call. = FALSE)
     }
     if (!((initgrid.nx %% 1 == 0) & initgrid.nx >= 0)) {
-        stop("'initgrid.nx' must be an integer greater than or equal to 0.")
+        stop("'initgrid.nx' must be an integer greater than or equal to 0.",
+             call. = FALSE)
     }
 
     if (!((audit.nx %% 1 == 0) & audit.nx > 0)) {
-        stop("'audit.nx' must be an integer greater than or equal to 1.")
+        stop("'audit.nx' must be an integer greater than or equal to 1.",
+             call. = FALSE)
     }
     if (!((audit.add %% 1 == 0) & audit.add > 0)) {
-        stop("'audit.add' must be an integer greater than or equal to 1.")
+        stop("'audit.add' must be an integer greater than or equal to 1.",
+             call. = FALSE)
     }
     if (hasArg(m0.dec) | hasArg(m0.inc) |
         hasArg(m1.dec) | hasArg(m1.inc) |
@@ -872,30 +910,33 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
         noshape = FALSE ## indicator for whether shape restrictions declared
         if (!((audit.nu %% 1 == 0) & audit.nu > 0) | audit.nu < 2) {
-            stop("'audit.nu' must be an integer greater than or equal to 2.")
+            stop("'audit.nu' must be an integer greater than or equal to 2.",
+                 call. = FALSE)
         }
     } else {
         noshape = TRUE
         if (!((audit.nu %% 1 == 0) & audit.nu > 0)) {
-            stop("'audit.nu' must be an integer greater than or equal to 1.")
+            stop("'audit.nu' must be an integer greater than or equal to 1.",
+                 call. = FALSE)
         }
     }
     if (!((audit.max %% 1 == 0) & audit.max > 0)) {
-        stop("'audit.max' must be an integer greater than or equal to 1.")
+        stop("'audit.max' must be an integer greater than or equal to 1.",
+             call. = FALSE)
     }
 
     ## Bootstrap checks
     if (bootstraps < 0 | bootstraps %% 1 != 0 | bootstraps == 1) {
         stop(gsub("\\s+", " ",
                   "'bootstraps' must either be 0, or be an integer greater than
-                   or equal to 2."))
+                   or equal to 2."), call. = FALSE)
     }
 
     if (hasArg(bootstraps.m)) {
         if (bootstraps.m < 0 | bootstraps.m %% 1 != 0) {
             stop(gsub("\\s+", " ",
                       "'bootstraps.m' must be an integer greater than or equal
-                      to 1."))
+                      to 1."), call. = FALSE)
         }
         if (point == TRUE) {
             warning(gsub("\\s+", " ",
@@ -907,19 +948,19 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         bootstraps.m <- nrow(data)
     }
     if (!is.logical(bootstraps.replace)) {
-        stop("'bootstraps.replace' must be TRUE or FALSE.")
+        stop("'bootstraps.replace' must be TRUE or FALSE.", call. = FALSE)
     }
     if (max(levels) >= 1 | min(levels) <= 0) {
         stop(gsub("\\s+", " ",
                   "'levels' must be a vector of values strictly between 0 and
-                  1."))
+                  1."), call. = FALSE)
     }
     levels <- sort(levels)
     if (! ci.type %in% c("forward", "backward", "both")) {
         stop(gsub("\\s+", " ",
                   "'ci.types' selects the type of confidence intervals to be
                   constructed for the treatment effect bound. It must be set to
-                  either 'forward', 'backward', or 'both'."))
+                  either 'forward', 'backward', or 'both'."), call. = FALSE)
     }
 
     if (hasArg(point.eyeweight) && point == FALSE) {
@@ -956,7 +997,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         if (!min(unlist(lapply(ivlike, classFormula)))) {
             stop(gsub("\\s+", " ",
                       "Not all elements in list of formulas are specified
-                      correctly."))
+                      correctly."), call. = FALSE)
         } else {
             vars_formulas_x <- unlist(lapply(ivlike,
                                              getXZ,
@@ -981,13 +1022,14 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             if (length(vars_y) > 1) {
                 stop(gsub("\\s+", " ",
                           "Multiple response variables specified in list of
-                          IV-like specifications."))
+                          IV-like specifications."),
+                     call. = FALSE)
             }
         }
     } else {
         stop(gsub("\\s+", " ",
                   "'ivlike' argument must either be a formula or a vector of
-                  formulas."))
+                  formulas."), call. = FALSE)
     }
 
     ## Collect list of all terms in subsetting condition
@@ -1115,7 +1157,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                           estimated from the data), or a one-sided formula
                           containing a single variable on the RHS (where the
                           variable listed is included in the data, and
-                          corresponds to propensity scores.")))
+                          corresponds to propensity scores.")),
+                         call. = FALSE)
                 }
             } else if (length(propensity) == 2) {
                 if (!hasArg(treat)) {
@@ -1134,7 +1177,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             if (! deparse(substitute(propensity)) %in% colnames(data)) {
                 stop(gsub("\\s+", " ",
                           "Propensity score argument is interpreted as a
-                          variable name, but is not found in the data set."))
+                          variable name, but is not found in the data set."),
+                     call. = FALSE)
             }
 
             vars_propensity <- c(vars_propensity,
@@ -1164,7 +1208,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                           estimated from the data), or a one-sided formula
                           containing a single variable on the RHS (where the
                           variable listed is included in the data, and
-                          corresponds to propensity scores.")))
+                          corresponds to propensity scores.")),
+                     call. = FALSE)
             }
         }
     } else {
@@ -1178,7 +1223,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                              is selected as the treatment variable."))
             treat <- all.vars(ivlike[[1]])[2]
         } else {
-            stop("Treatment variable indeterminable.")
+            stop("Treatment variable indeterminable.", call. = FALSE)
         }
 
         ## Construct propensity formula
@@ -1317,7 +1362,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         if (!all(late.Z %in% vars_propensity)) {
             stop(gsub("\\s+", " ",
                       "Variables in 'late.Z' argument must be contained
-                       in the propensity score model."))
+                       in the propensity score model."),
+                 call. = FALSE)
         }
         nLateX <- 0
         if (hasArg(late.X)) {
@@ -1325,14 +1371,16 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             if (!all(late.X %in% vars_propensity)) {
                 stop(gsub("\\s+", " ",
                           "Variables in 'late.X' argument must be contained
-                           in the propensity score model."))
+                           in the propensity score model."),
+                     call. = FALSE)
             }
         }
         if (length(late.Z) + nLateX != length(vars_propensity) - 1) {
             stop(gsub("\\s+", " ",
                       "When estimating the LATE, all covariates in the
                        propensity model must be fixed using 'late.Z' and
-                       'late.X'. Currently, not all variables are fixed."))
+                       'late.X'. Currently, not all variables are fixed."),
+                 call. = FALSE)
         }
     }
 
@@ -1490,11 +1538,13 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                            components = quote(components),
                                            environments = quote(envList)))
 
-    if (hasArg(target) && target == "late") {
-        estimateCall <- modcall(estimateCall,
-                                newargs = list(late.Z = late.Z,
-                                               late.to = late.to,
-                                               late.from = late.from))
+    if (hasArg(target) && (target == "late" | target == "genlate")) {
+        if (target == "late") {
+            estimateCall <- modcall(estimateCall,
+                                    newargs = list(late.Z = late.Z,
+                                                   late.to = late.to,
+                                                   late.from = late.from))
+        }
         if (hasArg(late.X)) {
             estimateCall <- modcall(estimateCall,
                                     newargs = list(late.X = late.X,
@@ -1523,7 +1573,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
             if (bootstraps.m > nrow(data) && bootstraps.replace == FALSE) {
                 stop(gsub("\\s+", " ",
                           "Cannot draw more observations than the number of rows
-                           in the data set when 'bootstraps.replace = FALSE'."))
+                           in the data set when 'bootstraps.replace = FALSE'."),
+                     call. = FALSE)
             }
 
             while (b <= bootstraps) {
@@ -1727,7 +1778,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         if (bootstraps.m > nrow(data) && bootstraps.replace == FALSE) {
             stop(gsub("\\s+", " ",
                       "Cannot draw more observations than the number of rows
-                           in the data set when 'bootstraps.replace = FALSE'."))
+                           in the data set when 'bootstraps.replace = FALSE'."),
+                 call. = FALSE)
         }
         totalBootstraps <- 0
         factorMessage <- 0
@@ -2534,7 +2586,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
     } else {
         stop(gsub("\\s+", " ",
                   "'ivlike' argument must either be a formula or a vector of
-                  formulas."))
+                  formulas."),
+             call. = FALSE)
     }
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
@@ -2866,16 +2919,6 @@ genTarget <- function(treat, m0, m1, uname, target,
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "late") {
-            ## Original --------------------------------------------------------
-            ## if (!hasArg(late.X)) {
-            ##     late.X <- NULL
-            ##     eval.X <- NULL
-            ## }
-            ## w1 <- wlate1(data, late.from, late.to, late.Z,
-            ##              pmodobj$model, late.X, eval.X)
-            ## w0 <- w1
-            ## w0$mp <- -1 * w0$mp
-            ## Experimenting ---------------------------------------------------
             if (!hasArg(late.X)) {
                 late.X <- NULL
                 eval.X <- NULL
@@ -2896,13 +2939,29 @@ genTarget <- function(treat, m0, m1, uname, target,
                          pmodobj$model, late.X, eval.X)
             w0 <- w1
             w0$mp <- -1 * w0$mp
-            ## End experimenting -----------------------------------------------
         } else if (target == "genlate") {
+            if (!hasArg(late.X)) {
+                late.X <- NULL
+                eval.X <- NULL
+            } else {
+                condX <- mapply(function(a, b) paste(a, "==", b),
+                                late.X, eval.X)
+                condX <- paste(condX, collapse = " & ")
+                data <- subset(data, eval(parse(text = condX)))
+                if (nrow(data) == 0) {
+                    stop(gsub("\\s+", " ",
+                              "no observations with the values specified in
+                               in 'eval.X'."), call. = FALSE)
+                }
+                if (!is.null(m0)) pm0$polymat <- pm0$polymat[rownames(data), ]
+                if (!is.null(m1)) pm1$polymat <- pm1$polymat[rownames(data), ]
+            }
             w1 <- wgenlate1(data, genlate.lb, genlate.ub)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else {
-            stop("Unrecognized target parameter.")
+            stop("Unrecognized target parameter.",
+                 call. = FALSE)
         }
         ## Integrate m0 and m1 functions
         if (!is.null(m0)) {
@@ -3017,7 +3076,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                 if (noisy == TRUE) {
                     if (d == 0) {
                         cat("    ",
-                            gsub("\\s", " ",
+                            gsub("\\s+", " ",
                                  "Integrating non-spline
                                   terms for control group..."),
                             "\n", sep = "")
