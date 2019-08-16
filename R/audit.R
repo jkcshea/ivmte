@@ -210,7 +210,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   m0.dec = FALSE, m0.inc = FALSE,
                   m1.dec = FALSE, m1.inc = FALSE,
                   mte.dec = FALSE, mte.inc = FALSE,
-                  sset, gstar0, gstar1, obseq.tol = 0.05, lpsolver,
+                  sset, gstar0, gstar1, obseq.tol = 0, lpsolver,
                   noisy = TRUE, seed = 12345) {
     set.seed(seed)
     call  <- match.call()

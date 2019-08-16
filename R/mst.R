@@ -140,17 +140,17 @@ utils::globalVariables("u")
 #' @param genlate.ub upper bound value of unobservable \code{u} for
 #'     estimating the generalized LATE.
 #' @param obseq.tol tolerance for violation of observational
-#'     equivalence. Statistical noise may prohibit the theoretical LP
-#'     problem from being feasible. That is, there may not exist a set
-#'     of coefficients on the MTR that are observationally equivalent
-#'     with regard to the IV-like regression coefficients. The
-#'     function therefore first estimates the minimum violation of
-#'     observational equivalence. This is reported in the output under
-#'     the name 'minimum criterion'. The constraints in the LP problem
-#'     pertaining to observational equivalence are then relaxed by the
-#'     amount \code{minimum criterion * (1 + obseq.tol)}. Set
-#'     \code{obseq.tol} to a value greater than 0 to allow for more
-#'     conservative bounds.
+#'     equivalence, set to 0 by default. Statistical noise may
+#'     prohibit the theoretical LP problem from being feasible. That
+#'     is, there may not exist a set of coefficients on the MTR that
+#'     are observationally equivalent with regard to the IV-like
+#'     regression coefficients. The function therefore first estimates
+#'     the minimum violation of observational equivalence. This is
+#'     reported in the output under the name 'minimum criterion'. The
+#'     constraints in the LP problem pertaining to observational
+#'     equivalence are then relaxed by the amount \code{minimum
+#'     criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
+#'     greater than 0 to allow for more conservative bounds.
 #' @param initgrid.nu integer determining the number of evenly spread
 #'     points in the interval [0, 1] of the unobservable \code{u} used
 #'     to form the initial grid for imposing shape restrictions on the
@@ -290,7 +290,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                   m1, uname = u, target, target.weight0 = NULL,
                   target.weight1, target.knots0, target.knots1 = NULL,
                   late.from, late.to, late.X,
-                  genlate.lb, genlate.ub, obseq.tol = 0.05,
+                  genlate.lb, genlate.ub, obseq.tol = 0,
                   initgrid.nu = 20, initgrid.nx = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
                   m1.ub, m0.ub, m1.lb, m0.lb,
@@ -1542,12 +1542,11 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
         if (bootstraps > 0) {
             set.seed(seed)
             boundEstimates <- NULL
-
             b <- 1
+            bootCriterion <- NULL
             bootFailN <- 0
             bootFailNote <- ""
             bootFailIndex <- NULL
-
             if (!hasArg(bootstraps.m)) bootstraps.m <- nrow(data)
             if (bootstraps.m > nrow(data) && bootstraps.replace == FALSE) {
                 stop(gsub("\\s+", " ",
@@ -1555,7 +1554,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                            in the data set when 'bootstraps.replace = FALSE'."),
                      call. = FALSE)
             }
-
             while (b <= bootstraps) {
                 bootIDs  <- sample(seq(1, nrow(data)),
                                    size = bootstraps.m,
@@ -1573,6 +1571,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 if (is.list(bootEstimate)) {
                     boundEstimates  <- rbind(boundEstimates,
                                              bootEstimate$bound)
+                    bootCriterion <- c(bootCriterion,
+                                       bootEstimate$audit.minobseq)
                     b <- b + 1
                     bootFailN <- 0
                     if (noisy == TRUE) {
@@ -1684,7 +1684,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
 
             if (ci.type == "both") {
                 for (i in c("backward", "forward")) {
-                    cat("Bootstrapped confidence intervals (",
+                    cat("\nBootstrapped confidence intervals (",
                         i, "):\n", sep = "")
                     for (j in 1:length(levels)) {
                         cistr <- paste0("[",
@@ -1695,10 +1695,10 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         cat("    ",
                             levels[j] * 100,
                             "%: ",
-                            cistr, "\n\n", sep = "")
+                            cistr, "\n", sep = "")
                     }
                 }
-                cat("Bootstrapped p-values:\n")
+                cat("\nBootstrapped p-values:\n")
                 cat("    Backward: ", fmtResult(pvalue[1]), "\n", sep = "")
                 cat("    Forward:  ", fmtResult(pvalue[2]), "\n", sep = "")
             } else {
@@ -1724,12 +1724,19 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                         pvalue, "\n", sep = "")
                 }
             }
+
+            ## Obtain misspecification test
+            criterionPValue <- mean(origEstimate$audit.minobseq > bootCriterion)
+            cat("\nBootstrapped misspecification test p-value: ",
+                criterionPValue, "\n\n", sep = "")
+
             ## Return output
             return(c(origEstimate,
                      list(bound.se = bootSE,
                           bound.bootstraps = boundEstimates,
                           ci = ci,
                           pvalue = pvalue,
+                          misspecification.pvalue = criterionPValue,
                           bootstraps = bootstraps,
                           failed.bootstraps = length(bootFailIndex))))
         }
@@ -1844,7 +1851,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 b <- b + 1
                 if (noisy == TRUE) {
                     cat("    Point estimate:",
-                        fmtResult(bootEstimate$pointestimate), "\n", sep = "")
+                        fmtResult(bootEstimate$pointestimate), "\n\n", sep = "")
                 }
             } else {
                 if (noisy == TRUE) {
@@ -1998,7 +2005,7 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                 ci2str, "\n", sep = "")
         }
         cat("\nBootstrapped p-value: ",
-            fmtResult(pvalue), "\n", sep = "")
+            fmtResult(pvalue), "\n\n", sep = "")
         if (totalBootstraps > bootstraps) {
             warning(gsub("\\s+", " ",
                          paste0("In order to obtain ", bootstraps, " boostrap
@@ -2290,10 +2297,11 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #' @param genlate.ub upper bound value of unobservable u for
 #'     estimating generalized LATE.
 #' @param obseq.tol threshold for violation of observational
-#'     equivalence. The threshold enters in multiplicatively. Thus, a
-#'     value of 0 corresponds to no violation of observational
-#'     equivalence other than statistical noise, and the assumption
-#'     that the model is correctly specified.
+#'     equivalence, set to 0 by default. The threshold enters in
+#'     multiplicatively. Thus, a value of 0 corresponds to no
+#'     violation of observational equivalence other than statistical
+#'     noise, and the assumption that the model is correctly
+#'     specified.
 #' @param initgrid.nu number of evenly spread points in the interval
 #'     [0, 1] of the unobservable u used to form the grid for imposing
 #'     shape restrictions on the MTRs.
@@ -2382,7 +2390,7 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                           target.weight0, target.weight1,
                           target.knots0 = NULL, target.knots1 = NULL,
                           late.Z, late.from, late.to, late.X, eval.X,
-                          genlate.lb, genlate.ub, obseq.tol = 0.05,
+                          genlate.lb, genlate.ub, obseq.tol = 0,
                           initgrid.nu = 20, initgrid.nx = 20,
                           audit.nx = 2500, audit.nu = 25,
                           audit.add = 100, audit.max = 25,
