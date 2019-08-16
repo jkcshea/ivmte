@@ -295,6 +295,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
         minobseq <- obsEqMin(sset, lpobj, lpsolver)
+
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -308,7 +309,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                     shape = FALSE)
             minobseqAlt <- obsEqMin(sset, lpobjAlt, lpsolver)
             solVec <- minobseqAlt$result$x
-
             ## Test for violations
             mbA <- mbobj$mbA
             negatepos <- which(mbobj$mbs == ">=")
@@ -431,7 +431,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 if (is.null(dim(resid_support))) {
                     resid_support <- as.matrix(resid_support)
                 }
-
                 ## Generate alternate grid from residual indexes
                 audit.nx <- min(audit.nx, length(grid_resid))
                 if (audit.nx == length(grid_resid)) {
@@ -527,6 +526,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             break
         }
     }
+    
     return(list(max = lpresult$max,
                 min = lpresult$min,
                 lpresult = lpresult,
