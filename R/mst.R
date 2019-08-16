@@ -1572,7 +1572,8 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                     boundEstimates  <- rbind(boundEstimates,
                                              bootEstimate$bound)
                     bootCriterion <- c(bootCriterion,
-                                       bootEstimate$audit.minobseq)
+                                       max(0, bootEstimate$audit.minobseq -
+                                              origEstimate$audit.minobseq))
                     b <- b + 1
                     bootFailN <- 0
                     if (noisy == TRUE) {
@@ -1681,7 +1682,6 @@ ivmte <- function(bootstraps = 0, bootstraps.m,
                                         tol = pvalue.tol))
                 names(pvalue) <- c("backward", "forward")
             }
-
             if (ci.type == "both") {
                 for (i in c("backward", "forward")) {
                     cat("\nBootstrapped confidence intervals (",
