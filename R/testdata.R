@@ -17,12 +17,10 @@ gendist1 <- function(subN = 5, p1 = 0.4, p2 = 0.6) {
     dt <- data.frame(i  = rep(seq(1, subN), 2),
                      z  = rep(c(1, 2), each = subN),
                      p = rep(c(p1, p2), each = subN))
-
     ## Assign treatment
     dt$d <- 0
     dt[dt$z == 1 & dt$i <= (p1 * subN), "d"] <- 1
     dt[dt$z == 2 & dt$i <= (p2 * subN), "d"] <- 1
-
     ## Now construct Y as E[Y | X, D, Z]
     ## m0 = 1 + u
     ## m1 = 1 + u
@@ -37,14 +35,11 @@ gendist1 <- function(subN = 5, p1 = 0.4, p2 = 0.6) {
                        ub = dt$p,
                        multiplier = 1 / dt$p,
                        means = FALSE)
-
     m0coef <- c(0, 6)
     m1coef <- c(7, 8)
-
     dt$ey0 <- plist0 %*% m0coef
     dt$ey1 <- plist1 %*% m1coef
     dt$ey  <-  dt$d * dt$ey1 + (1 - dt$d) * dt$ey0
-
     ## Convert data back into data.frame
     return(dt)
 }
@@ -70,17 +65,13 @@ gendist1 <- function(subN = 5, p1 = 0.4, p2 = 0.6) {
 #' @return a data.frame.
 gendist1e <- function(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 0.5,
                       v1.sd = 0.75) {
-
     dt <- data.frame(z = runif(N),
                      u = runif(N))
-
     ## First construct the instruments independently from U
     dt$z  <- as.integer(dt$z > subN) + 1
-
     dt$d <- 0
     dt[dt$z == 1 & dt$u <= p1, "d"] <- 1
     dt[dt$z == 2 & dt$u <= p2, "d"] <- 1
-
     ## Now construct the error terms. The error terms are normally
     ## distributed, centered at the draw of u if D = 0, and -u if D =
     ## 1.
@@ -88,19 +79,16 @@ gendist1e <- function(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 0.5,
     ## dt$v1 <- sapply(-dt[, "u"], rnorm, n = 1, sd = v1.sd)
     dt$v0 <- rnorm(n = N, mean = 0, sd = v0.sd)
     dt$v1 <- rnorm(n = N, mean = 0, sd = v1.sd)
-
     ## Now construct the Y values
     ## m0 = 0 + u
     ## m1 = 1 + u
     dt[dt$d == 0, "y"] <- 0 + 6 * dt[dt$d == 0, "u"] + dt[dt$d == 0, "v0"]
     dt[dt$d == 1, "y"] <- 7 + 8 * dt[dt$d == 1, "u"] + dt[dt$d == 1, "v1"]
-
     ## Label the types
     dt[dt$d == 1 & dt$z == 1, "type"] <- 1
     dt[dt$d == 0 & dt$z == 1, "type"] <- 2
     dt[dt$d == 1 & dt$z == 2, "type"] <- 3
     dt[dt$d == 0 & dt$z == 2, "type"] <- 4
-
     return(dt)
 }
 
@@ -122,17 +110,14 @@ gendist1e <- function(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 0.5,
 #'     instrument Z = 3.
 #' @return a data.frame.
 gendist2 <- function(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8) {
-
     dt <- data.frame(i  = rep(seq(1, subN), 3),
                      z  = rep(c(1, 2, 3), each = subN),
                      p = rep(c(p1, p2, p3), each = subN))
-
     ## Assign treatment
     dt$d <- 0
     dt[dt$z == 1 & dt$i <= p1 * subN, "d"] <- 1
     dt[dt$z == 2 & dt$i <= p2 * subN, "d"] <- 1
     dt[dt$z == 3 & dt$i <= p3 * subN, "d"] <- 1
-
     ## Now construct Y as E[Y | X, D, Z]
     ## m0 = 1 + u
     ## m1 = 1 + u
@@ -147,14 +132,11 @@ gendist2 <- function(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8) {
                        ub = dt$p,
                        multiplier = 1 / dt$p,
                        means = FALSE)
-
     m0coef <- c(0, 6)
     m1coef <- c(7, 8)
-
     dt$ey0 <- plist0 %*% m0coef
     dt$ey1 <- plist1 %*% m1coef
     dt$ey  <- dt$d * dt$ey1 + (1 - dt$d) * dt$ey0
-
     ## Convert data back into data.frame
     return(dt)
 }
@@ -176,16 +158,13 @@ gendist2 <- function(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8) {
 #'     instrument Z = 2.
 #' @return a data.frame.
 gendist3 <- function(subN = 5, p1 = 0.4, p2 = 0.6) {
-
     dt <- data.frame(i  = rep(seq(1, subN), 2),
                      z  = rep(c(1, 2), each = subN),
                      p = rep(c(p1, p2), each = subN))
-
     ## Assign treatment
     dt$d <- 0
     dt[dt$z == 1 & dt$i <= (p1 * subN), "d"] <- 1
     dt[dt$z == 2 & dt$i <= (p2 * subN), "d"] <- 1
-
     ## Now construct Y as E[Y | X, D, Z]
     plist <- polyparse(~ 0 + 1, data = dt)
     plist0 <- genGamma(plist,
@@ -198,14 +177,11 @@ gendist3 <- function(subN = 5, p1 = 0.4, p2 = 0.6) {
                        ub = dt$p,
                        multiplier = 1 / dt$p,
                        means = FALSE)
-
     m0coef <- c(3)
     m1coef <- c(9)
-
     dt$ey0 <- plist0 %*% m0coef
     dt$ey1 <- plist1 %*% m1coef
     dt$ey  <-  dt$d * dt$ey1 + (1 - dt$d) * dt$ey0
-
     ## Convert data back into data.frame
     return(dt)
 }
@@ -232,35 +208,28 @@ gendist3 <- function(subN = 5, p1 = 0.4, p2 = 0.6) {
 #' @return a data.frame.
 gendist3e <- function(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 0.5,
                       v1.sd = 0.75) {
-
     dt <- data.frame(z = runif(N),
                      u = runif(N))
-
     ## First construct the instruments independently from U
     dt$z  <- as.integer(dt$z > subN) + 1
-
     dt$d <- 0
     dt[dt$z == 1 & dt$u <= p1, "d"] <- 1
     dt[dt$z == 2 & dt$u <= p2, "d"] <- 1
-
     ## Now construct the error terms. The error terms are normally
     ## distributed, centered at the draw of u if D = 0, and -u if D =
     ## 1.
     dt$v0 <- sapply(dt[, "u"], rnorm, n = 1, sd = v0.sd)
     dt$v1 <- sapply(-dt[, "u"], rnorm, n = 1, sd = v1.sd)
-
     ## Now construct the Y values
     ## m0 = 3
     ## m1 = 9
     dt[dt$d == 0, "y"] <- 3 + dt[dt$d == 0, "v0"]
     dt[dt$d == 1, "y"] <- 9 + dt[dt$d == 1, "v1"]
-
     ## Label the types
     dt[dt$d == 1 & dt$z == 1, "type"] <- 1
     dt[dt$d == 0 & dt$z == 1, "type"] <- 2
     dt[dt$d == 1 & dt$z == 2, "type"] <- 3
     dt[dt$d == 0 & dt$z == 2, "type"] <- 4
-
     return(dt)
 }
 
@@ -283,17 +252,14 @@ gendist3e <- function(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 0.5,
 #'     instrument Z = 3.
 #' @return a data.frame.
 gendist4 <- function(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8) {
-
     dt <- data.frame(i  = rep(seq(1, subN), 3),
                      z  = rep(c(1, 2, 3), each = subN),
                      p = rep(c(p1, p2, p3), each = subN))
-
     ## Assign treatment
     dt$d <- 0
     dt[dt$z == 1 & dt$i <= (p1 * subN), "d"] <- 1
     dt[dt$z == 2 & dt$i <= (p2 * subN), "d"] <- 1
     dt[dt$z == 3 & dt$i <= (p3 * subN), "d"] <- 1
-
     ## Now construct Y as E[Y | X, D, Z]
     plist <- polyparse(~ 0 + 1, data = dt)
     plist0 <- genGamma(plist,
@@ -306,14 +272,11 @@ gendist4 <- function(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8) {
                        ub = dt$p,
                        multiplier = 1 / dt$p,
                        means = FALSE)
-
     m0coef <- c(3)
     m1coef <- c(9)
-
     dt$ey0 <- plist0 %*% m0coef
     dt$ey1 <- plist1 %*% m1coef
     dt$ey  <-  dt$d * dt$ey1 + (1 - dt$d) * dt$ey0
-
     ## Convert data back into data.frame
     return(dt)
 }
@@ -341,36 +304,29 @@ gendist4 <- function(subN = 5, p1 = 0.4, p2 = 0.6, p3 = 0.8) {
 #' @return a data.frame.
 gendist5e <- function(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 1,
                       v1.sd = 1.55) {
-
     dt <- data.frame(z = runif(N),
                      x = rnorm(N, mean = 1),
                      u = runif(N))
-
     ## First construct the instruments independently from U
     dt$z  <- as.integer(dt$z > subN) + 1
-
     dt$d <- 0
     dt[dt$z == 1 & dt$u <= p1, "d"] <- 1
     dt[dt$z == 2 & dt$u <= p2, "d"] <- 1
-
     ## Now construct the error terms. The error terms are normally
     ## distributed, centered at the draw of u if D = 0, and -u if D =
     ## 1.
     dt$v0 <- sapply(dt[, "u"], rnorm, n = 1, sd = v0.sd)
     dt$v1 <- sapply(-dt[, "u"], rnorm, n = 1, sd = v1.sd)
-
     ## Now construct the Y values
     dt[dt$d == 0, "y"] <- 3 + 0.4 * dt[dt$d == 0, "x"] - 1.3 *
         dt[dt$d == 0, "u"] + dt[dt$d == 0, "v0"]
     dt[dt$d == 1, "y"] <- 9 + 0.3 * dt[dt$d == 1, "x"] - 0.9 *
         dt[dt$d == 1, "u"] + dt[dt$d == 1, "v1"]
-
     ## Label the types
     dt[dt$d == 1 & dt$z == 1, "type"] <- 1
     dt[dt$d == 0 & dt$z == 1, "type"] <- 2
     dt[dt$d == 1 & dt$z == 2, "type"] <- 3
     dt[dt$d == 0 & dt$z == 2, "type"] <- 4
-
     return(dt)
 }
 
@@ -389,19 +345,15 @@ gendist5e <- function(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 1,
 #' @return a data.frame.
 gendist6e <- function(N = 100, v0.sd = 1,
                       v1.sd = 1.55) {
-
     dt <- data.frame(z = runif(N),
                      x = rnorm(N, mean = 1),
                      u = runif(N))
-
     ## First construct the instruments independently from U
     dt$d <- 0
     dt[dt$u <= dt$z, "d"] <- 1
-
     ## Now construct the error terms.
     dt$v0 <- rnorm(n = N, mean = 0, sd = v0.sd)
     dt$v1 <- rnorm(n = N, mean = 0, sd = v1.sd)
-    
     ## Now construct the Y values
     dt[dt$d == 0, "y"] <- 3 + 0.4 * dt[dt$d == 0, "x"] - 1.3 *
         dt[dt$d == 0, "x"] * dt[dt$d == 0, "u"] + dt[dt$d == 0, "v0"]
@@ -410,37 +362,29 @@ gendist6e <- function(N = 100, v0.sd = 1,
     return(dt)
 }
 
-
-
 #' Generate mosquito data set
 #'
 #' This code generates the population level data in Mogstad, Santos,
 #' Torgovitsky (2018), i.e. the mosquito data set used as the running
 #' example.
-#' 
+#'
 #' @return data.frame.
 gendistMosquito <- function() {
-
     set.seed(1)
-
     subN <- 100
-
     p1 <- 0.12
     p2 <- 0.29
     p3 <- 0.48
     p4 <- 0.78
-
     dt <- data.frame(i  = rep(seq(1, subN), 4),
                      z  = rep(c(1, 2, 3, 4), each = subN),
                      pz = rep(c(p1, p2, p3, p4), each = subN))
-    
     ## Assign treatment
     dt$d <- 0
     dt[dt$z == 1 & dt$i <= 12, "d"] <- 1
     dt[dt$z == 2 & dt$i <= 29, "d"] <- 1
     dt[dt$z == 3 & dt$i <= 48, "d"] <- 1
     dt[dt$z == 4 & dt$i <= 78, "d"] <- 1
-
     ## Now construct Y as E[Y | X, D, Z]
     plist <- polyparse(~ u + I(u ^ 2), data = dt)
     plist0 <- genGamma(plist,
@@ -453,55 +397,44 @@ gendistMosquito <- function() {
                            ub = dt$pz,
                            multiplier = 1 / dt$pz,
                            means = FALSE)
-
     m0coef <- c(0.9, -1.1, 0.3)
     m1coef <- c(0.35, -0.3, -0.05)
-
     dt$ey0 <- plist0 %*% m0coef
     dt$ey1 <- plist1 %*% m1coef
     dt$ey  <- dt$d * dt$ey1 + (1 - dt$d) * dt$ey0
-
     ## Convert data back into data.frame
     dtm <- data.frame(dt)
-
     return(dtm)
 }
 
 #' Generate test data set with covariates
-#' 
+#'
 #' This code generates population level data to test the estimation
 #' function. This data includes covariates. The data generated will
 #' have already integrated over the unobservable terms U, where U | X,
 #' Z ~ Unif[0, 1].
-#' 
+#'
 #' @return a list of two data.frame objects. One is the distribution
 #'     of the simulated data, the other is the full simulated data
 #'     set.
 gendistCovariates <- function() {
-
     set.seed(1)
-
     supp_x1 <- c(0, 1)
     supp_x2 <- c(1, 2, 3)
     supp_z1 <- c(0, 1)
     supp_z2 <- c(1, 2, 3)
-    
     dtc <- data.frame(expand.grid(supp_x1, supp_x2,
                                   supp_z1, supp_z2))
-    
     colnames(dtc) <- c("x1", "x2", "z1", "z2")
-
     ## Generate propensity scores
     g0 <- -0.5
     g1 <- -0.4
     g2 <- 0.2
     g3 <- -1
     g4 <- 0.3
-    
     dtc$latent <- g0 + g1 * dtc$x1 + g2 * dtc$x2 +
         g3 * dtc$z1 + g4 * dtc$z2
     dtc$p <- round(1 / (1 + exp(-dtc$latent)), 2)
-    
     ## Generate the counterfactual outcomes Note: the code is prepared
     ## such that the polynomials are all in terms of u. Thus, terms which
     ## have u components with the same power are all grouped together.
@@ -510,12 +443,10 @@ gendistCovariates <- function() {
     ## m0 = 0.3 + 0.4 * x1 - 0.1 * x2 * u - 0.2 * x2 * u^2
     ## m1 = 0.5 + 0.2 * x1 - 0.1 * x1 * x2 - 0.02 * u +
     ##        0.3 * x1 * u - 0.05 * x2 * u^2
-
     plist0 <- polyparse(~ x1 + I(x2 * u) + I(x2 * u^2),
                             data = dtc)
     plist1 <- polyparse(~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
                             data = dtc)
-
     glist0 <- genGamma(plist0,
                            lb = dtc$p,
                            ub = 1,
@@ -526,42 +457,30 @@ gendistCovariates <- function() {
                            ub = dtc$p,
                            multiplier = 1 / dtc$p,
                            means = FALSE)
-
     g0coef <- c(0.3, 0.4, -0.1, -0.2)
     g1coef <- c(0.5, 0.2, -0.1, -0.02, 0.3, -0.05)
-   
     dtc$ey0 <- glist0 %*% g0coef
     dtc$ey1 <- glist1 %*% g1coef
-    
-    ## Generate distribution
 
-    ## I want to generate the data to allow for correlation across the
-    ## variables. But then designing the distribution manually is too
-    ## difficult. So instead, I try an approach where I build the
-    ## distributions marginally, allowing for correlations to occur, and
-    ## then normalize the distribution.
-
+    ## Generate distribution: build the distributions marginally,
+    ## allowing for correlations to occur, and then normalize the
+    ## distribution.
     dtc$f <- 0
-  
     dtc[dtc$x1 == 0, "f"] <- dtc[dtc$x1 == 0, "f"] + 0.1
     dtc[dtc$x1 == 1, "f"] <- dtc[dtc$x1 == 1, "f"] + 0.13
-    
     dtc[dtc$x2 == 1, "f"] <- dtc[dtc$x2 == 1, "f"] + 0.05
     dtc[dtc$x2 == 2, "f"] <- dtc[dtc$x2 == 2, "f"] + 0.1
     dtc[dtc$x2 == 3, "f"] <- dtc[dtc$x2 == 3, "f"] + 0.01
-    
     dtc[dtc$x1 == 0 & dtc$z1 == 1, "f"] <-
-        dtc[dtc$x1 == 0 & dtc$z1 == 1, "f"] - 0.03 
+        dtc[dtc$x1 == 0 & dtc$z1 == 1, "f"] - 0.03
     dtc[dtc$x1 == 0 & dtc$z2 == 2, "f"] <-
         dtc[dtc$x1 == 0 & dtc$z2 == 2, "f"] - 0.01
     dtc[dtc$x1 == 0 & dtc$z2 == 3, "f"] <-
         dtc[dtc$x1 == 0 & dtc$z2 == 3, "f"] - 0.02
-
     dtc[dtc$z1 == 1 & dtc$z2 == 2, "f"] <-
         dtc[dtc$z1 == 1 & dtc$z2 == 2, "f"] + 0.02
     dtc[dtc$z1 == 1 & dtc$z2 == 3, "f"] <-
         dtc[dtc$z1 == 1 & dtc$z2 == 3, "f"] + 0.01
-
     dtc[dtc$z2 == 2, "f"] <- dtc[dtc$z2 == 2, "f"] + 0.05
     dtc[dtc$z2 == 3, "f"] <- dtc[dtc$z2 == 3, "f"] + 0.01
     dtc[dtc$x2 == 2 & dtc$z2 == 2, "f"] <-
@@ -572,41 +491,30 @@ gendistCovariates <- function() {
         dtc[dtc$x2 == 3 & dtc$z2 == 2, "f"] + 0.02
     dtc[dtc$x2 == 3 & dtc$z2 == 3, "f"] <-
         dtc[dtc$x2 == 3 & dtc$z2 == 3, "f"] + 0.04
-
     dtc$f <- dtc$f / sum(dtc$f)
-    
+
     ## Check distribution (requires data.table)
     ## length(unique(dtc$f))
     ## dtc[, sum(f), by = x1]
     ## dtc[, sum(f), by = x2]
     ## dtc[, sum(f), by = z1]
     ## dtc[, sum(f), by = z2]
-    
-    ## Since distributions were arbitrarily designed anyways, I will round
-    ## them to make it easier to work with. I will make sure that they sum
-    ## to 1.
+
+    ## Since distributions were arbitrarily designed, round their
+    ## densities, and ensure they sum to 1.
     dtc$f <- round(dtc$f, 2)
     sum(dtc$f) ## Sum of rounded densities is 1.02. Adjust the
                ## densities so they sum to 1.
-
     dtc[dtc$x1 == 1 & dtc$x2 == 1 & dtc$z1 == 0 & dtc$z2 == 1, "f"] <-
         dtc[dtc$x1 == 1 & dtc$x2 == 1 & dtc$z1 == 0 & dtc$z2 == 1, "f"] - 0.01
     dtc[dtc$x1 == 1 & dtc$x2 == 3 & dtc$z1 == 1 & dtc$z2 == 3, "f"] <-
         dtc[dtc$x1 == 1 & dtc$x2 == 3 & dtc$z1 == 1 & dtc$z2 == 3, "f"] - 0.01
     dtc$f <- round(dtc$f, 2)
-    
-    ## Expand data set according to distribution
-
-    ## We multiply each row by 100 * (100 * f). The first 100 is so that
-    ## we assign the probability of treatment and control according to the
-    ## variable p. The (100 * f) is so that we can get the distribution of
+    ## Expand data set according to distribution: We multiply each row
+    ## by 100 * (100 * f). The first 100 is so that we assign the
+    ## probability of treatment and control according to the variable
+    ## p. The (100 * f) is so that we can get the distribution of
     ## covariates to be according to f.
-
-    ## dtc[, multiplier := 100 * 100 * f]
-    ## sum(dtc$multiplier)
-    ## multipler <- dtc$multiplier
-    ## dtcf <- dtc[rep(seq_len(nrow(dtc)), multiplier),]
-
     dtc[, "multiplier"] <- 100 * 100 * dtc$f
     sum(dtc$multiplier)
     dtcf <- dtc[rep(seq_len(nrow(dtc)), dtc$multiplier), ]
@@ -645,31 +553,28 @@ gendistCovariates <- function() {
         }
     }
     dtcf[dtcf$i <= dtcf$dcut, "d"] <- 1
-    
+
     ## Check if empirical distribution differs from population
     ## (requires data.table)
-
     ## failed <- which(dtcf[, mean(d), by = .(x1, x2, z1, z2)]$V1 !=
     ##                 dtcf[, mean(p), by = .(x1, x2, z1, z2)]$V1)
     ## print(failed)
-
     ## We want this list to be empty (i.e. a failure occurs when the
     ## empirical distribution of treatment within group differs from
     ## what is specified in the population).
 
     ## Assign outcomes
     dtcf$ey <- dtcf$d * dtcf$ey1 + (1 - dtcf$d) * dtcf$ey0
-
     return(list(data.full = dtcf,
                 data.dist = dtc))
 }
 
 #' Generate test data set with splines
-#' 
+#'
 #' This code generates population level data to test the
 #' estimation function. This data set incorporates splines in the
 #' MTRs.
-#' 
+#'
 #' The distribution of the data is as follows
 #'
 #'        |     Z
@@ -726,9 +631,7 @@ gendistCovariates <- function() {
 #'     of the simulated data, the other is the full simulated data
 #'     set.
 gendistSplines <- function() {
-
     set.seed(10L)
-
     ## Declare coefficients
     pCoef    <- c(0.5, -0.1, 0.2) ## Propensity score coefficients
     y1Coef   <- c(30, 35) ## Beta coefficients for y1
@@ -736,15 +639,12 @@ gendistSplines <- function() {
     u1s1Coef <- c(-75, 45, 75, 55) ## Coefficients for spline in y1
     u0s1Coef <- c(25, 60, 45, 30) ## Coefficients for first spline in y0
     u0s2Coef <- c(65, 70, 40) ## Coefficients for second spline in y0
-
     ## Generate distribution
     distr <- data.frame(group = seq(1, 6),
                         x = rep(c(-1, 0, 1), times = 2),
                         z = rep(c(0, 1), each = 3),
                         f = c(0.1, 0.2, 0.1, 0.1, 0.3, 0.2))
-
     distr$p <- pCoef[1] + pCoef[2] * distr$x + pCoef[3] * distr$z
-
     distr$ey1 <- y1Coef[1] * distr$p +
         y1Coef[2] * distr$x * distr$p +
         t(sapply(X = distr$p,
@@ -753,7 +653,6 @@ gendistSplines <- function() {
                  degree = 2,
                  knots = c(0.3, 0.6),
                  intercept = FALSE)) %*% u1s1Coef
-
     distr$ey0 <- distr$x * t(sapply(X = distr$p,
                                     FUN = splineInt,
                                     ub = 1,
@@ -767,14 +666,12 @@ gendistSplines <- function() {
                                     knots = c(0.4),
                                     intercept = TRUE)) %*% u0s2Coef +
                            y0Coef[1] / 3 * (1 - distr$p ^ 3)
-
     ## Expand distribution into data set
     N <- 4200
     distr$multiplier <- N * distr$f
     distr$controls <- distr$multiplier * (1 - distr$p)
     dtsf <- distr[rep(seq_len(nrow(distr)), distr$multiplier), c(1:7, 9)]
     rownames(dtsf) <- NULL
-
     ## Construct observed outcome
     dtsf$d <- 1
     dtsf$count <- 0
@@ -783,7 +680,6 @@ gendistSplines <- function() {
     }
     dtsf[round(dtsf$count) <= round(dtsf$controls), "d"] <- 0
     dtsf$ey <- (1 - dtsf$d) * dtsf$ey0 + dtsf$d * dtsf$ey1
-
     ## Check if the distribution is as planned
     for (z in c(0, 1)) {
         for (x in c(-1, 0, 1)) {
@@ -793,16 +689,13 @@ gendistSplines <- function() {
                 ", Prob of treat:", a / b, "\n")
         }
     }
-
     ## Check if treatment effects are consistent
     as.numeric(t(distr$ey1 - distr$ey0) %*% distr$f)
     round(as.numeric(t(distr$ey1 - distr$ey0) %*% distr$f), 7) ==
         round(mean(dtsf$ey1 - dtsf$ey0), 7)
     mean(dtsf[dtsf$d == 1, "ey"]) - mean(dtsf[dtsf$d == 0, "ey"])
-
     ## Drop unnecssary columns
     dtsf[, c("group", "controls", "count")] <- NULL
-
     return(list(data.full = dtsf,
                 data.dist = distr))
 }
@@ -814,35 +707,28 @@ gendistSplines <- function() {
 #' easily estimate a correctly specified model.  The data presented
 #' below will have already integrated over the # unobservable terms
 #' U, where U | X, Z ~ Unif[0, 1].
-#' 
+#'
 #' @return a list of two data.frame objects. One is the distribution
 #'     of the simulated data, the other is the full simulated data
 #'     set.
 gendistBasic <- function() {
-
     set.seed(10L)
-
     supp_x <- c(1, 2, 3)
     supp_z <- c(1, 2, 3, 4)
-
     dtb <- data.frame(expand.grid(supp_x, supp_z))
     colnames(dtb) <- c("x", "z")
-
     ## Generate propensity scores
     g0 <- 0.2
     g1 <- -0.10
     g2 <- 0.2
     dtb$p <- g0 + g1 * dtb$x + g2 * dtb$z
-
     ## Generate the counterfactual outcomes.
     ## m0 = 2 + x + 2 * u
     ## m1 = 6 + 5 * u^2
-
     plist0 <- polyparse(~ x + u,
                             data = dtb)
     plist1 <- polyparse(~ I(u^2),
                             data = dtb)
-
     ## Remember that you are generating E[m | D = 0] and E[m | D = 1],
     ## which are analogous to E[m | u > p(X, Z)] and E[m | u < p(X,
     ## Z)]. This is why you include those multipliers: You're
@@ -857,22 +743,17 @@ gendistBasic <- function() {
                            ub = dtb$p,
                            multiplier = 1 / dtb$p,
                            means = FALSE)
-
     g0coef <- c(2, 1, 2)
     g1coef <- c(6, 5)
-
     dtb$ey0 <- glist0 %*% g0coef
-    dtb$ey1 <- glist1 %*% g1coef   
-
+    dtb$ey1 <- glist1 %*% g1coef
     ## Generate distribution and expand data set
     p <- matrix(runif(12), ncol = 3)
     p <- p / sum(p)
-
     pmat <- matrix(c(0.02, 0.07, 0.02, 0.19,
                      0.09, 0.10, 0.17, 0.15,
                      0.01, 0.01, 0.16, 0.01),
                    ncol = 4)
-
     dtb$f <- c(pmat)
     dtb$multiplier <- dtb$f * 1000
 
@@ -905,7 +786,6 @@ gendistBasic <- function() {
 
     ## Assign outcomes
     dtbf$ey <- dtbf$d * dtbf$ey1 + (1 - dtbf$d) * dtbf$ey0
-
     return(list(data.full = dtbf,
                 data.dist = dtb))
 }
