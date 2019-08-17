@@ -66,10 +66,8 @@ olsj <- function(X, X0, X1, components, treat) {
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
 wald <- function(D, Z) {
-
     D <- D[, colnames(D) != "(Intercept)"]
     Z <- Z[, colnames(Z) != "(Intercept)"]
-
     wdt  <- cbind(D, Z)
     pz   <- mean(Z)
     ed0  <- mean(wdt[wdt[, 2] == 0, 1])
@@ -114,7 +112,6 @@ ivj <- function(X, Z, components, treat, order = NULL) {
         ##     errornames   <- errornames[-errorfactorpos]
         ##     allfactors <- paste(grep("factor(.)", colnames(X)),
         ##                         collapse = ", ")
-
         ##     efmessage <- paste0("The following factor components have been
         ##                    dropped: ", paste(errorfactors, collapse = ", "),
         ##                    ".  This may be due to colinearity in the
@@ -203,7 +200,6 @@ tsls <- function(X, Z, components, treat, order = NULL) {
         ##     errornames   <- errornames[-errorfactorpos]
         ##     allfactors <- paste(grep("factor(.)", colnames(X)),
         ##                         collapse = ", ")
-
         ##     efmessage <- paste0("The following factor components have been
         ##                    dropped: ", paste(errorfactors, collapse = ", "),
         ##                    ".  This may be due to colinearity in the
@@ -230,7 +226,6 @@ tsls <- function(X, Z, components, treat, order = NULL) {
         if (length(errornames) > 0) {
             errornames <- paste(errornames,
                                   collapse = ", ")
-
             if (is.null(order)) {
                 emessageIV <- "This may be due to collinearity, or that the
                               variable was never included in the IV-like
@@ -240,7 +235,6 @@ tsls <- function(X, Z, components, treat, order = NULL) {
                               variable was never included in IV-like
                               specification ", order, ".")
             }
-
             emessage <-
                 paste0("The following components are not found in the design
                        matrix: ", errornames, ".", emessageIV, " The variables

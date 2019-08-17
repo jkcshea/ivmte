@@ -203,7 +203,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
                 tmpName <- factorVars[[i]][j]
                 tmpName <- gsub("\\(", "\\\\\\(", tmpName)
                 tmpName <- gsub("\\)", "\\\\\\)", tmpName)
-
                 tmpIncVec <- unlist(lapply(xVars,
                                            function(x) max(grepl(tmpName, x))))
                 includeVec <- includeVec * tmpIncVec

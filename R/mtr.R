@@ -123,7 +123,6 @@ polyparse <- function(formula, data, uname = u, env, as.function = FALSE) {
         }
         return(x)
     })
-
     ## Find monomials of degree 1 ('degree' is with respect to u)
     u_pos <- lapply(nterms, whichforlist, obj = uname)
     u_pos <- which(u_pos > 0)
@@ -186,7 +185,6 @@ polyparse <- function(formula, data, uname = u, env, as.function = FALSE) {
         polymat <- matrix(polymat, ncol = 1)
         rownames(polymat) <- rownames(data)
     }
-
     return(list(polymat = polymat,
                 exporder = exporder,
                 terms = oterms))
@@ -204,10 +202,8 @@ polyparse <- function(formula, data, uname = u, env, as.function = FALSE) {
 polyProduct <- function(poly1, poly2) {
     poly1 <- c(1, 2, 3)
     poly2 <- c(2, 0, -1)
-
     degreeAdd <- seq(0, length(poly2) - 1)
     maxAdd <- max(degreeAdd)
-
     prodMat <- sapply(poly2, function(x) x * poly1)
     prodMat <- sapply(degreeAdd, function(x) c(rep(0, x),
                                                prodMat[, x + 1],
@@ -359,7 +355,6 @@ removeSplines <- function(formula, env = parent.frame()) {
                                                  pattern = "uSpline\\("))
         whichspline <- as.logical(whichspline1 + whichspline2)
     }
-
     if (max(whichspline) == 1) {
         ftobj <- terms(formula)
         splinepos <- which(whichspline == TRUE)
@@ -383,7 +378,6 @@ removeSplines <- function(formula, env = parent.frame()) {
         for (splineobj in splineterms) {
             splinepos1 <- regexpr("uSplines\\(", splineobj)
             splinepos2 <- regexpr("uSpline\\(", splineobj)
-
             if (splinepos1 == -1) {
                 splinepos <- splinepos2
                 splineposadd <- 7
@@ -405,7 +399,6 @@ removeSplines <- function(formula, env = parent.frame()) {
                                           splinepos + splineposadd + 1 +
                                           firstclose,
                                           nchar(splineobj)))
-
             ## For the case where knots are explcitly declared
             if ((firstopen < firstclose) & (secondclose != - 1)) {
                 splinecmd <- substr(splineobj,
@@ -474,7 +467,6 @@ removeSplines <- function(formula, env = parent.frame()) {
             if (inDict == FALSE) {
                 splinesDict[[length(splinesDict) + 1]] <-
                     splinesSpec[order(names(splinesSpec))]
-
                 splinesDict[[length(splinesDict)]]$gstar.index <- i
                 splinesKey <- rbind(splinesKey, c(i, length(splinesDict)))
             } else {
@@ -591,16 +583,13 @@ removeSplines <- function(formula, env = parent.frame()) {
 #'                        "ivmte:::uSplineInt(x = x, ",
 #'                        names(splineslist)[2])))
 uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
-
     ## Note: warning below is suppressed since it will be provided
     ## when uSplineBasis is run.
-
     if (any(knots < 0) || any(knots > 1)) {
         stop(gsub("\\s+", " ",
                   "When defining splines, each knot must be inside the
                    [0, 1] interval."))
     }
-
     splines2::ibs(x = x,
                   knots = knots,
                   degree = degree,
@@ -764,7 +753,6 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
             splinesLB <- eval(parse(text = gsub("uSpline\\(",
                                                 "uSplineInt(x = lb, ",
                                                 names(splines)[j])))
-
             splinesUB <- eval(parse(text = gsub("uSpline\\(",
                                                 "uSplineInt(x = ub, ",
                                                 names(splines)[j])))

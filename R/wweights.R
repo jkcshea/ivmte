@@ -38,7 +38,6 @@ restring <- function(vector, substitute = TRUE, command = "c") {
         startPoint <- nchar(command) + 2
         endTruncation <- 1
     }
-
     if (substitute == TRUE)  vector <- deparse(substitute(vector))
     if (substitute == FALSE) vector <- deparse(vector)
     vector <- gsub("\\s+", " ", Reduce(paste, vector))
@@ -113,7 +112,6 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
         fixDataTo   <- data.frame(matrix(to, nrow = 1))
         colnames(fixDataFrom) <- Z
         colnames(fixDataTo)   <- Z
-
     } else {
         fixDataFrom <- data.frame(matrix(c(eval.X, from), nrow = 1))
         fixDataTo   <- data.frame(matrix(c(eval.X, to), nrow = 1))
@@ -208,9 +206,7 @@ genWeight <- function(fun, fun.name, uname, data) {
     wArgListOth <- wArgList[wArgList != uname]
     wArgListInput <- paste(paste(wArgListOth, "=", data[, wArgListOth]),
                            collapse = ", ")
-
     new_call <- paste0(fun.name, "(", uname, " = u, ", wArgListInput, ")")
-
     outFunction <- function(u) {
         eval(parse(text = new_call))
     }
@@ -262,7 +258,6 @@ genWeight <- function(fun, fun.name, uname, data) {
 #'     \code{TRUE} is returned.
 negationCheck <- function(data, target.knots0, target.knots1,
                           target.weight0, target.weight1, N = 20) {
-
     negation <- TRUE
     ## Check number of knots
     if (length(target.knots0) == length(target.knots1)) {
@@ -275,7 +270,6 @@ negationCheck <- function(data, target.knots0, target.knots1,
                     negation <- FALSE
                     break
                 }
-
                 ## If knots arguments are the same, check
                 ## if knot values are the same
                 if (!setequal(formalArgs(target.knots0[[i]]), "...")) {
@@ -288,21 +282,18 @@ negationCheck <- function(data, target.knots0, target.knots1,
                     kNSample <- sample(x = seq(1, nrow(tdata)),
                                        size = kNCheck,
                                        replace = FALSE)
-
                     kNEval0 <- unlist(
                         lapply(X = split(tdata[kNSample, ],
                                          seq(1, kNCheck)),
                                FUN = funEval,
                                fun = target.knots0[[i]],
                                argnames = wKnotVars))
-
                     kNEval1 <- unlist(
                         lapply(X = split(tdata[kNSample, ],
                                          seq(1, kNCheck)),
                                FUN = funEval,
                                fun = target.knots1[[i]],
                                argnames = wKnotVars))
-
                     if (! all(kNEval0 == kNEval1)) {
                         negation <- FALSE
                         break
@@ -315,14 +306,12 @@ negationCheck <- function(data, target.knots0, target.knots1,
                     }
                 }
             }
-
             ## Check if weight arguments are the same
             if (!setequal(formalArgs(target.weight0[[i]]),
                           formalArgs(target.weight1[[i]]))) {
                 negation <- FALSE
                 break
             }
-
             ## Check if weights are the same
             if (!setequal(formalArgs(target.weight0[[i]]), "...")) {
                 wValVars <- formalArgs(target.weight0[[i]])
@@ -330,26 +319,22 @@ negationCheck <- function(data, target.knots0, target.knots1,
                 if (is.null(dim(tdata))) {
                     tdata <- matrix(tdata, ncol = length(wValVars))
                 }
-
                 kNCheck <- min(20, nrow(tdata))
                 kNSample <- sample(x = seq(1, nrow(tdata)),
                                    size = kNCheck,
                                    replace = FALSE)
-
                 kNEval0 <- unlist(
                     lapply(X = split(tdata[kNSample, ],
                                      seq(1, kNCheck)),
                            FUN = funEval,
                            fun = target.weight0[[i]],
                            argnames = wValVars))
-
                 kNEval1 <- unlist(
                     lapply(X = split(tdata[kNSample, ],
                                      seq(1, kNCheck)),
                            FUN = funEval,
                            fun = target.weight1[[i]],
                            argnames = wValVars))
-
                 if (! all(kNEval0 == -kNEval1)) {
                     negation <- FALSE
                     break

@@ -60,13 +60,13 @@ sOlsSplines <- function(x = NULL, d, j, exx) {
 sTslsSplines <- function(z, d, j, exz, pi) {
     cvec    <- replicate(nrow(exz), 0)
     cvec[j] <- 1
-    
+
     return(as.numeric(t(cvec) %*%
                       solve(pi %*% t(exz)) %*% pi %*% c(1, z)))
 }
 
 #' Target weighting function, for ATT
-#' 
+#'
 #' Target weighting function, for the ATT.
 #' @param z vector, the value of the instrument (redundant in this
 #'     function; included to exploit apply()).
@@ -106,19 +106,14 @@ genGammaSplinesTT <- function(distr, weight, zvars, u1s1, u0s1, u0s2,
     } else {
         zmat <- matrix(NA, nrow = nrow(distr))
     }
-    
     s0 <- apply(X = zmat, MARGIN = 1, FUN = weight, d = 0, ...)
     s1 <- apply(X = zmat, MARGIN = 1, FUN = weight, d = 1, ...)
-
     ## Construct m0 moments
     mu0s1 <- sweep(u0s1, MARGIN = 1, STATS = distr[, "x"], FUN = "*")
     mu0s1 <- sweep(mu0s1, MARGIN = 1, STATS = s0, FUN = "*")
-    
     mu0s2 <- sweep(u0s2, MARGIN = 1, STATS = s0, FUN = "*")
-
     if (target == FALSE) muu2 <- (1 / 3) * (1 - distr[, "p"] ^ 3) * s0
     if (target == TRUE)  muu2 <- (1 / 3) * (distr[, "p"] ^ 3) * s0
-
     g0 <- c(sum(muu2 * distr[, "f"]),
             colSums(sweep(mu0s2,
                           MARGIN = 1,
@@ -128,28 +123,21 @@ genGammaSplinesTT <- function(distr, weight, zvars, u1s1, u0s1, u0s2,
                           MARGIN = 1,
                           STATS = distr[, "f"],
                           FUN = "*")))
-    
     names(g0) <- c("I(u^2)",
                    "u0S1.1:1", "u0S1.2:1", "u0S1.3:1",
                    "u0S2.1:x", "u0S2.2:x", "u0S2.3:x", "u0S2.4:x")
-    
     ## Construct m1 moments
     m1int <- s1 * distr[, "p"]
-    
     m1x <- distr[, "x"] * s1 * distr[, "p"]
-    
     mu1s1 <- sweep(u1s1, MARGIN = 1, STATS = s1, FUN = "*")
-  
     g1 <- c(sum(m1int * distr[, "f"]),
             sum(m1x * distr[, "f"]),
             colSums(sweep(mu1s1,
                           MARGIN = 1,
                           STATS = distr[, "f"],
                           FUN = "*")))
-    
     names(g1) <- c("(Intercept)", "x",
                    "u1S1.1:1", "u1S1.2:1", "u1S1.3:1", "u1S1.4:1")
-    
     return(list(g0 = g0,
                 g1 = g1))
 }

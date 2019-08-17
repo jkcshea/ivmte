@@ -303,7 +303,7 @@ obsEqMin <- function(sset, lpobj, lpsolver) {
                   (2 * lpobj$sn + lpobj$gn0 + lpobj$gn1)]
     names(g0sol) <- names(sset$gstar$g0)
     names(g1sol) <- names(sset$gstar$g1)
-    ## return output
+
     return(list(obj = obseqmin,
                 g0 = g0sol,
                 g1 = g1sol,
@@ -508,7 +508,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
             min       <- minresult$objval
             minoptx   <- minresult$optx
             minstatus <- minresult$status
-
             maxresult <- runCplexAPI(model, cplexAPI::CPX_MAX)
             max       <- maxresult$objval
             maxoptx   <- maxresult$optx
@@ -520,7 +519,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
             min       <- minresult$objval
             minoptx   <- minresult$optx
             minstatus <- minresult$status
-
             maxresult <- runLpSolveAPI(model, 'max')
             max       <- maxresult$objval
             maxoptx   <- maxresult$optx
@@ -568,7 +566,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
     }
     if (maxstatus == 0 || minstatus == 0) {
         return(NULL)
-    }    
+    }
     ming0 <- minoptx[(2 * lpobj$sn + 1) : (2 * lpobj$sn + lpobj$gn0)]
     ming1 <- minoptx[(2 * lpobj$sn + lpobj$gn0 + 1) :
                      (2 * lpobj$sn + lpobj$gn0 + lpobj$gn1)]
@@ -586,6 +584,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         cat("Max status: ", maxstatus, "\n", sep = "")
         cat("Bound: (", min, ", ", max, ")\n", sep = "")
     }
+
     return(list(max = max,
                 maxg0 = maxg0,
                 maxg1 = maxg1,

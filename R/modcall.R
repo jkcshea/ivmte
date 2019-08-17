@@ -10,12 +10,10 @@
 #'     rest being kept.
 #' @return New call object.
 modcall <- function(call, newcall, newargs, keepargs, dropargs) {
-
     if (hasArg(keepargs)) {
         call_arg <- match(keepargs, names(call), 0)
         call <- call[c(1, call_arg)]
     }
-
     lcall <- as.list(call)
     if (hasArg(newcall)) {
         lcall[[1]] <- substitute(newcall)

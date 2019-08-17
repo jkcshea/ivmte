@@ -18,7 +18,7 @@ popmean <- function(formula, distribution, density = "f") {
 }
 
 #' Generate symmetric matrix
-#' 
+#'
 #' Function takes in a vector of values, and constructs a symmetric
 #' matrix from it. Diagonals must be included. The length of the
 #' vector must also be consistent with the number of "unique" entries
@@ -50,7 +50,7 @@ mInt <- function(ub, lb, coef){
 }
 
 #' Function to generate gamma moments for 'testthat'
-#' 
+#'
 #' This function generates the gamma moments from a population level
 #' data set. This is specifically constructed to carry out tests.
 #' @param data data.table.
@@ -63,7 +63,6 @@ mInt <- function(ub, lb, coef){
 #' @return list, contains the vectors of the Gamma moments for control
 #'     and treated observations.
 genGammaTT <- function(data, s0, s1, lb, ub) {
-
     ## Gammas for D = 0
     if (!hasArg(lb) | !hasArg(ub)) {
         data$g.0.d.0 <- (1 - data$p) * data[, s0]
@@ -74,14 +73,12 @@ genGammaTT <- function(data, s0, s1, lb, ub) {
         data$g.0.d.0 <- (ub - lb) * data[, s0]
         data$g.0.d.1 <- (ub - lb) * data$x1 * data[, s0]
         data$g.0.d.2 <- mInt(ub, lb, c(0, 1, 0)) * data$x2 * data[, s0]
-        data$g.0.d.3 <- mInt(ub, lb, c(0, 0, 1)) * data$x2 * data[, s0]        
+        data$g.0.d.3 <- mInt(ub, lb, c(0, 0, 1)) * data$x2 * data[, s0]
     }
-
     g.0.d.0 <- popmean(~ 0 + g.0.d.0, data)
     g.0.d.1 <- popmean(~ 0 + g.0.d.1, data)
     g.0.d.2 <- popmean(~ 0 + g.0.d.2, data)
     g.0.d.3 <- popmean(~ 0 + g.0.d.3, data)
-
     ## Gammas for D = 1
     if (!hasArg(lb) | !hasArg(ub)) {
         data$g.1.d.0 <- data$p * data[, s1]
@@ -98,17 +95,14 @@ genGammaTT <- function(data, s0, s1, lb, ub) {
         data$g.1.d.4 <- mInt(ub, lb, c(0, 1, 0)) * data$x1 * data[, s1]
         data$g.1.d.5 <- mInt(ub, lb, c(0, 0, 1)) * data$x2 * data[, s1]
     }
-
     g.1.d.0 <- popmean(~ 0 + g.1.d.0, data)
     g.1.d.1 <- popmean(~ 0 + g.1.d.1, data)
     g.1.d.2 <- popmean(~ 0 + g.1.d.2, data)
     g.1.d.3 <- popmean(~ 0 + g.1.d.3, data)
     g.1.d.4 <- popmean(~ 0 + g.1.d.4, data)
     g.1.d.5 <- popmean(~ 0 + g.1.d.5, data)
-
     g.0 <- c(g.0.d.0, g.0.d.1, g.0.d.2, g.0.d.3)
     g.1 <- c(g.1.d.0, g.1.d.1, g.1.d.2, g.1.d.3, g.1.d.4, g.1.d.5)
-
     return(list(g0 = g.0, g1 = g.1))
 }
 
@@ -153,7 +147,6 @@ sOls2d <- function(x, d, exx) {
 sOls3 <- function(x, d, j, exx) {
     cvec    <- replicate(4, 0)
     cvec[j] <- 1
-
     if (d == 1) return(as.numeric(t(cvec) %*% solve(exx) %*% c(1, 1, x)))
     if (d == 0) return(as.numeric(t(cvec) %*% solve(exx) %*% c(1, 0, x)))
 }
@@ -170,7 +163,6 @@ sOls3 <- function(x, d, j, exx) {
 sTsls <- function(z, j, exz, pi) {
     cvec    <- replicate(4, 0)
     cvec[j] <- 1
-
     return(as.numeric(t(cvec) %*%
                       solve(pi %*% t(exz)) %*%
                       pi %*% c(1, z)))

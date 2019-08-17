@@ -65,7 +65,6 @@ splineUpdate <- function(x, bmat, knots, i, current.order) {
     if (is.null(dim(bmat)) & length(x) > 1) {
         return(bmat)
     }
-
     if (is.null(dim(bmat)) & length(x) == 1) {
         if (length(bmat) == 1) {
             return(bmat)
@@ -73,9 +72,7 @@ splineUpdate <- function(x, bmat, knots, i, current.order) {
             bmat <- as.matrix(bmat)
         }
     }
-
     if (dim(bmat)[1] == 1) return(bmat)
-
     ## Update bmat
     wmat <- as.matrix(sapply(x,
                              function(y) {
@@ -84,11 +81,9 @@ splineUpdate <- function(x, bmat, knots, i, current.order) {
                                         x = y,
                                         knots = knots,
                                         order = current.order + 1)}))
-
     bmat1 <- as.matrix(wmat * bmat)
     bmat2 <- as.matrix((1 - wmat) * bmat)
     bmat <- bmat1[-nrow(bmat), ] + bmat2[-1, ]
-
     ## Impose recursion
     splineUpdate(x, bmat, knots, i, current.order + 1)
 }
@@ -118,17 +113,14 @@ splinesBasis <- function(x, knots, degree, intercept = TRUE, i,
     else {
         knots <- sort(c(knots, boundary.knots[2], rep(boundary.knots, degree)))
         if(intercept == TRUE) knots <- c(boundary.knots[1], knots)
-
         bmat <- as.matrix(sapply(x,
                                  function(y) {
                                      sapply(X = seq(i, i + degree),
                                             FUN = bX,
                                             x = y,
                                             knots = knots)}))
-
         if (ncol(bmat) != length(x) &
             nrow(bmat) == length(x)) bmat <- t(bmat)
-
         bmat <- splineUpdate(x, bmat, knots, i = i, current.order = 1)
         return(bmat)
     }
@@ -153,7 +145,6 @@ splinesBasis <- function(x, knots, degree, intercept = TRUE, i,
 altDefSplinesBasis <- function(splineslist, j, l, v = 1) {
     cmd <- names(splineslist)[j]
     cmd <- gsub("uSplines\\(", "splinesBasis(x = u, i = l, ", cmd)
-
     fun <- function(u) {
         v * eval(parse(text = cmd))
     }
