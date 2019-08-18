@@ -5,7 +5,8 @@
 \title{Generating LP moments for IV-like estimands}
 \usage{
 genSSet(data, sset, sest, splinesobj, pmodobj, pm0, pm1, ncomponents,
-  scount, subset_index, means = TRUE, yvar, dvar, noisy = TRUE)
+  scount, subset_index, means = TRUE, yvar, dvar, noisy = TRUE,
+  ivn = NULL)
 }
 \arguments{
 \item{data}{\code{data.frame} used to estimate the treatment
@@ -53,6 +54,9 @@ treatment effect is point identified.}
 then messages are provided throughout the estimation
 procedure. Set to \code{FALSE} to suppress all messages,
 e.g. when performing the bootstrap.}
+
+\item{ivn}{integer, the number indicating which IV specification
+the component corresponds to.}
 }
 \value{
 A list containing the point estimate for the IV regression,

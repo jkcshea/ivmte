@@ -48,8 +48,8 @@ utils::globalVariables("u")
 #'     then the user can instead submit the value of the weight
 #'     instead of a function.
 #' @param target.weight1 user-defined weight function for the treated
-#'     group defining the target parameter. See \link{target.weight0}
-#'     for details.
+#'     group defining the target parameter. See
+#'     \code{target.weight0} for details.
 #' @param target.knots0 user-defined set of functions defining the
 #'     knots associated with spline weights for the control group. The
 #'     arguments of the function should consist only of variable names
@@ -58,7 +58,7 @@ utils::globalVariables("u")
 #'     knots instead of a function.
 #' @param target.knots1 user-defined set of functions defining the
 #'     knots associated with spline weights for the treated group. See
-#'     \link{target.knots0} for details.
+#'     \code{target.knots0} for details.
 #' @param m0 one-sided formula for the marginal treatment response
 #'     function for the control group. Splines may also be
 #'     incorporated using the expression \code{uSpline}, e.g.
@@ -231,32 +231,32 @@ utils::globalVariables("u")
 #'
 #' @details The return list includes the following objects.
 #'     \describe{
-#' \item{sset} a list of all the coefficient estimates and weights
-#'     corresponding to each element in the S-set.
-#' \item{gstar} a list containing the estimate of the weighted means
+#' \item{sset}{a list of all the coefficient estimates and weights
+#'     corresponding to each element in the S-set.}
+#' \item{gstar}{a list containing the estimate of the weighted means
 #' for each component in the MTRs. The weights are determined by the
 #' target parameter declared in \code{target}, or the weights defined
 #' by \code{target.weight1}, \code{target.knots1},
-#' \code{target.weight0}, \code{target.knots0}.
-#' \item{gstar.weights} a list containing the target weights used to
-#' estimate \code{gstar}.
-#' \item{gstar.coef} a list containing the coefficients on the treated
-#' and control group MTRs.
-#' \item{propensity} The propensity score model. If a variable is fed
+#' \code{target.weight0}, \code{target.knots0}.}
+#' \item{gstar.weights}{a list containing the target weights used to
+#' estimate \code{gstar}.}
+#' \item{gstar.coef}{a list containing the coefficients on the treated
+#' and control group MTRs.}
+#' \item{propensity}{the propensity score model. If a variable is fed
 #' to the \code{propensity} argument when calling \code{ivmte}, then
 #' the returned object is a list containing the name of variable given by the
-#' user, and the values of that variable used in estimation.
-#' \item{bounds} a vector with the estimated lower and upper bounds of
-#' the target treatment effect.
-#' \item{lpresult} a list containing the LP model, and the full output
-#' from solving the LP problem.
-#' \item{audit.grid} the audit grid on which all shape constraints
-#' were satisfied.
-#' \item{audit.count} the number of audits required until there were
-#' no more violations.
-#' \item{audit.minobseq} the minimum criterion.
-#' \item{splinesdict} a list including the specifications of each
-#' spline declared in each MTR.
+#' user, and the values of that variable used in estimation.}
+#' \item{bounds}{a vector with the estimated lower and upper bounds of
+#' the target treatment effect.}
+#' \item{lpresult}{a list containing the LP model, and the full output
+#' from solving the LP problem.}
+#' \item{audit.grid}{the audit grid on which all shape constraints
+#' were satisfied.}
+#' \item{audit.count}{the number of audits required until there were
+#' no more violations.}
+#' \item{audit.minobseq}{the minimum criterion.}
+#' \item{splinesdict}{a list including the specifications of each
+#' spline declared in each MTR.}
 #' }
 #'
 #' @examples
@@ -2600,7 +2600,8 @@ ivmteEstimate <- function(ivlike, data, subset, components,
                     propensity = pmodel,
                     bounds = c(audit$min, audit$max),
                     lpresult =  audit$lpresult,
-                    audit.grid = audit$gridobj$grid,
+                    audit.grid = list(initial = audit$gridobj$initial$grid,
+                                      audit = audit$gridobj$audit$grid),
                     audit.count = audit$auditcount,
                     audit.minobseq = audit$minobseq,
                     splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
@@ -2794,7 +2795,7 @@ genTarget <- function(treat, m0, m1, uname, target,
             }
             if (!is.null(m0)) pm0$polymat <- pm0$polymat[rownames(data), ]
             if (!is.null(m1)) pm1$polymat <- pm1$polymat[rownames(data), ]
-            w1 <- wlate1(subsetData, late.from, late.to, late.Z,
+            w1 <- wlate1(data, late.from, late.to, late.Z,
                          pmodobj$model, late.X, eval.X)
             w0 <- w1
             w0$mp <- -1 * w0$mp

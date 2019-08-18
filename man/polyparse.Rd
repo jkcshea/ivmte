@@ -4,7 +4,8 @@
 \alias{polyparse}
 \title{Parsing marginal treatment response formulas}
 \usage{
-polyparse(formula, data, uname = u, as.function = FALSE)
+polyparse(formula, data, uname = u, env = parent.frame(),
+  as.function = FALSE)
 }
 \arguments{
 \item{formula}{the MTR.}
@@ -14,6 +15,9 @@ for each observation.}
 
 \item{uname}{variable name for unobservable used in declaring the
 MTR.}
+
+\item{env}{environment, the original environment in which
+the formula was declared.}
 
 \item{as.function}{boolean, if \code{FALSE} then a list of the
 polynomial terms are returned; if \code{TRUE} then a list of

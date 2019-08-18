@@ -4,10 +4,14 @@
 \alias{removeSplines}
 \title{Separating splines from MTR formulas}
 \usage{
-removeSplines(formula)
+removeSplines(formula, env = parent.frame())
 }
 \arguments{
 \item{formula}{the formula that is to be parsed.}
+
+\item{env}{environment in which to formulas. This is necessary as
+splines may be declared using objects, e.g. \code{knots = x},
+where \code{x = c(0.3, 0.64, 0.9)}.}
 }
 \value{
 a list containing two objects. One object is \code{formula}

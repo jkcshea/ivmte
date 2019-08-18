@@ -5,13 +5,13 @@
 \title{Audit procedure}
 \usage{
 audit(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr0, terms_mtr1,
-  grid.nu = 20, grid.nx = 20, audit.nx = 20, audit.nu = 20,
-  audit.max = 10, audit.tol = 1e-08, m1.ub, m0.ub, m1.lb, m0.lb,
-  m1.ub.default = FALSE, m0.ub.default = FALSE,
+  vars_data, initgrid.nu = 20, initgrid.nx = 20, audit.nx = 2500,
+  audit.nu = 25, audit.add = 100, audit.max = 25, m1.ub, m0.ub,
+  m1.lb, m0.lb, m1.ub.default = FALSE, m0.ub.default = FALSE,
   m1.lb.default = FALSE, m0.lb.default = FALSE, mte.ub, mte.lb,
   m0.dec = FALSE, m0.inc = FALSE, m1.dec = FALSE, m1.inc = FALSE,
   mte.dec = FALSE, mte.inc = FALSE, sset, gstar0, gstar1,
-  obseq.tol = 0.05, lpsolver, noisy = TRUE, seed = 12345)
+  obseq.tol = 0, lpsolver, noisy = TRUE, seed = 12345)
 }
 \arguments{
 \item{data}{\code{data.frame} used to estimate the treatment
@@ -40,12 +40,14 @@ group.}
 \item{terms_mtr1}{all terms entering into the MTRs for treated
 group.}
 
-\item{grid.nu}{number of evenly spread points in the interval [0,
-1] of the unobservable u used to form the grid for imposing
+\item{vars_data}{all relevant variables appearin in the data set.}
+
+\item{initgrid.nu}{number of evenly spread points in the interval
+[0, 1] of the unobservable u used to form the grid for imposing
 shape restrictions on the MTRs.}
 
-\item{grid.nx}{number of evenly spread points of the covariates to
-use to form the grid for imposing shape restrictions on the
+\item{initgrid.nx}{number of evenly spread points of the covariates
+to use to form the grid for imposing shape restrictions on the
 MTRs.}
 
 \item{audit.nx}{number of points on the covariates space to audit
@@ -55,13 +57,13 @@ in each iteration of the audit procedure.}
 corresponding to the normalized value of the unobservable term,
 to audit in each iteration of the audit procedure.}
 
+\item{audit.add}{maximum number of points to add to the grids for
+imposing each kind of shape constraint. So if there are 5
+different kinds of shape constraints, there can be at most
+\code{audit.add * 5} additional points added to the grid.}
+
 \item{audit.max}{maximum number of iterations in the audit
 procedure.}
-
-\item{audit.tol}{tolerance for determining when to end the audit
-procedure. Namely, if the percentage change in the upper and
-lower bounds both fall below \code{audit.tol} between
-iterations of the audit, the audit procedure ends.}
 
 \item{m1.ub}{numeric value for upper bound on MTR for treated
 group.}

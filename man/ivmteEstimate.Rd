@@ -7,14 +7,15 @@ Santos (2018)}
 \usage{
 ivmteEstimate(ivlike, data, subset, components, propensity,
   link = "logit", treat, m0, m1, vars_y, vars_mtr, terms_mtr0,
-  terms_mtr1, splinesobj, uname = u, target, target.weight0,
+  terms_mtr1, vars_data, splinesobj, uname = u, target, target.weight0,
   target.weight1, target.knots0 = NULL, target.knots1 = NULL, late.Z,
   late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
-  obseq.tol = 0.05, grid.nu = 20, grid.nx = 20, audit.nx = 20,
-  audit.nu = 20, audit.max = 10, audit.tol = 1e-08, m1.ub, m0.ub,
-  m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
-  mte.inc, lpsolver = NULL, point = FALSE, noisy = TRUE,
-  seed = 12345)
+  obseq.tol = 0, initgrid.nu = 20, initgrid.nx = 20,
+  audit.nx = 2500, audit.nu = 25, audit.add = 100, audit.max = 25,
+  m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec,
+  m1.inc, mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
+  point.eyeweight = FALSE, point.center = NULL, noisy = TRUE,
+  smallreturnlist = FALSE, environments, seed = 12345)
 }
 \arguments{
 \item{ivlike}{formula or vector of formulas used to specify the
@@ -76,6 +77,9 @@ variable.}
 
 \item{terms_mtr1}{character, vector of terms entering into
 \code{m1}.}
+
+\item{vars_data}{character, vector of variables that can be found
+in the data.}
 
 \item{splinesobj}{list of spline components in the MTRs for treated
 and control groups. Spline terms are extracted using
@@ -139,17 +143,18 @@ estimating generalized LATE.}
 estimating generalized LATE.}
 
 \item{obseq.tol}{threshold for violation of observational
-equivalence. The threshold enters in multiplicatively. Thus, a
-value of 0 corresponds to no violation of observational
-equivalence other than statistical noise, and the assumption
-that the model is correctly specified.}
+equivalence, set to 0 by default. The threshold enters in
+multiplicatively. Thus, a value of 0 corresponds to no
+violation of observational equivalence other than statistical
+noise, and the assumption that the model is correctly
+specified.}
 
-\item{grid.nu}{number of evenly spread points in the interval [0,
-1] of the unobservable u used to form the grid for imposing
+\item{initgrid.nu}{number of evenly spread points in the interval
+[0, 1] of the unobservable u used to form the grid for imposing
 shape restrictions on the MTRs.}
 
-\item{grid.nx}{number of evenly spread points of the covariates to
-use to form the grid for imposing shape restrictions on the
+\item{initgrid.nx}{number of evenly spread points of the covariates
+to use to form the grid for imposing shape restrictions on the
 MTRs.}
 
 \item{audit.nx}{number of points on the covariates space to audit
@@ -157,12 +162,14 @@ in each iteration of the audit procedure.}
 
 \item{audit.nu}{number of points in the interval [0, 1],
 corresponding to the normalized value of the unobservable term,
-to audit in each iteration of the audit procedure.}
+to audit in each iteration of the audit procedure}
+
+\item{audit.add}{maximum number of points to add to the grids for
+imposing each kind of shape constraint. So if there are 5
+different kinds of shape constraints, there can be at most
+\code{audit.add * 5} additional points added to the grid.}
 
 \item{audit.max}{maximum number of iterations in the audit
-procedure.}
-
-\item{audit.tol}{tolerance for determining when to end the audit
 procedure.}
 
 \item{m1.ub}{numeric value for upper bound on MTR for treated
@@ -215,13 +222,33 @@ is implemented to estimate the treatment effects. Shape
 constraints on the MTRs will be ignored under point
 identification.}
 
+\item{point.eyeweight}{boolean, default set to \code{FALSE}. Set to
+\code{TRUE} if GMM point estimate should use the identity
+weighting matrix (i.e. one-step GMM).}
+
+\item{point.center}{numeric, a vector of solutions to the GMM
+problem. When bootstrapping, the solution to the point
+identified case obtained from the original sample can be passed
+through this argument to recenter the bootstrap distribution of
+the J-statistic.}
+
 \item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
 then messages are provided throughout the estimation
 procedure. Set to \code{FALSE} to suppress all messages,
 e.g. when performing the bootstrap.}
 
-\item{seed}{integer, the seed that determines the random grid
-in the audit procedure.}
+\item{smallreturnlist}{boolean, default set to \code{FALSE}. Set to
+\code{TRUE} to exclude large intermediary components
+(i.e. propensity score model, LP model, bootstrap iterations).}
+
+\item{environments}{list, a list containing the environments of the
+MTR formulas, the IV-like formulas, and the propensity score
+formulas. If a formulas is not provided, and thus no
+environment can be found, then the parent.frame() is assigned
+by default.}
+
+\item{seed}{integer, the seed that determines the random grid in
+the audit procedure.}
 }
 \value{
 Returns a list of results from throughout the estimation

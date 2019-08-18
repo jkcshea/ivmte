@@ -4,7 +4,7 @@
 \alias{genmonoboundA}
 \title{Generating monotonicity and boundedness constraints}
 \usage{
-genmonoboundA(support, grid_index, uvec, splines, monov, uname, m0, m1,
+genmonoboundA(support, grid_index, uvec, splinesobj, monov, uname, m0, m1,
   sset, gstar0, gstar1, m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub, m0.dec,
   m0.inc, m1.dec, m1.inc, mte.dec, mte.inc)
 }
@@ -18,7 +18,7 @@ to generate the grid preceding the audit.}
 \item{uvec}{a vector, the points in the interval [0, 1] that the
 unobservable takes on.}
 
-\item{splines}{a list of lists. Each of the inner lists contains
+\item{splinesobj}{a list of lists. Each of the inner lists contains
 details on the splines declared in the MTRs.}
 
 \item{monov}{name of variable for which the monotonicity conditions

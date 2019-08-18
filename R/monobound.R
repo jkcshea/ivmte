@@ -522,7 +522,7 @@ combinemonobound <- function(bdA, monoA) {
 #'     to generate the grid preceding the audit.
 #' @param uvec a vector, the points in the interval [0, 1] that the
 #'     unobservable takes on.
-#' @param splines a list of lists. Each of the inner lists contains
+#' @param splinesobj a list of lists. Each of the inner lists contains
 #'     details on the splines declared in the MTRs.
 #' @param monov name of variable for which the monotonicity conditions
 #'     applies to.

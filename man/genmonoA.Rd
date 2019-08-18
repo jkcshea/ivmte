@@ -4,8 +4,8 @@
 \alias{genmonoA}
 \title{Generate LP components of the monotonicity constraints}
 \usage{
-genmonoA(A0, A1, sset, gridobj, gstar0, gstar1, m0.dec, m0.inc, m1.dec,
-  m1.inc, mte.dec, mte.inc, monov)
+genmonoA(A0, A1, sset, uname, gridobj, gstar0, gstar1, m0.dec, m0.inc,
+  m1.dec, m1.inc, mte.dec, mte.inc)
 }
 \arguments{
 \item{A0}{the matrix of values from evaluating the MTR for control
@@ -20,6 +20,8 @@ for the monotonicity conditions.}
 
 \item{sset}{a list containing the point estimates and gamma
 components associated with each element in the S-set.}
+
+\item{uname}{Name of unobserved variable.}
 
 \item{gridobj}{a list containing the grid over which the
 monotonicity and boundedness conditions are imposed on.}
@@ -47,9 +49,6 @@ decreasing.}
 
 \item{mte.inc}{boolean, indicating whether the MTE is monotone
 increasing.}
-
-\item{monov}{name of variable for which the monotonicity conditions
-applies to.}
 }
 \value{
 constraint matrix for the LP problem. The matrix pertains

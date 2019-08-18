@@ -48,7 +48,7 @@ permute <- function(vector) {
 #' @param weights vector of weights.
 #' @param order integer, the counter for which IV-like specification
 #'     and component the regression is for.
-#' @param tsls boolean, to indicate whether or not the regression
+#' @param excluded boolean, to indicate whether or not the regression
 #'     involves excluded variables.
 #' @return vector of select coefficient estimates.
 piv <- function(Y, X, Z, lmcomponents, weights = NULL, order = NULL,
@@ -62,7 +62,8 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL, order = NULL,
     ## Check that the instruments are different from X. If they are
     ## the same, and 'excluded = TRUE', then the user is submitting an
     ## unclear formula.
-    if (all(sort(colnames(X)) == sort(colnames(Z))) && excluded == TRUE) {
+    if (length(colnames(X)) == length(colnames(Z)) &&
+        all(sort(colnames(X)) == sort(colnames(Z))) && excluded == TRUE) {
         stop(gsub("\\s+", " ",
                   paste0("Please ensure that IV-like specifications are not
                           defined such that the first stage covariates are

@@ -35,6 +35,7 @@
 #'     group.
 #' @param terms_mtr1 all terms entering into the MTRs for treated
 #'     group.
+#' @param vars_data all relevant variables appearin in the data set.
 #' @param initgrid.nu number of evenly spread points in the interval
 #'     [0, 1] of the unobservable u used to form the grid for imposing
 #'     shape restrictions on the MTRs.
@@ -495,7 +496,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                            mono1seq = a_mbobj$mono1seq,
                                            monoteseq = a_mbobj$monoteseq,
                                            mbmap = a_mbobj$mbmap)
-
             ## Expand initial grid
             mbobj$mbA <- rbind(mbobj$mbA, a_mbobj$mbA[violateIndexes, ])
             mbobj$mbrhs <- c(mbobj$mbrhs, a_mbobj$mbrhs[violateIndexes])
@@ -525,13 +525,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
             }
             break
         }
-    }
-    
+    }    
     return(list(max = lpresult$max,
                 min = lpresult$min,
                 lpresult = lpresult,
                 minobseq = minobseq$obj,
-                gridobj = a_mbobj$gridobj,
+                gridobj = list(initial = mbobj$gridobj,
+                               audit = a_mbobj$gridobj),
                 auditcount = audit_count))
 }
 
@@ -570,8 +570,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
 #'     constraint matrix corresponding to the monotonicity conditions
 #'     for the mte.
 #' @param mbmap integer vector, indexes the X-value associated with
-#'     each row in the audit constraint matrix.
-#' @param mbumap numeric vector, indexes the U-value associated with
 #'     each row in the audit constraint matrix.
 #' @return The audit grid is represented using a set of constraint
 #'     matrices. Each point in the audit grid corresponds to a set of
@@ -624,5 +622,6 @@ selectViolations <- function(diffVec, audit.add,
                                          function(x) seq(1, x))))
     violateMat <- violateMat[violateMat$counts <= audit.add, ]
     violateIndexes <- violateMat$row
+    print(violateIndexes)
     return(violateIndexes)
 }

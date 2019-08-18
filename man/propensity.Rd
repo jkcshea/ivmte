@@ -4,7 +4,7 @@
 \alias{propensity}
 \title{Estimating propensity scores}
 \usage{
-propensity(formula, data, link = "logit", late.Z, late.X)
+propensity(formula, data, link = "logit", late.Z, late.X, env)
 }
 \arguments{
 \item{formula}{Formula characterizing probability model. If a
@@ -26,6 +26,9 @@ LATE.}
 variables. This is required when the target parameter is the
 LATE, and the estimation procedure will condition on these
 variables.}
+
+\item{env}{environment, the environment for the original
+propensity score formula.}
 }
 \value{
 A vector of propensity scores for each observation, as well

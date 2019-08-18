@@ -2,9 +2,10 @@
 % Please edit documentation in R/mst.R
 \name{gmmEstimate}
 \alias{gmmEstimate}
-\title{Two-step GMM estimate of TE under point identification}
+\title{GMM estimate of TE under point identification}
 \usage{
-gmmEstimate(sset, gstar0, gstar1, noisy = TRUE)
+gmmEstimate(sset, gstar0, gstar1, orig.solution = NULL,
+  identity = FALSE, noisy = TRUE)
 }
 \arguments{
 \item{sset}{a list of lists constructed from the function
@@ -18,6 +19,16 @@ is what is used to generate the gamma moments.}
 \item{gstar0}{vector, the target gamma moments for d = 0.}
 
 \item{gstar1}{vector, the target gamma moments for d = 1.}
+
+\item{orig.solution}{numeric, a vector of solutions to the GMM
+problem. When bootstrapping, the solution to the point
+identified case obtained from the original sample can be passed
+through this argument to recenter the bootstrap distribution of
+the J-statistic.}
+
+\item{identity}{boolean, default set to \code{FALSE}. Set to
+\code{TRUE} if GMM point estimate should use the identity
+weighting matrix (i.e. one-step GMM).}
 
 \item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
 then messages are provided throughout the estimation
