@@ -329,12 +329,14 @@ amonoA1 <- amono1[seq(1, 3 * length(auGrid))[-seq(1,
                                            by = length(auGrid))], ]
 aAzeroes <- matrix(0, ncol = ncol(Aextra), nrow = nrow(amonoA0))
 amtemono <- cbind(aAzeroes, -amonoA0, amonoA1)
+
 ## Construct boundedness matrix components
 aBzeroes <- matrix(0, ncol = ncol(Aextra), 3 * length(auGrid))
 ab0zeroes <- matrix(0, ncol = ncol(amono0), nrow = 3 * length(auGrid))
 ab1zeroes <- matrix(0, ncol = ncol(amono1), nrow = 3 * length(auGrid))
 am0bound <- cbind(aBzeroes, amono0, ab1zeroes)
 am1bound <- cbind(aBzeroes, ab0zeroes, amono1)
+
 ## Construct the audit matrices
 arhs <- c(replicate(nrow(am0bound), miny),
           replicate(nrow(am1bound), miny),
@@ -351,7 +353,7 @@ aA <- rbind(am0bound,
             am0bound,
             am1bound,
             amtemono)
-violateVec <- c(45, 86, 97, 91, 37)
+violateVec <- c(37, 45, 86, 97, 91)
 addShapeRhs <- arhs[violateVec]
 addShapeSense <- asense[violateVec]
 addShapeA <- aA[violateVec, ]
@@ -360,7 +362,7 @@ addShapeA <- aA[violateVec, ]
 ## Obtain minimum criterion
 ##-------------------------
 
-## Construct full Gurobi/lpSolveAPI model
+## Construct full lpSolveAPI model
 modelO <- list()
 modelO$obj <- c(replicate(ncol(Aextra), 1),
                 replicate(ncol(monoA0) + ncol(monoA1), 0))
@@ -390,8 +392,6 @@ modelO$ub <- c(replicate(ncol(Aextra), Inf),
 modelO$lb <- c(replicate(ncol(Aextra), 0),
                replicate(ncol(monoA0) + ncol(monoA1), -Inf))
 ## Minimize observational equivalence deviation
-## modelO$modelsense <- "min"
-## minobseq <- gurobi::gurobi(modelO)$objval
 minobseq <- runLpSolveAPI(modelO, 'min')$objval
 
 ##-------------------------
@@ -415,12 +415,8 @@ modelF$ub <- c(replicate(ncol(Aextra), Inf),
                replicate(ncol(mono0) + ncol(mono1), Inf))
 modelF$lb <- c(replicate(ncol(Aextra), 0),
                replicate(ncol(mono0) + ncol(mono1), -Inf))
+
 ## Find bounds with threshold
-## Code for Gurobi:
-## modelF$modelsense <- "min"
-## minAtt <- gurobi::gurobi(modelF)
-## modelF$modelsense <- "max"
-## maxAtt <- gurobi::gurobi(modelF)
 minAtt <- runLpSolveAPI(modelF, 'min')
 maxAtt <- runLpSolveAPI(modelF, 'max')
 bound <- c(minAtt$objval, maxAtt$objval)
@@ -454,9 +450,7 @@ weight02 <- function(z) {
 knots01 <- function(z, x) {
     0.3 + 0.3 * z + 0.1 * x
 }
-
 ## Custom weight estimate using smaller sample
-set.seed(10L)
 resultAlt <- ivmte(ivlike = ivlike,
                    data = dtsf,
                    components = components,
@@ -481,10 +475,13 @@ resultAlt <- ivmte(ivlike = ivlike,
                    initgrid.nx = 2,
                    audit.nx = 1,
                    audit.nu = 5,
+                   audit.max = 10,
                    m1.ub = 55,
                    m0.lb = 0,
                    mte.inc = TRUE,
-                   lpsolver = "lpSolveAPI")
+                   lpsolver = "lpSolveAPI",
+                   seed = 10L)
+
 
 ##------------------------
 ## Reconstruct target gamma moments
@@ -495,14 +492,12 @@ dts$weight11 <- 1 / (1 + dts$z)
 dts$weight01 <- - 1 / (1 + dts$z + abs(dts$x))
 dts$weight02 <- - (1 / (1 + dts$z)) * 1.33
 dts$knots01 <- 0.3 + 0.3 * dts$z + 0.1 * dts$x
-
 ## Construct control group, nonsplines term
 u2vecA <- sapply(dts$knots01, function(x) (1 / 3) * x ^ 3)
 u2vecB <- sapply(rep(1, nrow(dts)), function(x) (1 / 3) * x ^ 3) - u2vecA
 u2vecA <- u2vecA * dts$weight01 * dts$f
 u2vecB <- u2vecB * dts$weight02 * dts$f
 gstarCustomNS0 <- sum(u2vecA + u2vecB)
-
 ## Construct control group, splines 1
 splineMat0a <- t(mapply(splines2::ibs,
                         x = dts$knots01,
@@ -524,7 +519,6 @@ splineMat01b <- sweep(splineMat01b, MARGIN = 1, STATS = dts$x, FUN = "*")
 splineMat01b <- sweep(splineMat01b, MARGIN = 1, STATS = dts$weight02, FUN = "*")
 splineMat01b <- sweep(splineMat01b, MARGIN = 1, STATS = dts$f, FUN = "*")
 gstarCustomS01 <- colSums(splineMat01a + splineMat01b)
-
 ## Construct control group, splines 2
 splineMat0c <- t(mapply(splines2::ibs,
                         x = dts$knots01,
@@ -544,14 +538,10 @@ splineMat01d <- splineMat0d - splineMat0c
 splineMat01d <- sweep(splineMat01d, MARGIN = 1, STATS = dts$weight02, FUN = "*")
 splineMat01d <- sweep(splineMat01d, MARGIN = 1, STATS = dts$f, FUN = "*")
 gstarCustomS02 <- colSums(splineMat01c + splineMat01d)
-
 ## Construct treated  group, nonsplines term
-
 gstarCustomNS1 <- c(sum(dts$weight11 * dts$f),
                     sum(dts$x * dts$weight11 * dts$f))
-
 ## Construct treated  group, splines
-
 splineMat1 <- t(mapply(splines2::ibs,
                         x = rep(1, nrow(dts)),
                         MoreArgs = list(degree = 2,
@@ -561,14 +551,12 @@ splineMat1 <- t(mapply(splines2::ibs,
 splineMat1 <- sweep(splineMat1, MARGIN = 1, STATS = dts$weight11, FUN = "*")
 splineMat1 <- sweep(splineMat1, MARGIN = 1, STATS = dts$f, FUN = "*")
 gstarCustomS11 <- colSums(splineMat1)
-
 ## Group terms
 gstarCustom0 <- c(gstarCustomNS0,
                   gstarCustomS02,
                   gstarCustomS01)
 gstarCustom1 <- c(gstarCustomNS1,
                   gstarCustomS11)
-
 ## Begin testing
 test_that("Custom weights", {
     expect_equal(as.numeric(gstarCustom0), as.numeric(resultAlt$gstar$g0))

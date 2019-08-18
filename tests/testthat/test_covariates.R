@@ -393,7 +393,7 @@ addShapeA <- aA[violateVec, ]
 ## Obtain minimum criteiron
 ##-------------------------
 
-## Construct full Gurobi/lpSolveAPI model
+## Construct full lpSolveAPI model
 model.o <- list()
 model.o$obj <- c(replicate(14, 1), replicate(10, 0))
 model.o$rhs <- c(estimates,
@@ -426,8 +426,6 @@ model.o$A <- rbind(cbind(A.extra, A),
 model.o$ub <- c(replicate(14, Inf), replicate(10, Inf))
 model.o$lb <- c(replicate(14, 0), replicate(10, -Inf))
 ## Minimize observational equivalence deviation
-## model.o$modelsense <- "min"
-## minobseq <- gurobi::gurobi(model.o)$objbound
 minobseq <- runLpSolveAPI(model.o, 'min')$objval
 
 ##-------------------------
@@ -446,15 +444,7 @@ model.f$A <- rbind(A.top,
                    model.o$A)
 model.f$ub <- c(replicate(14, Inf), replicate(10, Inf))
 model.f$lb <- c(replicate(14, 0), replicate(10, -Inf))
-
 ## Find bounds  with threshold
-
-## Code for Gurobi:
-## model.f$modelsense <- "min"
-## min_genlate <- gurobi::gurobi(model.f)
-## model.f$modelsense <- "max"
-## max_genlate <- gurobi::gurobi(model.f)
-
 min_genlate <- runLpSolveAPI(model.f, 'min')
 max_genlate <- runLpSolveAPI(model.f, 'max')
 bound <- c(min_genlate$objval, max_genlate$objval)

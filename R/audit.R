@@ -183,6 +183,7 @@
 #'       m0 = formula0,
 #'       m1 = formula1,
 #'       splinesobj = splinesList,
+#'       vars_data = colnames(dtm),
 #'       vars_mtr = "u",
 #'       terms_mtr0 = "u",
 #'       terms_mtr1 = "u",

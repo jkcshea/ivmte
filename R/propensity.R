@@ -51,7 +51,7 @@
 #'
 #' @export
 propensity <- function(formula, data, link = "logit", late.Z,
-                       late.X, env) {
+                       late.X, env = parent.frame()) {
     formula <- Formula::as.Formula(formula)
     environment(formula) <- env
     ## If two-sided formula is provided, estimate propensity score

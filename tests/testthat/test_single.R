@@ -178,7 +178,7 @@ addShapeRhs <- arhs[violateVec]
 addShapeSense <- asense[violateVec]
 addShapeA <- aA[violateVec, ]
 
-## Construct full Gurobi/lpSolveAPI model
+## Construct full lpSolveAPI model
 modelO <- list()
 modelO$obj <- c(replicate(ncol(Aextra), 1),
                 replicate(ncol(A), 0))
@@ -205,10 +205,6 @@ modelO$ub <- c(replicate(ncol(Aextra), Inf),
 modelO$lb <- c(replicate(ncol(Aextra), 0),
                 replicate(ncol(A), -Inf))
 ## Minimize observational equivalence deviation
-## Code for Gurobi:
-## modelO$modelsense <- "min"
-## minobseq <- gurobi::gurobi(modelO)$objval
-## Code for lpSolveAPI
 minobseq <- runLpSolveAPI(modelO, 'min')$objval
 
 ##-------------------------
@@ -232,16 +228,7 @@ modelF$ub <- c(replicate(ncol(Aextra), Inf),
                replicate(ncol(mono0) + ncol(mono1), Inf))
 modelF$lb <- c(replicate(ncol(Aextra), 0),
                replicate(ncol(mono0) + ncol(mono1), -Inf))
-
 ## Find bounds with threshold
-
-## Code for Gurobi:
-## modelF$modelsense <- "min"
-## minLate <- gurobi::gurobi(modelF)
-## modelF$modelsense <- "max"
-## maxLate <- gurobi::gurobi(modelF)
-
-## Code for lpSolveAPI
 minLate <- runLpSolveAPI(modelF, 'min')
 maxLate <- runLpSolveAPI(modelF, 'max')
 bound <- c(minLate$objval, maxLate$objval)
