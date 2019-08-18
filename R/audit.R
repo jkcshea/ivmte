@@ -483,19 +483,23 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (violate) {
             cat("    Violations: ", sum(violatevec), "\n")
             ## Store all points that violate the constraints
-            diffVec <- violateDiffMin * as.integer(violateDiffMin -
-                                                   violateDiffMax > 0) +
-                violateDiffMax * as.integer(violateDiffMax - violateDiffMin > 0)
+
+            diffVec <- mapply(max,
+                              violateDiffMin * violatevecMin,
+                              violateDiffMax * violatevecMax)
+            ## diffVec <- violateDiffMin * as.integer(violateDiffMin -
+            ##                                        violateDiffMax > 0) +
+            ##     violateDiffMax * as.integer(violateDiffMax - violateDiffMin > 0)
             violateIndexes <- selectViolations(diffVec = diffVec,
-                                           audit.add = audit.add,
-                                           lb0seq = a_mbobj$lb0seq,
-                                           lb1seq = a_mbobj$lb1seq,
-                                           ub0seq = a_mbobj$ub0seq,
-                                           ub1seq = a_mbobj$ub1seq,
-                                           mono0seq = a_mbobj$mono0seq,
-                                           mono1seq = a_mbobj$mono1seq,
-                                           monoteseq = a_mbobj$monoteseq,
-                                           mbmap = a_mbobj$mbmap)
+                                               audit.add = audit.add,
+                                               lb0seq = a_mbobj$lb0seq,
+                                               lb1seq = a_mbobj$lb1seq,
+                                               ub0seq = a_mbobj$ub0seq,
+                                               ub1seq = a_mbobj$ub1seq,
+                                               mono0seq = a_mbobj$mono0seq,
+                                               mono1seq = a_mbobj$mono1seq,
+                                               monoteseq = a_mbobj$monoteseq,
+                                               mbmap = a_mbobj$mbmap)
             ## Expand initial grid
             mbobj$mbA <- rbind(mbobj$mbA, a_mbobj$mbA[violateIndexes, ])
             mbobj$mbrhs <- c(mbobj$mbrhs, a_mbobj$mbrhs[violateIndexes])
@@ -525,7 +529,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             }
             break
         }
-    }    
+    }
     return(list(max = lpresult$max,
                 min = lpresult$min,
                 lpresult = lpresult,
@@ -622,6 +626,5 @@ selectViolations <- function(diffVec, audit.add,
                                          function(x) seq(1, x))))
     violateMat <- violateMat[violateMat$counts <= audit.add, ]
     violateIndexes <- violateMat$row
-    print(violateIndexes)
     return(violateIndexes)
 }
