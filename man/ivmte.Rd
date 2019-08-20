@@ -278,7 +278,10 @@ the audit procedure.}
 }
 \value{
 Returns a list of results from throughout the estimation
-    procedure.
+    procedure. This includes all IV-like estimands; the propensity
+    score model; bounds on the treatment effect; the estimated
+    expectations of each term in the MTRs; the components and
+    results of the LP problem.
 }
 \description{
 This function provides a general framework for using the marginal

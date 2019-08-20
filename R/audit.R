@@ -17,50 +17,6 @@
 #' entire support of the covariates, or until some a maximum number of
 #' iterations is reached.
 #'
-#' @param data \code{data.frame} used to estimate the treatment
-#'     effects.
-#' @param uname name declared by user to represent the unobservable
-#'     term in the MTRs.
-#' @param m0 one-sided formula for marginal treatment response
-#'     function for control group. The unobservable term can be
-#'     entered in using splines.
-#' @param m1 one-sided formula for marginal treatment response
-#'     function for treated group.
-#' @param splinesobj list of spline components in the MTRs for treated
-#'     and control groups. Spline terms are extracted using
-#'     \code{\link{removeSplines}}.
-#' @param vars_mtr all variables entering into the MTRs for treated
-#'     and control groups.
-#' @param terms_mtr0 all terms entering into the MTRs for control
-#'     group.
-#' @param terms_mtr1 all terms entering into the MTRs for treated
-#'     group.
-#' @param vars_data all relevant variables appearin in the data set.
-#' @param initgrid.nu number of evenly spread points in the interval
-#'     [0, 1] of the unobservable u used to form the grid for imposing
-#'     shape restrictions on the MTRs.
-#' @param initgrid.nx number of evenly spread points of the covariates
-#'     to use to form the grid for imposing shape restrictions on the
-#'     MTRs.
-#' @param audit.nx number of points on the covariates space to audit
-#'     in each iteration of the audit procedure.
-#' @param audit.nu number of points in the interval [0, 1],
-#'     corresponding to the normalized value of the unobservable term,
-#'     to audit in each iteration of the audit procedure.
-#' @param audit.add maximum number of points to add to the grids for
-#'     imposing each kind of shape constraint. So if there are 5
-#'     different kinds of shape constraints, there can be at most
-#'     \code{audit.add * 5} additional points added to the grid.
-#' @param audit.max maximum number of iterations in the audit
-#'     procedure.
-#' @param m1.ub numeric value for upper bound on MTR for treated
-#'     group.
-#' @param m0.ub numeric value for upper bound on MTR for control
-#'     group.
-#' @param m1.lb numeric value for lower bound on MTR for treated
-#'     group.
-#' @param m0.lb numeric value for lower bound on MTR for control
-#'     group.
 #' @param m1.ub.default boolean, default set to TRUE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
 #' @param m0.ub.default boolean, default set to TRUE. Indicator for
@@ -69,41 +25,14 @@
 #'     whether the value assigned was by the user, or set by default.
 #' @param m0.lb.default boolean, default set to TRUE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
-#' @param mte.ub numeric value for upper bound on treatment effect
-#'     paramter of interest.
-#' @param mte.lb numeric value for lower bound on treatment effect
-#'     paramter of interest.
-#' @param m0.dec logical, equal to TRUE if we want MTR for control
-#'     group to be weakly monotone decreasing.
-#' @param m0.inc logical, equal to TRUE if we want MTR for control
-#'     group to be weakly monotone increasing.
-#' @param m1.dec logical, equal to TRUE if we want MTR for treated
-#'     group to be weakly monotone decreasing.
-#' @param m1.inc logical, equal to TRUE if we want MTR for treated
-#'     group to be weakly monotone increasing.
-#' @param mte.dec logical, equal to TRUE if we want the MTE to be
-#'     weakly monotone decreasing.
-#' @param mte.inc logical, equal to TRUE if we want the MTE to be
-#'     weakly monotone decreasing.
 #' @param gstar0 set of expectations for each terms of the MTR for the
 #'     control group.
 #' @param gstar1 set of expectations for each terms of the MTR for the
 #'     control group.
 #' @param sset a list containing the point estimates and gamma
-#'     components associated with each element in the S-set.
-#' @param obseq.tol tolerance level for how much more the solution is
-#'     permitted to violate observational equivalence of the IV-like
-#'     estimands. The threshold multiplies the violation of the
-#'     observational equivalence, i.e. a threshold of 0 corresponds to
-#'     the assumption that the model is correctly specified, and that
-#'     any violation of observational equivalence is due to
-#'     statistical noise.
-#' @param lpsolver name of the linear programming package in R used to
-#'     obtain the bounds on the treatment effect.
-#' @param noisy boolean, set to TRUE by default. If TRUE, then output
-#'     throughout the audit procedure is printed.
-#' @param seed integer, the seed that determines the random grid in
-#'     the audit procedure.
+#'
+#' @inheritParams ivmteEstimate
+#' 
 #' @return a list. Included in the list is the minimum violation of
 #'     observational equivalence of the set of IV-like estimands, as
 #'     well as the list of matrices and vectors associated with
@@ -482,7 +411,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         violate <- as.logical(sum(violatevec))
         violatevec <- as.logical(violatevec)
         if (violate) {
-            cat("    Violations: ", sum(violatevec), "\n")
+            if (noisy) cat("    Violations: ", sum(violatevec), "\n")
             ## Store all points that violate the constraints
 
             diffVec <- mapply(max,

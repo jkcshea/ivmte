@@ -5,66 +5,238 @@
 \title{Single iteration of estimation procedure from Mogstad, Torgovitsky,
 Santos (2018)}
 \usage{
-ivmteEstimate(ivlike, data, subset, components, propensity,
-  link = "logit", treat, m0, m1, vars_y, vars_mtr, terms_mtr0,
-  terms_mtr1, vars_data, splinesobj, uname = u, target, target.weight0,
-  target.weight1, target.knots0 = NULL, target.knots1 = NULL, late.Z,
-  late.from, late.to, late.X, eval.X, genlate.lb, genlate.ub,
-  obseq.tol = 0, initgrid.nu = 20, initgrid.nx = 20,
-  audit.nx = 2500, audit.nu = 25, audit.add = 100, audit.max = 25,
+ivmteEstimate(data, target, late.Z, late.from, late.to, late.X, eval.X,
+  genlate.lb, genlate.ub, target.weight0, target.weight1,
+  target.knots0 = NULL, target.knots1 = NULL, m0, m1, uname = u,
   m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec,
-  m1.inc, mte.dec, mte.inc, lpsolver = NULL, point = FALSE,
-  point.eyeweight = FALSE, point.center = NULL, noisy = TRUE,
-  smallreturnlist = FALSE, environments, seed = 12345)
+  m1.inc, mte.dec, mte.inc, ivlike, components, subset, propensity,
+  link = "logit", treat, lpsolver, obseq.tol = 0, initgrid.nx = 20,
+  initgrid.nu = 20, audit.nx = 2500, audit.nu = 25,
+  audit.add = 100, audit.max = 25, point = FALSE,
+  point.eyeweight = FALSE, point.center = NULL, vars_y, vars_mtr,
+  terms_mtr0, terms_mtr1, vars_data, splinesobj, noisy = TRUE,
+  smallreturnlist = FALSE, seed = 12345, environments)
 }
 \arguments{
-\item{ivlike}{formula or vector of formulas used to specify the
-regressions for the IV-like estimands.}
+\item{data}{\code{data.frame} or \code{data.table} used to estimate
+the treatment effects.}
 
-\item{data}{\code{data.frame} used to estimate the treatment
-effects.}
+\item{target}{character, target parameter to be
+estimated. Currently function allows for ATE (\code{'ate'}),
+ATT (\code{'att'}), ATU (\code{'atu'}), LATE (\code{'late'}),
+and generalized LATE (\code{'genlate'}).}
 
-\item{subset}{single subset condition or list of subset conditions
-corresponding to each IV-like estimand. The input must be
-logical. See \code{\link{l}} on how to input the argument. If
-the user wishes to select specific rows, construct a binary
-variable in the data set, and set the condition to use only
-those observations for which the binary variable is 1, e.g. the
-binary variable is \code{use}, and the subset condition is
-\code{use == 1}.}
+\item{late.Z}{vector of variable names used to define the LATE.}
 
-\item{components}{a list of vectors of the terms/components from
-the regressions specifications we want to include in the set of
-IV-like estimands. To select the intercept term, include in the
-vector of variable names, `intercept'. See \code{\link{l}} on
-how to input the argument. If no components for a IV
-specification are given, then all components from that IV
-specification will be included.}
+\item{late.from}{baseline set of values of Z used to define the
+LATE.}
 
-\item{propensity}{formula or variable name corresponding to
-propensity to take up treatment. If a formula is declared, then
-the function estimates propensity score according to the
-formula and link specified. If a variable name is declared,
-then the corresponding column in the data is taken as the
-vector of propensity scores.}
+\item{late.to}{comparison set of values of Z used to define the
+LATE.}
 
-\item{link}{name of link function to estimate propensity score. Can
-be chosen from \code{linear}, \code{probit}, or \code{logit}.
-Default is set to "logit".}
+\item{late.X}{vector of variable names of covariates which we
+condition on when defining the LATE.}
 
-\item{treat}{variable name for treatment indicator.}
+\item{eval.X}{numeric vector of the values at which we condition
+variables in \code{late.X} on when estimating the LATE.}
 
-\item{m0}{one-sided formula for marginal treatment response
-function for control group. Splines can also be incorporated
-using the expression "uSplines(degree, knots, intercept)". The
-'intercept' argument may be omitted, and is set to \code{TRUE}
-by default.}
+\item{genlate.lb}{lower bound value of unobservable \code{u} for
+estimating the generalized LATE.}
+
+\item{genlate.ub}{upper bound value of unobservable \code{u} for
+estimating the generalized LATE.}
+
+\item{target.weight0}{user-defined weight function for the control
+group defining the target parameter. A list of functions can be
+submitted if the weighting function is in fact a spline. The
+arguments of the function should be variable names in
+\code{data}. If the weight is constant across all observations,
+then the user can instead submit the value of the weight
+instead of a function.}
+
+\item{target.weight1}{user-defined weight function for the treated
+group defining the target parameter. See
+\code{target.weight0} for details.}
+
+\item{target.knots0}{user-defined set of functions defining the
+knots associated with spline weights for the control group. The
+arguments of the function should consist only of variable names
+in \code{data}. If the knots are constant across all
+observations, then the user can instead submit the vector of
+knots instead of a function.}
+
+\item{target.knots1}{user-defined set of functions defining the
+knots associated with spline weights for the treated group. See
+\code{target.knots0} for details.}
+
+\item{m0}{one-sided formula for the marginal treatment response
+function for the control group. Splines may also be
+incorporated using the expression \code{uSpline}, e.g.
+\code{uSpline(degree = 2, knots = c(0.4, 0.8), intercept =
+TRUE)}. The \code{intercept} argument may be omitted, and is
+set to \code{TRUE} by default.}
 
 \item{m1}{one-sided formula for marginal treatment response
 function for treated group. Splines can also be incorporated
 using the expression "uSplines(degree, knots, intercept)". The
-'intercept' argument may be omitted, and is set to \code{TRUE}
-by default.}
+\code{intercept} argument may be omitted, and is set to
+\code{TRUE} by default.}
+
+\item{uname}{variable name for the unobservable used in declaring
+the MTRs. The name can be provided with or without quotation
+marks.}
+
+\item{m1.ub}{numeric value for upper bound on MTR for the treated
+group. By default, this will be set to the largest value of the
+observed outcome in the estimation sample.}
+
+\item{m0.ub}{numeric value for upper bound on MTR for the control
+group. By default, this will be set to the largest value of the
+observed outcome in the estimation sample.}
+
+\item{m1.lb}{numeric value for lower bound on MTR for the treated
+group. By default, this will be set to the smallest value of
+the observed outcome in the estimation sample.}
+
+\item{m0.lb}{numeric value for lower bound on MTR for the control
+group. By default, this will be set to the smallest value of
+the observed outcome in the estimation sample.}
+
+\item{mte.ub}{numeric value for upper bound on treatment effect
+parameter of interest.}
+
+\item{mte.lb}{numeric value for lower bound on treatment effect
+parameter of interest.}
+
+\item{m0.dec}{logical, set to \code{FALSE} by default. Set equal to
+\code{TRUE} if the MTR for the control group should be weakly
+monotone decreasing.}
+
+\item{m0.inc}{logical, set to \code{FALSE} by default. Set equal to
+\code{TRUE} if the MTR for the control group should be weakly
+monotone increasing.}
+
+\item{m1.dec}{logical, set to \code{FALSE} by default. Set equal to
+\code{TRUE} if the MTR for the treated group should be weakly
+monotone decreasing.}
+
+\item{m1.inc}{logical, set to \code{FALSE} by default. Set equal to
+\code{TRUE} if the MTR for the treated group should be weakly
+monotone increasing.}
+
+\item{mte.dec}{logical, set to \code{FALSE} by default. Set equal
+to \code{TRUE} if the MTE should be weakly monotone decreasing.}
+
+\item{mte.inc}{logical, set to \code{FALSE} by default. Set equal
+to \code{TRUE} if the MTE should be weakly monotone increasing.}
+
+\item{ivlike}{formula or vector of formulas specifying the
+regressions for the IV-like estimands. Which coefficients to
+use to define the constraints determining the treatment effect
+bounds (alternatively, the moments determining the treatment
+effect point estimate) can be selected in the argument
+\code{components}.}
+
+\item{components}{a list of vectors of the terms in the regression
+specifications to include in the set of IV-like estimands. No
+terms should be in quotes. To select the intercept term,
+include the name \code{intercept}. If the factorized
+counterpart of a variable is included in the IV-like
+specifications, e.g. \code{factor(x)} where \code{x = 1, 2, 3},
+the user can select the coefficients for specific factors by
+declaring the components \code{factor(x)-1, factor(x)-2,
+factor(x)-3}. See \code{\link{l}} on how to input the
+argument. If no components for a IV specification are given,
+then all coefficients from that IV specification will be used
+to define constraints in the partially identified case, or to
+define moments in the point identified case.}
+
+\item{subset}{a single subset condition or list of subset
+conditions corresponding to each regression specified in
+\code{ivlike}. The input must be logical. See \code{\link{l}}
+on how to input the argument. If the user wishes to select
+specific rows, construct a binary variable in the data set, and
+set the condition to use only those observations for which the
+binary variable is 1, e.g. the binary variable is \code{use},
+and the subset condition is \code{use == 1}.}
+
+\item{propensity}{formula or variable name corresponding to
+propensity to take up treatment. If a formula is declared, then
+the function estimates the propensity score according to the
+formula and link specified in \code{link}. If a variable name
+is declared, then the corresponding column in the data is taken
+as the vector of propensity scores. A variable name can be
+passed either as a string (e.g \code{propensity = 'p'}). , a
+variable (e.g. \code{propensity = p}), or a one-sided formula
+(e.g. \code{propensity = ~p}.}
+
+\item{link}{character, name of link function to estimate propensity
+score. Can be chosen from \code{'linear'}, \code{'probit'}, or
+\code{'logit'}. Default is set to \code{'logit'}.}
+
+\item{treat}{variable name for treatment indicator. The name can be
+provided with or without quotation marks.}
+
+\item{lpsolver}{character, name of the linear programming package
+in R used to obtain the bounds on the treatment effect. The
+function supports \code{'gurobi'}, \code{'rcplex'},
+\code{'cplexapi'}, \code{'lpsolve'}, \code{'lpsolveapi'}.}
+
+\item{obseq.tol}{tolerance for violation of observational
+equivalence, set to 0 by default. Statistical noise may
+prohibit the theoretical LP problem from being feasible. That
+is, there may not exist a set of coefficients on the MTR that
+are observationally equivalent with regard to the IV-like
+regression coefficients. The function therefore first estimates
+the minimum violation of observational equivalence. This is
+reported in the output under the name 'minimum criterion'. The
+constraints in the LP problem pertaining to observational
+equivalence are then relaxed by the amount \code{minimum
+criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
+greater than 0 to allow for more conservative bounds.}
+
+\item{initgrid.nx}{integer determining the number of evenly spread
+points of the covariates used to form the initial grid for
+imposing shape restrictions on the MTRs.}
+
+\item{initgrid.nu}{integer determining the number of evenly spread
+points in the interval [0, 1] of the unobservable \code{u} used
+to form the initial grid for imposing shape restrictions on the
+MTRs.}
+
+\item{audit.nx}{integer determining the number of points on the
+covariates space to audit in each iteration of the audit
+procedure.}
+
+\item{audit.nu}{integer determining the number of points in the
+interval [0, 1], corresponding to space of unobservable
+\code{u}, to audit in each iteration of the audit procedure.}
+
+\item{audit.add}{maximum number of points to add to the initial
+grid for imposing each kind of shape constraint. For example,
+if there are 5 different kinds of shape constraints, there can
+be at most \code{audit.add * 5} additional points added to the
+initial grid.}
+
+\item{audit.max}{maximum number of iterations in the audit
+procedure.}
+
+\item{point}{boolean, default set to \code{FALSE}. Set to
+\code{TRUE} if it is believed that the treatment effects are
+point identified. If set to \code{TRUE}, then a two-step GMM
+procedure is implemented to estimate the treatment
+effects. Shape constraints on the MTRs will be ignored under
+point identification.}
+
+\item{point.eyeweight}{boolean, default set to \code{FALSE}. Set to
+\code{TRUE} if the GMM point estimate should use the identity
+weighting matrix (i.e. one-step GMM).}
+
+\item{point.center}{numeric, a vector of solutions to the GMM
+problem. When bootstrapping, the solution to the point
+identified case obtained from the original sample can be passed
+through this argument to recenter the bootstrap distribution of
+the J-statistic.}
 
 \item{vars_y}{character, variable name of observed outcome
 variable.}
@@ -83,154 +255,10 @@ in the data.}
 
 \item{splinesobj}{list of spline components in the MTRs for treated
 and control groups. Spline terms are extracted using
-\code{\link{removeSplines}}.}
-
-\item{uname}{variable name for unobservable used in declaring MTRs.}
-
-\item{target}{target parameter to be estimated. Currently function
-allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
-("\code{atu}"), LATE ("\code{late}"), and generalized LATE
-("\code{genlate}").}
-
-\item{target.weight0}{user-defined weight function for the control
-group defining the target parameter. A list of functions can be
-submitted if the weighting function is in fact a spline. The
-arguments of the function should be variable names in
-\code{data}. If the weight is constant across all observations,
-then the user can instead submit the value of the weight
-instead of a function.}
-
-\item{target.weight1}{user-defined weight function for the treated
-group defining the target parameter. A list of functions can be
-submitted if the weighting function is in fact a spline. The
-arguments of the function should be variable names in
-\code{data}. If the weight is constant across all observations,
-then the user can instead submit the value of the weight
-instead of a function.}
-
-\item{target.knots0}{user-defined set of functions defining the
-knots associated with splines weights for the control
-group. The arguments of the function should consist only of
-variable names in \code{data}. If the knot is constant across
-all observations, then the user can instead submit the value of
-the weight instead of a function.}
-
-\item{target.knots1}{user-defined set of functions defining the
-knots associated with splines weights for the treated
-group. The arguments of the function should be variable names
-in \code{data}. If the knot is constant across all
-observations, then the user can instead submit the value of the
-weight instead of a function.}
-
-\item{late.Z}{vector of variable names used to define the LATE.}
-
-\item{late.from}{baseline set of values of Z used to define the
-LATE.}
-
-\item{late.to}{comparison set of values of Z used to define the
-LATE.}
-
-\item{late.X}{vector of variable names of covariates which we
-condition on when defining the LATE.}
-
-\item{eval.X}{numeric vector of the values at which we condition
-variables in \code{late.X} on when estimating the LATE.}
-
-\item{genlate.lb}{lower bound value of unobservable u for
-estimating generalized LATE.}
-
-\item{genlate.ub}{upper bound value of unobservable u for
-estimating generalized LATE.}
-
-\item{obseq.tol}{threshold for violation of observational
-equivalence, set to 0 by default. The threshold enters in
-multiplicatively. Thus, a value of 0 corresponds to no
-violation of observational equivalence other than statistical
-noise, and the assumption that the model is correctly
-specified.}
-
-\item{initgrid.nu}{number of evenly spread points in the interval
-[0, 1] of the unobservable u used to form the grid for imposing
-shape restrictions on the MTRs.}
-
-\item{initgrid.nx}{number of evenly spread points of the covariates
-to use to form the grid for imposing shape restrictions on the
-MTRs.}
-
-\item{audit.nx}{number of points on the covariates space to audit
-in each iteration of the audit procedure.}
-
-\item{audit.nu}{number of points in the interval [0, 1],
-corresponding to the normalized value of the unobservable term,
-to audit in each iteration of the audit procedure}
-
-\item{audit.add}{maximum number of points to add to the grids for
-imposing each kind of shape constraint. So if there are 5
-different kinds of shape constraints, there can be at most
-\code{audit.add * 5} additional points added to the grid.}
-
-\item{audit.max}{maximum number of iterations in the audit
-procedure.}
-
-\item{m1.ub}{numeric value for upper bound on MTR for treated
-group. By default, this will be set to the largest value of the
-observed outcome in the estimation sample.}
-
-\item{m0.ub}{numeric value for upper bound on MTR for control
-group. By default, this will be set to the largest value of the
-observed outcome in the estimation sample.}
-
-\item{m1.lb}{numeric value for lower bound on MTR for treated
-group. By default, this will be set to the smallest value of
-the observed outcome in the estimation sample.}
-
-\item{m0.lb}{numeric value for lower bound on MTR for control
-group. By default, this will be set to the smallest value of
-the observed outcome in the estimation sample.}
-
-\item{mte.ub}{numeric value for upper bound on treatment effect
-paramter of interest.}
-
-\item{mte.lb}{numeric value for lower bound on treatment effect
-paramter of interest.}
-
-\item{m0.dec}{logical, equal to TRUE if we want MTR for control
-group to be weakly monotone decreasing.}
-
-\item{m0.inc}{logical, equal to TRUE if we want MTR for control
-group to be weakly monotone increasing.}
-
-\item{m1.dec}{logical, equal to TRUE if we want MTR for treated
-group to be weakly monotone decreasing.}
-
-\item{m1.inc}{logical, equal to TRUE if we want MTR for treated
-group to be weakly monotone increasing.}
-
-\item{mte.dec}{logical, equal to TRUE if we want the MTE to be
-weakly monotone decreasing.}
-
-\item{mte.inc}{logical, equal to TRUE if we want the MTE to be
-weakly monotone decreasing.}
-
-\item{lpsolver}{name of the linear programming package in R used to
-obtain the bounds on the treatment effect.}
-
-\item{point}{boolean, default set to \code{FALSE}. Set to
-\code{TRUE} if it is believed that the treatment effects are
-point identified. If set to \code{TRUE}, then a GMM procedure
-is implemented to estimate the treatment effects. Shape
-constraints on the MTRs will be ignored under point
-identification.}
-
-\item{point.eyeweight}{boolean, default set to \code{FALSE}. Set to
-\code{TRUE} if GMM point estimate should use the identity
-weighting matrix (i.e. one-step GMM).}
-
-\item{point.center}{numeric, a vector of solutions to the GMM
-problem. When bootstrapping, the solution to the point
-identified case obtained from the original sample can be passed
-through this argument to recenter the bootstrap distribution of
-the J-statistic.}
+\code{\link{removeSplines}}. This object is supposed to be a
+dictionary of splines, containing the original calls of each
+spline in the MTRs, their specifications, and the index used
+for renaming each component.}
 
 \item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
 then messages are provided throughout the estimation
@@ -239,16 +267,17 @@ e.g. when performing the bootstrap.}
 
 \item{smallreturnlist}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} to exclude large intermediary components
-(i.e. propensity score model, LP model, bootstrap iterations).}
-
-\item{environments}{list, a list containing the environments of the
-MTR formulas, the IV-like formulas, and the propensity score
-formulas. If a formulas is not provided, and thus no
-environment can be found, then the parent.frame() is assigned
-by default.}
+(i.e. propensity score model, LP model, bootstrap iterations)
+from being included in the return list.}
 
 \item{seed}{integer, the seed that determines the random grid in
 the audit procedure.}
+
+\item{environments}{a list containing the environments of the MTR
+formulas, the IV-like formulas, and the propensity score
+formulas. If a formulas is not provided, and thus no
+environment can be found, then the parent.frame() is assigned
+by default.}
 }
 \value{
 Returns a list of results from throughout the estimation

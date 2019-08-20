@@ -10,26 +10,30 @@ genTarget(treat, m0, m1, uname, target, target.weight0, target.weight1,
   point = FALSE, noisy = TRUE)
 }
 \arguments{
-\item{treat}{variable name for treatment indicator}
+\item{treat}{variable name for treatment indicator. The name can be
+provided with or without quotation marks.}
 
-\item{m0}{one-sided formula for marginal treatment response
-function for control group. Splines can also be incorporated
-using the expression "uSplines(degree, knots, intercept)". The
-'intercept' argument may be omitted, and is set to \code{TRUE}
-by default.}
+\item{m0}{one-sided formula for the marginal treatment response
+function for the control group. Splines may also be
+incorporated using the expression \code{uSpline}, e.g.
+\code{uSpline(degree = 2, knots = c(0.4, 0.8), intercept =
+TRUE)}. The \code{intercept} argument may be omitted, and is
+set to \code{TRUE} by default.}
 
 \item{m1}{one-sided formula for marginal treatment response
 function for treated group. Splines can also be incorporated
 using the expression "uSplines(degree, knots, intercept)". The
-'intercept' argument may be omitted, and is set to \code{TRUE}
-by default.}
+\code{intercept} argument may be omitted, and is set to
+\code{TRUE} by default.}
 
-\item{uname}{variable name for unobservable used in declaring MTRs}
+\item{uname}{variable name for the unobservable used in declaring
+the MTRs. The name can be provided with or without quotation
+marks.}
 
-\item{target}{target parameter to be estimated. Currently function
-allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
-("\code{atu}"), LATE ("\code{late}"), and generalized LATE
-("\code{genlate}").}
+\item{target}{character, target parameter to be
+estimated. Currently function allows for ATE (\code{'ate'}),
+ATT (\code{'att'}), ATU (\code{'atu'}), LATE (\code{'late'}),
+and generalized LATE (\code{'genlate'}).}
 
 \item{target.weight0}{user-defined weight function for the control
 group defining the target parameter. A list of functions can be
@@ -40,26 +44,19 @@ then the user can instead submit the value of the weight
 instead of a function.}
 
 \item{target.weight1}{user-defined weight function for the treated
-group defining the target parameter. A list of functions can be
-submitted if the weighting function is in fact a spline. The
-arguments of the function should be variable names in
-\code{data}. If the weight is constant across all observations,
-then the user can instead submit the value of the weight
-instead of a function.}
+group defining the target parameter. See
+\code{target.weight0} for details.}
 
 \item{target.knots0}{user-defined set of functions defining the
-knots associated with splines weights for the control
-group. The arguments of the function should consist only of
-variable names in \code{data}. If the knot is constant across
-all observations, then the user can instead submit the value of
-the weight instead of a function.}
+knots associated with spline weights for the control group. The
+arguments of the function should consist only of variable names
+in \code{data}. If the knots are constant across all
+observations, then the user can instead submit the vector of
+knots instead of a function.}
 
 \item{target.knots1}{user-defined set of functions defining the
-knots associated with splines weights for the treated
-group. The arguments of the function should be variable names
-in \code{data}. If the knot is constant across all
-observations, then the user can instead submit the value of the
-weight instead of a function.}
+knots associated with spline weights for the treated group. See
+\code{target.knots0} for details.}
 
 \item{late.Z}{vector of variable names used to define the LATE.}
 
@@ -75,18 +72,21 @@ condition on when defining the LATE.}
 \item{eval.X}{numeric vector of the values at which we condition
 variables in \code{late.X} on when estimating the LATE.}
 
-\item{genlate.lb}{lower bound value of unobservable u for
-estimating generalized LATE.}
+\item{genlate.lb}{lower bound value of unobservable \code{u} for
+estimating the generalized LATE.}
 
-\item{genlate.ub}{upper bound value of unobservable u for
-estimating generalized LATE.}
+\item{genlate.ub}{upper bound value of unobservable \code{u} for
+estimating the generalized LATE.}
 
-\item{data}{\code{data.frame} used to estimate the treatment
-effects.}
+\item{data}{\code{data.frame} or \code{data.table} used to estimate
+the treatment effects.}
 
 \item{splinesobj}{list of spline components in the MTRs for treated
 and control groups. Spline terms are extracted using
-\code{\link{removeSplines}}.}
+\code{\link{removeSplines}}. This object is supposed to be a
+dictionary of splines, containing the original calls of each
+spline in the MTRs, their specifications, and the index used
+for renaming each component.}
 
 \item{pmodobj}{A vector of propensity scores.}
 

@@ -14,68 +14,86 @@ audit(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr0, terms_mtr1,
   obseq.tol = 0, lpsolver, noisy = TRUE, seed = 12345)
 }
 \arguments{
-\item{data}{\code{data.frame} used to estimate the treatment
-effects.}
+\item{data}{\code{data.frame} or \code{data.table} used to estimate
+the treatment effects.}
 
-\item{uname}{name declared by user to represent the unobservable
-term in the MTRs.}
+\item{uname}{variable name for the unobservable used in declaring
+the MTRs. The name can be provided with or without quotation
+marks.}
 
-\item{m0}{one-sided formula for marginal treatment response
-function for control group. The unobservable term can be
-entered in using splines.}
+\item{m0}{one-sided formula for the marginal treatment response
+function for the control group. Splines may also be
+incorporated using the expression \code{uSpline}, e.g.
+\code{uSpline(degree = 2, knots = c(0.4, 0.8), intercept =
+TRUE)}. The \code{intercept} argument may be omitted, and is
+set to \code{TRUE} by default.}
 
 \item{m1}{one-sided formula for marginal treatment response
-function for treated group.}
+function for treated group. Splines can also be incorporated
+using the expression "uSplines(degree, knots, intercept)". The
+\code{intercept} argument may be omitted, and is set to
+\code{TRUE} by default.}
 
 \item{splinesobj}{list of spline components in the MTRs for treated
 and control groups. Spline terms are extracted using
-\code{\link{removeSplines}}.}
+\code{\link{removeSplines}}. This object is supposed to be a
+dictionary of splines, containing the original calls of each
+spline in the MTRs, their specifications, and the index used
+for renaming each component.}
 
-\item{vars_mtr}{all variables entering into the MTRs for treated
-and control groups.}
+\item{vars_mtr}{character, vector of variables entering into
+\code{m0} and \code{m1}.}
 
-\item{terms_mtr0}{all terms entering into the MTRs for control
-group.}
+\item{terms_mtr0}{character, vector of terms entering into
+\code{m0}.}
 
-\item{terms_mtr1}{all terms entering into the MTRs for treated
-group.}
+\item{terms_mtr1}{character, vector of terms entering into
+\code{m1}.}
 
-\item{vars_data}{all relevant variables appearin in the data set.}
+\item{vars_data}{character, vector of variables that can be found
+in the data.}
 
-\item{initgrid.nu}{number of evenly spread points in the interval
-[0, 1] of the unobservable u used to form the grid for imposing
-shape restrictions on the MTRs.}
-
-\item{initgrid.nx}{number of evenly spread points of the covariates
-to use to form the grid for imposing shape restrictions on the
+\item{initgrid.nu}{integer determining the number of evenly spread
+points in the interval [0, 1] of the unobservable \code{u} used
+to form the initial grid for imposing shape restrictions on the
 MTRs.}
 
-\item{audit.nx}{number of points on the covariates space to audit
-in each iteration of the audit procedure.}
+\item{initgrid.nx}{integer determining the number of evenly spread
+points of the covariates used to form the initial grid for
+imposing shape restrictions on the MTRs.}
 
-\item{audit.nu}{number of points in the interval [0, 1],
-corresponding to the normalized value of the unobservable term,
-to audit in each iteration of the audit procedure.}
+\item{audit.nx}{integer determining the number of points on the
+covariates space to audit in each iteration of the audit
+procedure.}
 
-\item{audit.add}{maximum number of points to add to the grids for
-imposing each kind of shape constraint. So if there are 5
-different kinds of shape constraints, there can be at most
-\code{audit.add * 5} additional points added to the grid.}
+\item{audit.nu}{integer determining the number of points in the
+interval [0, 1], corresponding to space of unobservable
+\code{u}, to audit in each iteration of the audit procedure.}
+
+\item{audit.add}{maximum number of points to add to the initial
+grid for imposing each kind of shape constraint. For example,
+if there are 5 different kinds of shape constraints, there can
+be at most \code{audit.add * 5} additional points added to the
+initial grid.}
 
 \item{audit.max}{maximum number of iterations in the audit
 procedure.}
 
-\item{m1.ub}{numeric value for upper bound on MTR for treated
-group.}
+\item{m1.ub}{numeric value for upper bound on MTR for the treated
+group. By default, this will be set to the largest value of the
+observed outcome in the estimation sample.}
 
-\item{m0.ub}{numeric value for upper bound on MTR for control
-group.}
+\item{m0.ub}{numeric value for upper bound on MTR for the control
+group. By default, this will be set to the largest value of the
+observed outcome in the estimation sample.}
 
-\item{m1.lb}{numeric value for lower bound on MTR for treated
-group.}
+\item{m1.lb}{numeric value for lower bound on MTR for the treated
+group. By default, this will be set to the smallest value of
+the observed outcome in the estimation sample.}
 
-\item{m0.lb}{numeric value for lower bound on MTR for control
-group.}
+\item{m0.lb}{numeric value for lower bound on MTR for the control
+group. By default, this will be set to the smallest value of
+the observed outcome in the estimation sample.}
 
 \item{m1.ub.default}{boolean, default set to TRUE. Indicator for
 whether the value assigned was by the user, or set by default.}
@@ -90,31 +108,34 @@ whether the value assigned was by the user, or set by default.}
 whether the value assigned was by the user, or set by default.}
 
 \item{mte.ub}{numeric value for upper bound on treatment effect
-paramter of interest.}
+parameter of interest.}
 
 \item{mte.lb}{numeric value for lower bound on treatment effect
-paramter of interest.}
+parameter of interest.}
 
-\item{m0.dec}{logical, equal to TRUE if we want MTR for control
-group to be weakly monotone decreasing.}
+\item{m0.dec}{logical, set to \code{FALSE} by default. Set equal to
+\code{TRUE} if the MTR for the control group should be weakly
+monotone decreasing.}
 
-\item{m0.inc}{logical, equal to TRUE if we want MTR for control
-group to be weakly monotone increasing.}
+\item{m0.inc}{logical, set to \code{FALSE} by default. Set equal to
+\code{TRUE} if the MTR for the control group should be weakly
+monotone increasing.}
 
-\item{m1.dec}{logical, equal to TRUE if we want MTR for treated
-group to be weakly monotone decreasing.}
+\item{m1.dec}{logical, set to \code{FALSE} by default. Set equal to
+\code{TRUE} if the MTR for the treated group should be weakly
+monotone decreasing.}
 
-\item{m1.inc}{logical, equal to TRUE if we want MTR for treated
-group to be weakly monotone increasing.}
+\item{m1.inc}{logical, set to \code{FALSE} by default. Set equal to
+\code{TRUE} if the MTR for the treated group should be weakly
+monotone increasing.}
 
-\item{mte.dec}{logical, equal to TRUE if we want the MTE to be
-weakly monotone decreasing.}
+\item{mte.dec}{logical, set to \code{FALSE} by default. Set equal
+to \code{TRUE} if the MTE should be weakly monotone decreasing.}
 
-\item{mte.inc}{logical, equal to TRUE if we want the MTE to be
-weakly monotone decreasing.}
+\item{mte.inc}{logical, set to \code{FALSE} by default. Set equal
+to \code{TRUE} if the MTE should be weakly monotone increasing.}
 
-\item{sset}{a list containing the point estimates and gamma
-components associated with each element in the S-set.}
+\item{sset}{a list containing the point estimates and gamma}
 
 \item{gstar0}{set of expectations for each terms of the MTR for the
 control group.}
@@ -122,19 +143,28 @@ control group.}
 \item{gstar1}{set of expectations for each terms of the MTR for the
 control group.}
 
-\item{obseq.tol}{tolerance level for how much more the solution is
-permitted to violate observational equivalence of the IV-like
-estimands. The threshold multiplies the violation of the
-observational equivalence, i.e. a threshold of 0 corresponds to
-the assumption that the model is correctly specified, and that
-any violation of observational equivalence is due to
-statistical noise.}
+\item{obseq.tol}{tolerance for violation of observational
+equivalence, set to 0 by default. Statistical noise may
+prohibit the theoretical LP problem from being feasible. That
+is, there may not exist a set of coefficients on the MTR that
+are observationally equivalent with regard to the IV-like
+regression coefficients. The function therefore first estimates
+the minimum violation of observational equivalence. This is
+reported in the output under the name 'minimum criterion'. The
+constraints in the LP problem pertaining to observational
+equivalence are then relaxed by the amount \code{minimum
+criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
+greater than 0 to allow for more conservative bounds.}
 
-\item{lpsolver}{name of the linear programming package in R used to
-obtain the bounds on the treatment effect.}
+\item{lpsolver}{character, name of the linear programming package
+in R used to obtain the bounds on the treatment effect. The
+function supports \code{'gurobi'}, \code{'rcplex'},
+\code{'cplexapi'}, \code{'lpsolve'}, \code{'lpsolveapi'}.}
 
-\item{noisy}{boolean, set to TRUE by default. If TRUE, then output
-throughout the audit procedure is printed.}
+\item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
+then messages are provided throughout the estimation
+procedure. Set to \code{FALSE} to suppress all messages,
+e.g. when performing the bootstrap.}
 
 \item{seed}{integer, the seed that determines the random grid in
 the audit procedure.}

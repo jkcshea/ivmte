@@ -227,7 +227,10 @@ utils::globalVariables("u")
 #' @param seed integer, the seed that determines the random grid in
 #'     the audit procedure.
 #' @return Returns a list of results from throughout the estimation
-#'     procedure.
+#'     procedure. This includes all IV-like estimands; the propensity
+#'     score model; bounds on the treatment effect; the estimated
+#'     expectations of each term in the MTRs; the components and
+#'     results of the LP problem.
 #'
 #' @details The return list includes the following objects.
 #'     \describe{
@@ -1455,6 +1458,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Estimate bounds with resampling
         if (bootstraps > 0) {
             set.seed(seed)
+            bseeds <- round(runif(bootstraps) * 1000000)
             boundEstimates <- NULL
             b <- 1
             bootCriterion <- NULL
@@ -1469,6 +1473,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                      call. = FALSE)
             }
             while (b <= bootstraps) {
+                set.seed(bseeds[b])
                 bootIDs  <- sample(seq(1, nrow(data)),
                                    size = bootstraps.m,
                                    replace = bootstraps.replace)
@@ -1478,9 +1483,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
                 bootCall <-
                     modcall(estimateCall,
-                            dropargs = c("data", "noisy"),
+                            dropargs = c("data", "noisy", "seed"),
                             newargs = list(data = quote(bdata),
-                                           noisy = FALSE))
+                                           noisy = FALSE,
+                                           seed = bseeds[b]))
                 bootEstimate <- try(eval(bootCall), silent = TRUE)
                 if (is.list(bootEstimate)) {
                     boundEstimates  <- rbind(boundEstimates,
@@ -1507,6 +1513,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     if (noisy == TRUE) {
                         stop(paste0("    Error:", bootEstimate))
                     }
+                    bseeds[b] <- round(runif(1) * 1000000)
                     bootFailN <- bootFailN + 1
                     bootFailIndex <- unique(c(bootFailIndex, b))
                 }
@@ -1656,6 +1663,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     ## Point estimate with resampling
     if (point == TRUE & bootstraps > 0) {
         set.seed(seed)
+        bseeds <- round(runif(bootstraps) * 1000000)
         origEstimate <- eval(estimateCall)
         teEstimates  <- NULL
         mtrEstimates <- NULL
@@ -1680,6 +1688,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                            boolean expressions) in the bootstrap sample.
                            Additional bootstrap samples will be drawn.")
         while (b <= bootstraps) {
+            set.seed(bseeds[b])
             totalBootstraps <- totalBootstraps + 1
             bootIDs  <- sample(seq(1, nrow(data)),
                                  size = bootstraps.m,
@@ -1734,9 +1743,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             bootCall <-
                 modcall(estimateCall,
-                        dropargs = c("data", "noisy"),
+                        dropargs = c("data", "noisy", "seed"),
                         newargs = list(data = quote(bdata),
                                        noisy = FALSE,
+                                       seed = bseeds[b],
                                        point.center = origEstimate$mtr.coef))
             bootEstimate <- try(eval(bootCall), silent = TRUE)
             if (is.list(bootEstimate)) {
@@ -1761,6 +1771,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 if (noisy == TRUE) {
                     message("    Error, resampling...\n", sep = "")
                 }
+                bseeds[b] <- round(runif(1) * 1000000)
                 bootFailN <- bootFailN + 1
                 bootFailIndex <- unique(c(bootFailIndex, b))
             }
@@ -2077,45 +2088,20 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #' or not the constraints hold. The user can specify how stringent
 #' this audit procedure is using the function arguments.
 #'
-#' @param ivlike formula or vector of formulas used to specify the
-#'     regressions for the IV-like estimands.
-#' @param data \code{data.frame} used to estimate the treatment
-#'     effects.
-#' @param subset single subset condition or list of subset conditions
-#'     corresponding to each IV-like estimand. The input must be
-#'     logical. See \code{\link{l}} on how to input the argument. If
-#'     the user wishes to select specific rows, construct a binary
-#'     variable in the data set, and set the condition to use only
-#'     those observations for which the binary variable is 1, e.g. the
-#'     binary variable is \code{use}, and the subset condition is
-#'     \code{use == 1}.
-#' @param components a list of vectors of the terms/components from
-#'     the regressions specifications we want to include in the set of
-#'     IV-like estimands. To select the intercept term, include in the
-#'     vector of variable names, `intercept'. See \code{\link{l}} on
-#'     how to input the argument. If no components for a IV
-#'     specification are given, then all components from that IV
-#'     specification will be included.
-#' @param propensity formula or variable name corresponding to
-#'     propensity to take up treatment. If a formula is declared, then
-#'     the function estimates propensity score according to the
-#'     formula and link specified. If a variable name is declared,
-#'     then the corresponding column in the data is taken as the
-#'     vector of propensity scores.
-#' @param link name of link function to estimate propensity score. Can
-#'     be chosen from \code{linear}, \code{probit}, or \code{logit}.
-#'     Default is set to "logit".
-#' @param treat variable name for treatment indicator.
-#' @param m0 one-sided formula for marginal treatment response
-#'     function for control group. Splines can also be incorporated
-#'     using the expression "uSplines(degree, knots, intercept)". The
-#'     'intercept' argument may be omitted, and is set to \code{TRUE}
-#'     by default.
-#' @param m1 one-sided formula for marginal treatment response
-#'     function for treated group. Splines can also be incorporated
-#'     using the expression "uSplines(degree, knots, intercept)". The
-#'     'intercept' argument may be omitted, and is set to \code{TRUE}
-#'     by default.
+#' @param late.Z vector of variable names used to define the LATE.
+#' @param late.from baseline set of values of Z used to define the
+#'     LATE.
+#' @param late.to comparison set of values of Z used to define the
+#'     LATE.
+#' @param late.X vector of variable names of covariates which we
+#'     condition on when defining the LATE.
+#' @param eval.X numeric vector of the values at which we condition
+#'     variables in \code{late.X} on when estimating the LATE.
+#' @param point.center numeric, a vector of solutions to the GMM
+#'     problem. When bootstrapping, the solution to the point
+#'     identified case obtained from the original sample can be passed
+#'     through this argument to recenter the bootstrap distribution of
+#'     the J-statistic.
 #' @param vars_y character, variable name of observed outcome
 #'     variable.
 #' @param vars_mtr character, vector of variables entering into
@@ -2128,157 +2114,63 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     in the data.
 #' @param splinesobj list of spline components in the MTRs for treated
 #'     and control groups. Spline terms are extracted using
-#'     \code{\link{removeSplines}}.
-#' @param uname variable name for unobservable used in declaring MTRs.
-#' @param target target parameter to be estimated. Currently function
-#'     allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
-#'     ("\code{atu}"), LATE ("\code{late}"), and generalized LATE
-#'     ("\code{genlate}").
-#' @param target.weight0 user-defined weight function for the control
-#'     group defining the target parameter. A list of functions can be
-#'     submitted if the weighting function is in fact a spline. The
-#'     arguments of the function should be variable names in
-#'     \code{data}. If the weight is constant across all observations,
-#'     then the user can instead submit the value of the weight
-#'     instead of a function.
-#' @param target.weight1 user-defined weight function for the treated
-#'     group defining the target parameter. A list of functions can be
-#'     submitted if the weighting function is in fact a spline. The
-#'     arguments of the function should be variable names in
-#'     \code{data}. If the weight is constant across all observations,
-#'     then the user can instead submit the value of the weight
-#'     instead of a function.
-#' @param target.knots0 user-defined set of functions defining the
-#'     knots associated with splines weights for the control
-#'     group. The arguments of the function should consist only of
-#'     variable names in \code{data}. If the knot is constant across
-#'     all observations, then the user can instead submit the value of
-#'     the weight instead of a function.
-#' @param target.knots1 user-defined set of functions defining the
-#'     knots associated with splines weights for the treated
-#'     group. The arguments of the function should be variable names
-#'     in \code{data}. If the knot is constant across all
-#'     observations, then the user can instead submit the value of the
-#'     weight instead of a function.
-#' @param late.Z vector of variable names used to define the LATE.
-#' @param late.from baseline set of values of Z used to define the
-#'     LATE.
-#' @param late.to comparison set of values of Z used to define the
-#'     LATE.
-#' @param late.X vector of variable names of covariates which we
-#'     condition on when defining the LATE.
-#' @param eval.X numeric vector of the values at which we condition
-#'     variables in \code{late.X} on when estimating the LATE.
-#' @param genlate.lb lower bound value of unobservable u for
-#'     estimating generalized LATE.
-#' @param genlate.ub upper bound value of unobservable u for
-#'     estimating generalized LATE.
-#' @param obseq.tol threshold for violation of observational
-#'     equivalence, set to 0 by default. The threshold enters in
-#'     multiplicatively. Thus, a value of 0 corresponds to no
-#'     violation of observational equivalence other than statistical
-#'     noise, and the assumption that the model is correctly
-#'     specified.
-#' @param initgrid.nu number of evenly spread points in the interval
-#'     [0, 1] of the unobservable u used to form the grid for imposing
-#'     shape restrictions on the MTRs.
-#' @param initgrid.nx number of evenly spread points of the covariates
-#'     to use to form the grid for imposing shape restrictions on the
-#'     MTRs.
-#' @param audit.nx number of points on the covariates space to audit
-#'     in each iteration of the audit procedure.
-#' @param audit.nu number of points in the interval [0, 1],
-#'     corresponding to the normalized value of the unobservable term,
-#'     to audit in each iteration of the audit procedure
-#' @param audit.add maximum number of points to add to the grids for
-#'     imposing each kind of shape constraint. So if there are 5
-#'     different kinds of shape constraints, there can be at most
-#'     \code{audit.add * 5} additional points added to the grid.
-#' @param audit.max maximum number of iterations in the audit
-#'     procedure.
-#' @param m1.ub numeric value for upper bound on MTR for treated
-#'     group. By default, this will be set to the largest value of the
-#'     observed outcome in the estimation sample.
-#' @param m0.ub numeric value for upper bound on MTR for control
-#'     group. By default, this will be set to the largest value of the
-#'     observed outcome in the estimation sample.
-#' @param m1.lb numeric value for lower bound on MTR for treated
-#'     group. By default, this will be set to the smallest value of
-#'     the observed outcome in the estimation sample.
-#' @param m0.lb numeric value for lower bound on MTR for control
-#'     group. By default, this will be set to the smallest value of
-#'     the observed outcome in the estimation sample.
-#' @param mte.ub numeric value for upper bound on treatment effect
-#'     paramter of interest.
-#' @param mte.lb numeric value for lower bound on treatment effect
-#'     paramter of interest.
-#' @param m0.dec logical, equal to TRUE if we want MTR for control
-#'     group to be weakly monotone decreasing.
-#' @param m0.inc logical, equal to TRUE if we want MTR for control
-#'     group to be weakly monotone increasing.
-#' @param m1.dec logical, equal to TRUE if we want MTR for treated
-#'     group to be weakly monotone decreasing.
-#' @param m1.inc logical, equal to TRUE if we want MTR for treated
-#'     group to be weakly monotone increasing.
-#' @param mte.dec logical, equal to TRUE if we want the MTE to be
-#'     weakly monotone decreasing.
-#' @param mte.inc logical, equal to TRUE if we want the MTE to be
-#'     weakly monotone decreasing.
-#' @param lpsolver name of the linear programming package in R used to
-#'     obtain the bounds on the treatment effect.
-#' @param point boolean, default set to \code{FALSE}. Set to
-#'     \code{TRUE} if it is believed that the treatment effects are
-#'     point identified. If set to \code{TRUE}, then a GMM procedure
-#'     is implemented to estimate the treatment effects. Shape
-#'     constraints on the MTRs will be ignored under point
-#'     identification.
-#' @param point.eyeweight boolean, default set to \code{FALSE}. Set to
-#'     \code{TRUE} if GMM point estimate should use the identity
-#'     weighting matrix (i.e. one-step GMM).
-#' @param point.center numeric, a vector of solutions to the GMM
-#'     problem. When bootstrapping, the solution to the point
-#'     identified case obtained from the original sample can be passed
-#'     through this argument to recenter the bootstrap distribution of
-#'     the J-statistic.
-#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
-#'     then messages are provided throughout the estimation
-#'     procedure. Set to \code{FALSE} to suppress all messages,
-#'     e.g. when performing the bootstrap.
-#' @param smallreturnlist boolean, default set to \code{FALSE}. Set to
-#'     \code{TRUE} to exclude large intermediary components
-#'     (i.e. propensity score model, LP model, bootstrap iterations).
-#' @param environments list, a list containing the environments of the
-#'     MTR formulas, the IV-like formulas, and the propensity score
+#'     \code{\link{removeSplines}}. This object is supposed to be a
+#'     dictionary of splines, containing the original calls of each
+#'     spline in the MTRs, their specifications, and the index used
+#'     for renaming each component.
+#' @param environments a list containing the environments of the MTR
+#'     formulas, the IV-like formulas, and the propensity score
 #'     formulas. If a formulas is not provided, and thus no
 #'     environment can be found, then the parent.frame() is assigned
 #'     by default.
-#' @param seed integer, the seed that determines the random grid in
-#'     the audit procedure.
+#' 
+#' @inheritParams ivmte
+#' 
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
 #'     expectations of each term in the MTRs; the components and
 #'     results of the LP problem.
-ivmteEstimate <- function(ivlike, data, subset, components,
-                          propensity, link = "logit", treat, m0, m1,
-                          vars_y, vars_mtr, terms_mtr0, terms_mtr1,
-                          vars_data,
-                          splinesobj, uname = u, target,
+# @export
+ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
+                          late.X, eval.X, genlate.lb, genlate.ub,
                           target.weight0, target.weight1,
                           target.knots0 = NULL, target.knots1 = NULL,
-                          late.Z, late.from, late.to, late.X, eval.X,
-                          genlate.lb, genlate.ub, obseq.tol = 0,
-                          initgrid.nu = 20, initgrid.nx = 20,
-                          audit.nx = 2500, audit.nu = 25,
-                          audit.add = 100, audit.max = 25,
-                          m1.ub, m0.ub, m1.lb,
+                          m0, m1, uname = u, m1.ub, m0.ub, m1.lb,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                          m1.dec, m1.inc, mte.dec, mte.inc,
-                          lpsolver = NULL, point = FALSE,
-                          point.eyeweight = FALSE, point.center = NULL,
-                          noisy = TRUE,
-                          smallreturnlist = FALSE, environments,
-                          seed = 12345) {
+                          m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
+                          components, subset, propensity,
+                          link = "logit", treat, lpsolver,
+                          obseq.tol = 0, initgrid.nx = 20,
+                          initgrid.nu = 20, audit.nx = 2500,
+                          audit.nu = 25, audit.add = 100,
+                          audit.max = 25, point = FALSE,
+                          point.eyeweight = FALSE,
+                          point.center = NULL, vars_y, vars_mtr,
+                          terms_mtr0, terms_mtr1, vars_data,
+                          splinesobj, noisy = TRUE,
+                          smallreturnlist = FALSE, seed = 12345,
+                          environments) {
+                          ## data, ivlike, subset, components,
+                          ## propensity, link = "logit", treat, m0, m1,
+                          ## vars_y, vars_mtr, terms_mtr0, terms_mtr1,
+                          ## vars_data,
+                          ## splinesobj, uname = u, target,
+                          ## target.weight0, target.weight1,
+                          ## target.knots0 = NULL, target.knots1 = NULL,
+                          ## late.Z, late.from, late.to, late.X, eval.X,
+                          ## genlate.lb, genlate.ub, obseq.tol = 0,
+                          ## initgrid.nu = 20, initgrid.nx = 20,
+                          ## audit.nx = 2500, audit.nu = 25,
+                          ## audit.add = 100, audit.max = 25,
+                          ## m1.ub, m0.ub, m1.lb,
+                          ## m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
+                          ## m1.dec, m1.inc, mte.dec, mte.inc,
+                          ## lpsolver = NULL, point = FALSE,
+                          ## point.eyeweight = FALSE, point.center = NULL,
+                          ## noisy = TRUE,
+                          ## smallreturnlist = FALSE, environments,
+                          ## seed = 12345
     call <- match.call(expand.dots = FALSE)
     if (classFormula(ivlike)) ivlike <- c(ivlike)
     ## Character arguments will be converted to lowercase
@@ -2637,66 +2529,6 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 #' point estimate, and the corresponding moments (gammas) that will
 #' enter into the constraint matrix of the LP problem.
 #'
-#' @param treat variable name for treatment indicator
-#' @param m0 one-sided formula for marginal treatment response
-#'     function for control group. Splines can also be incorporated
-#'     using the expression "uSplines(degree, knots, intercept)". The
-#'     'intercept' argument may be omitted, and is set to \code{TRUE}
-#'     by default.
-#' @param m1 one-sided formula for marginal treatment response
-#'     function for treated group. Splines can also be incorporated
-#'     using the expression "uSplines(degree, knots, intercept)". The
-#'     'intercept' argument may be omitted, and is set to \code{TRUE}
-#'     by default.
-#' @param uname variable name for unobservable used in declaring MTRs
-#' @param target target parameter to be estimated. Currently function
-#'     allows for ATE ("\code{ate}"), ATT ("\code{att}"), ATU
-#'     ("\code{atu}"), LATE ("\code{late}"), and generalized LATE
-#'     ("\code{genlate}").
-#' @param target.weight0 user-defined weight function for the control
-#'     group defining the target parameter. A list of functions can be
-#'     submitted if the weighting function is in fact a spline. The
-#'     arguments of the function should be variable names in
-#'     \code{data}. If the weight is constant across all observations,
-#'     then the user can instead submit the value of the weight
-#'     instead of a function.
-#' @param target.weight1 user-defined weight function for the treated
-#'     group defining the target parameter. A list of functions can be
-#'     submitted if the weighting function is in fact a spline. The
-#'     arguments of the function should be variable names in
-#'     \code{data}. If the weight is constant across all observations,
-#'     then the user can instead submit the value of the weight
-#'     instead of a function.
-#' @param target.knots0 user-defined set of functions defining the
-#'     knots associated with splines weights for the control
-#'     group. The arguments of the function should consist only of
-#'     variable names in \code{data}. If the knot is constant across
-#'     all observations, then the user can instead submit the value of
-#'     the weight instead of a function.
-#' @param target.knots1 user-defined set of functions defining the
-#'     knots associated with splines weights for the treated
-#'     group. The arguments of the function should be variable names
-#'     in \code{data}. If the knot is constant across all
-#'     observations, then the user can instead submit the value of the
-#'     weight instead of a function.
-#' @param late.Z vector of variable names used to define the LATE.
-#' @param late.from baseline set of values of Z used to define the
-#'     LATE.
-#' @param late.to comparison set of values of Z used to define the
-#'     LATE.
-#' @param late.X vector of variable names of covariates which we
-#'     condition on when defining the LATE.
-#' @param eval.X numeric vector of the values at which we condition
-#'     variables in \code{late.X} on when estimating the LATE.
-#' @param genlate.lb lower bound value of unobservable u for
-#'     estimating generalized LATE.
-#' @param genlate.ub upper bound value of unobservable u for
-#'     estimating generalized LATE.
-#' @param data \code{data.frame} used to estimate the treatment
-#'     effects.
-#' @param splinesobj list of spline components in the MTRs for treated
-#'     and control groups. Spline terms are extracted using
-#'     \code{\link{removeSplines}}.
 #' @param pmodobj A vector of propensity scores.
 #' @param pm0 A list of the monomials in the MTR for d = 0.
 #' @param pm1 A list of the monomials in the MTR for d = 1.
@@ -2707,10 +2539,9 @@ ivmteEstimate <- function(ivlike, data, subset, components,
 #'     \code{TRUE}, then no sample averages are taken, and a matrix is
 #'     returned. The sample average of each column of the matrix
 #'     corresponds to a particular gamma moment.
-#' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
-#'     then messages are provided throughout the estimation
-#'     procedure. Set to \code{FALSE} to suppress all messages,
-#'     e.g. when performing the bootstrap.
+#' 
+#' @inheritParams ivmteEstimate
+#' 
 #' @return A list containing either the vectors of gamma moments for
 #'     \code{D = 0} and \code{D = 1}, or a matrix of individual gamma
 #'     values for \code{D = 0} and \code{D = 1}. Additoinally, two
