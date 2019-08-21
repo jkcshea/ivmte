@@ -1054,6 +1054,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (length(propensity) == 3) {
                 ptreat <- all.vars(propensity)[1]
                 vars_propensity <- all.vars(propensity)
+                if (target == "late") {
+                    if (!all(late.Z %in% vars_propensity)) {
+                        stop (gsub("\\s+", " ",
+                                   "All variables in 'late.to' and 'late.from'
+                                    must be included in the propensity
+                                    score model."), call. = FALSE)
+                    }
+                }
                 if (hasArg(treat)) {
                     if (ptreat != treatStr) {
                         stop(gsub("\\s+", " ",
@@ -1642,7 +1650,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
             }
             ## Obtain misspecification test
-            criterionPValue <- mean(origEstimate$audit.minobseq > bootCriterion)
+            criterionPValue <- mean(origEstimate$audit.minobseq <
+                                    bootCriterion)
             cat("\nBootstrapped misspecification test p-value: ",
                 criterionPValue, "\n\n", sep = "")
             ## Return output
@@ -2151,26 +2160,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           splinesobj, noisy = TRUE,
                           smallreturnlist = FALSE, seed = 12345,
                           environments) {
-                          ## data, ivlike, subset, components,
-                          ## propensity, link = "logit", treat, m0, m1,
-                          ## vars_y, vars_mtr, terms_mtr0, terms_mtr1,
-                          ## vars_data,
-                          ## splinesobj, uname = u, target,
-                          ## target.weight0, target.weight1,
-                          ## target.knots0 = NULL, target.knots1 = NULL,
-                          ## late.Z, late.from, late.to, late.X, eval.X,
-                          ## genlate.lb, genlate.ub, obseq.tol = 0,
-                          ## initgrid.nu = 20, initgrid.nx = 20,
-                          ## audit.nx = 2500, audit.nu = 25,
-                          ## audit.add = 100, audit.max = 25,
-                          ## m1.ub, m0.ub, m1.lb,
-                          ## m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                          ## m1.dec, m1.inc, mte.dec, mte.inc,
-                          ## lpsolver = NULL, point = FALSE,
-                          ## point.eyeweight = FALSE, point.center = NULL,
-                          ## noisy = TRUE,
-                          ## smallreturnlist = FALSE, environments,
-                          ## seed = 12345
     call <- match.call(expand.dots = FALSE)
     if (classFormula(ivlike)) ivlike <- c(ivlike)
     ## Character arguments will be converted to lowercase
@@ -2493,7 +2482,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     bounds = c(audit$min, audit$max),
                     lpresult =  audit$lpresult,
                     audit.grid = list(initial = audit$gridobj$initial$grid,
-                                      audit = audit$gridobj$audit$grid),
+                                      audit = audit$gridobj$audit$grid,
+                                      violations = audit$gridobj$violations),
                     audit.count = audit$auditcount,
                     audit.minobseq = audit$minobseq,
                     splinesdict = list(m0 = splinesobj[[1]]$splinesdict,

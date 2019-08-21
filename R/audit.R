@@ -32,7 +32,7 @@
 #' @param sset a list containing the point estimates and gamma
 #'
 #' @inheritParams ivmteEstimate
-#' 
+#'
 #' @return a list. Included in the list is the minimum violation of
 #'     observational equivalence of the set of IV-like estimands, as
 #'     well as the list of matrices and vectors associated with
@@ -413,13 +413,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (violate) {
             if (noisy) cat("    Violations: ", sum(violatevec), "\n")
             ## Store all points that violate the constraints
-
             diffVec <- mapply(max,
                               violateDiffMin * violatevecMin,
                               violateDiffMax * violatevecMax)
-            ## diffVec <- violateDiffMin * as.integer(violateDiffMin -
-            ##                                        violateDiffMax > 0) +
-            ##     violateDiffMax * as.integer(violateDiffMax - violateDiffMin > 0)
             violateIndexes <- selectViolations(diffVec = diffVec,
                                                audit.add = audit.add,
                                                lb0seq = a_mbobj$lb0seq,
@@ -448,11 +444,12 @@ audit <- function(data, uname, m0, m1, splinesobj,
                     cat(gsub("\\s+", " ",
                              paste0("Audit finished: maximum number of
                                  audits (audit.max = ", audit.max,
-                                 ") reached.\n")))
+                                 ") reached.")), "\n\n")
                 }
                 break
             }
         } else {
+            violateIndexes <- NULL
             if (noisy) {
                 cat("    Violations: 0\n")
                 cat("    Audit finished.\n\n")
@@ -460,12 +457,39 @@ audit <- function(data, uname, m0, m1, splinesobj,
             break
         }
     }
+    if (length(violateIndexes) == 0) {
+        violations <- NULL
+    } else {
+        if (noX) {
+            violations <- NULL
+        } else {
+            violations <- support[a_mbobj$mbmap[violateIndexes], ]
+        }
+        violations <- data.frame(cbind(violations,
+                                       a_mbobj$mbumap[violateIndexes, ]))
+        colnames(violations)[(ncol(violations) - 1):ncol(violations)] <-
+            paste0(uname, c(1, 2))
+        violations$.violation.type <- ""
+        for (type in c('lb0', 'lb1', 'ub0', 'ub1', 'mono0',
+                       'mono1', 'monote')) {
+            typeCheck <- which(violateIndexes %in%
+                               a_mbobj[[paste0(type, "seq")]])
+            if (length(typeCheck) > 0) {
+                typeS <- gsub("0", ".0", type)
+                typeS <- gsub("1", ".1", typeS)
+                typeS <- gsub("te", ".te", typeS)
+                violations[typeCheck, ".violation.type"] <- typeS
+            }
+        }
+        rownames(violations) <- seq(nrow(violations))
+    }
     return(list(max = lpresult$max,
                 min = lpresult$min,
                 lpresult = lpresult,
                 minobseq = minobseq$obj,
                 gridobj = list(initial = mbobj$gridobj,
-                               audit = a_mbobj$gridobj),
+                               audit = a_mbobj$gridobj,
+                               violations = violations),
                 auditcount = audit_count))
 }
 
