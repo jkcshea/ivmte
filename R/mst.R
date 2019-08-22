@@ -1650,7 +1650,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
             }
             ## Obtain misspecification test
-            criterionPValue <- mean(origEstimate$audit.minobseq <
+            criterionPValue <- mean(origEstimate$audit.minobseq <=
                                     bootCriterion)
             cat("\nBootstrapped misspecification test p-value: ",
                 criterionPValue, "\n\n", sep = "")
