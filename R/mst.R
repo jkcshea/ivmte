@@ -1500,8 +1500,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     boundEstimates  <- rbind(boundEstimates,
                                              bootEstimate$bound)
                     bootCriterion <- c(bootCriterion,
-                                       max(0, bootEstimate$audit.minobseq -
-                                              origEstimate$audit.minobseq))
+                                       bootEstimate$audit.minobseq)
                     b <- b + 1
                     bootFailN <- 0
                     if (noisy == TRUE) {
