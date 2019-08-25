@@ -25,11 +25,17 @@
 #'     whether the value assigned was by the user, or set by default.
 #' @param m0.lb.default boolean, default set to TRUE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
+#' @param sset a list containing the point estimates and gamma
 #' @param gstar0 set of expectations for each terms of the MTR for the
 #'     control group.
 #' @param gstar1 set of expectations for each terms of the MTR for the
 #'     control group.
-#' @param sset a list containing the point estimates and gamma
+#' @param orig.sset list, only used for bootstraps. The list
+#'     caontains the gamma moments for each element in the S-set, as
+#'     well as the IV-like coefficients.
+#' @param orig.criterion numeric, only used for bootstraps. The scalar
+#'     corresponds to the minimum observational equivalence criterion
+#'     from the original sample.
 #'
 #' @inheritParams ivmteEstimate
 #'
@@ -141,7 +147,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   m0.dec = FALSE, m0.inc = FALSE,
                   m1.dec = FALSE, m1.inc = FALSE,
                   mte.dec = FALSE, mte.inc = FALSE,
-                  sset, gstar0, gstar1, obseq.tol = 0, lpsolver,
+                  sset, gstar0, gstar1,
+                  orig.sset = NULL, orig.criterion = NULL,
+                  obseq.tol = 0, lpsolver,
                   noisy = TRUE, seed = 12345) {
     set.seed(seed)
     call  <- match.call()
@@ -224,9 +232,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbobj <- eval(monoboundAcall)
         }
         ## Minimize violation of observational equivalence
-        lpobj <- lpSetup(sset, mbobj$mbA, mbobj$mbs, mbobj$mbrhs, lpsolver)
-        minobseq <- obsEqMin(sset, lpobj, lpsolver)
-
+        lpobj <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
+                         mbobj$mbrhs, lpsolver)
+        minobseq <- obsEqMin(sset, orig.sset, orig.criterion,
+                             obseq.tol, lpobj, lpsolver)
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -237,7 +246,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
             lpobjAlt <- lpSetup(sset, mbobj$mbA, mbobj$mbs,
                                     mbobj$mbrhs, lpsolver,
-                                    shape = FALSE)
+                                shape = FALSE)
             minobseqAlt <- obsEqMin(sset, lpobjAlt, lpsolver)
             solVec <- minobseqAlt$result$x
             ## Test for violations
@@ -325,7 +334,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                            lpsolver = lpsolver)
         if (is.null(lpresult)) {
             message("    LP solutions are unbounded.")
-            cat("    Expanding initial grid, restarting audit.")
+            cat("    Expanding initial grid, restarting audit.\n")
             return("Failure to maximize/minimize.")
         }
         solVecMin <- c(lpresult$ming0, lpresult$ming1)

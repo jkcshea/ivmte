@@ -11,6 +11,9 @@
 #' different output specific to the solver.
 #' @param sset List of IV-like estimates and the corresponding gamma
 #'     terms.
+#' @param orig.sset list, only used for bootstraps. The list
+#'     caontains the gamma moments for each element in the S-set, as
+#'     well as the IV-like coefficients.
 #' @param mbA Matrix used to define the constraints in the LP problem.
 #' @param mbs Vector of model sense/inequalities signs used to define
 #'     the constraints in the LP problem.
@@ -78,8 +81,8 @@
 #' lpSetup(sset = sSet$sset, lpsolver = "lpSolveAPI")
 #'
 #' @export
-lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
-                        lpsolver, shape = TRUE) {
+lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
+                    mbrhs = NULL, lpsolver, shape = TRUE) {
     lpsolver <- tolower(lpsolver)
     ## determine lengths
     sn  <- length(sset)
@@ -90,14 +93,23 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
     obj <- c(replicate(sn * 2, 1),
              replicate(gn0 + gn1, 0))
     rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
+    if (!is.null(orig.sset)) {
+        rhs <- rhs - unlist(lapply(orig.sset, function(x) x[["beta"]]))
+    }
     sense <- replicate(sn, "=")
     A <- NULL
     scount <- 0
     for (s in names(sset)) {
         avec <- replicate(2 * sn, 0)
-        avec[(2 * scount + 1) :(2 * scount + 2)] <- c(-1, 1)
+        avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
         ## Regarding c(-1, 1), the -1 is for w+, 1 is for w-
-        avec <- c(avec, sset[[s]]$g0, sset[[s]]$g1)
+        g0fill <- sset[[s]]$g0
+        g1fill <- sset[[s]]$g1
+        if (!is.null(orig.sset)) {
+            g0fill <- g0fill - orig.sset[[s]]$g0
+            g1fill <- g1fill - orig.sset[[s]]$g1
+        }
+        avec <- c(avec, g0fill, g1fill)
         A <- rbind(A, avec)
         scount <- scount + 1
     }
@@ -146,6 +158,14 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
 #' observational equivalence under the L1 norm.
 #' @param sset A list of IV-like estimates and the corresponding gamma
 #'     terms.
+#' @param orig.sset list, only used for bootstraps. The list
+#'     caontains the gamma moments for each element in the S-set, as
+#'     well as the IV-like coefficients.
+#' @param orig.criterion numeric, only used for bootstraps. The scalar
+#'     corresponds to the minimum observational equivalence criterion
+#'     from the original sample.
+#' @param obseq.tol tolerance for violation of observational
+#'     equivalence, set to 0 by default.
 #' @param lpobj A list of matrices and vectors defining an LP problem.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
@@ -241,7 +261,39 @@ lpSetup <- function(sset, mbA = NULL, mbs = NULL, mbrhs = NULL,
 #'          lpsolver = "lpSolveAPI")
 #'
 #' @export
-obsEqMin <- function(sset, lpobj, lpsolver) {
+obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
+                     obseq.tol = 0, lpobj, lpsolver) {
+    if (!is.null(orig.sset)) {
+        ## 'Recenter' bootstrap criterion
+        tmpA <- NULL
+        tmpRhs <- NULL
+        tmpSense <- NULL
+        scount <- 0
+        for (s in names(orig.sset)) {
+            avec <- replicate(2 * 2 * length(orig.sset), 0)
+            avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
+            avec <- c(avec, orig.sset[[s]]$g0, orig.sset[[s]]$g1)
+            tmpA <- rbind(tmpA, avec)
+            tmpRhs <- c(tmpRhs, orig.sset[[s]]$beta)
+            tmpSense <- c(tmpSense, "=")
+            scount <- scount + 1
+        }
+        avec <- c(rep(1, 2 * length(orig.sset)),
+                  rep(0, 2 * length(orig.sset)),
+                  rep(0, length(sset$s1$g0) + length(sset$s1$g1)))
+        ## Update lpobj
+        lpobj$ub <- c(rep(Inf, 2 * length(orig.sset)), lpobj$ub)
+        lpobj$lb <- c(rep(0, 2 * length(orig.sset)), lpobj$lb)
+        lpobj$A <- rbind(avec, tmpA,
+                         cbind(matrix(0,
+                                   nrow = nrow(lpobj$A),
+                                   ncol = length(sset) * 2),
+                               lpobj$A))
+        lpobj$rhs <- c(orig.criterion * (1 + obseq.tol),
+                       tmpRhs, lpobj$rhs)
+        lpobj$sense <- c("<=", tmpSense, lpobj$sense)
+        lpobj$obj <- c(rep(0, 2 * length(sset)), lpobj$obj)
+    }
     lpsolver <- tolower(lpsolver)
     if (lpsolver == "gurobi") {
         model <- list()

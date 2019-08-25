@@ -1473,6 +1473,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             bootFailN <- 0
             bootFailNote <- ""
             bootFailIndex <- NULL
+            origSset <- lapply(origEstimate$sset, function(x) {
+                x[c("beta", "g0", "g1")]
+            })
+            origCriterion <- origEstimate$audit.minobseq
             if (!hasArg(bootstraps.m)) bootstraps.m <- nrow(data)
             if (bootstraps.m > nrow(data) && bootstraps.replace == FALSE) {
                 stop(gsub("\\s+", " ",
@@ -1494,7 +1498,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             dropargs = c("data", "noisy", "seed"),
                             newargs = list(data = quote(bdata),
                                            noisy = FALSE,
-                                           seed = bseeds[b]))
+                                           seed = bseeds[b],
+                                           orig.sset = origSset,
+                                           orig.criterion = origCriterion))
                 bootEstimate <- try(eval(bootCall), silent = TRUE)
                 if (is.list(bootEstimate)) {
                     boundEstimates  <- rbind(boundEstimates,
@@ -2110,6 +2116,12 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     identified case obtained from the original sample can be passed
 #'     through this argument to recenter the bootstrap distribution of
 #'     the J-statistic.
+#' @param orig.sset list, only used for bootstraps. The list
+#'     caontains the gamma moments for each element in the S-set, as
+#'     well as the IV-like coefficients.
+#' @param orig.criterion numeric, only used for bootstraps. The scalar
+#'     corresponds to the minimum observational equivalence criterion
+#'     from the original sample.
 #' @param vars_y character, variable name of observed outcome
 #'     variable.
 #' @param vars_mtr character, vector of variables entering into
@@ -2154,8 +2166,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           audit.nu = 25, audit.add = 100,
                           audit.max = 25, point = FALSE,
                           point.eyeweight = FALSE,
-                          point.center = NULL, vars_y, vars_mtr,
-                          terms_mtr0, terms_mtr1, vars_data,
+                          point.center = NULL, orig.sset = NULL,
+                          orig.criterion = NULL, vars_y,
+                          vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                           splinesobj, noisy = TRUE,
                           smallreturnlist = FALSE, seed = 12345,
                           environments) {
@@ -2382,7 +2395,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
-                    "mte.inc", "obseq.tol", "noisy", "seed")
+                    "mte.inc", "obseq.tol",
+                    "orig.sset", "orig.criterion",
+                    "noisy", "seed")
     audit_call <- modcall(call,
                           newcall = audit,
                           keepargs = audit.args,
