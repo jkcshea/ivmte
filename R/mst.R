@@ -1,5 +1,5 @@
 utils::globalVariables("u")
-
+#' Testing git rename
 #' Instrumental Variables: Extrapolation by Marginal Treatment Effects
 #'
 #' This function provides a general framework for using the marginal
