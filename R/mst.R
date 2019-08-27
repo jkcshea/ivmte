@@ -1458,13 +1458,19 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     }
     ## Estimate bounds
     if (point == FALSE) {
+        if (bootstraps > 0) {
+            estimateCall <- modcall(estimateCall,
+                                    newargs = list(save.grid = TRUE))
+        }
         origEstimate <- eval(estimateCall)
         ## Estimate bounds without resampling
         if (bootstraps == 0) {
             return(origEstimate)
-        }
-        ## Estimate bounds with resampling
-        if (bootstraps > 0) {
+        } else {
+            ## Obtain audit grid from original estimate
+            audit.grid <- origEstimate$audit.grid$a_mbobj
+            origEstimate$audit.grid$a_mbobj <- NULL
+            ## Estimate bounds with resampling
             set.seed(seed)
             bseeds <- round(runif(bootstraps) * 1000000)
             boundEstimates <- NULL
@@ -1495,10 +1501,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
                 bootCall <-
                     modcall(estimateCall,
-                            dropargs = c("data", "noisy", "seed"),
+                            dropargs = c("data", "noisy", "seed",
+                                         "audit.grid", "save.grid"),
                             newargs = list(data = quote(bdata),
                                            noisy = FALSE,
                                            seed = bseeds[b],
+                                           audit.grid = audit.grid,
+                                           save.grid = FALSE,
                                            orig.sset = origSset,
                                            orig.criterion = origCriterion))
                 bootEstimate <- try(eval(bootCall), silent = TRUE)
@@ -2111,14 +2120,22 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     condition on when defining the LATE.
 #' @param eval.X numeric vector of the values at which we condition
 #'     variables in \code{late.X} on when estimating the LATE.
+#' @param audit.grid list, contains the A A matrix used in the audit
+#'     for the original sample, as well as the RHS vector used in the
+#'     audit from the original sample.
+#' @param save.grid boolean, set to \code{FALSE} by default. Set to
+#'     true if the fine grid from the audit should be saved. This
+#'     option is used for inference procedure under partial
+#'     identification, which uses the fine grid from the original
+#'     sample in all bootstrap resamples.
 #' @param point.center numeric, a vector of solutions to the GMM
 #'     problem. When bootstrapping, the solution to the point
 #'     identified case obtained from the original sample can be passed
 #'     through this argument to recenter the bootstrap distribution of
 #'     the J-statistic.
-#' @param orig.sset list, only used for bootstraps. The list
-#'     caontains the gamma moments for each element in the S-set, as
-#'     well as the IV-like coefficients.
+#' @param orig.sset list, only used for bootstraps. The list caontains
+#'     the gamma moments for each element in the S-set, as well as the
+#'     IV-like coefficients.
 #' @param orig.criterion numeric, only used for bootstraps. The scalar
 #'     corresponds to the minimum observational equivalence criterion
 #'     from the original sample.
@@ -2143,9 +2160,9 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
 #'     formulas. If a formulas is not provided, and thus no
 #'     environment can be found, then the parent.frame() is assigned
 #'     by default.
-#' 
+#'
 #' @inheritParams ivmte
-#' 
+#'
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -2164,7 +2181,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           obseq.tol = 0, initgrid.nx = 20,
                           initgrid.nu = 20, audit.nx = 2500,
                           audit.nu = 25, audit.add = 100,
-                          audit.max = 25, point = FALSE,
+                          audit.max = 25, audit.grid = NULL,
+                          save.grid = FALSE,
+                          point = FALSE,
                           point.eyeweight = FALSE,
                           point.center = NULL, orig.sset = NULL,
                           orig.criterion = NULL, vars_y,
@@ -2390,7 +2409,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     audit.args <- c("uname", "vars_data",
                     "initgrid.nu", "initgrid.nx",
                     "audit.nx", "audit.nu", "audit.add",
-                    "audit.max",
+                    "audit.max", "audit.grid", "save.grid",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
@@ -2402,8 +2421,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           newcall = audit,
                           keepargs = audit.args,
                           newargs = list(data = quote(data),
-                                         m0   = quote(m0),
-                                         m1   = quote(m1),
+                                         m0 = quote(m0),
+                                         m1 = quote(m1),
                                          splinesobj = quote(splinesobj),
                                          vars_mtr = quote(vars_mtr),
                                          terms_mtr0 = quote(terms_mtr0),
@@ -2483,7 +2502,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     }
     ## include additional output material
     if (!smallreturnlist) {
-        return(list(sset  = sset,
+        output <- list(sset  = sset,
                     gstar = list(g0 = gstar0,
                                  g1 = gstar1),
                     gstar.weights = list(w0 = targetGammas$w0,
@@ -2501,28 +2520,31 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     audit.count = audit$auditcount,
                     audit.minobseq = audit$minobseq,
                     splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
-                                       m1 = splinesobj[[2]]$splinesdict)))
+                                       m1 = splinesobj[[2]]$splinesdict))
     } else {
         sset <- lapply(sset, function(x) {
             x[c("ivspec", "beta", "g0", "g1")]
         })
         output <- list(sset  = sset,
-                    gstar = list(g0 = gstar0,
-                                 g1 = gstar1),
-                    gstarcoef = list(ming0 = audit$ming0,
-                                     maxg0 = audit$maxg0,
-                                     ming1 = audit$ming1,
-                                     maxg1 = audit$maxg1),
-                    bounds = c(audit$min, audit$max),
-                    audit.count = audit$auditcount,
-                    audit.minobseq = audit$minobseq,
-                    splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
-                                       m1 = splinesobj[[2]]$splinesdict))
+                       gstar = list(g0 = gstar0,
+                                    g1 = gstar1),
+                       gstarcoef = list(ming0 = audit$ming0,
+                                        maxg0 = audit$maxg0,
+                                        ming1 = audit$ming1,
+                                        maxg1 = audit$maxg1),
+                       bounds = c(audit$min, audit$max),
+                       audit.count = audit$auditcount,
+                       audit.minobseq = audit$minobseq,
+                       splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
+                                          m1 = splinesobj[[2]]$splinesdict))
         if (all(class(pmodel$model) != "NULL")) {
             output$propensity.coef <- pmodel$model$coef
         }
-        return(output)
     }
+    if (save.grid) {
+        output$audit.grid$a_mbobj <- audit$gridobj$a_mbobj
+    }
+    return(output)
 }
 
 
@@ -2543,9 +2565,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
 #'     \code{TRUE}, then no sample averages are taken, and a matrix is
 #'     returned. The sample average of each column of the matrix
 #'     corresponds to a particular gamma moment.
-#' 
+#'
 #' @inheritParams ivmteEstimate
-#' 
+#'
 #' @return A list containing either the vectors of gamma moments for
 #'     \code{D = 0} and \code{D = 1}, or a matrix of individual gamma
 #'     values for \code{D = 0} and \code{D = 1}. Additoinally, two

@@ -17,6 +17,14 @@
 #' entire support of the covariates, or until some a maximum number of
 #' iterations is reached.
 #'
+#' @param audit.grid list, contains the A A matrix used in the audit
+#'     for the original sample, as well as the RHS vector used in the
+#'     audit from the original sample.
+#' @param save.grid boolean, set to \code{FALSE} by default. Set to
+#'     true if the fine grid from the audit should be saved. This
+#'     option is used for inference procedure under partial
+#'     identification, which uses the fine grid from the original
+#'     sample in all bootstrap resamples.
 #' @param m1.ub.default boolean, default set to TRUE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
 #' @param m0.ub.default boolean, default set to TRUE. Indicator for
@@ -30,9 +38,9 @@
 #'     control group.
 #' @param gstar1 set of expectations for each terms of the MTR for the
 #'     control group.
-#' @param orig.sset list, only used for bootstraps. The list
-#'     caontains the gamma moments for each element in the S-set, as
-#'     well as the IV-like coefficients.
+#' @param orig.sset list, only used for bootstraps. The list caontains
+#'     the gamma moments for each element in the S-set, as well as the
+#'     IV-like coefficients.
 #' @param orig.criterion numeric, only used for bootstraps. The scalar
 #'     corresponds to the minimum observational equivalence criterion
 #'     from the original sample.
@@ -137,7 +145,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                   initgrid.nu = 20, initgrid.nx = 20,
                   audit.nx = 2500, audit.nu = 25, audit.add = 100,
-                  audit.max = 25,
+                  audit.max = 25, audit.grid = NULL,
+                  save.grid = FALSE,
                   m1.ub, m0.ub, m1.lb, m0.lb,
                   m1.ub.default = FALSE,
                   m0.ub.default = FALSE,
@@ -361,52 +370,57 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
         ## Generate a new grid for the audit
         if (audit_count == 1) {
-            a_uvec <- sort(c(round(runif(audit.nu), 8), 0, 1))
-            if (noX) {
-                a_grid <- data.frame(a_uvec)
-                colnames(a_grid) <- uname
-                a_grid_index <- NULL
-            } else {
-                resid_support <- support[grid_resid, ]
-                if (is.null(dim(resid_support))) {
-                    resid_support <- as.matrix(resid_support)
-                }
-                ## Generate alternate grid from residual indexes
-                audit.nx <- min(audit.nx, length(grid_resid))
-                if (audit.nx == length(grid_resid)) {
-                    a_grid_index <- grid_resid
+            if (is.null(audit.grid)) {
+                a_uvec <- sort(c(round(runif(audit.nu), 8), 0, 1))
+                if (noX) {
+                    a_grid <- data.frame(a_uvec)
+                    colnames(a_grid) <- uname
+                    a_grid_index <- NULL
                 } else {
-                    a_grid_index <- sample(grid_resid,
-                                           audit.nx,
-                                           replace = FALSE,
-                                           prob = replicate(nrow(resid_support),
-                                           (1 / nrow(resid_support))))
+                    resid_support <- support[grid_resid, ]
+                    if (is.null(dim(resid_support))) {
+                        resid_support <- as.matrix(resid_support)
+                    }
+                    ## Generate alternate grid from residual indexes
+                    audit.nx <- min(audit.nx, length(grid_resid))
+                    if (audit.nx == length(grid_resid)) {
+                        a_grid_index <- grid_resid
+                    } else {
+                        a_grid_index <- sample(grid_resid,
+                                               audit.nx,
+                                               replace = FALSE,
+                                               prob = replicate(
+                                                   nrow(resid_support),
+                                               (1 / nrow(resid_support))))
+                    }
+                    if (length(a_grid_index) == 0) {
+                        a_grid_index <- grid_index
+                    }
                 }
-                if (length(a_grid_index) == 0) {
-                    a_grid_index <- grid_index
-                }
+                ## Generate all monotonicity and boundedness matrices
+                ## for the audit
+                cat("    Generating audit grid...\n")
+                monoboundAcall <- modcall(call,
+                                          newcall = genmonoboundA,
+                                          keepargs = monoboundAlist,
+                                          newargs = list(m0 = m0,
+                                                         m1 = m1,
+                                                         uname = uname,
+                                                         support = support,
+                                                         grid_index = a_grid_index,
+                                                         uvec = a_uvec,
+                                                         splinesobj = splinesobj,
+                                                         monov = monov))
+                a_mbobj <- eval(monoboundAcall)
+            } else {
+                a_mbobj <- audit.grid
             }
-            ## Generate all monotonicity and boundedness matrices for the audit
-            cat("    Generating audit grid...\n")
-            monoboundAcall <- modcall(call,
-                                      newcall = genmonoboundA,
-                                      keepargs = monoboundAlist,
-                                      newargs = list(m0 = m0,
-                                                     m1 = m1,
-                                                     uname = uname,
-                                                     support = support,
-                                                     grid_index = a_grid_index,
-                                                     uvec = a_uvec,
-                                                     splinesobj = splinesobj,
-                                                     monov = monov))
-            a_mbobj <- eval(monoboundAcall)
             a_mbA <- a_mbobj$mbA[, (2 * sn + 1) : ncol(a_mbobj$mbA)]
             negatepos <- which(a_mbobj$mbs == ">=")
             a_mbA[negatepos, ] <- -a_mbA[negatepos, ]
             a_mbrhs <- a_mbobj$mbrhs
             a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
         }
-
         ## Test for violations for minimization problem
         violateDiffMin <- round(a_mbA %*% solVecMin - a_mbrhs,
                                 digits = 10)
@@ -492,14 +506,18 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
         rownames(violations) <- seq(nrow(violations))
     }
-    return(list(max = lpresult$max,
-                min = lpresult$min,
-                lpresult = lpresult,
-                minobseq = minobseq$obj,
-                gridobj = list(initial = mbobj$gridobj,
-                               audit = a_mbobj$gridobj,
-                               violations = violations),
-                auditcount = audit_count))
+    output <- list(max = lpresult$max,
+                   min = lpresult$min,
+                   lpresult = lpresult,
+                   minobseq = minobseq$obj,
+                   gridobj = list(initial = mbobj$gridobj,
+                                  audit = a_mbobj$gridobj,
+                                  violations = violations),
+                   auditcount = audit_count)
+    if (save.grid) {
+        output$gridobj$a_mbobj <- a_mbobj
+    }
+    return(output)
 }
 
 
