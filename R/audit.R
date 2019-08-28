@@ -240,6 +240,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                      monov = monov))
             mbobj <- eval(monoboundAcall)
         }
+        
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
@@ -407,9 +408,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                          m1 = m1,
                                                          uname = uname,
                                                          support = support,
-                                                         grid_index = a_grid_index,
+                                                         grid_index =
+                                                             a_grid_index,
                                                          uvec = a_uvec,
-                                                         splinesobj = splinesobj,
+                                                         splinesobj =
+                                                             splinesobj,
                                                          monov = monov))
                 a_mbobj <- eval(monoboundAcall)
             } else {

@@ -94,7 +94,9 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
              replicate(gn0 + gn1, 0))
     rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
     if (!is.null(orig.sset)) {
+        ## Recenter RHS when bootstrapping
         rhs <- rhs - unlist(lapply(orig.sset, function(x) x[["beta"]]))
+        stop("taking the differnce only works when you don't have any collinearity problems!")
     }
     sense <- replicate(sn, "=")
     A <- NULL
@@ -106,8 +108,10 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
         g0fill <- sset[[s]]$g0
         g1fill <- sset[[s]]$g1
         if (!is.null(orig.sset)) {
+            ## Recenter gamma vectors when bootstrapping
             g0fill <- g0fill - orig.sset[[s]]$g0
             g1fill <- g1fill - orig.sset[[s]]$g1
+            stop("taking the differnce only works when you don't have any collinearity problems!")
         }
         avec <- c(avec, g0fill, g1fill)
         A <- rbind(A, avec)
@@ -263,12 +267,52 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 #' @export
 obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
                      obseq.tol = 0, lpobj, lpsolver) {
+
+    print("The true originals")
+        print(length(lpobj$rhs))
+        print(dim(lpobj$A))
+    
     if (!is.null(orig.sset)) {
-        ## 'Recenter' bootstrap criterion
+        ssetNames <- unlist(lapply(sset, function(x) {
+            paste0("i", x$ivspec, ".", names(x$beta))
+        }))
+        origNames <- unlist(lapply(orig.sset, function(x) {
+            paste0("i", x$ivspec, ".", names(x$beta))
+        }))
+        droppedVars <- which(!origNames %in% ssetNames)
+        ## Add back in residual parameters that were dropped from the
+        ## bootstrap due to collinearity
+        for (i in droppedVars) {
+            if (i == 1) {
+                lpobj$ub <- c(Inf, Inf, lpobj$ub)
+                lpobj$lb <- c(0, 0, lpobj$lb)
+                lpobj$obj <- c(1, 1, lpobj$obj)
+                front <- NULL
+            }
+            if (i > 1) {
+                lpobj$ub <- c(lpobj$ub[1:(2 * i - 2)], Inf, Inf,
+                              lpobj$ub[(2 * i - 1):length(lpobj$ub)])
+                lpobj$lb <- c(lpobj$lb[1:(2 * i - 2)], 0, 0,
+                              lpobj$lb[(2 * i - 1):length(lpobj$lb)])
+                lpobj$obj <- c(lpobj$obj[1:(2 * i - 2)], 1, 1,
+                               lpobj$obj[(2 * i - 1):length(lpobj$obj)])
+                front <- lpobj$A[, 1:(2 * i - 2)]
+            }
+            back <- lpobj$A[, (2 * i - 1):ncol(lpobj$A)]
+            lpobj$A <- cbind(front,
+                             matrix(0,
+                                    nrow = nrow(lpobj$A),
+                                    ncol = 2),
+                             back)
+        }
+        ## Prepare to obtain 'recentered' bootstrap criterion
         tmpA <- NULL
         tmpRhs <- NULL
         tmpSense <- NULL
         scount <- 0
+        print("The originals")
+        print(length(lpobj$rhs))
+        print(dim(lpobj$A))
         for (s in names(orig.sset)) {
             avec <- replicate(2 * 2 * length(orig.sset), 0)
             avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
@@ -287,12 +331,18 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
         lpobj$A <- rbind(avec, tmpA,
                          cbind(matrix(0,
                                    nrow = nrow(lpobj$A),
-                                   ncol = length(sset) * 2),
+                                   ncol = length(orig.sset) * 2),
                                lpobj$A))
         lpobj$rhs <- c(orig.criterion * (1 + obseq.tol),
                        tmpRhs, lpobj$rhs)
+        print("the updateD")
+        print("length of rhs")
+        print(length(lpobj$rhs))
+        print("dim of A")
+        print(dim(lpobj$A))
+        
         lpobj$sense <- c("<=", tmpSense, lpobj$sense)
-        lpobj$obj <- c(rep(0, 2 * length(sset)), lpobj$obj)
+        lpobj$obj <- c(rep(0, 2 * length(orig.sset)), lpobj$obj)
     }
     lpsolver <- tolower(lpsolver)
     if (lpsolver == "gurobi") {

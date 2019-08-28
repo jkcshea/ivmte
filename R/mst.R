@@ -1479,7 +1479,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             bootFailNote <- ""
             bootFailIndex <- NULL
             origSset <- lapply(origEstimate$sset, function(x) {
-                x[c("beta", "g0", "g1")]
+                x[c("ivspec", "beta", "g0", "g1")]
             })
             origCriterion <- origEstimate$audit.minobseq
             if (!hasArg(bootstraps.m)) bootstraps.m <- nrow(data)
@@ -1494,6 +1494,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 bootIDs  <- sample(seq(1, nrow(data)),
                                    size = bootstraps.m,
                                    replace = bootstraps.replace)
+                ## EXPERIMENTING ----------
+                if (b < 9) {
+                    b <- b + 1
+                    next
+                }
+                ## End experiment ---------
                 bdata <- data[bootIDs, ]
                 if (noisy == TRUE) {
                     cat("Bootstrap iteration ", b, "...\n", sep = "")
