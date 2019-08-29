@@ -176,14 +176,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
         uname <- "u"
     }
     ## Organize variables
-    sn      <- length(sset)
-    monov   <- uname ## `monov' is a placeholder name for the monotone
+    monov <- uname ## `monov' is a placeholder name for the monotone
                      ## variable. I use this in case I want to
                      ## generalize the monotonciity restrictions to
                      ## other covariates
-    uvec    <- round(seq(0, 1, length.out = initgrid.nu), 8)
-    xvars   <- unique(vars_mtr)
-    xvars   <- xvars[xvars != uname]
+    uvec <- round(seq(0, 1, length.out = initgrid.nu), 8)
+    xvars <- unique(vars_mtr)
+    xvars <- xvars[xvars != uname]
     xvars <- xvars[xvars %in% vars_data]
     otherx  <- xvars[xvars != monov]
     support <- unique(data[, xvars])
@@ -240,7 +239,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                      monov = monov))
             mbobj <- eval(monoboundAcall)
         }
-        
+
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
@@ -372,6 +371,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Generate a new grid for the audit
         if (audit_count == 1) {
             if (is.null(audit.grid)) {
+                sn <- length(sset)
                 a_uvec <- sort(c(round(runif(audit.nu), 8), 0, 1))
                 if (noX) {
                     a_grid <- data.frame(a_uvec)
@@ -416,9 +416,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                          monov = monov))
                 a_mbobj <- eval(monoboundAcall)
             } else {
+                sn <- length(orig.sset)
                 a_mbobj <- audit.grid
             }
-            a_mbA <- a_mbobj$mbA[, (2 * sn + 1) : ncol(a_mbobj$mbA)]
+            a_mbA <- a_mbobj$mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)]
             negatepos <- which(a_mbobj$mbs == ">=")
             a_mbA[negatepos, ] <- -a_mbA[negatepos, ]
             a_mbrhs <- a_mbobj$mbrhs

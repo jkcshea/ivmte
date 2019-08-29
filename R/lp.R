@@ -95,8 +95,15 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
     rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
     if (!is.null(orig.sset)) {
         ## Recenter RHS when bootstrapping
+        ssetNames <- unlist(lapply(sset, function(x) {
+            paste0("i", x$ivspec, ".", names(x$beta))
+        }))
+        origNames <- unlist(lapply(orig.sset, function(x) {
+            paste0("i", x$ivspec, ".", names(x$beta))
+        }))
+        droppedVars <- which(!origNames %in% ssetNames)
+        orig.sset[droppedVars] <- NULL
         rhs <- rhs - unlist(lapply(orig.sset, function(x) x[["beta"]]))
-        stop("taking the differnce only works when you don't have any collinearity problems!")
     }
     sense <- replicate(sn, "=")
     A <- NULL
@@ -111,7 +118,6 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
             ## Recenter gamma vectors when bootstrapping
             g0fill <- g0fill - orig.sset[[s]]$g0
             g1fill <- g1fill - orig.sset[[s]]$g1
-            stop("taking the differnce only works when you don't have any collinearity problems!")
         }
         avec <- c(avec, g0fill, g1fill)
         A <- rbind(A, avec)
@@ -267,11 +273,6 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 #' @export
 obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
                      obseq.tol = 0, lpobj, lpsolver) {
-
-    print("The true originals")
-        print(length(lpobj$rhs))
-        print(dim(lpobj$A))
-    
     if (!is.null(orig.sset)) {
         ssetNames <- unlist(lapply(sset, function(x) {
             paste0("i", x$ivspec, ".", names(x$beta))
@@ -310,9 +311,6 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
         tmpRhs <- NULL
         tmpSense <- NULL
         scount <- 0
-        print("The originals")
-        print(length(lpobj$rhs))
-        print(dim(lpobj$A))
         for (s in names(orig.sset)) {
             avec <- replicate(2 * 2 * length(orig.sset), 0)
             avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
@@ -335,12 +333,6 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
                                lpobj$A))
         lpobj$rhs <- c(orig.criterion * (1 + obseq.tol),
                        tmpRhs, lpobj$rhs)
-        print("the updateD")
-        print("length of rhs")
-        print(length(lpobj$rhs))
-        print("dim of A")
-        print(dim(lpobj$A))
-        
         lpobj$sense <- c("<=", tmpSense, lpobj$sense)
         lpobj$obj <- c(rep(0, 2 * length(orig.sset)), lpobj$obj)
     }

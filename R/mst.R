@@ -1494,12 +1494,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 bootIDs  <- sample(seq(1, nrow(data)),
                                    size = bootstraps.m,
                                    replace = bootstraps.replace)
-                ## EXPERIMENTING ----------
-                if (b < 9) {
-                    b <- b + 1
-                    next
-                }
-                ## End experiment ---------
                 bdata <- data[bootIDs, ]
                 if (noisy == TRUE) {
                     cat("Bootstrap iteration ", b, "...\n", sep = "")
