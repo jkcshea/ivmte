@@ -1682,7 +1682,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                           pvalue = pvalue,
                           misspecification.pvalue = criterionPValue,
                           bootstraps = bootstraps,
-                          failed.bootstraps = length(bootFailIndex))))
+                          failed.bootstraps = bootFailN)))
         }
     }
     ## Point estimate without resampling
