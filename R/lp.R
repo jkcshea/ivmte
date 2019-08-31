@@ -95,14 +95,6 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
     rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
     if (!is.null(orig.sset)) {
         ## Recenter RHS when bootstrapping
-        ssetNames <- unlist(lapply(sset, function(x) {
-            paste0("i", x$ivspec, ".", names(x$beta))
-        }))
-        origNames <- unlist(lapply(orig.sset, function(x) {
-            paste0("i", x$ivspec, ".", names(x$beta))
-        }))
-        droppedVars <- which(!origNames %in% ssetNames)
-        orig.sset[droppedVars] <- NULL
         rhs <- rhs - unlist(lapply(orig.sset, function(x) x[["beta"]]))
     }
     sense <- replicate(sn, "=")
@@ -274,38 +266,6 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
                      obseq.tol = 0, lpobj, lpsolver) {
     if (!is.null(orig.sset)) {
-        ssetNames <- unlist(lapply(sset, function(x) {
-            paste0("i", x$ivspec, ".", names(x$beta))
-        }))
-        origNames <- unlist(lapply(orig.sset, function(x) {
-            paste0("i", x$ivspec, ".", names(x$beta))
-        }))
-        droppedVars <- which(!origNames %in% ssetNames)
-        ## Add back in residual parameters that were dropped from the
-        ## bootstrap due to collinearity
-        for (i in droppedVars) {
-            if (i == 1) {
-                lpobj$ub <- c(Inf, Inf, lpobj$ub)
-                lpobj$lb <- c(0, 0, lpobj$lb)
-                lpobj$obj <- c(1, 1, lpobj$obj)
-                front <- NULL
-            }
-            if (i > 1) {
-                lpobj$ub <- c(lpobj$ub[1:(2 * i - 2)], Inf, Inf,
-                              lpobj$ub[(2 * i - 1):length(lpobj$ub)])
-                lpobj$lb <- c(lpobj$lb[1:(2 * i - 2)], 0, 0,
-                              lpobj$lb[(2 * i - 1):length(lpobj$lb)])
-                lpobj$obj <- c(lpobj$obj[1:(2 * i - 2)], 1, 1,
-                               lpobj$obj[(2 * i - 1):length(lpobj$obj)])
-                front <- lpobj$A[, 1:(2 * i - 2)]
-            }
-            back <- lpobj$A[, (2 * i - 1):ncol(lpobj$A)]
-            lpobj$A <- cbind(front,
-                             matrix(0,
-                                    nrow = nrow(lpobj$A),
-                                    ncol = 2),
-                             back)
-        }
         ## Prepare to obtain 'recentered' bootstrap criterion
         tmpA <- NULL
         tmpRhs <- NULL

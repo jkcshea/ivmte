@@ -1516,7 +1516,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     bootCriterion <- c(bootCriterion,
                                        bootEstimate$audit.minobseq)
                     b <- b + 1
-                    bootFailN <- 0
                     if (noisy == TRUE) {
                         cat("    Audit count: ",
                             bootEstimate$audit.count, "\n", sep = "")
@@ -1531,8 +1530,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                    "]"), "\n\n", sep = "")
                     }
                 } else {
-                    if (noisy == TRUE) {
-                        stop(paste0("    Error:", bootEstimate))
+                    if (noisy) {
+                        warning(paste0(bootEstimate, ", resampling...\n"),
+                                call. = FALSE,
+                                immediate. = TRUE)
                     }
                     bseeds[b] <- round(runif(1) * 1000000)
                     bootFailN <- bootFailN + 1
@@ -1667,6 +1668,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                     bootCriterion)
             cat("\nBootstrapped misspecification test p-value: ",
                 criterionPValue, "\n\n", sep = "")
+            ## Inform users of failed bootstraps, if any
+            if (bootFailN > 0) warning(paste("Number of failed bootstraps:",
+                                             bootFailN),
+                                       call. = FALSE,
+                                       immediate. = TRUE)
+            cat("\n")
             ## Return output
             return(c(origEstimate,
                      list(bound.se = bootSE,
@@ -2359,6 +2366,13 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                   "'ivlike' argument must either be a formula or a vector of
                   formulas."),
              call. = FALSE)
+    }
+    ## If bootstrapping, check that length of sset is equivalent in
+    ## length to that of the original sset if bootstrapping
+    if (!is.null(orig.sset)) {
+        if (length(sset) != length(orig.sset)) {
+            return("collinearity causing S-set to differ from original sample")
+        }
     }
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     if (point == TRUE) {
