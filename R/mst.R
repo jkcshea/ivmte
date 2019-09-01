@@ -2660,7 +2660,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                 if (nrow(data) == 0) {
                     stop(gsub("\\s+", " ",
                               "no observations with the values specified in
-                               in 'eval.X'."), call. = FALSE)
+                               'eval.X'."), call. = FALSE)
                 }
             }
             if (!is.null(m0)) pm0$polymat <- pm0$polymat[rownames(data), ]
@@ -2681,7 +2681,7 @@ genTarget <- function(treat, m0, m1, uname, target,
                 if (nrow(data) == 0) {
                     stop(gsub("\\s+", " ",
                               "no observations with the values specified in
-                               in 'eval.X'."), call. = FALSE)
+                               'eval.X'."), call. = FALSE)
                 }
                 if (!is.null(m0)) pm0$polymat <- pm0$polymat[rownames(data), ]
                 if (!is.null(m1)) pm1$polymat <- pm1$polymat[rownames(data), ]
