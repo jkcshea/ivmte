@@ -3407,7 +3407,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     pointestimate <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
     if (noisy == TRUE) {
         cat("\nPoint estimate of the target parameter: ",
-            round(pointestimate, 4), "\n\n", sep = "")
+            pointestimate, "\n\n", sep = "")
     }
     return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta,
