@@ -443,16 +443,19 @@ audit <- function(data, uname, m0, m1, splinesobj,
             diffVec <- mapply(max,
                               violateDiffMin * violatevecMin,
                               violateDiffMax * violatevecMax)
-            violateIndexes <- selectViolations(diffVec = diffVec,
-                                               audit.add = audit.add,
-                                               lb0seq = a_mbobj$lb0seq,
-                                               lb1seq = a_mbobj$lb1seq,
-                                               ub0seq = a_mbobj$ub0seq,
-                                               ub1seq = a_mbobj$ub1seq,
-                                               mono0seq = a_mbobj$mono0seq,
-                                               mono1seq = a_mbobj$mono1seq,
-                                               monoteseq = a_mbobj$monoteseq,
-                                               mbmap = a_mbobj$mbmap)
+            violateMat <- selectViolations(diffVec = diffVec,
+                                           audit.add = audit.add,
+                                           lb0seq = a_mbobj$lb0seq,
+                                           ub0seq = a_mbobj$ub0seq,
+                                           lb1seq = a_mbobj$lb1seq,
+                                           ub1seq = a_mbobj$ub1seq,
+                                           lbteseq = a_mbobj$lbteseq,
+                                           ubteseq = a_mbobj$ubteseq,
+                                           mono0seq = a_mbobj$mono0seq,
+                                           mono1seq = a_mbobj$mono1seq,
+                                           monoteseq = a_mbobj$monoteseq,
+                                           mbmap = a_mbobj$mbmap)
+            violateIndexes <- violateMat$row
             ## Expand initial grid
             mbobj$mbA <- rbind(mbobj$mbA, a_mbobj$mbA[violateIndexes, ])
             mbobj$mbrhs <- c(mbobj$mbrhs, a_mbobj$mbrhs[violateIndexes])
@@ -493,21 +496,25 @@ audit <- function(data, uname, m0, m1, splinesobj,
             violations <- support[a_mbobj$mbmap[violateIndexes], ]
         }
         violations <- data.frame(cbind(violations,
-                                       a_mbobj$mbumap[violateIndexes, ]))
+                                       matrix(a_mbobj$mbumap[violateIndexes, ],
+                                              ncol = 2)))        
         colnames(violations)[(ncol(violations) - 1):ncol(violations)] <-
             paste0(uname, c(1, 2))
         violations$.violation.type <- ""
-        for (type in c('lb0', 'lb1', 'ub0', 'ub1', 'mono0',
-                       'mono1', 'monote')) {
-            typeCheck <- which(violateIndexes %in%
-                               a_mbobj[[paste0(type, "seq")]])
-            if (length(typeCheck) > 0) {
-                typeS <- gsub("0", ".0", type)
-                typeS <- gsub("1", ".1", typeS)
-                typeS <- gsub("te", ".te", typeS)
-                violations[typeCheck, ".violation.type"] <- typeS
-            }
-        }
+        typeStr <- rep("", nrow(violateMat))
+        typeStr[violateMat$type == 1] <- "m0.lb"
+        typeStr[violateMat$type == 2] <- "m1.lb"
+        typeStr[violateMat$type == 3] <- "mte.lb"
+        typeStr[violateMat$type == 4] <- "m0.ub"
+        typeStr[violateMat$type == 5] <- "m1.ub"
+        typeStr[violateMat$type == 6] <- "mte.ub"
+        typeStr[violateMat$type == 7] <- "m0.inc"
+        typeStr[violateMat$type == 8] <- "m0.dec"
+        typeStr[violateMat$type == 9] <- "m1.inc"
+        typeStr[violateMat$type == 10] <- "m1.dec"
+        typeStr[violateMat$type == 11] <- "mte.inc"
+        typeStr[violateMat$type == 12] <- "mte.dec"
+        violations$.violation.type <- typeStr
         rownames(violations) <- seq(nrow(violations))
     }
     output <- list(max = lpresult$max,
@@ -567,22 +574,25 @@ audit <- function(data, uname, m0, m1, splinesobj,
 #'     whose corresponding constriants should be added to the original
 #'     LP problem (i.e. the points to add to the original grid).
 selectViolations <- function(diffVec, audit.add,
-                             lb0seq, lb1seq, ub0seq, ub1seq,
+                             lb0seq, lb1seq, lbteseq,
+                             ub0seq, ub1seq, ubteseq,
                              mono0seq, mono1seq, monoteseq,
                              mbmap) {
     typeVec <- c(rep(1, times = length(lb0seq)),
                  rep(2, times = length(lb1seq)),
-                 rep(3, times = length(ub0seq)),
-                 rep(4, times = length(ub1seq)),
-                 rep(5, sum(times = mono0seq[, 2] > 0)),
-                 rep(6, sum(times = mono0seq[, 2] < 0)),
-                 rep(7, sum(times = mono1seq[, 2] > 0)),
-                 rep(8, sum(times = mono1seq[, 2] < 0)),
-                 rep(9, sum(times = monoteseq[, 2] > 0)),
-                 rep(10, sum(times = monoteseq[, 2] < 0)))
+                 rep(3, times = length(lbteseq)),
+                 rep(4, times = length(ub0seq)),
+                 rep(5, times = length(ub1seq)),
+                 rep(6, times = length(ubteseq)),
+                 rep(7, sum(times = mono0seq[, 2] > 0)),
+                 rep(8, sum(times = mono0seq[, 2] < 0)),
+                 rep(9, sum(times = mono1seq[, 2] > 0)),
+                 rep(10, sum(times = mono1seq[, 2] < 0)),
+                 rep(11, sum(times = monoteseq[, 2] > 0)),
+                 rep(12, sum(times = monoteseq[, 2] < 0)))
     ## Store all points that violate the constraints
-    violateMat <- data.frame(cbind(c(lb0seq, lb1seq,
-                                     ub0seq, ub1seq,
+    violateMat <- data.frame(cbind(c(lb0seq, lb1seq, lbteseq,
+                                     ub0seq, ub1seq, ubteseq,
                                      mono0seq[, 1],
                                      mono1seq[, 1],
                                      monoteseq[, 1]),
@@ -610,6 +620,6 @@ selectViolations <- function(diffVec, audit.add,
     violateMat$counts <- c(unlist(sapply(table(violateMat$type),
                                          function(x) seq(1, x))))
     violateMat <- violateMat[violateMat$counts <= audit.add, ]
-    violateIndexes <- violateMat$row
-    return(violateIndexes)
+
+    return(violateMat)
 }
