@@ -515,6 +515,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         typeStr[violateMat$type == 11] <- "mte.inc"
         typeStr[violateMat$type == 12] <- "mte.dec"
         violations$.violation.type <- typeStr
+        violations[violateMat$type <= 6, paste0(uname, 2)] <- NA
         rownames(violations) <- seq(nrow(violations))
     }
     output <- list(max = lpresult$max,
