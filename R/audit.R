@@ -279,60 +279,53 @@ audit <- function(data, uname, m0, m1, splinesobj,
             violateType <- sapply(violatepos, function(x) {
                 if (x %in% mbobj$lb0seq) {
                     if (m0.lb.default == TRUE) {
-                        return(paste0("m0.lb (set to min. observed outcome, ",
-                                      m0.lb, ", by default)"))
+                        return(paste0("m0.lb = ", m0.lb,
+                                      " (min. observed outcome by default)"))
                     } else {
-                        return(paste0("m0.lb (set to ",
-                                      m0.lb, ")"))
+                        return(paste0("m0.lb = ", m0.lb))
                     }
                 }
                 if (x %in% mbobj$lb1seq) {
                     if (m1.lb.default == TRUE) {
-                        return(paste0("m1.lb (set to min. observed outcome, ",
-                                      m1.lb, ", by default)"))
+                        return(paste0("m1.lb = ", m1.lb,
+                                      " (min. observed outcome by default)"))
                     } else {
-                        return(paste0("m1.lb (set to ",
-                                      m1.lb, ")"))
+                        return(paste0("m1.lb = ", m1.lb))
                     }
                 }
-                if (x %in% mbobj$lbteseq) return("mte.lb")
+                if (x %in% mbobj$lbteseq) {
+                    return(paste0("mte.lb = ", mte.lb))
+                }
                 if (x %in% mbobj$ub0seq) {
                     if (m0.ub.default == TRUE) {
-                        return(paste0("m0.ub (set to max. observed outcome, ",
-                                      m0.ub, ", by default)"))
+                        return(paste0("m0.ub = ", m0.ub,
+                                      " (max. observed outcome by default)"))
                     } else {
-                        return(paste0("m0.ub (set to ",
-                                      m0.ub, ")"))
+                        return(paste0("m0.ub = ", m0.ub))
                     }
                 }
                 if (x %in% mbobj$ub1seq) {
                     if (m1.ub.default == TRUE) {
-                        return(paste0("m1.ub (set to max. observed outcome, ",
-                                      m1.ub, ", by default)"))
+                        return(paste0("m1.ub = ", m1.ub,
+                                      " (max. observed outcome by default)"))
                     } else {
-                        return(paste0("m1.ub (set to ",
-                                      m1.ub, ")"))
+                        return(paste0("m1.ub = ", m1.ub))
                     }
                 }
                 if (x %in% mbobj$ubteseq) {
-                    return(paste0("mte.ub (set to ",
-                                  mte.ub, ")"))
-                }
-                if (x %in% mbobj$lbteseq) {
-                    return(paste0("mte.lb (set to ",
-                                  mte.lb, ")"))
+                    return(paste0("mte.ub = ", mte.ub))
                 }
                 if (x %in% mbobj$mono0seq) {
-                    if (m0.inc == TRUE) return("m0.inc (set to TRUE)")
-                    if (m0.dec == TRUE) return("m0.dec (set to TRUE)")
+                    if (m0.inc == TRUE) return("m0.inc = TRUE")
+                    if (m0.dec == TRUE) return("m0.dec = TRUE")
                 }
                 if (x %in% mbobj$mono1seq) {
-                    if (m1.inc == TRUE) return("m1.inc (set to TRUE)")
-                    if (m1.dec == TRUE) return("m1.dec (set to TRUE)")
+                    if (m1.inc == TRUE) return("m1.inc = TRUE")
+                    if (m1.dec == TRUE) return("m1.dec = TRUE")
                 }
                 if (x %in% mbobj$monomteseq) {
-                    if (mte.inc == TRUE) return("mte.inc (set to TRUE)")
-                    if (mte.dec == TRUE) return("mte.dec (set to TRUE)")
+                    if (mte.inc == TRUE) return("mte.inc = TRUE")
+                    if (mte.dec == TRUE) return("mte.dec = TRUE")
                 }
             })
             stop(gsub("\\s+", " ",
