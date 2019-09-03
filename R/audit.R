@@ -497,9 +497,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
         violations <- data.frame(cbind(violations,
                                        matrix(a_mbobj$mbumap[violateIndexes, ],
-                                              ncol = 2)))        
-        colnames(violations)[(ncol(violations) - 1):ncol(violations)] <-
-            paste0(uname, c(1, 2))
+                                              ncol = 2)[, 2]))
+        colnames(violations)[ncol(violations)] <- uname
         violations$.violation.type <- ""
         typeStr <- rep("", nrow(violateMat))
         typeStr[violateMat$type == 1] <- "m0.lb"
@@ -515,7 +514,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
         typeStr[violateMat$type == 11] <- "mte.inc"
         typeStr[violateMat$type == 12] <- "mte.dec"
         violations$.violation.type <- typeStr
-        violations[violateMat$type <= 6, paste0(uname, 2)] <- NA
         rownames(violations) <- seq(nrow(violations))
     }
     output <- list(max = lpresult$max,

@@ -355,7 +355,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                  call. = FALSE)
         }
     }
-
     ##---------------------------
     ## 2. Check format of non-numeric arguments
     ##---------------------------
@@ -2068,7 +2067,7 @@ boundCI <- function(bound, bound.resamples, n, m, levels, type) {
 #'     is returned.
 boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
                         type, tol = 1e-08) {
-    ci <- rbind(c(bound[1], bound[1]), ci, c(-Inf, Inf))
+    ci <- rbind(c(bound[1], bound[2]), ci, c(-Inf, Inf))
     rownames(ci) <- c(0, levels, 1)
     inVec <- apply(ci, 1, function(x) 0 > x[1] & 0 < x[2])
     lbPos <- which(sapply(seq(1, length(inVec) - 1), function(x) {

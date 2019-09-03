@@ -598,7 +598,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         optxA <- minresult$solution[1 : (lpobj$sn * 2)]
         optxB <- minresult$solution[(lpobj$sn * 2 + 1) :
                                     length(minresult$solution)]
-        optxB <- optxB[1 : (length(optxB) / 2)] +
+        optxB <- optxB[1 : (length(optxB) / 2)] -
             optxB[(length(optxB) / 2 + 1) : length(optxB)]
         minoptx <- c(optxA, optxB)
         if (minresult$status == 0) minstatus <- 1
@@ -612,7 +612,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         optxA <- maxresult$solution[1 : (lpobj$sn * 2)]
         optxB <- maxresult$solution[(lpobj$sn * 2 + 1) :
                                     length(maxresult$solution)]
-        optxB <- optxB[1 : (length(optxB) / 2)] +
+        optxB <- optxB[1 : (length(optxB) / 2)] -
             optxB[(length(optxB) / 2 + 1) : length(optxB)]
         maxoptx <- c(optxA, optxB)
         if (maxresult$status == 0) maxstatus <- 1
