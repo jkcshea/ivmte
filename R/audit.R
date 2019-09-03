@@ -337,7 +337,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             })
             stop(gsub("\\s+", " ",
                       paste0("No feasible solution to minimizing violation of
-                      observational equivalence. The model may be mispecified.
+                      observational equivalence. The model may be misspecified.
                       Consider altering the specifications for the MTRs.
                       Infeasible specifications include: ",
                       paste(unique(violateType), collapse = ", "), ".\n")),
