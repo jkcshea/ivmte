@@ -239,7 +239,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                      monov = monov))
             mbobj <- eval(monoboundAcall)
         }
-
+        
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
@@ -252,10 +252,19 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## solutions.
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
-            lpobjAlt <- lpSetup(sset, mbobj$mbA, mbobj$mbs,
-                                    mbobj$mbrhs, lpsolver,
+            lpobjAlt <- lpSetup(sset = sset,
+                                orig.sset = orig.sset,
+                                mbA = mbobj$mbA,
+                                mbs = mbobj$mbs,
+                                mbrhs = mbobj$mbrhs,
+                                lpsolver = lpsolver,
                                 shape = FALSE)
-            minobseqAlt <- obsEqMin(sset, lpobjAlt, lpsolver)
+            minobseqAlt <- obsEqMin(sset = sset,
+                                    orig.sset = orig.sset,
+                                    orig.criterion = orig.criterion,
+                                    obseq.tol = obseq.tol,
+                                    lpobj = lpobjAlt,
+                                    lpsolver = lpsolver)
             solVec <- minobseqAlt$result$x
             ## Test for violations
             mbA <- mbobj$mbA
@@ -305,7 +314,14 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                       m1.ub, ")"))
                     }
                 }
-                if (x %in% mbobj$ubteseq) return("mte.ub")
+                if (x %in% mbobj$ubteseq) {
+                    return(paste0("mte.ub (set to ",
+                                  mte.ub, ")"))
+                }
+                if (x %in% mbobj$lbteseq) {
+                    return(paste0("mte.lb (set to ",
+                                  mte.lb, ")"))
+                }
                 if (x %in% mbobj$mono0seq) {
                     if (m0.inc == TRUE) return("m0.inc (set to TRUE)")
                     if (m0.dec == TRUE) return("m0.dec (set to TRUE)")
@@ -324,12 +340,14 @@ audit <- function(data, uname, m0, m1, splinesobj,
                       observational equivalence. The model may be mispecified.
                       Consider altering the specifications for the MTRs.
                       Infeasible specifications include: ",
-                      paste(unique(violateType), collapse = ", "), ".\n")))
+                      paste(unique(violateType), collapse = ", "), ".\n")),
+                 call. = FALSE)
         }
         if (noisy) {
             cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
                 sep = "")
         }
+        
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
