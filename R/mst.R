@@ -423,9 +423,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         internals <- ""
                         warning(gsub("\\s+", " ",
                                      "No list of components provided.
-                                      All covariates in each
+                                      All components in each
                                       IV-like specification will be included
-                                      when constructing each S-set."),
+                                      when fitting the model."),
                                 call. = FALSE)
                     }
                     components <- paste0("l(c(", internals, "))")
