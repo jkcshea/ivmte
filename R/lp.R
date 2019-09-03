@@ -134,11 +134,6 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
         sense[sense == ">="] <- "G"
         sense[sense == "="]  <- "E"
     }
-    ## Adjust for lpSolve (convert the object into one of x+/x-)
-    if (lpsolver == "lpsolve") {
-        obj <- c(obj, -obj[(sn * 2 + 1) : ncol(A)])
-        A <- cbind(A, -A[, (sn * 2 + 1) : ncol(A)])
-    }
     if (lpsolver %in% c("gurobi", "rcplex", "lpsolveapi")) {
         A <- Matrix::Matrix(A, sparse = TRUE)
     }
@@ -324,21 +319,6 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
         optx     <- result$xopt
         status   <- result$status
     }
-    if (lpsolver == "lpsolve") {
-        result <- lpSolve::lp(direction = "min",
-                              objective.in = lpobj$obj,
-                              const.mat = lpobj$A,
-                              const.rhs = lpobj$rhs,
-                              const.dir = lpobj$sense)
-        obseqmin <- result$objval
-        optxA <- result$solution[1 : (lpobj$sn * 2)]
-        optxB <- result$solution[(lpobj$sn * 2 + 1) : length(result$solution)]
-        optxB <- optxB[1 : (length(optxB) / 2)] +
-            optxB[(length(optxB) / 2 + 1) : length(optxB)]
-        optx <- c(optxA, optxB)
-        if (result$status == 0) status <- 1
-        if (result$status != 0) status <- 0
-    }
     if (lpsolver == "cplexapi") {
         result <- runCplexAPI(lpobj, cplexAPI::CPX_MIN)
         obseqmin <- result$objval
@@ -485,138 +465,95 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
 #' @export
 bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
     lpsolver <- tolower(lpsolver)
-    if (lpsolver %in% c("gurobi", "rcplex",
-                        "cplexapi", "lpsolveapi")) {
-        ## define model
-        model <- list()
-        model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1)
-        model$rhs <- c(obseq.factor, lpobj$rhs)
-        model$ub  <- lpobj$ub
-        model$lb  <- lpobj$lb
-        avec <- c(replicate(2 * lpobj$sn, 1),
-                  replicate(lpobj$gn0 + lpobj$gn1, 0))
-        model$A <- rbind(avec, lpobj$A)
-        model$sense <- c("<=", lpobj$sense)
-        ## obtain lower and upper bounds
-        if (lpsolver == "gurobi") {
-            model$modelsense <- "min"
-            minresult <- gurobi::gurobi(model, list(outputflag = 0,
-                                                    dualreductions = 1))
-            min <- minresult$objval
-            minstatus <- 0
-            if (minresult$status == "OPTIMAL") minstatus <- 1
-            minoptx <- minresult$x
-            model$modelsense <- "max"
-            maxresult <- gurobi::gurobi(model, list(outputflag = 0,
-                                                    dualreductions = 1))
-            max <- maxresult$objval
-            maxstatus <- 0
-            if (maxresult$status == "OPTIMAL") maxstatus <- 1
-            maxoptx <- maxresult$x
-        }
-        if (lpsolver == "rcplex") {
-            model$sense[1] <- "L" ## to satisfy minimal obs. equiv. deviation
-            minresult <- Rcplex::Rcplex(objsense = "min",
-                                        cvec = model$obj,
-                                        Amat = model$A,
-                                        bvec = model$rhs,
-                                        sense = model$sense,
-                                        ub = model$ub,
-                                        lb = model$lb,
-                                        control = list(trace = FALSE))
-            min <- minresult$obj
-            minstatus <- minresult$status
-            minoptx   <- minresult$xopt
-            maxresult <- Rcplex::Rcplex(objsense = "max",
-                                        cvec = model$obj,
-                                        Amat = model$A,
-                                        bvec = model$rhs,
-                                        sense = model$sense,
-                                        ub = model$ub,
-                                        lb = model$lb,
-                                        control = list(trace = FALSE))
-            max <- maxresult$obj
-            maxstatus <- maxresult$status
-            maxoptx   <- maxresult$xopt
-            ## Deal with cases where the bounds are contradictory,
-            ## which can occur when the target parameter is
-            ## unbounded. However, this can potentially be a precision
-            ## issue, i.e. the min can exceed the max by a trivial
-            ## amount. You suspect this is a threshold problem, so you
-            ## allow for some tolerance.
-            if (min - max > 0) {
-                if (round(min - max, 10) > 0) {
-                    min <- NULL
-                    max <- NULL
-                    minstatus <- 0
-                    maxstatus <- 0
-                    minoptx <- NULL
-                    maxoptx <- NULL
-                } else {
-                    max <- min
-                }
+    ## define model
+    model <- list()
+    model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1)
+    model$rhs <- c(obseq.factor, lpobj$rhs)
+    model$ub  <- lpobj$ub
+    model$lb  <- lpobj$lb
+    avec <- c(replicate(2 * lpobj$sn, 1),
+              replicate(lpobj$gn0 + lpobj$gn1, 0))
+    model$A <- rbind(avec, lpobj$A)
+    model$sense <- c("<=", lpobj$sense)
+    ## obtain lower and upper bounds
+    if (lpsolver == "gurobi") {
+        model$modelsense <- "min"
+        minresult <- gurobi::gurobi(model, list(outputflag = 0,
+                                                dualreductions = 1))
+        min <- minresult$objval
+        minstatus <- 0
+        if (minresult$status == "OPTIMAL") minstatus <- 1
+        minoptx <- minresult$x
+        model$modelsense <- "max"
+        maxresult <- gurobi::gurobi(model, list(outputflag = 0,
+                                                dualreductions = 1))
+        max <- maxresult$objval
+        maxstatus <- 0
+        if (maxresult$status == "OPTIMAL") maxstatus <- 1
+        maxoptx <- maxresult$x
+    }
+    if (lpsolver == "rcplex") {
+        model$sense[1] <- "L" ## to satisfy minimal obs. equiv. deviation
+        minresult <- Rcplex::Rcplex(objsense = "min",
+                                    cvec = model$obj,
+                                    Amat = model$A,
+                                    bvec = model$rhs,
+                                    sense = model$sense,
+                                    ub = model$ub,
+                                    lb = model$lb,
+                                    control = list(trace = FALSE))
+        min <- minresult$obj
+        minstatus <- minresult$status
+        minoptx   <- minresult$xopt
+        maxresult <- Rcplex::Rcplex(objsense = "max",
+                                    cvec = model$obj,
+                                    Amat = model$A,
+                                    bvec = model$rhs,
+                                    sense = model$sense,
+                                    ub = model$ub,
+                                    lb = model$lb,
+                                    control = list(trace = FALSE))
+        max <- maxresult$obj
+        maxstatus <- maxresult$status
+        maxoptx   <- maxresult$xopt
+        ## Deal with cases where the bounds are contradictory,
+        ## which can occur when the target parameter is
+        ## unbounded. However, this can potentially be a precision
+        ## issue, i.e. the min can exceed the max by a trivial
+        ## amount. You suspect this is a threshold problem, so you
+        ## allow for some tolerance.
+        if (min - max > 0) {
+            if (round(min - max, 10) > 0) {
+                min <- NULL
+                max <- NULL
+                minstatus <- 0
+                maxstatus <- 0
+                minoptx <- NULL
+                maxoptx <- NULL
+            } else {
+                max <- min
             }
         }
-        if (lpsolver == "cplexapi") {
-            minresult <- runCplexAPI(model, cplexAPI::CPX_MIN)
-            min       <- minresult$objval
-            minoptx   <- minresult$optx
-            minstatus <- minresult$status
-            maxresult <- runCplexAPI(model, cplexAPI::CPX_MAX)
-            max       <- maxresult$objval
-            maxoptx   <- maxresult$optx
-            maxstatus <- maxresult$status
-        }
-        if (lpsolver == "lpsolveapi") {
-
-            minresult <- runLpSolveAPI(model, 'min')
-            min       <- minresult$objval
-            minoptx   <- minresult$optx
-            minstatus <- minresult$status
-            maxresult <- runLpSolveAPI(model, 'max')
-            max       <- maxresult$objval
-            maxoptx   <- maxresult$optx
-            maxstatus <- maxresult$status
-        }
     }
-    if (lpsolver == "lpsolve") {
-        ## define model
-        model <- list()
-        model$obj <- c(replicate(2 * lpobj$sn, 0), g0, g1, -g0, -g1)
-        model$rhs <- c(obseq.factor, lpobj$rhs)
-        model$sense <- c("<=", lpobj$sense)
-        avec <- c(replicate(2 * lpobj$sn, 1),
-                  replicate(2 * (lpobj$gn0 + lpobj$gn1), 0))
-        model$A <- rbind(avec, lpobj$A)
-        ## obtain upper and lower bounds
-        minresult <- lpSolve::lp(direction = "min",
-                                 objective.in = model$obj,
-                                 const.mat = model$A,
-                                 const.rhs = model$rhs,
-                                 const.dir = model$sense)
-        min <- minresult$objval
-        optxA <- minresult$solution[1 : (lpobj$sn * 2)]
-        optxB <- minresult$solution[(lpobj$sn * 2 + 1) :
-                                    length(minresult$solution)]
-        optxB <- optxB[1 : (length(optxB) / 2)] -
-            optxB[(length(optxB) / 2 + 1) : length(optxB)]
-        minoptx <- c(optxA, optxB)
-        if (minresult$status == 0) minstatus <- 1
-        if (minresult$status != 0) minstatus <- 0
-        maxresult <- lpSolve::lp(direction = "max",
-                                 objective.in = model$obj,
-                                 const.mat = model$A,
-                                 const.rhs = model$rhs,
-                                 const.dir = model$sense)
-        max <- maxresult$objval
-        optxA <- maxresult$solution[1 : (lpobj$sn * 2)]
-        optxB <- maxresult$solution[(lpobj$sn * 2 + 1) :
-                                    length(maxresult$solution)]
-        optxB <- optxB[1 : (length(optxB) / 2)] -
-            optxB[(length(optxB) / 2 + 1) : length(optxB)]
-        maxoptx <- c(optxA, optxB)
-        if (maxresult$status == 0) maxstatus <- 1
-        if (maxresult$status != 0) maxstatus <- 0
+    if (lpsolver == "cplexapi") {
+        minresult <- runCplexAPI(model, cplexAPI::CPX_MIN)
+        min       <- minresult$objval
+        minoptx   <- minresult$optx
+        minstatus <- minresult$status
+        maxresult <- runCplexAPI(model, cplexAPI::CPX_MAX)
+        max       <- maxresult$objval
+        maxoptx   <- maxresult$optx
+        maxstatus <- maxresult$status
+    }
+    if (lpsolver == "lpsolveapi") {
+        minresult <- runLpSolveAPI(model, 'min')
+        min       <- minresult$objval
+        minoptx   <- minresult$optx
+        minstatus <- minresult$status
+        maxresult <- runLpSolveAPI(model, 'max')
+        max       <- maxresult$objval
+        maxoptx   <- maxresult$optx
+        maxstatus <- maxresult$status
     }
     if (maxstatus == 0 || minstatus == 0) {
         return(NULL)

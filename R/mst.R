@@ -148,7 +148,7 @@ utils::globalVariables("u")
 #' @param lpsolver character, name of the linear programming package
 #'     in R used to obtain the bounds on the treatment effect. The
 #'     function supports \code{'gurobi'}, \code{'rcplex'},
-#'     \code{'cplexapi'}, \code{'lpsolve'}, \code{'lpsolveapi'}.
+#'     \code{'cplexapi'}, \code{'lpsolveapi'}.
 #' @param obseq.tol tolerance for violation of observational
 #'     equivalence, set to 0 by default. Statistical noise may
 #'     prohibit the theoretical LP problem from being feasible. That
@@ -326,8 +326,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             lpsolver <- "Rcplex"
         } else if (requireNamespace("cplexAPI", quietly = TRUE)) {
             lpsolver <- "cplexAPI"
-        } else if (requireNamespace("lpSolve", quietly = TRUE)) {
-            lpsolver <- "lpSolve"
         } else {
             stop(gsub("\\s+", " ",
                       "Please install one of the following packages required for
@@ -335,14 +333,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                       gurobi (version 7.5-1 or later);
                       Rcplex (version 0.3.3 or later);
                       cplexAPI (version 1.3.3 or later);
-                      lpSolve (version 5.6.13 or later)."),
+                      lpSolveAPI (version 5.6.13 or later)."),
                  call. = FALSE)
         }
     } else {
         if (! lpsolver %in% c("gurobi",
                               "rcplex",
                               "cplexapi",
-                              "lpsolve",
                               "lpsolveapi")) {
             stop(gsub("\\s+", " ",
                       paste0("Estimator is incompatible with linear programming
@@ -351,7 +348,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              gurobi (version 7.5-1 or later);
                              Rcplex (version 0.3.3 or later);
                              cplexAPI (version 1.3.3 or later);
-                             lpSolve (version 5.6.13 or later).")),
+                             lpSolveAPI (version 3.4.4 or later).")),
                  call. = FALSE)
         }
     }
