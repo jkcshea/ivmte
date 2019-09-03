@@ -218,7 +218,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
         ## Generate all monotonicity and boundedness matrices for initial grid
         if (audit_count == 1) {
-            cat("    Generating initial grid...\n")
+            cat("    Generating initial constraint grid...\n")
             monoboundAlist <- c('sset', 'gstar0', 'gstar1',
                                 'm1.ub', 'm0.ub',
                                 'm1.lb', 'm0.lb',
@@ -342,7 +342,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                            lpsolver = lpsolver)
         if (is.null(lpresult)) {
             message("    LP solutions are unbounded.")
-            cat("    Expanding initial grid, restarting audit.\n")
+            cat("    Expanding constraint grid, restarting audit.\n")
             return("Failure to maximize/minimize.")
         }
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
@@ -354,14 +354,15 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 stop(gsub("\\s+", " ",
                           "Unable to obtain bounds. Try setting obseq.tol
                           to be greater than 0 to allow for model
-                          misspecification, or expanding the initial grid
-                          size for imposing the shape restrictions
+                          misspecification, or expanding the initial constraint
+                          grid size for imposing the shape restrictions
                           (initgrid.nx, initgrid.nu). \n"))
             } else {
                 stop(gsub("\\s+", " ",
                           paste0("Bounds extend to +/- infinity.
                           Consider increasing the size of
-                          the initial grid (initgrid.nx, initgrid.nu). \n")))
+                          the initial constraint grid (initgrid.nx,
+                          initgrid.nu). \n")))
             }
         } else {
             if (existsolution == FALSE) existsolution <- TRUE
@@ -455,7 +456,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                            monoteseq = a_mbobj$monoteseq,
                                            mbmap = a_mbobj$mbmap)
             violateIndexes <- violateMat$row
-            ## Expand initial grid
+            ## Expand constraint grid
             mbobj$mbA <- rbind(mbobj$mbA, a_mbobj$mbA[violateIndexes, ])
             mbobj$mbrhs <- c(mbobj$mbrhs, a_mbobj$mbrhs[violateIndexes])
             mbobj$mbs <- c(mbobj$mbs, a_mbobj$mbs[violateIndexes])
@@ -464,7 +465,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 if (noisy) {
                     cat("    ",
                         gsub("\\s+", " ",
-                             paste0("Expanding initial grids to
+                             paste0("Expanding constraint grid to
                                         include ", length(violateIndexes),
                                     " additional points...")), sep = "")
                 }
@@ -530,14 +531,14 @@ audit <- function(data, uname, m0, m1, splinesobj,
 }
 
 
-#' Select points from audit grid to add to the initial grid
+#' Select points from audit grid to add to the constraint grid
 #'
 #' This function selects which points from the audit grid should be
-#' included into the original grid. Both the initial grid and audit
+#' included into the original grid. Both the constraint grid and audit
 #' grid are represented as constraints in an LP problem. This function
 #' selects which points in the audit grid (i.e. which rows in the
-#' audit constraint matrix) should be added to the initial grid
-#' (i.e. should be appended to the initial constraint matrix).
+#' audit constraint matrix) should be added to the constraint grid
+#' (i.e. should be appended to the constraint matrix).
 #'
 #' @param diffVec numeric vector, with a positive value indicating a
 #'     violation of a shape constriant.
@@ -545,7 +546,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
 #'     to add to the intial for each constraint type. For instance, if
 #'     there are 5 different kinds of constraints imposed, and
 #'     \code{audit.add = 5}, then up to 30 points may be added to the
-#'     initial grid.
+#'     constraint grid.
 #' @param lb0seq integer vector, indicates which rows in the audit
 #'     constraint matrix corresponding to the lower bound for m0.
 #' @param lb1seq integer vector, indicates which rows in the audit
@@ -612,7 +613,7 @@ selectViolations <- function(diffVec, audit.add,
     vmaxu <- vmaxu$x
     vmaxu <- vmaxu[vmaxu > 0]
     violateMat <- violateMat[vmaxu, ]
-    ## Select audit.add number of points to add to the initial grid
+    ## Select audit.add number of points to add to the constraint grid
     violateMat <- violateMat[order(violateMat$type,
                                    -violateMat$diff), ]
     violateMat$counts <- c(unlist(sapply(table(violateMat$type),
