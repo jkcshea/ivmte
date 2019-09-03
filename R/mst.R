@@ -161,24 +161,24 @@ utils::globalVariables("u")
 #'     equivalence are then relaxed by the amount \code{minimum
 #'     criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
 #'     greater than 0 to allow for more conservative bounds.
-#' @param initgrid.nx integer determining the number of evenly spread
-#'     points of the covariates used to form the initial grid for
+#' @param initgrid.nx integer determining the number of
+#'     points of the covariates used to form the initial constraint grid for
 #'     imposing shape restrictions on the MTRs.
 #' @param initgrid.nu integer determining the number of evenly spread
 #'     points in the interval [0, 1] of the unobservable \code{u} used
-#'     to form the initial grid for imposing shape restrictions on the
-#'     MTRs.
+#'     to form the initial constraint grid for imposing shape restrictions on
+#'     the MTRs.
 #' @param audit.nx integer determining the number of points on the
 #'     covariates space to audit in each iteration of the audit
 #'     procedure.
 #' @param audit.nu integer determining the number of points in the
 #'     interval [0, 1], corresponding to space of unobservable
 #'     \code{u}, to audit in each iteration of the audit procedure.
-#' @param audit.add maximum number of points to add to the initial
+#' @param audit.add maximum number of points to add to the initial constraint
 #'     grid for imposing each kind of shape constraint. For example,
 #'     if there are 5 different kinds of shape constraints, there can
 #'     be at most \code{audit.add * 5} additional points added to the
-#'     initial grid.
+#'     constraint grid.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param point boolean, default set to \code{FALSE}. Set to
