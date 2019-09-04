@@ -147,7 +147,7 @@ utils::globalVariables("u")
 #'     provided with or without quotation marks.
 #' @param lpsolver character, name of the linear programming package
 #'     in R used to obtain the bounds on the treatment effect. The
-#'     function supports \code{'gurobi'}, \code{'rcplex'},
+#'     function supports \code{'gurobi'},
 #'     \code{'cplexapi'}, \code{'lpsolveapi'}.
 #' @param obseq.tol tolerance for violation of observational
 #'     equivalence, set to 0 by default. Statistical noise may
@@ -322,8 +322,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     if (is.null(lpsolver)) {
         if (requireNamespace("gurobi", quietly = TRUE)) {
             lpsolver <- "gurobi"
-        } else if (requireNamespace("Rcplex", quietly = TRUE)) {
-            lpsolver <- "Rcplex"
+        } else if (requireNamespace("lpSolveAPI", quietly = TRUE)) {
+            lpsolver <- "lpSolveAPI"
         } else if (requireNamespace("cplexAPI", quietly = TRUE)) {
             lpsolver <- "cplexAPI"
         } else {
@@ -331,14 +331,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                       "Please install one of the following packages required for
                       estimation:
                       gurobi (version 7.5-1 or later);
-                      Rcplex (version 0.3.3 or later);
                       cplexAPI (version 1.3.3 or later);
                       lpSolveAPI (version 5.6.13 or later)."),
                  call. = FALSE)
         }
     } else {
         if (! lpsolver %in% c("gurobi",
-                              "rcplex",
                               "cplexapi",
                               "lpsolveapi")) {
             stop(gsub("\\s+", " ",
@@ -346,7 +344,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              package '", lpsolver, "'. Please install one of the
                              following linear programming packages instead:
                              gurobi (version 7.5-1 or later);
-                             Rcplex (version 0.3.3 or later);
                              cplexAPI (version 1.3.3 or later);
                              lpSolveAPI (version 3.4.4 or later).")),
                  call. = FALSE)
