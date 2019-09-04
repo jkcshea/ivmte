@@ -329,11 +329,14 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 }
             })
             stop(gsub("\\s+", " ",
-                      paste0("No feasible solution to minimizing violation of
-                      observational equivalence. The model may be misspecified.
-                      Consider altering the specifications for the MTRs.
-                      Infeasible specifications include: ",
-                      paste(unique(violateType), collapse = ", "), ".\n")),
+                      paste0("No feasible solution to the criterion minimization
+                              problem. This should only happen if the implied
+                              parameter space is empty. The likely cause of an
+                              empty parameter space is incoherent shape
+                              restrictions. For example, if ", 
+                             paste(unique(violateType), collapse = ", "),
+                             " are all set simultaneously. Try changing the
+                              shape constraints on the MTR functions.\n")),
                  call. = FALSE)
         }
         if (noisy) {
