@@ -47,8 +47,8 @@ utils::globalVariables("u")
 #'     then the user can instead submit the value of the weight
 #'     instead of a function.
 #' @param target.weight1 user-defined weight function for the treated
-#'     group defining the target parameter. See
-#'     \code{target.weight0} for details.
+#'     group defining the target parameter. See \code{target.weight0}
+#'     for details.
 #' @param target.knots0 user-defined set of functions defining the
 #'     knots associated with spline weights for the control group. The
 #'     arguments of the function should consist only of variable names
@@ -147,8 +147,8 @@ utils::globalVariables("u")
 #'     provided with or without quotation marks.
 #' @param lpsolver character, name of the linear programming package
 #'     in R used to obtain the bounds on the treatment effect. The
-#'     function supports \code{'gurobi'},
-#'     \code{'cplexapi'}, \code{'lpsolveapi'}.
+#'     function supports \code{'gurobi'}, \code{'cplexapi'},
+#'     \code{'lpsolveapi'}.
 #' @param obseq.tol tolerance for violation of observational
 #'     equivalence, set to 0 by default. Statistical noise may
 #'     prohibit the theoretical LP problem from being feasible. That
@@ -161,24 +161,24 @@ utils::globalVariables("u")
 #'     equivalence are then relaxed by the amount \code{minimum
 #'     criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
 #'     greater than 0 to allow for more conservative bounds.
-#' @param initgrid.nx integer determining the number of
-#'     points of the covariates used to form the initial constraint grid for
+#' @param initgrid.nx integer determining the number of points of the
+#'     covariates used to form the initial constraint grid for
 #'     imposing shape restrictions on the MTRs.
 #' @param initgrid.nu integer determining the number of evenly spread
 #'     points in the interval [0, 1] of the unobservable \code{u} used
-#'     to form the initial constraint grid for imposing shape restrictions on
-#'     the MTRs.
+#'     to form the initial constraint grid for imposing shape
+#'     restrictions on the MTRs.
 #' @param audit.nx integer determining the number of points on the
 #'     covariates space to audit in each iteration of the audit
 #'     procedure.
 #' @param audit.nu integer determining the number of points in the
 #'     interval [0, 1], corresponding to space of unobservable
 #'     \code{u}, to audit in each iteration of the audit procedure.
-#' @param audit.add maximum number of points to add to the initial constraint
-#'     grid for imposing each kind of shape constraint. For example,
-#'     if there are 5 different kinds of shape constraints, there can
-#'     be at most \code{audit.add * 5} additional points added to the
-#'     constraint grid.
+#' @param audit.add maximum number of points to add to the initial
+#'     constraint grid for imposing each kind of shape constraint. For
+#'     example, if there are 5 different kinds of shape constraints,
+#'     there can be at most \code{audit.add * 5} additional points
+#'     added to the constraint grid.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param point boolean, default set to \code{FALSE}. Set to
@@ -209,6 +209,9 @@ utils::globalVariables("u")
 #'     construct the backward confidence interval for the treatment
 #'     effect bound. Set to \code{'both'} to construct both types of
 #'     confidence intervals.
+#' @param specification.test boolean, default set to
+#'     \code{TRUE}. Function performs a misspecificaiton test for the
+#'     partially identified case when \code{bootstraps > 0}.
 #' @param pvalue.tol numeric, default set to 1e-08. The p-value under
 #'     the partially identified case is constructed by iteratively
 #'     adjusting the confidence level to find a confidence interval
@@ -298,6 +301,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'both',
+                  specification.test = TRUE,
                   pvalue.tol = 1e-08, noisy = TRUE,
                   smallreturnlist = FALSE, seed = 12345) {
     call <- match.call(expand.dots = FALSE)
@@ -1417,7 +1421,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                          "target.weight0", "target.weight1",
                                          "target.knots0", "target.knots1",
                                          "late.Z", "late.to", "late.from",
-                                         "late.X", "eval.X"),
+                                         "late.X", "eval.X",
+                                         "specification.test"),
                             newargs = list(m0 = quote(m0),
                                            m1 = quote(m1),
                                            target.weight0 =
@@ -1475,10 +1480,15 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             bootFailN <- 0
             bootFailNote <- ""
             bootFailIndex <- NULL
-            origSset <- lapply(origEstimate$sset, function(x) {
-                x[c("ivspec", "beta", "g0", "g1")]
-            })
-            origCriterion <- origEstimate$audit.minobseq
+            if (specification.test) {
+                origSset <- lapply(origEstimate$sset, function(x) {
+                    x[c("ivspec", "beta", "g0", "g1")]
+                })
+                origCriterion <- origEstimate$audit.minobseq
+            } else {
+                origSset <- NULL
+                origCriterion <- NULL
+            }
             if (!hasArg(bootstraps.m)) bootstraps.m <- nrow(data)
             if (bootstraps.m > nrow(data) && bootstraps.replace == FALSE) {
                 stop(gsub("\\s+", " ",
@@ -1510,8 +1520,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 if (is.list(bootEstimate)) {
                     boundEstimates  <- rbind(boundEstimates,
                                              bootEstimate$bound)
-                    bootCriterion <- c(bootCriterion,
-                                       bootEstimate$audit.minobseq)
+                    if (specification.test) {
+                        bootCriterion <- c(bootCriterion,
+                                           bootEstimate$audit.minobseq)
+                    }
                     b <- b + 1
                     if (noisy == TRUE) {
                         cat("    Audit count: ",
@@ -1661,10 +1673,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
             }
             ## Obtain misspecification test
-            criterionPValue <- mean(origEstimate$audit.minobseq <=
-                                    bootCriterion)
-            cat("\nBootstrapped misspecification test p-value: ",
-                criterionPValue, "\n\n", sep = "")
+            if (specification.test) {
+                criterionPValue <- mean(origEstimate$audit.minobseq <=
+                                        bootCriterion)
+                cat("\nBootstrapped misspecification test p-value: ",
+                    criterionPValue, "\n\n", sep = "")
+            }
             ## Inform users of failed bootstraps, if any
             if (bootFailN > 0) warning(paste("Number of failed bootstraps:",
                                              bootFailN),
@@ -1672,14 +1686,17 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                        immediate. = TRUE)
             cat("\n")
             ## Return output
-            return(c(origEstimate,
-                     list(bound.se = bootSE,
-                          bound.bootstraps = boundEstimates,
-                          ci = ci,
-                          pvalue = pvalue,
-                          misspecification.pvalue = criterionPValue,
-                          bootstraps = bootstraps,
-                          failed.bootstraps = bootFailN)))
+            output <- c(origEstimate,
+                        list(bound.se = bootSE,
+                             bound.bootstraps = boundEstimates,
+                             ci = ci,
+                             pvalue = pvalue,
+                             bootstraps = bootstraps,
+                             failed.bootstraps = bootFailN))
+            if (specification.test) {
+                output$misspecification.pvalue <- criterionPValue
+            }
+            return(output)
         }
     }
     ## Point estimate without resampling
@@ -2205,6 +2222,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     uname <- deparse(substitute(uname))
     uname <- gsub("~", "", uname)
     uname <- gsub("\\\"", "", uname)
+    
     ##---------------------------
     ## 1. Obtain propensity scores
     ##---------------------------

@@ -430,7 +430,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                          monov = monov))
                 a_mbobj <- eval(monoboundAcall)
             } else {
-                sn <- length(orig.sset)
+                if (!is.null(orig.sset)) {
+                    sn <- length(orig.sset)
+                } else {
+                    sn <- length(sset)
+                }
                 a_mbobj <- audit.grid
             }
             a_mbA <- a_mbobj$mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)]
