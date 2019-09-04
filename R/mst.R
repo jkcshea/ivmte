@@ -355,6 +355,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     ##---------------------------
     ## 2. Check format of non-numeric arguments
     ##---------------------------
+    ## Convert uname into a string
+    uname <- deparse(substitute(uname))
+    uname <- gsub("~", "", uname)
+    uname <- gsub("\\\"", "", uname)
     ## Ensure MTRs are formulas
     if (classFormula(m0) && classFormula(m1)) {
         if (all(length(Formula::as.Formula(m0)) == c(0, 1)) &&
@@ -1151,20 +1155,20 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                               unlist(terms_mtr1))
         ## Remove all u terms
         uterms <- c()
-        um1 <- which(terms_propensity == deparse(substitute(uname)))
-        um2 <- grep(paste0("^[", deparse(substitute(uname)), "][[:punct:]]"),
+        um1 <- which(terms_propensity == uname)
+        um2 <- grep(paste0("^[", uname, "][[:punct:]]"),
                     terms_propensity)
-        um3 <- grep(paste0("[[:punct:]][", deparse(substitute(uname)), "]$"),
+        um3 <- grep(paste0("[[:punct:]][", uname, "]$"),
                     terms_propensity)
         um4 <- grep(paste0("[[:punct:]][",
-                           deparse(substitute(uname)),
+                           uname,
                            "][[:punct:]]"),
                     terms_propensity)
-        um5 <- grep(paste0("[[:punct:]][", deparse(substitute(uname)), "]\\s+"),
+        um5 <- grep(paste0("[[:punct:]][", uname, "]\\s+"),
                     terms_propensity)
-        um6 <- grep(paste0("\\s+[", deparse(substitute(uname)), "][[:punct:]]"),
+        um6 <- grep(paste0("\\s+[", uname, "][[:punct:]]"),
                     terms_propensity)
-        um7 <- grep(paste0("\\s+[", deparse(substitute(uname)), "]\\s+"),
+        um7 <- grep(paste0("\\s+[", uname, "]\\s+"),
                     terms_propensity)
         um8 <- grep("uSplines", terms_propensity)
         for (i in 1:8) {
@@ -1242,7 +1246,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     ## corresponding to the unobservable.
     allvars <- c(allvars, vars_components)
     allvars <- unique(allvars)
-    allvars <- allvars[allvars != deparse(substitute(uname))]
+    allvars <- allvars[allvars != uname]
     ## Fill in components list if necessary
     comp_filler <- lapply(terms_formulas_x,
                           function(x) as.character(unstring(x)))
@@ -1291,7 +1295,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     varFound1 <- sapply(allvars, exists, where = data)
     vars_data <- allvars[varFound1]
     missingVars <- allvars[!varFound1]
-    missingVars <- missingVars[missingVars != "intercept"]
+    missingVars <- missingVars[!missingVars %in% c("intercept", uname)]
     for (i in 1:length(envList)) {
         varFound2 <- sapply(missingVars, exists, where = envList[[i]])
         missingVars <- missingVars[!varFound2]
@@ -1306,6 +1310,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     data  <- data[complete.cases(data[, vars_data]), ]
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
+    print("uname 1")
+    print(uname)
     ## Construct a list of what variables interact with the
     ## spline. The reason for this is that certain interactions with
     ## factor variables should be dropped to avoid collinearity. Note
@@ -1316,7 +1322,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     for (d in 0:1) {
         if (!is.null(splinesobj[[d + 1]]$splineslist)) {
             mdata <- unique(data)
-            mdata[, deparse(substitute(uname))] <- 1
+            mdata[, uname] <- 1
             md <- get(paste0("origm", d))
             md <- gsub("\\s+", " ", Reduce(paste, deparse(md)))
             altNames <- list()
@@ -2200,7 +2206,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (hasArg(target))   target   <- tolower(target)
     if (hasArg(link))     link     <- tolower(link)
     if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
-
+    ## Convert uname into a string
+    uname <- deparse(substitute(uname))
+    uname <- gsub("~", "", uname)
+    uname <- gsub("\\\"", "", uname)
     ##---------------------------
     ## 1. Obtain propensity scores
     ##---------------------------
@@ -2216,7 +2225,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                     formula = propensity,
                                     env = environments$propensity))
     pmodel <- eval(pcall)
-
+    
     ##---------------------------
     ## 2. Generate target moments/gamma terms
     ##---------------------------
@@ -2259,8 +2268,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                               "late.from", "late.to",
                                               "late.X", "eval.X",
                                               "genlate.lb",
-                                              "genlate.ub",
-                                              "uname", "splinesobj",
+                                              "genlate.ub", "splinesobj",
                                               "point", "noisy"),
                                  dropargs = "data",
                                  newargs = list(data = quote(data),
@@ -2274,7 +2282,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                               "target.weight0",
                                               "target.weight1",
                                               "target.knots0", "target.knots1",
-                                              "uname", "splinesobj",
+                                              "splinesobj",
                                               "point", "noisy"),
                                  dropargs = "data",
                                  newargs = list(data = quote(data),
@@ -2285,7 +2293,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
-
+    
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
@@ -2612,7 +2620,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
 #' genTarget(treat = "d",
 #'           m0 = ~ 1 + u,
 #'           m1 = ~ 1 + u,
-#'           uname = u,
 #'           target = "atu",
 #'           data = dtm,
 #'           splinesobj = splinesList,
@@ -2623,7 +2630,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
 #'
 #'
 #' @export
-genTarget <- function(treat, m0, m1, uname, target,
+genTarget <- function(treat, m0, m1, target,
                       target.weight0, target.weight1,
                       target.knots0, target.knots1,
                       late.Z, late.from, late.to, late.X,

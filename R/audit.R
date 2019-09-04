@@ -168,10 +168,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
     terms_mtr1 <- parenthBoolean(terms_mtr1)
     ## Obtain name of unobservable variable
     if(hasArg(uname)) {
-        if (!suppressWarnings(try(class(uname), silent = TRUE) ==
-                              "character")) {
-            uname <- deparse(substitute(uname))
-        }
+        ## Convert uname into a string
+        uname <- deparse(substitute(uname))
+        uname <- gsub("~", "", uname)
+        uname <- gsub("\\\"", "", uname)
     } else {
         uname <- "u"
     }
@@ -239,7 +239,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                      monov = monov))
             mbobj <- eval(monoboundAcall)
         }
-        
+
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
@@ -340,7 +340,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
                 sep = "")
         }
-        
+
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")

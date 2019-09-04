@@ -67,12 +67,15 @@ vecextract <- function(vector, position, truncation = 0) {
 #'                           as.function = FALSE)
 #'
 #' @export
-polyparse <- function(formula, data, uname = u, env = parent.frame(),
+polyparse <- function(formula, data, uname = "u", env = parent.frame(),
                       as.function = FALSE) {
     ## update formula parsing
     formula <- Formula::as.Formula(formula)
     environment(formula) <- env
-    uname   <- deparse(substitute(uname))
+    ## Convert uname into a string
+    uname <- deparse(substitute(uname))
+    uname <- gsub("~", "", uname)
+    uname <- gsub("\\\"", "", uname)
     ## Include redundant variable u, so monomials in m0, m1
     ## specifications correspond polynomial coefficients on u
     ## monomials
