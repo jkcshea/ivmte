@@ -1310,8 +1310,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     data  <- data[complete.cases(data[, vars_data]), ]
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
-    print("uname 1")
-    print(uname)
     ## Construct a list of what variables interact with the
     ## spline. The reason for this is that certain interactions with
     ## factor variables should be dropped to avoid collinearity. Note
@@ -2225,7 +2223,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                     formula = propensity,
                                     env = environments$propensity))
     pmodel <- eval(pcall)
-    
+
     ##---------------------------
     ## 2. Generate target moments/gamma terms
     ##---------------------------
@@ -2293,7 +2291,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
-    
+
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
