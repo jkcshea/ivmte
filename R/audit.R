@@ -218,7 +218,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
         ## Generate all monotonicity and boundedness matrices for initial grid
         if (audit_count == 1) {
-            cat("    Generating initial constraint grid...\n")
+            if (noisy) cat("    Generating initial constraint grid...\n")
             monoboundAlist <- c('sset', 'gstar0', 'gstar1',
                                 'm1.ub', 'm0.ub',
                                 'm1.lb', 'm0.lb',
@@ -411,7 +411,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 }
                 ## Generate all monotonicity and boundedness matrices
                 ## for the audit
-                cat("    Generating audit grid...\n")
+                if (noisy) cat("    Generating audit grid...\n")
                 monoboundAcall <- modcall(call,
                                           newcall = genmonoboundA,
                                           keepargs = monoboundAlist,
