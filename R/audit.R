@@ -505,6 +505,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             break
         }
     }
+    if (audit_count > audit.max) audit_count <- audit_count - 1
     if (length(violateIndexes) == 0) {
         violations <- NULL
     } else {
