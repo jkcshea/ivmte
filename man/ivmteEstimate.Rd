@@ -12,10 +12,11 @@ ivmteEstimate(data, target, late.Z, late.from, late.to, late.X, eval.X,
   m1.inc, mte.dec, mte.inc, ivlike, components, subset, propensity,
   link = "logit", treat, lpsolver, obseq.tol = 0, initgrid.nx = 20,
   initgrid.nu = 20, audit.nx = 2500, audit.nu = 25,
-  audit.add = 100, audit.max = 25, point = FALSE,
-  point.eyeweight = FALSE, point.center = NULL, vars_y, vars_mtr,
-  terms_mtr0, terms_mtr1, vars_data, splinesobj, noisy = TRUE,
-  smallreturnlist = FALSE, seed = 12345, environments)
+  audit.add = 100, audit.max = 25, audit.grid = NULL,
+  save.grid = FALSE, point = FALSE, point.eyeweight = FALSE,
+  point.center = NULL, orig.sset = NULL, orig.criterion = NULL,
+  vars_y, vars_mtr, terms_mtr0, terms_mtr1, vars_data, splinesobj,
+  noisy = TRUE, smallreturnlist = FALSE, seed = 12345, environments)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -55,8 +56,8 @@ then the user can instead submit the value of the weight
 instead of a function.}
 
 \item{target.weight1}{user-defined weight function for the treated
-group defining the target parameter. See
-\code{target.weight0} for details.}
+group defining the target parameter. See \code{target.weight0}
+for details.}
 
 \item{target.knots0}{user-defined set of functions defining the
 knots associated with spline weights for the control group. The
@@ -179,8 +180,8 @@ provided with or without quotation marks.}
 
 \item{lpsolver}{character, name of the linear programming package
 in R used to obtain the bounds on the treatment effect. The
-function supports \code{'gurobi'}, \code{'rcplex'},
-\code{'cplexapi'}, \code{'lpsolve'}, \code{'lpsolveapi'}.}
+function supports \code{'gurobi'}, \code{'cplexapi'},
+\code{'lpsolveapi'}.}
 
 \item{obseq.tol}{tolerance for violation of observational
 equivalence, set to 0 by default. Statistical noise may
@@ -195,14 +196,14 @@ equivalence are then relaxed by the amount \code{minimum
 criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
 greater than 0 to allow for more conservative bounds.}
 
-\item{initgrid.nx}{integer determining the number of evenly spread
-points of the covariates used to form the initial grid for
+\item{initgrid.nx}{integer determining the number of points of the
+covariates used to form the initial constraint grid for
 imposing shape restrictions on the MTRs.}
 
 \item{initgrid.nu}{integer determining the number of evenly spread
 points in the interval [0, 1] of the unobservable \code{u} used
-to form the initial grid for imposing shape restrictions on the
-MTRs.}
+to form the initial constraint grid for imposing shape
+restrictions on the MTRs.}
 
 \item{audit.nx}{integer determining the number of points on the
 covariates space to audit in each iteration of the audit
@@ -213,13 +214,23 @@ interval [0, 1], corresponding to space of unobservable
 \code{u}, to audit in each iteration of the audit procedure.}
 
 \item{audit.add}{maximum number of points to add to the initial
-grid for imposing each kind of shape constraint. For example,
-if there are 5 different kinds of shape constraints, there can
-be at most \code{audit.add * 5} additional points added to the
-initial grid.}
+constraint grid for imposing each kind of shape constraint. For
+example, if there are 5 different kinds of shape constraints,
+there can be at most \code{audit.add * 5} additional points
+added to the constraint grid.}
 
 \item{audit.max}{maximum number of iterations in the audit
 procedure.}
+
+\item{audit.grid}{list, contains the A A matrix used in the audit
+for the original sample, as well as the RHS vector used in the
+audit from the original sample.}
+
+\item{save.grid}{boolean, set to \code{FALSE} by default. Set to
+true if the fine grid from the audit should be saved. This
+option is used for inference procedure under partial
+identification, which uses the fine grid from the original
+sample in all bootstrap resamples.}
 
 \item{point}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} if it is believed that the treatment effects are
@@ -237,6 +248,14 @@ problem. When bootstrapping, the solution to the point
 identified case obtained from the original sample can be passed
 through this argument to recenter the bootstrap distribution of
 the J-statistic.}
+
+\item{orig.sset}{list, only used for bootstraps. The list caontains
+the gamma moments for each element in the S-set, as well as the
+IV-like coefficients.}
+
+\item{orig.criterion}{numeric, only used for bootstraps. The scalar
+corresponds to the minimum observational equivalence criterion
+from the original sample.}
 
 \item{vars_y}{character, variable name of observed outcome
 variable.}

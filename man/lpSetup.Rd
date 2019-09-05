@@ -4,12 +4,16 @@
 \alias{lpSetup}
 \title{Constructing LP problem}
 \usage{
-lpSetup(sset, mbA = NULL, mbs = NULL, mbrhs = NULL, lpsolver,
-  shape = TRUE)
+lpSetup(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
+  mbrhs = NULL, lpsolver, shape = TRUE)
 }
 \arguments{
 \item{sset}{List of IV-like estimates and the corresponding gamma
 terms.}
+
+\item{orig.sset}{list, only used for bootstraps. The list
+caontains the gamma moments for each element in the S-set, as
+well as the IV-like coefficients.}
 
 \item{mbA}{Matrix used to define the constraints in the LP problem.}
 

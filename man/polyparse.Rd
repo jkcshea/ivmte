@@ -4,7 +4,7 @@
 \alias{polyparse}
 \title{Parsing marginal treatment response formulas}
 \usage{
-polyparse(formula, data, uname = u, env = parent.frame(),
+polyparse(formula, data, uname = "u", env = parent.frame(),
   as.function = FALSE)
 }
 \arguments{

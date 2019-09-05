@@ -2,10 +2,10 @@
 % Please edit documentation in R/audit.R
 \name{selectViolations}
 \alias{selectViolations}
-\title{Select points from audit grid to add to the initial grid}
+\title{Select points from audit grid to add to the constraint grid}
 \usage{
-selectViolations(diffVec, audit.add, lb0seq, lb1seq, ub0seq, ub1seq,
-  mono0seq, mono1seq, monoteseq, mbmap)
+selectViolations(diffVec, audit.add, lb0seq, lb1seq, lbteseq, ub0seq,
+  ub1seq, ubteseq, mono0seq, mono1seq, monoteseq, mbmap)
 }
 \arguments{
 \item{diffVec}{numeric vector, with a positive value indicating a
@@ -15,31 +15,42 @@ violation of a shape constriant.}
 to add to the intial for each constraint type. For instance, if
 there are 5 different kinds of constraints imposed, and
 \code{audit.add = 5}, then up to 30 points may be added to the
-initial grid.}
+constraint grid.}
 
 \item{lb0seq}{integer vector, indicates which rows in the audit
-constraint matrix corresponding to the lower bound for m0.}
+constraint matrix correspond to the lower bound for m0.}
 
 \item{lb1seq}{integer vector, indicates which rows in the audit
-constraint matrix corresponding to the lower bound for m1.}
+constraint matrix correspond to the lower bound for m1.}
+
+\item{lbteseq}{integer vector, indicates which rows in the audit
+constriant matrix correspond to the lower bound for the
+treatment effect.}
 
 \item{ub0seq}{integer vector, indicates which rows in the audit
-constraint matrix corresponding to the upper bound for m0.}
+constraint matrix correspond to the upper bound for m0.}
 
 \item{ub1seq}{integer vector, indicates which rows in the audit
-constraint matrix corresponding to the upper bound for m1.}
+constraint matrix correspond to the upper bound for m1.}
 
-\item{mono0seq}{integer vector, indicates which rows in the audit
-constraint matrix corresponding to the monotonicity conditions
-for m0.}
+\item{ubteseq}{integer vector, indicates which rows in the audit
+constriant matrix correspond to the upper bound for the
+treatment effect.}
 
-\item{mono1seq}{integer vector, indicates which rows in the audit
-constraint matrix corresponding to the monotonicity conditions
-for m1.}
+\item{mono0seq}{integer matrix, indicates which rows in the audit
+constraint matrix correspond to the monotonicity conditions for
+m0, and whether the constriant is increasing (+1) or decreasing
+(-1).}
 
-\item{monoteseq}{integer vector, indicates which rows in the audit
-constraint matrix corresponding to the monotonicity conditions
-for the mte.}
+\item{mono1seq}{integer matrix, indicates which rows in the audit
+constraint matrix correspond to the monotonicity conditions for
+m1, and whether the constriant is increasing (+1) or decreasing
+(-1).}
+
+\item{monoteseq}{integer matrix, indicates which rows in the audit
+constraint matrix correspond to the monotonicity conditions for
+the treatment effect, and whether the constriant is increasing
+(+1) or decreasing (-1).}
 
 \item{mbmap}{integer vector, indexes the X-value associated with
 each row in the audit constraint matrix.}
@@ -54,9 +65,9 @@ The audit grid is represented using a set of constraint
 }
 \description{
 This function selects which points from the audit grid should be
-included into the original grid. Both the initial grid and audit
+included into the original grid. Both the constraint grid and audit
 grid are represented as constraints in an LP problem. This function
 selects which points in the audit grid (i.e. which rows in the
-audit constraint matrix) should be added to the initial grid
-(i.e. should be appended to the initial constraint matrix).
+audit constraint matrix) should be added to the constraint grid
+(i.e. should be appended to the constraint matrix).
 }

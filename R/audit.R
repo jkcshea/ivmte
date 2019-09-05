@@ -53,9 +53,7 @@
 #'     solving the LP problem.
 #'
 #' @examples
-#'
 #' set.seed(10L)
-#'
 #' ## Declare empty list to be updated (in the event multiple IV like
 #' ## specifications are provided
 #' sSet <- list()
@@ -96,7 +94,6 @@
 #' targetGamma <- genTarget(treat = "d",
 #'                          m0 = ~ 1 + u,
 #'                          m1 = ~ 1 + u,
-#'                          uname = u,
 #'                          target = "atu",
 #'                          data = dtm,
 #'                          splinesobj = splinesList,
@@ -570,22 +567,31 @@ audit <- function(data, uname, m0, m1, splinesobj,
 #'     \code{audit.add = 5}, then up to 30 points may be added to the
 #'     constraint grid.
 #' @param lb0seq integer vector, indicates which rows in the audit
-#'     constraint matrix corresponding to the lower bound for m0.
+#'     constraint matrix correspond to the lower bound for m0.
 #' @param lb1seq integer vector, indicates which rows in the audit
-#'     constraint matrix corresponding to the lower bound for m1.
+#'     constraint matrix correspond to the lower bound for m1.
+#' @param lbteseq integer vector, indicates which rows in the audit
+#'     constriant matrix correspond to the lower bound for the
+#'     treatment effect.
 #' @param ub0seq integer vector, indicates which rows in the audit
-#'     constraint matrix corresponding to the upper bound for m0.
+#'     constraint matrix correspond to the upper bound for m0.
 #' @param ub1seq integer vector, indicates which rows in the audit
-#'     constraint matrix corresponding to the upper bound for m1.
-#' @param mono0seq integer vector, indicates which rows in the audit
-#'     constraint matrix corresponding to the monotonicity conditions
-#'     for m0.
-#' @param mono1seq integer vector, indicates which rows in the audit
-#'     constraint matrix corresponding to the monotonicity conditions
-#'     for m1.
-#' @param monoteseq integer vector, indicates which rows in the audit
-#'     constraint matrix corresponding to the monotonicity conditions
-#'     for the mte.
+#'     constraint matrix correspond to the upper bound for m1.
+#' @param ubteseq integer vector, indicates which rows in the audit
+#'     constriant matrix correspond to the upper bound for the
+#'     treatment effect.
+#' @param mono0seq integer matrix, indicates which rows in the audit
+#'     constraint matrix correspond to the monotonicity conditions for
+#'     m0, and whether the constriant is increasing (+1) or decreasing
+#'     (-1).
+#' @param mono1seq integer matrix, indicates which rows in the audit
+#'     constraint matrix correspond to the monotonicity conditions for
+#'     m1, and whether the constriant is increasing (+1) or decreasing
+#'     (-1).
+#' @param monoteseq integer matrix, indicates which rows in the audit
+#'     constraint matrix correspond to the monotonicity conditions for
+#'     the treatment effect, and whether the constriant is increasing
+#'     (+1) or decreasing (-1).
 #' @param mbmap integer vector, indexes the X-value associated with
 #'     each row in the audit constraint matrix.
 #' @return The audit grid is represented using a set of constraint

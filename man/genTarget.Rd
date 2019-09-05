@@ -4,7 +4,7 @@
 \alias{genTarget}
 \title{Generating LP moments for IV-like estimands}
 \usage{
-genTarget(treat, m0, m1, uname, target, target.weight0, target.weight1,
+genTarget(treat, m0, m1, target, target.weight0, target.weight1,
   target.knots0, target.knots1, late.Z, late.from, late.to, late.X, eval.X,
   genlate.lb, genlate.ub, data, splinesobj, pmodobj, pm0, pm1,
   point = FALSE, noisy = TRUE)
@@ -26,10 +26,6 @@ using the expression "uSplines(degree, knots, intercept)". The
 \code{intercept} argument may be omitted, and is set to
 \code{TRUE} by default.}
 
-\item{uname}{variable name for the unobservable used in declaring
-the MTRs. The name can be provided with or without quotation
-marks.}
-
 \item{target}{character, target parameter to be
 estimated. Currently function allows for ATE (\code{'ate'}),
 ATT (\code{'att'}), ATU (\code{'atu'}), LATE (\code{'late'}),
@@ -44,8 +40,8 @@ then the user can instead submit the value of the weight
 instead of a function.}
 
 \item{target.weight1}{user-defined weight function for the treated
-group defining the target parameter. See
-\code{target.weight0} for details.}
+group defining the target parameter. See \code{target.weight0}
+for details.}
 
 \item{target.knots0}{user-defined set of functions defining the
 knots associated with spline weights for the control group. The
@@ -149,7 +145,6 @@ polynomials1 <- polyparse(formula = formula0,
 genTarget(treat = "d",
           m0 = ~ 1 + u,
           m1 = ~ 1 + u,
-          uname = u,
           target = "atu",
           data = dtm,
           splinesobj = splinesList,

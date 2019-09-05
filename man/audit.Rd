@@ -6,12 +6,14 @@
 \usage{
 audit(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr0, terms_mtr1,
   vars_data, initgrid.nu = 20, initgrid.nx = 20, audit.nx = 2500,
-  audit.nu = 25, audit.add = 100, audit.max = 25, m1.ub, m0.ub,
-  m1.lb, m0.lb, m1.ub.default = FALSE, m0.ub.default = FALSE,
+  audit.nu = 25, audit.add = 100, audit.max = 25,
+  audit.grid = NULL, save.grid = FALSE, m1.ub, m0.ub, m1.lb, m0.lb,
+  m1.ub.default = FALSE, m0.ub.default = FALSE,
   m1.lb.default = FALSE, m0.lb.default = FALSE, mte.ub, mte.lb,
   m0.dec = FALSE, m0.inc = FALSE, m1.dec = FALSE, m1.inc = FALSE,
   mte.dec = FALSE, mte.inc = FALSE, sset, gstar0, gstar1,
-  obseq.tol = 0, lpsolver, noisy = TRUE, seed = 12345)
+  orig.sset = NULL, orig.criterion = NULL, obseq.tol = 0, lpsolver,
+  noisy = TRUE, seed = 12345)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -55,11 +57,11 @@ in the data.}
 
 \item{initgrid.nu}{integer determining the number of evenly spread
 points in the interval [0, 1] of the unobservable \code{u} used
-to form the initial grid for imposing shape restrictions on the
-MTRs.}
+to form the initial constraint grid for imposing shape
+restrictions on the MTRs.}
 
-\item{initgrid.nx}{integer determining the number of evenly spread
-points of the covariates used to form the initial grid for
+\item{initgrid.nx}{integer determining the number of points of the
+covariates used to form the initial constraint grid for
 imposing shape restrictions on the MTRs.}
 
 \item{audit.nx}{integer determining the number of points on the
@@ -71,13 +73,23 @@ interval [0, 1], corresponding to space of unobservable
 \code{u}, to audit in each iteration of the audit procedure.}
 
 \item{audit.add}{maximum number of points to add to the initial
-grid for imposing each kind of shape constraint. For example,
-if there are 5 different kinds of shape constraints, there can
-be at most \code{audit.add * 5} additional points added to the
-initial grid.}
+constraint grid for imposing each kind of shape constraint. For
+example, if there are 5 different kinds of shape constraints,
+there can be at most \code{audit.add * 5} additional points
+added to the constraint grid.}
 
 \item{audit.max}{maximum number of iterations in the audit
 procedure.}
+
+\item{audit.grid}{list, contains the A A matrix used in the audit
+for the original sample, as well as the RHS vector used in the
+audit from the original sample.}
+
+\item{save.grid}{boolean, set to \code{FALSE} by default. Set to
+true if the fine grid from the audit should be saved. This
+option is used for inference procedure under partial
+identification, which uses the fine grid from the original
+sample in all bootstrap resamples.}
 
 \item{m1.ub}{numeric value for upper bound on MTR for the treated
 group. By default, this will be set to the largest value of the
@@ -143,6 +155,14 @@ control group.}
 \item{gstar1}{set of expectations for each terms of the MTR for the
 control group.}
 
+\item{orig.sset}{list, only used for bootstraps. The list caontains
+the gamma moments for each element in the S-set, as well as the
+IV-like coefficients.}
+
+\item{orig.criterion}{numeric, only used for bootstraps. The scalar
+corresponds to the minimum observational equivalence criterion
+from the original sample.}
+
 \item{obseq.tol}{tolerance for violation of observational
 equivalence, set to 0 by default. Statistical noise may
 prohibit the theoretical LP problem from being feasible. That
@@ -158,8 +178,8 @@ greater than 0 to allow for more conservative bounds.}
 
 \item{lpsolver}{character, name of the linear programming package
 in R used to obtain the bounds on the treatment effect. The
-function supports \code{'gurobi'}, \code{'rcplex'},
-\code{'cplexapi'}, \code{'lpsolve'}, \code{'lpsolveapi'}.}
+function supports \code{'gurobi'}, \code{'cplexapi'},
+\code{'lpsolveapi'}.}
 
 \item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
 then messages are provided throughout the estimation
@@ -194,9 +214,7 @@ entire support of the covariates, or until some a maximum number of
 iterations is reached.
 }
 \examples{
-
 set.seed(10L)
-
 ## Declare empty list to be updated (in the event multiple IV like
 ## specifications are provided
 sSet <- list()
@@ -237,7 +255,6 @@ ivEstimates <- ivEstimate(formula = ey ~ d | z,
 targetGamma <- genTarget(treat = "d",
                          m0 = ~ 1 + u,
                          m1 = ~ 1 + u,
-                         uname = u,
                          target = "atu",
                          data = dtm,
                          splinesobj = splinesList,

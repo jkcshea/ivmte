@@ -3143,8 +3143,8 @@ genTarget <- function(treat, m0, m1, target,
 #'
 #' @export
 genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
-                        ncomponents, scount, subset_index, means = TRUE,
-                        yvar, dvar, noisy = TRUE, ivn = NULL) {
+                    ncomponents, scount, subset_index, means = TRUE,
+                    yvar, dvar, noisy = TRUE, ivn = NULL) {
     if (!hasArg(subset_index)) subset_index <- NULL
     for (j in 1:ncomponents) {
         if (noisy == TRUE) {
@@ -3337,7 +3337,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #' targetGamma <- genTarget(treat = "d",
 #'                          m0 = ~ 1 + u,
 #'                          m1 = ~ 1 + u,
-#'                          uname = u,
 #'                          target = "atu",
 #'                          data = dtm,
 #'                          splinesobj = splinesList,

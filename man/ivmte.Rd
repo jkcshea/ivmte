@@ -14,8 +14,8 @@ ivmte(data, target, late.from, late.to, late.X, genlate.lb, genlate.ub,
   audit.add = 100, audit.max = 25, point = FALSE,
   point.eyeweight = FALSE, bootstraps = 0, bootstraps.m,
   bootstraps.replace = TRUE, levels = c(0.99, 0.95, 0.9),
-  ci.type = "both", pvalue.tol = 1e-08, noisy = TRUE,
-  smallreturnlist = FALSE, seed = 12345)
+  ci.type = "both", specification.test = TRUE, pvalue.tol = 1e-08,
+  noisy = TRUE, smallreturnlist = FALSE, seed = 12345)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -55,8 +55,8 @@ then the user can instead submit the value of the weight
 instead of a function.}
 
 \item{target.weight1}{user-defined weight function for the treated
-group defining the target parameter. See
-\code{target.weight0} for details.}
+group defining the target parameter. See \code{target.weight0}
+for details.}
 
 \item{target.knots0}{user-defined set of functions defining the
 knots associated with spline weights for the control group. The
@@ -179,8 +179,8 @@ provided with or without quotation marks.}
 
 \item{lpsolver}{character, name of the linear programming package
 in R used to obtain the bounds on the treatment effect. The
-function supports \code{'gurobi'}, \code{'rcplex'},
-\code{'cplexapi'}, \code{'lpsolve'}, \code{'lpsolveapi'}.}
+function supports \code{'gurobi'}, \code{'cplexapi'},
+\code{'lpsolveapi'}.}
 
 \item{obseq.tol}{tolerance for violation of observational
 equivalence, set to 0 by default. Statistical noise may
@@ -195,14 +195,14 @@ equivalence are then relaxed by the amount \code{minimum
 criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
 greater than 0 to allow for more conservative bounds.}
 
-\item{initgrid.nx}{integer determining the number of evenly spread
-points of the covariates used to form the initial grid for
+\item{initgrid.nx}{integer determining the number of points of the
+covariates used to form the initial constraint grid for
 imposing shape restrictions on the MTRs.}
 
 \item{initgrid.nu}{integer determining the number of evenly spread
 points in the interval [0, 1] of the unobservable \code{u} used
-to form the initial grid for imposing shape restrictions on the
-MTRs.}
+to form the initial constraint grid for imposing shape
+restrictions on the MTRs.}
 
 \item{audit.nx}{integer determining the number of points on the
 covariates space to audit in each iteration of the audit
@@ -213,10 +213,10 @@ interval [0, 1], corresponding to space of unobservable
 \code{u}, to audit in each iteration of the audit procedure.}
 
 \item{audit.add}{maximum number of points to add to the initial
-grid for imposing each kind of shape constraint. For example,
-if there are 5 different kinds of shape constraints, there can
-be at most \code{audit.add * 5} additional points added to the
-initial grid.}
+constraint grid for imposing each kind of shape constraint. For
+example, if there are 5 different kinds of shape constraints,
+there can be at most \code{audit.add * 5} additional points
+added to the constraint grid.}
 
 \item{audit.max}{maximum number of iterations in the audit
 procedure.}
@@ -255,6 +255,10 @@ for the treatment effect bound. Set to \code{'backward'} to
 construct the backward confidence interval for the treatment
 effect bound. Set to \code{'both'} to construct both types of
 confidence intervals.}
+
+\item{specification.test}{boolean, default set to
+\code{TRUE}. Function performs a misspecificaiton test for the
+partially identified case when \code{bootstraps > 0}.}
 
 \item{pvalue.tol}{numeric, default set to 1e-08. The p-value under
 the partially identified case is constructed by iteratively

@@ -4,11 +4,23 @@
 \alias{obsEqMin}
 \title{Minimizing violation of observational equivalence}
 \usage{
-obsEqMin(sset, lpobj, lpsolver)
+obsEqMin(sset, orig.sset = NULL, orig.criterion = NULL,
+  obseq.tol = 0, lpobj, lpsolver)
 }
 \arguments{
 \item{sset}{A list of IV-like estimates and the corresponding gamma
 terms.}
+
+\item{orig.sset}{list, only used for bootstraps. The list
+caontains the gamma moments for each element in the S-set, as
+well as the IV-like coefficients.}
+
+\item{orig.criterion}{numeric, only used for bootstraps. The scalar
+corresponds to the minimum observational equivalence criterion
+from the original sample.}
+
+\item{obseq.tol}{tolerance for violation of observational
+equivalence, set to 0 by default.}
 
 \item{lpobj}{A list of matrices and vectors defining an LP problem.}
 
@@ -65,7 +77,6 @@ ivEstimates <- ivEstimate(formula = ey ~ d | z,
 targetGamma <- genTarget(treat = "d",
                          m0 = ~ 1 + u,
                          m1 = ~ 1 + u,
-                         uname = u,
                          target = "atu",
                          data = dtm,
                          splinesobj = splinesList,
