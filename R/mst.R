@@ -1472,15 +1472,26 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     fmtResult(origEstimate$bounds[1]), ", ",
                 fmtResult(origEstimate$bounds[2]), "]\n",
                 sep = "")
-                aMessage <- paste0("Rounds of audits: ", origEstimate$audit.count)
+                if (origEstimate$audit.count == 1) rs <- "round."
+                if (origEstimate$audit.count > 1) rs <- "rounds."
+                if (origEstimate$audit.count < audit.max) {
+                    cat("Audit terminated successfully after",
+                        origEstimate$audit.count,
+                        rs)
+                }
                 if (origEstimate$audit.count == audit.max) {
-                    if (!is.null(origEstimate$audit.grid$violations)) {
-                        aMessage <- paste0(aMessage, " (reached audit.max)")
+                    if (is.null(origEstimate$audit.grid$violations)) {
+                        cat("Audit terminated successfully after",
+                            origEstimate$audit.count,
+                            rs)
                     } else {
-                        aMessage <- paste0(aMessage, " (no more violations)")
+                        warning(gsub("\\s+", " ",
+                                     "Audit reached audit.max.
+                                      Try increasing audit.max."),
+                                call. = FALSE,
+                                immediate. = TRUE)
                     }
                 }
-                cat(aMessage, "\n\n")
             }
             return(origEstimate)
         } else {
@@ -1565,19 +1576,37 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     bootFailIndex <- unique(c(bootFailIndex, b))
                 }
             }
+            if (noisy) {
+                cat("--------------------------------------------------\n")
+                cat("Results", "\n")
+                cat("--------------------------------------------------\n\n")
+            }
             cat("Bounds on the target parameter: [",
                 fmtResult(origEstimate$bounds[1]), ", ",
                 fmtResult(origEstimate$bounds[2]), "]\n\n",
                 sep = "")
-            aMessage <- paste0("Rounds of audits: ", origEstimate$audit.count)
+
+
+            if (origEstimate$audit.count == 1) rs <- "round."
+            if (origEstimate$audit.count > 1) rs <- "rounds."
+            if (origEstimate$audit.count < audit.max) {
+                cat("Audit terminated successfully after",
+                    origEstimate$audit.count,
+                    rs)
+            }
             if (origEstimate$audit.count == audit.max) {
-                if (!is.null(origEstimate$audit.grid$violations)) {
-                    aMessage <- paste0(aMessage, " (reached audit.max)")
+                if (is.null(origEstimate$audit.grid$violations)) {
+                    cat("Audit terminated successfully after",
+                        origEstimate$audit.count,
+                        rs)
                 } else {
-                    aMessage <- paste0(aMessage, " (no more violations)")
+                    warning(gsub("\\s+", " ",
+                                 "Audit reached audit.max.
+                                      Try increasing audit.max."),
+                            call. = FALSE,
+                            immediate. = TRUE)
                 }
             }
-            cat(aMessage, "\n")
             if (length(bootFailIndex) > 0) {
                 warning(gsub("\\s+", " ",
                              paste0("Bootstrap iteration(s) ",

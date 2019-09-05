@@ -489,11 +489,14 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 }
             } else {
                 if (noisy) {
-                    cat(gsub("\\s+", " ",
-                             paste0("Audit finished: maximum number of
-                                 audits (audit.max = ", audit.max,
-                                 ") reached.")), "\n\n")
-                }
+                    warning(paste0(gsub("\\s+", " ",
+                                        paste0("Audit finished: maximum number
+                                                of audits (audit.max = ",
+                                               audit.max,
+                                               ") reached. Try increasing
+                                                audit.max.")), "\n"),
+                            call. = FALSE, immediate. = TRUE)
+                    }
                 break
             }
         } else {
