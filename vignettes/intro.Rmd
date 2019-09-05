@@ -139,7 +139,8 @@ The purpose of **ivmte** is to provide a formal framework for answering this typ
 #### Simulated Data
 
 For demonstrating some of the features of `ivmte`, it will also be useful to use a simulated dataset.
-The following bit of code generates some simulated data from a simple DGP:
+The following bit of code, which is contained in `/data-raw/ivmteSimData.R`, generates some simulated data from a simple DGP.
+The simulated data is also included with the package as `/data/ivmteSimData.rda`.
 
 ```{r, drawData-sim, results='markdown'}
 set.seed(1)
@@ -159,8 +160,8 @@ y1 <- as.numeric(m1 + v1 - .3*x > 0)
 
 y <- d*y1 + (1-d)*y0
 
-simdata <- data.frame(y,d,z,x)
-knitr::kable(head(simdata, n = 10))
+ivmteSimData <- data.frame(y,d,z,x)
+knitr::kable(head(ivmteSimData, n = 10))
 ```
 
 
@@ -360,7 +361,7 @@ Typically, one would choose instruments for these variables, although `ivmte` wi
 We demonstrate this using the simulated data. **ISSUE 104**
 
 ```{r, late, eval = FALSE}
-args <- list(data = simdata,
+args <- list(data = ivmteSimData,
              ivlike =  y ~ d + z + d*z,
              target = "late",
              late.from = c(z = 1),
@@ -386,7 +387,7 @@ They are set with `target = "genlate"` and the additional scalars `genlate.lb` a
 For example,
 
 ```{r, genlate}
-args <- list(data = simdata,
+args <- list(data = ivmteSimData,
              ivlike =  y ~ d + z + d*z,
              target = "genlate",
              genlate.lb = .2,
@@ -426,7 +427,7 @@ Here is an example of using custom weights to replicate the LATE from above.
 ```{r, custom.weights}
 pmodel <- r$propensity$model # returned from the previous run of ivmte
 xeval = 1 # x = xeval is the point we condition on
-px <- mean(simdata$x == xeval) # probability that x = xeval
+px <- mean(ivmteSimData$x == xeval) # probability that x = xeval
 z.from = 1
 z.to = 3
 weight1a  <- function(x) {
@@ -490,7 +491,7 @@ Each formula must have the same variable on the left-hand side, which is how the
 For example,
 
 ```{r, multi.ivlike}
-args <- list(data = simdata,
+args <- list(data = ivmteSimData,
              ivlike =  c(y ~ z + x,
                          y ~ d + x,
                          y ~ d | z),
@@ -635,7 +636,7 @@ However, it can be turned off by setting `specification.test = FALSE`.
 **ISSUE 119 PREVENTS RUNNING THE SECOND PART**
 
 ```{r, misspecification.test, eval = FALSE}
-args <- list(data = simdata,
+args <- list(data = ivmteSimData,
              ivlike =  y ~ d + factor(z),
              target = "ate",
              m0 = ~ u,
