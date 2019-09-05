@@ -1,3 +1,6 @@
+# This file creates a smaller version of some of the data used in
+# Angrist and Evans (1998, American Economic Review).
+#
 # The original data in Stata format is available here:
 #
 # http://sites.bu.edu/ivanf/files/2014/03/m_d_806.dta_.zip
