@@ -1461,8 +1461,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     fmtResult(origEstimate$bounds[1]), ", ",
                 fmtResult(origEstimate$bounds[2]), "]\n",
                 sep = "")
-                if (origEstimate$audit.count == 1) rs <- "round."
-                if (origEstimate$audit.count > 1) rs <- "rounds."
+                if (origEstimate$audit.count == 1) rs <- "round.\n"
+                if (origEstimate$audit.count > 1) rs <- "rounds.\n"
                 if (origEstimate$audit.count < audit.max) {
                     cat("Audit terminated successfully after",
                         origEstimate$audit.count,
@@ -1576,8 +1576,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 sep = "")
 
 
-            if (origEstimate$audit.count == 1) rs <- "round."
-            if (origEstimate$audit.count > 1) rs <- "rounds."
+            if (origEstimate$audit.count == 1) rs <- "round.\n"
+            if (origEstimate$audit.count > 1) rs <- "rounds.\n"
             if (origEstimate$audit.count < audit.max) {
                 cat("Audit terminated successfully after",
                     origEstimate$audit.count,
