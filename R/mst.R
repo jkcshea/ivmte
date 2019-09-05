@@ -423,12 +423,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                        split = "")))
                     if (length(charList) == 2 && all(charList == c(",", " "))) {
                         internals <- ""
-                        warning(gsub("\\s+", " ",
-                                     "No list of components provided.
-                                      All components in each
-                                      IV-like specification will be included
-                                      when fitting the model."),
-                                call. = FALSE)
                     }
                     components <- paste0("l(c(", internals, "))")
                 }
@@ -448,11 +442,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     } else {
         length_components <- length_formula
         components <- as.list(replicate(length_formula, ""))
-        warning(gsub("\\s+", " ",
-                     "No list of components provided. All covariates in each
-                         IV-like specification will be included when
-                         constructing each S-set."),
-                call. = FALSE)
     }
     if (length_formula > length_components & length_components > 0) {
         warning(gsub("\\s+", " ",
