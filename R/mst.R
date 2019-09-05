@@ -1466,6 +1466,22 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         origEstimate <- eval(estimateCall)
         ## Estimate bounds without resampling
         if (bootstraps == 0) {
+            if (!noisy) {
+                ## Some output must be returned, evne if noisy = FALSE
+                cat("Bounds on the target parameter: [",
+                    fmtResult(origEstimate$bounds[1]), ", ",
+                fmtResult(origEstimate$bounds[2]), "]\n",
+                sep = "")
+                aMessage <- paste0("Rounds of audits: ", origEstimate$audit.count)
+                if (origEstimate$audit.count == audit.max) {
+                    if (!is.null(origEstimate$audit.grid$violations)) {
+                        aMessage <- paste0(aMessage, " (reached audit.max)")
+                    } else {
+                        aMessage <- paste0(aMessage, " (no more violations)")
+                    }
+                }
+                cat(aMessage, "\n\n")
+            }
             return(origEstimate)
         } else {
             ## Obtain audit grid from original estimate
@@ -1549,6 +1565,19 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     bootFailIndex <- unique(c(bootFailIndex, b))
                 }
             }
+            cat("Bounds on the target parameter: [",
+                fmtResult(origEstimate$bounds[1]), ", ",
+                fmtResult(origEstimate$bounds[2]), "]\n\n",
+                sep = "")
+            aMessage <- paste0("Rounds of audits: ", origEstimate$audit.count)
+            if (origEstimate$audit.count == audit.max) {
+                if (!is.null(origEstimate$audit.grid$violations)) {
+                    aMessage <- paste0(aMessage, " (reached audit.max)")
+                } else {
+                    aMessage <- paste0(aMessage, " (no more violations)")
+                }
+            }
+            cat(aMessage, "\n")
             if (length(bootFailIndex) > 0) {
                 warning(gsub("\\s+", " ",
                              paste0("Bootstrap iteration(s) ",
@@ -1701,7 +1730,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     }
     ## Point estimate without resampling
     if (point == TRUE & bootstraps == 0) {
-        return(eval(estimateCall))
+        origEstimate <- eval(estimateCall)
+        if (!noisy) {
+            ## Some output must be returned, even if noisy = FALSE
+            cat("Point estimate of the target parameter: ",
+                fmtResult(origEstimate$pointestimate), "\n\n",
+                sep = "")
+        }
+        return(origEstimate)
     }
     ## Point estimate with resampling
     if (point == TRUE & bootstraps > 0) {
@@ -1927,6 +1963,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         failed.bootstraps = length(bootFailIndex),
                         jtest = jtest)
         output <- c(output1, output2, output3)
+        cat("\nPoint estimate of the target parameter: ",
+            fmtResult(origEstimate$pointestimate), "\n",
+            sep = "")
         cat("\nBootstrapped confidence intervals (nonparametric):\n")
         for (level in levels) {
             ci1str <- get(paste0("ci1", level * 100))
@@ -2222,7 +2261,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     uname <- deparse(substitute(uname))
     uname <- gsub("~", "", uname)
     uname <- gsub("\\\"", "", uname)
-    
+
     ##---------------------------
     ## 1. Obtain propensity scores
     ##---------------------------
