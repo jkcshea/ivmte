@@ -390,6 +390,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     length_formula <- length(ivlike)
     userComponents <- FALSE
     if (hasArg(components)) {
+        tmpComp <- deparse(substitute(components))
+        if (substr(tmpComp, 1, 2) != "l(") {
+            stop(gsub("\\s+", " ",
+                      "The 'components' argument should be declared
+                       using 'l()' instead of 'c()'."),
+                 call. = FALSE)
+        }
         if (!is.null(components)) {
             if (length(components) > 1) {
                 userComponents <- TRUE
@@ -1417,7 +1424,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                     'm1.dec', 'm1.inc', 'mte.dec',
                                     'mte.inc', 'ivlike', 'components',
                                     'subset', 'propensity', 'link',
-                                    'seed')) 
+                                    'seed'))
     opList <- eval(opList)
     ##---------------------------
     ## 5. Implement estimates
@@ -2401,7 +2408,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
-    
+
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
@@ -3627,4 +3634,3 @@ summary.ivmte <- function(x) {
         }
     }
 }
-
