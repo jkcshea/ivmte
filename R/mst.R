@@ -1525,7 +1525,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             while (b <= bootstraps) {
                 set.seed(bseeds[b])
-                bootIDs  <- sample(seq(1, nrow(data)),
+                bootIDs  <- sample(x = seq(1, nrow(data)),
                                    size = bootstraps.m,
                                    replace = bootstraps.replace)
                 bdata <- data[bootIDs, ]
@@ -1592,13 +1592,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (origEstimate$audit.count < audit.max) {
                 cat("Audit terminated successfully after",
                     origEstimate$audit.count,
-                    rs)
+                    rs, "\n")
             }
             if (origEstimate$audit.count == audit.max) {
                 if (is.null(origEstimate$audit.grid$violations)) {
                     cat("Audit terminated successfully after",
                         origEstimate$audit.count,
-                        rs)
+                        rs, "\n")
                 } else {
                     warning(gsub("\\s+", " ",
                                  "Audit reached audit.max.
@@ -1618,8 +1618,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             bootSE <- apply(boundEstimates, 2, sd)
             ## Construct confidence intervals
             if (ci.type == "backward" | ci.type == "forward") {
-                ci <- boundCI(bound = origEstimate$bound,
-                              bound.resamples = boundEstimates,
+                ci <- boundCI(bounds = origEstimate$bounds,
+                              bounds.resamples = boundEstimates,
                               n = nrow(data),
                               m = bootstraps.m,
                               levels = levels,
@@ -1627,21 +1627,21 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             if (ci.type == "both") {
                 ci <- list()
-                ci$backward <- boundCI(bound = origEstimate$bound,
-                                       bound.resamples = boundEstimates,
+                ci$backward <- boundCI(bounds = origEstimate$bounds,
+                                       bounds.resamples = boundEstimates,
                                        n = nrow(data),
                                        m = bootstraps.m,
                                        levels = levels,
                                        type = "backward")
-                ci$forward <- boundCI(bound = origEstimate$bound,
-                                      bound.resamples = boundEstimates,
+                ci$forward <- boundCI(bounds = origEstimate$bounds,
+                                      bounds.resamples = boundEstimates,
                                       n = nrow(data),
                                       m = bootstraps.m,
                                       levels = levels,
                                       type = "forward")
             }
-            ci <- boundCI(bound = origEstimate$bound,
-                          bound.resamples = boundEstimates,
+            ci <- boundCI(bounds = origEstimate$bounds,
+                          bounds.resamples = boundEstimates,
                           n = nrow(data),
                           m = bootstraps.m,
                           levels = levels,
@@ -1649,8 +1649,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             ## Obtain p-value
             if (ci.type == "backward") {
                 pvalue <- boundPValue(ci = ci,
-                                      bound = origEstimate$bound,
-                                      bound.resamples = boundEstimates,
+                                      bounds = origEstimate$bounds,
+                                      bounds.resamples = boundEstimates,
                                       n = nrow(data),
                                       m = bootstraps.m,
                                       levels = levels,
@@ -1660,8 +1660,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             if (ci.type == "forward") {
                 pvalue <- boundPValue(ci = ci,
-                                      bound = origEstimate$bound,
-                                      bound.resamples = boundEstimates,
+                                      bounds = origEstimate$bounds,
+                                      bounds.resamples = boundEstimates,
                                       n = nrow(data),
                                       m = bootstraps.m,
                                       levels = levels,
@@ -1671,16 +1671,16 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             if (ci.type == "both") {
                 pvalue <- c(boundPValue(ci = ci$backward,
-                                        bound = origEstimate$bound,
-                                        bound.resamples = boundEstimates,
+                                        bounds = origEstimate$bounds,
+                                        bounds.resamples = boundEstimates,
                                         n = nrow(data),
                                         m = bootstraps.m,
                                         levels = levels,
                                         type = "backward",
                                         tol = pvalue.tol),
                             boundPValue(ci = ci$forward,
-                                        bound = origEstimate$bound,
-                                        bound.resamples = boundEstimates,
+                                        bounds = origEstimate$bounds,
+                                        bounds.resamples = boundEstimates,
                                         n = nrow(data),
                                         m = bootstraps.m,
                                         levels = levels,
@@ -1745,8 +1745,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             cat("\n")
             ## Return output
             output <- c(origEstimate,
-                        list(bound.se = bootSE,
-                             bound.bootstraps = boundEstimates,
+                        list(bounds.se = bootSE,
+                             bounds.bootstraps = boundEstimates,
                              ci = ci,
                              pvalue = pvalue,
                              bootstraps = bootstraps,
@@ -2043,9 +2043,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
 #' This function constructs the forward and backward confidence
 #' intervals for the treatment effect under partial identification.
 #'
-#' @param bound vector, bound of the treatment effects under partial
+#' @param bounds vector, bounds of the treatment effects under partial
 #'     identification.
-#' @param bound.resamples matrix, stacked bounds of the treatment
+#' @param bounds.resamples matrix, stacked bounds of the treatment
 #'     effects under partial identification. Each row corresponds to a
 #'     subset resampled from the original data set.
 #' @param n integer, size of original data set.
@@ -2054,9 +2054,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
 #'     correspond to the level of the confidence intervals constructed
 #'     via bootstrap.
 #' @param type character. Set to 'forward' to construct the forward
-#'     confidence interval for the treatment effect bound. Set to
+#'     confidence interval for the treatment effect bounds. Set to
 #'     'backward' to construct the backward confidence interval for
-#'     the treatment effect bound. Set to 'both' to construct both
+#'     the treatment effect bounds. Set to 'both' to construct both
 #'     types of confidence intervals.
 #' @return if \code{type} is 'forward' or 'backward', then the
 #'     corresponding type of confidence interval for each level is
@@ -2065,21 +2065,21 @@ ivmte <- function(data, target, late.from, late.to, late.X,
 #'     is returned. One element of the list is the matrix of backward
 #'     confidence intervals, and the other element of the list is the
 #'     matrix of forward confidence intervals.
-boundCI <- function(bound, bound.resamples, n, m, levels, type) {
+boundCI <- function(bounds, bounds.resamples, n, m, levels, type) {
     if (type == "both") output <- list()
     ## Rescale and center bounds
     boundLBmod <- sqrt(m) *
-        (bound.resamples[, 1] - bound[1])
+        (bounds.resamples[, 1] - bounds[1])
     boundUBmod <- sqrt(m) *
-        (bound.resamples[, 2] - bound[2])
+        (bounds.resamples[, 2] - bounds[2])
     ## Construct backward confidence interval
     if (type %in% c('backward', 'both')) {
-        backwardCI <- cbind(bound[1] +
+        backwardCI <- cbind(bounds[1] +
                             (1 / sqrt(n)) *
                             quantile(boundLBmod,
                                      0.5 * (1 - levels),
                                      type = 1),
-                            bound[2] +
+                            bounds[2] +
                             (1 / sqrt(n)) *
                             quantile(boundUBmod,
                                      0.5 * (1 + levels),
@@ -2091,12 +2091,12 @@ boundCI <- function(bound, bound.resamples, n, m, levels, type) {
     }
     ## Construct forward confidence interval
     if (type %in% c('forward', 'both')) {
-        forwardCI <- cbind(bound[1] -
+        forwardCI <- cbind(bounds[1] -
                            (1 / sqrt(n)) *
                            quantile(boundLBmod,
                                     0.5 * (1 + levels),
                                     type = 1),
-                           bound[2] -
+                           bounds[2] -
                            (1 / sqrt(n)) *
                            quantile(boundUBmod,
                                     0.5 * (1 - levels),
@@ -2123,9 +2123,9 @@ boundCI <- function(bound, bound.resamples, n, m, levels, type) {
 #'     'both', then \code{ci} should be a list of two elements. One
 #'     element is a matrix of forward confidence intervals, and the
 #'     other element is a matrix of backward confidence intervals.
-#' @param bound vector, bound of the treatment effects under partial
+#' @param bounds vector, bounds of the treatment effects under partial
 #'     identification.
-#' @param bound.resamples matrix, stacked bounds of the treatment
+#' @param bounds.resamples matrix, stacked bounds of the treatment
 #'     effects under partial identification. Each row corresponds to a
 #'     subset resampled from the original data set.
 #' @param n integer, size of original data set.
@@ -2134,9 +2134,9 @@ boundCI <- function(bound, bound.resamples, n, m, levels, type) {
 #'     correspond to the level of the confidence intervals constructed
 #'     via bootstrap.
 #' @param type character. Set to 'forward' to construct the forward
-#'     confidence interval for the treatment effect bound. Set to
+#'     confidence interval for the treatment effect bounds. Set to
 #'     'backward' to construct the backward confidence interval for
-#'     the treatment effect bound. Set to 'both' to construct both
+#'     the treatment effect bounds. Set to 'both' to construct both
 #'     types of confidence intervals.
 #' @param tol numeric, default set to 1e-08. The p-value is
 #'     constructed by iteratively adjusting the confidence level to
@@ -2148,9 +2148,9 @@ boundCI <- function(bound, bound.resamples, n, m, levels, type) {
 #'     returned. If \code{type} is 'both', a vector of p-values
 #'     corresponding to the forward and backward confidence intervals
 #'     is returned.
-boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
+boundPValue <- function(ci, bounds, bounds.resamples, n, m, levels,
                         type, tol = 1e-08) {
-    ci <- rbind(c(bound[1], bound[2]), ci, c(-Inf, Inf))
+    ci <- rbind(c(Inf, -Inf), ci, c(-Inf, Inf))
     rownames(ci) <- c(0, levels, 1)
     inVec <- apply(ci, 1, function(x) 0 > x[1] & 0 < x[2])
     lbPos <- which(sapply(seq(1, length(inVec) - 1), function(x) {
@@ -2158,14 +2158,17 @@ boundPValue <- function(ci, bound, bound.resamples, n, m, levels,
     }) == FALSE)
     levelLB <- c(0, levels, 1)[lbPos]
     levelUB <- c(0, levels, 1)[lbPos + 1]
+    contains0 <- TRUE
     while (levelUB - levelLB > tol) {
         midpoint <- 0.5 * (levelLB + levelUB)
-        newCI <- boundCI(bound, bound.resamples, n = 1000, m = 1000,
-                         levels = midpoint, type = "backward")
+        newCI <- boundCI(bounds, bounds.resamples, n = n, m = m,
+                         levels = midpoint, type = type)
         if (0 > newCI[1] & 0 < newCI[2]) {
             levelUB <- midpoint
+            contains0 <- TRUE
         } else {
             levelLB <- midpoint
+            contains0 <- FALSE
         }
     }
     return(1 - levelLB)
@@ -2374,7 +2377,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
-
+    
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
