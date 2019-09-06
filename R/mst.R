@@ -1402,9 +1402,23 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     } else {
         boolVars <- NULL
     }
-    ## But what about checking if there is sufficient variation in the
-    ## boolean variables? If not, then they may as well remove it.
-
+    ## Save call options for return
+    opList <- modcall(call,
+                      newcall = list,
+                      keepargs =  c('target', 'asodunasd',
+                                    'late.from', 'late.to', 'late.X',
+                                    'genlate.lb', 'genlate.ub',
+                                    'target.weight0',
+                                    'target.weight1', 'target.knots0',
+                                    'target.knots1', 'm0', 'm1',
+                                    'uname', 'm1.ub', 'm0.ub',
+                                    'm1.lb', 'm0.lb', 'mte.ub',
+                                    'mte.lb', 'm0.dec', 'm0.inc',
+                                    'm1.dec', 'm1.inc', 'mte.dec',
+                                    'mte.inc', 'ivlike', 'components',
+                                    'subset', 'propensity', 'link',
+                                    'seed')) 
+    opList <- eval(opList)
     ##---------------------------
     ## 5. Implement estimates
     ##---------------------------
@@ -1493,7 +1507,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     }
                 }
             }
-            return(origEstimate)
+            class(origEstimate) <- "ivmte"
+            output <- origEstimate
+            output$call.options <- opList
+            return(output)
         } else {
             ## Obtain audit grid from original estimate
             audit.grid <- origEstimate$audit.grid$a_mbobj
@@ -1754,6 +1771,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (specification.test) {
                 output$misspecification.pvalue <- criterionPValue
             }
+            output$call.options <- opList
+            class(output) <- "ivmte"
             return(output)
         }
     }
@@ -1766,7 +1785,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 fmtResult(origEstimate$pointestimate), "\n\n",
                 sep = "")
         }
-        return(origEstimate)
+        class(origEstimate) <- "ivmte"
+        output <- origEstimate
+        output$call.options = opList
+        return(output)
     }
     ## Point estimate with resampling
     if (point == TRUE & bootstraps > 0) {
@@ -2033,6 +2055,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                          and/or boolean variables potentially being omitted from
                          boostrap samples.")), call. = FALSE)
         }
+        output$call.options <- opList
+        class(output) <- "ivmte"
         return(output)
     }
 }
@@ -2605,7 +2629,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (!smallreturnlist) {
         output <- list(sset  = sset,
                     gstar = list(g0 = gstar0,
-                                 g1 = gstar1),
+                                 g1 = gstar1,
+                                 n = targetGammas$n),
                     gstar.weights = list(w0 = targetGammas$w0,
                                          w1 = targetGammas$w1),
                     gstar.coef = list(min.g0 = audit$lpresult$ming0,
@@ -3047,6 +3072,7 @@ genTarget <- function(treat, m0, m1, target,
         output$w1 <- w1
         output$w0 <- w0
     }
+    output$n <- nrow(data)
     return(output)
 }
 
@@ -3148,7 +3174,12 @@ genTarget <- function(treat, m0, m1, target,
 genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                     ncomponents, scount, subset_index, means = TRUE,
                     yvar, dvar, noisy = TRUE, ivn = NULL) {
-    if (!hasArg(subset_index)) subset_index <- NULL
+    if (!hasArg(subset_index)) {
+        subset_index <- NULL
+        n <- nrow(data)
+    } else {
+        n <- length(subset_index)
+    }
     for (j in 1:ncomponents) {
         if (noisy == TRUE) {
             cat("    Moment ", scount, "...\n", sep = "")
@@ -3235,7 +3266,8 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                 g0 = c(gs0, gsSpline0),
                                                 g1 = c(gs1, gsSpline1),
                                                 w0 = sweight0,
-                                                w1 = sweight1)
+                                                w1 = sweight1,
+                                                n = n)
         } else {
             ## Now generate the vectors for Y * S(D, Z).
             if (!is.null(subset_index)) {
@@ -3253,7 +3285,8 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                 g1 = cbind(gs1, gsSpline1),
                                                 ys = yvec,
                                                 w0 = sweight0,
-                                                w1 = sweight1)
+                                                w1 = sweight1,
+                                                n = n)
         }
         ## update counter (note scount is not referring
         ## to the list of IV regressions, but the components
@@ -3519,3 +3552,79 @@ fmtResult <- function(x) {
     if (is.numeric(fx)) fx <- as.character(fx)
     return(fx)
 }
+
+#' Summarize results
+#'
+#' This function uses the summary method on the ivmte return list.
+#'
+#' @param x an object returned from '\code{ivmte}'.
+#' @return summarized results.
+#' @export
+summary.ivmte <- function(x) {
+    stopifnot(inherits(x, "ivmte"))
+    if (!is.null(x$bounds)) {
+        cat("\n")
+        ## Return bounds, audit cout, and minumum criterion
+        cat(sprintf("Bounds on the target parameter: [%s, %s]\n",
+                    fmtResult(x$bounds[1]),
+                    fmtResult(x$bounds[2])))
+        if (!is.null(x$audit.grid$violations)) {
+            cat(sprintf("Audit reached audit.max (%s)\n",
+                        x$audit.count))
+        } else {
+            if (x$audit.count == 1) rs <- "round"
+            if (x$audit.count > 1) rs <- "rounds"
+            cat(sprintf("Audit terminated successfully after %s",
+                        x$audit.count), rs, "\n")
+        }
+        cat(sprintf("Minimum criterion: %s \n", x$audit.minobseq))
+        if (!is.null(x$bootstraps)) {
+            ## Return bootstrap counts
+            cat("\n")
+            cat(sprintf("Number of bootstraps: %s",
+                        x$bootstraps))
+            if (x$failed.bootstraps > 0) {
+                cat(sprintf("(%s failed and redrawn)\n",
+                            x$failed.bootstraps > 0))
+            } else {
+                cat("\n")
+            }
+            ## Return confidence intervals
+            levels <- as.numeric(rownames(x$ci[[1]]))
+            ciTypes <- names(x$ci)
+            for (i in ciTypes) {
+                cat("\nBootstrapped confidence intervals (",
+                    i, "):\n", sep = "")
+                for (j in 1:length(levels)) {
+                    cistr <- paste0("[",
+                                    fmtResult(x$ci[[i]][j, 1]),
+                                    ", ",
+                                    fmtResult(x$ci[[i]][j, 2]),
+                                    "]")
+                    cat("    ",
+                        levels[j] * 100,
+                        "%: ",
+                        cistr, "\n", sep = "")
+                }
+            }
+            ## Return p-values
+            cat("\n")
+            cat("Bootstrapped p-values:\n")
+            for (i in ciTypes) {
+                if (i == "backward") {
+                    cat("    Backward: ",
+                        fmtResult(x$pvalue[1]), "\n", sep = "")
+                } else {
+                    cat("    Forward:  ",
+                        fmtResult(x$pvalue[2]), "\n", sep = "")
+                }
+            }
+            ## Return misspecification test
+            if (!is.null(x$misspecification.pvalue)) {
+                cat("\nBootstrapped misspecification test p-value: ",
+                    fmtResult(x$misspecification.pvalue), "\n", sep = "")
+            }
+        }
+    }
+}
+
