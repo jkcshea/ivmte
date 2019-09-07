@@ -433,12 +433,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                        split = "")))
                     if (length(charList) == 2 && all(charList == c(",", " "))) {
                         internals <- ""
-                        warning(gsub("\\s+", " ",
-                                     "No list of components provided.
-                                      All components in each
-                                      IV-like specification will be included
-                                      when fitting the model."),
-                                call. = FALSE)
                     }
                     components <- paste0("l(c(", internals, "))")
                 }
@@ -458,11 +452,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     } else {
         length_components <- length_formula
         components <- as.list(replicate(length_formula, ""))
-        warning(gsub("\\s+", " ",
-                     "No list of components provided. All covariates in each
-                         IV-like specification will be included when
-                         constructing each S-set."),
-                call. = FALSE)
     }
     if (length_formula > length_components & length_components > 0) {
         warning(gsub("\\s+", " ",
@@ -1505,8 +1494,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     fmtResult(origEstimate$bounds[1]), ", ",
                 fmtResult(origEstimate$bounds[2]), "]\n",
                 sep = "")
-                if (origEstimate$audit.count == 1) rs <- "round."
-                if (origEstimate$audit.count > 1) rs <- "rounds."
+                if (origEstimate$audit.count == 1) rs <- "round.\n"
+                if (origEstimate$audit.count > 1) rs <- "rounds.\n"
                 if (origEstimate$audit.count < audit.max) {
                     cat("Audit terminated successfully after",
                         origEstimate$audit.count,
@@ -1637,8 +1626,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 sep = "")
 
 
-            if (origEstimate$audit.count == 1) rs <- "round."
-            if (origEstimate$audit.count > 1) rs <- "rounds."
+            if (origEstimate$audit.count == 1) rs <- "round.\n"
+            if (origEstimate$audit.count > 1) rs <- "rounds.\n"
             if (origEstimate$audit.count < audit.max) {
                 cat("Audit terminated successfully after",
                     origEstimate$audit.count,
