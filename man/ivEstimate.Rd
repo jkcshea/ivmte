@@ -36,6 +36,7 @@ This function estimates the IV-like estimands, as well as generates
 the IV-like specifications.
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
 ivEstimate(formula = ey ~ d | z,
            data = dtm,
            components = l(d),

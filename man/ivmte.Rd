@@ -257,7 +257,7 @@ effect bound. Set to \code{'both'} to construct both types of
 confidence intervals.}
 
 \item{specification.test}{boolean, default set to
-\code{TRUE}. Function performs a misspecificaiton test for the
+\code{TRUE}. Function performs a specificaiton test for the
 partially identified case when \code{bootstraps > 0}.}
 
 \item{pvalue.tol}{numeric, default set to 1e-08. The p-value under
@@ -335,6 +335,8 @@ spline declared in each MTR.}
 }
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
+
 ivlikespecs <- c(ey ~ d | z,
                  ey ~ d | factor(z),
                  ey ~ d,

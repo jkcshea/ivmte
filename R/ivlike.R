@@ -124,6 +124,7 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL, order = NULL,
 #'     estimates of the IV-like estimands.
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
 #' ivEstimate(formula = ey ~ d | z,
 #'            data = dtm,
 #'            components = l(d),

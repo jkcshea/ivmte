@@ -120,6 +120,8 @@ point estimate, and the corresponding moments (gammas) that will
 enter into the constraint matrix of the LP problem.
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
+
 ## Declare MTR functions
 formula1 = ~ 1 + u
 formula0 = ~ 1 + u

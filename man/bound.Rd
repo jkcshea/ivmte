@@ -43,6 +43,8 @@ a list containing the bounds on the treatment effect; the
 This function estimates the bounds on the target treatment effect.
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
+
 ## Declare empty list to be updated (in the event multiple IV like
 ## specifications are provided
 sSet <- list()

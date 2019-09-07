@@ -45,6 +45,8 @@ on the linear programming solver used, this function will return
 different output specific to the solver.
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
+
 ## Declare empty list to be updated (in the event multiple IV like
 ## specifications are provided
 sSet <- list()

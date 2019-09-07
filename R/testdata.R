@@ -681,14 +681,14 @@ gendistSplines <- function() {
     dtsf[round(dtsf$count) <= round(dtsf$controls), "d"] <- 0
     dtsf$ey <- (1 - dtsf$d) * dtsf$ey0 + dtsf$d * dtsf$ey1
     ## Check if the distribution is as planned
-    for (z in c(0, 1)) {
-        for (x in c(-1, 0, 1)) {
-            a <- nrow(dtsf[dtsf$x == x & dtsf$z == z & dtsf$d == 1, ])
-            b <- nrow(dtsf[dtsf$x == x & dtsf$z == z, ])
-            cat("X:", x, ", Z:", z, ", a:", a, ", b:", b,
-                ", Prob of treat:", a / b, "\n")
-        }
-    }
+    ## for (z in c(0, 1)) {
+    ##     for (x in c(-1, 0, 1)) {
+    ##         a <- nrow(dtsf[dtsf$x == x & dtsf$z == z & dtsf$d == 1, ])
+    ##         b <- nrow(dtsf[dtsf$x == x & dtsf$z == z, ])
+    ##         cat("X:", x, ", Z:", z, ", a:", a, ", b:", b,
+    ##             ", Prob of treat:", a / b, "\n")
+    ##     }
+    ## }
     ## Check if treatment effects are consistent
     as.numeric(t(distr$ey1 - distr$ey0) %*% distr$f)
     round(as.numeric(t(distr$ey1 - distr$ey0) %*% distr$f), 7) ==

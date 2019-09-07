@@ -5,13 +5,13 @@
 \title{Construct confidence intervals for treatment effects under partial
 identification}
 \usage{
-boundCI(bound, bound.resamples, n, m, levels, type)
+boundCI(bounds, bounds.resamples, n, m, levels, type)
 }
 \arguments{
-\item{bound}{vector, bound of the treatment effects under partial
+\item{bounds}{vector, bounds of the treatment effects under partial
 identification.}
 
-\item{bound.resamples}{matrix, stacked bounds of the treatment
+\item{bounds.resamples}{matrix, stacked bounds of the treatment
 effects under partial identification. Each row corresponds to a
 subset resampled from the original data set.}
 
@@ -24,9 +24,9 @@ correspond to the level of the confidence intervals constructed
 via bootstrap.}
 
 \item{type}{character. Set to 'forward' to construct the forward
-confidence interval for the treatment effect bound. Set to
+confidence interval for the treatment effect bounds. Set to
 'backward' to construct the backward confidence interval for
-the treatment effect bound. Set to 'both' to construct both
+the treatment effect bounds. Set to 'both' to construct both
 types of confidence intervals.}
 }
 \value{

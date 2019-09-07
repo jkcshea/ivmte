@@ -45,6 +45,8 @@ This function generates the gamma objects defined in the paper,
 i.e. each additive term in E[md], where md is a MTR.
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
+
 ## Declare MTR formula
 formula0 = ~ 1 + u
 

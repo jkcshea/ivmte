@@ -51,6 +51,8 @@ vecextract <- function(vector, position, truncation = 0) {
 #'     only one term, \code{x}).
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
+#' 
 #' ## Declare MTR functions
 #' formula1 = ~ 1 + u
 #' formula0 = ~ 1 + u
@@ -246,6 +248,8 @@ polyProduct <- function(poly1, poly2) {
 #'     Z] (i.e. only the integral with respect to u is performed).
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
+#' 
 #' ## Declare MTR formula
 #' formula0 = ~ 1 + u
 #'

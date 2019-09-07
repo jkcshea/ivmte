@@ -27,6 +27,8 @@
 #'     problem for Gurobi.
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
+#' 
 #' ## Declare empty list to be updated (in the event multiple IV like
 #' ## specifications are provided
 #' sSet <- list()
@@ -163,6 +165,8 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 #'     the solution.
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
+#' 
 #' ## Declare empty list to be updated (in the event multiple IV like
 #' ## specifications are provided
 #' sSet <- list()
@@ -351,6 +355,8 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
 #'     problem that the optimizer solved.
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
+#' 
 #' ## Declare empty list to be updated (in the event multiple IV like
 #' ## specifications are provided
 #' sSet <- list()

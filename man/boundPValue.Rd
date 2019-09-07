@@ -5,7 +5,8 @@
 \title{Construct p-values for treatment effects under partial
 identification}
 \usage{
-boundPValue(ci, bound, bound.resamples, n, m, levels, type, tol = 1e-08)
+boundPValue(ci, bounds, bounds.resamples, n, m, levels, type,
+  tol = 1e-08)
 }
 \arguments{
 \item{ci}{matrix or list. If \code{type} is set to 'forward' or
@@ -16,10 +17,10 @@ declared in the option \code{levels}. If \code{type} is set to
 element is a matrix of forward confidence intervals, and the
 other element is a matrix of backward confidence intervals.}
 
-\item{bound}{vector, bound of the treatment effects under partial
+\item{bounds}{vector, bounds of the treatment effects under partial
 identification.}
 
-\item{bound.resamples}{matrix, stacked bounds of the treatment
+\item{bounds.resamples}{matrix, stacked bounds of the treatment
 effects under partial identification. Each row corresponds to a
 subset resampled from the original data set.}
 
@@ -32,9 +33,9 @@ correspond to the level of the confidence intervals constructed
 via bootstrap.}
 
 \item{type}{character. Set to 'forward' to construct the forward
-confidence interval for the treatment effect bound. Set to
+confidence interval for the treatment effect bounds. Set to
 'backward' to construct the backward confidence interval for
-the treatment effect bound. Set to 'both' to construct both
+the treatment effect bounds. Set to 'both' to construct both
 types of confidence intervals.}
 
 \item{tol}{numeric, default set to 1e-08. The p-value is

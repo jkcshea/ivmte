@@ -53,6 +53,8 @@ m1. Combining these coefficients with the target gamma moments
 allows us to estimate the target treatment effect.
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
+
 ## Declare empty list to be updated (in the event multiple IV like
 ## specifications are provided
 sSet <- list()

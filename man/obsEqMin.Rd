@@ -38,6 +38,8 @@ defining an LP problem, this function minimizes the violation of
 observational equivalence under the L1 norm.
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
+
 ## Declare empty list to be updated (in the event multiple IV like
 ## specifications are provided
 sSet <- list()

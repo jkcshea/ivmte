@@ -214,7 +214,8 @@ entire support of the covariates, or until some a maximum number of
 iterations is reached.
 }
 \examples{
-set.seed(10L)
+dtm <- ivmte:::gendistMosquito()
+
 ## Declare empty list to be updated (in the event multiple IV like
 ## specifications are provided
 sSet <- list()

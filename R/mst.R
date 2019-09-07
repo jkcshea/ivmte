@@ -265,6 +265,8 @@ utils::globalVariables("u")
 #' }
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
+#'
 #' ivlikespecs <- c(ey ~ d | z,
 #'                  ey ~ d | factor(z),
 #'                  ey ~ d,
@@ -391,7 +393,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     userComponents <- FALSE
     if (hasArg(components)) {
         tmpComp <- deparse(substitute(components))
-        if (substr(tmpComp, 1, 2) != "l(") {
+        if (substr(tmpComp, 1, 2) != "l(" &&
+            substr(tmpComp, 1, 2) == "c(") {
             stop(gsub("\\s+", " ",
                       "The 'components' argument should be declared
                        using 'l()' instead of 'c()'."),
@@ -1108,14 +1111,17 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
             }
         } else {
-            if (! deparse(substitute(propensity)) %in% colnames(data)) {
+            propStr <- deparse(substitute(propensity))
+            propStr <- gsub("~", "", propStr)
+            propStr <- gsub("\\\"", "", propStr)
+            if (!propStr %in% colnames(data)) {
                 stop(gsub("\\s+", " ",
                           "Propensity score argument is interpreted as a
                           variable name, but is not found in the data set."),
                      call. = FALSE)
             }
             vars_propensity <- c(vars_propensity,
-                                 deparse(substitute(propensity)))
+                                 propStr)
             ## Determine treatment variable
             if (hasArg(treat)) {
                 treat <- treatStr
@@ -1130,7 +1136,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                            the argument 'treat'."),
                      call. = FALSE)
             }
-            propensity <- deparse(substitute(propensity))
+            propensity <- propStr
             propensity <- Formula::as.Formula(paste("~", propensity))
             if (length(all.vars(propensity)) > 1) {
                 stop(gsub("\\s+", " ",
@@ -1412,20 +1418,26 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     ## Save call options for return
     opList <- modcall(call,
                       newcall = list,
-                      keepargs =  c('target', 'asodunasd',
-                                    'late.from', 'late.to', 'late.X',
-                                    'genlate.lb', 'genlate.ub',
-                                    'target.weight0',
-                                    'target.weight1', 'target.knots0',
-                                    'target.knots1', 'm0', 'm1',
-                                    'uname', 'm1.ub', 'm0.ub',
-                                    'm1.lb', 'm0.lb', 'mte.ub',
-                                    'mte.lb', 'm0.dec', 'm0.inc',
-                                    'm1.dec', 'm1.inc', 'mte.dec',
-                                    'mte.inc', 'ivlike', 'components',
-                                    'subset', 'propensity', 'link',
+                      keepargs =  c('target', 'late.from', 'late.to',
+                                    'late.X', 'genlate.lb',
+                                    'genlate.ub', 'm0', 'm1', 'm1.ub',
+                                    'm0.ub', 'm1.lb', 'm0.lb',
+                                    'mte.ub', 'mte.lb', 'm0.dec',
+                                    'm0.inc', 'm1.dec', 'm1.inc',
+                                    'mte.dec', 'mte.inc', 'link',
                                     'seed'))
     opList <- eval(opList)
+    opList$ivlike <- ivlike
+    opList$components <- components
+    if (hasArg(subset)) opList$subset <- subset
+    if (hasArg(propensity)) opList$propensity <- propensity
+    if (hasArg(uname)) opList$uname <- uname
+    if (hasArg(treat)) opList$treat <- treat
+    if (hasArg(target.weight0)) opList$target.weight0 <- target.weight0
+    if (hasArg(target.weight1)) opList$target.weight1 <- target.weight1
+    if (hasArg(target.knots0)) opList$target.knots0 <- target.knots0
+    if (hasArg(target.knots1)) opList$target.knots1 <- target.knots1
+
     ##---------------------------
     ## 5. Implement estimates
     ##---------------------------
@@ -2768,6 +2780,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
 #'     \code{u} in each term it appears in.
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
+#'
 #' ## Declare MTR functions
 #' formula1 = ~ 1 + u
 #' formula0 = ~ 1 + u
@@ -3186,6 +3200,8 @@ genTarget <- function(treat, m0, m1, target,
 #'     and the expectation of each monomial term in the MTR.
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
+#'
 #' ## Declare empty list to be updated (in the event multiple IV like
 #' ## specifications are provided)
 #' sSet <- list()
@@ -3398,6 +3414,8 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     estimates.
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
+#'
 #' ## Declare empty list to be updated (in the event multiple IV like
 #' ## specifications are provided
 #' sSet <- list()
@@ -3622,9 +3640,10 @@ fmtResult <- function(x) {
 #' This function uses the print method on the ivmte return list.
 #'
 #' @param x an object returned from '\code{ivmte}'.
+#' @param ... additional arguments.
 #' @return basic set of results.
 #' @export
-print.ivmte <- function(x) {
+print.ivmte <- function(x, ...) {
     stopifnot(inherits(x, "ivmte"))
     if (!is.null(x$bounds)) {
         cat("\n")
@@ -3655,42 +3674,43 @@ print.ivmte <- function(x) {
 #'
 #' This function uses the summary method on the ivmte return list.
 #'
-#' @param x an object returned from '\code{ivmte}'.
+#' @param object an object returned from '\code{ivmte}'.
+#' @param ... additional arguments.
 #' @return summarized results.
 #' @export
-summary.ivmte <- function(x) {
-    stopifnot(inherits(x, "ivmte"))
+summary.ivmte <- function(object, ...) {
+    stopifnot(inherits(object, "ivmte"))
     ## Summary for the partially identified case
-    if (!is.null(x$bounds)) {
+    if (!is.null(object$bounds)) {
         cat("\n")
         ## Return bounds, audit cout, and minumum criterion
         cat(sprintf("Bounds on the target parameter: [%s, %s]\n",
-                    fmtResult(x$bounds[1]),
-                    fmtResult(x$bounds[2])))
-        if (!is.null(x$audit.grid$violations)) {
+                    fmtResult(object$bounds[1]),
+                    fmtResult(object$bounds[2])))
+        if (!is.null(object$audit.grid$violations)) {
             cat(sprintf("Audit reached audit.max (%s)\n",
-                        x$audit.count))
+                        object$audit.count))
         } else {
-            if (x$audit.count == 1) rs <- "round"
-            if (x$audit.count > 1) rs <- "rounds"
+            if (object$audit.count == 1) rs <- "round"
+            if (object$audit.count > 1) rs <- "rounds"
             cat(sprintf("Audit terminated successfully after %s",
-                        x$audit.count), rs, "\n")
+                        object$audit.count), rs, "\n")
         }
-        cat(sprintf("Minimum criterion: %s \n", x$audit.minobseq))
-        if (!is.null(x$bootstraps)) {
+        cat(sprintf("Minimum criterion: %s \n", object$audit.minobseq))
+        if (!is.null(object$bootstraps)) {
             ## Return bootstrap counts
             cat("\n")
             cat(sprintf("Number of bootstraps: %s",
-                        x$bootstraps))
-            if (x$bootstraps.failed > 0) {
+                        object$bootstraps))
+            if (object$bootstraps.failed > 0) {
                 cat(sprintf("(%s failed and redrawn)\n",
-                            x$bootstraps.failed > 0))
+                            object$bootstraps.failed > 0))
             } else {
                 cat("\n")
             }
             ## Return confidence intervals and p-values
-            levels <- as.numeric(rownames(x$bounds.ci[[1]]))
-            ciTypes <- names(x$bounds.ci)
+            levels <- as.numeric(rownames(object$bounds.ci[[1]]))
+            ciTypes <- names(object$bounds.ci)
             ciN <- 1
             for (i in ciTypes) {
                 ## Confidence intervals
@@ -3698,9 +3718,9 @@ summary.ivmte <- function(x) {
                     i, "):\n", sep = "")
                 for (j in 1:length(levels)) {
                     cistr <- paste0("[",
-                                    fmtResult(x$bounds.ci[[i]][j, 1]),
+                                    fmtResult(object$bounds.ci[[i]][j, 1]),
                                     ", ",
-                                    fmtResult(x$bounds.ci[[i]][j, 2]),
+                                    fmtResult(object$bounds.ci[[i]][j, 2]),
                                     "]")
                     cat("    ",
                         levels[j] * 100,
@@ -3709,35 +3729,35 @@ summary.ivmte <- function(x) {
                 }
                 ## p-values
                 cat("p-value: ",
-                    fmtResult(x$pvalue[ciN]), "\n", sep = "")
+                    fmtResult(object$pvalue[ciN]), "\n", sep = "")
                 ciN <- ciN + 1
             }
             ## Return specification test
-            if (!is.null(x$specification.pvalue)) {
+            if (!is.null(object$specification.pvalue)) {
                 cat("\nBootstrapped specification test p-value: ",
-                    fmtResult(x$specification.pvalue), "\n", sep = "")
+                    fmtResult(object$specification.pvalue), "\n", sep = "")
             }
         }
     }
     ## Summary for the point identified case
-    if (!is.null(x$pointestimate)) {
+    if (!is.null(object$pointestimate)) {
         cat("\n")
         ## Return bounds, audit cout, and minumum criterion
         cat(sprintf("Point estimate of the target parameter: %s\n",
-                    fmtResult(x$pointestimate)))
-        if (!is.null(x$bootstraps)) {
+                    fmtResult(object$pointestimate)))
+        if (!is.null(object$bootstraps)) {
             ## Return bootstrap counts
             cat("\n")
             cat(sprintf("Number of bootstraps: %s",
-                        x$bootstraps))
-            if (x$bootstraps.failed > 0) {
+                        object$bootstraps))
+            if (object$bootstraps.failed > 0) {
                 cat(sprintf("(%s failed and redrawn)\n",
-                            x$bootstraps.failed > 0))
+                            object$bootstraps.failed > 0))
             } else {
                 cat("\n")
             }
             ## Return confidence intervals and p-values
-            levels <- as.numeric(rownames(results$pointestimate.ci$ci1))
+            levels <- as.numeric(rownames(object$pointestimate.ci$ci1))
             ciTypes <- c("nonparametric", "parametric")
             for (i in 1:2) {
                 if (i == 1) ciType <- "nonparametric"
@@ -3748,9 +3768,9 @@ summary.ivmte <- function(x) {
                     ciType, "):\n", sep = "")
                 for (j in 1:length(levels)) {
                     cistr <- paste0("[",
-                                    fmtResult(x$pointestimate.ci[[i]][j, 1]),
+                                    fmtResult(object$pointestimate.ci[[i]][j, 1]),
                                     ", ",
-                                    fmtResult(x$pointestimate.ci[[i]][j, 2]),
+                                    fmtResult(object$pointestimate.ci[[i]][j, 2]),
                                     "]")
                     cat("    ",
                         levels[j] * 100,
@@ -3759,12 +3779,12 @@ summary.ivmte <- function(x) {
                 }
                 ## p-values
                 cat("p-value: ",
-                    fmtResult(x$pvalue[i]), "\n", sep = "")
+                    fmtResult(object$pvalue[i]), "\n", sep = "")
             }
             ## Return specification test
-            if (!is.null(x$jtest)) {
+            if (!is.null(object$jtest)) {
                 cat("\nBootstrapped J-test p-value: ",
-                    fmtResult(x$jtest), "\n", sep = "")
+                    fmtResult(object$jtest), "\n", sep = "")
             }
         }
     }

@@ -53,7 +53,8 @@
 #'     solving the LP problem.
 #'
 #' @examples
-#' set.seed(10L)
+#' dtm <- ivmte:::gendistMosquito()
+#' 
 #' ## Declare empty list to be updated (in the event multiple IV like
 #' ## specifications are provided
 #' sSet <- list()

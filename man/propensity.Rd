@@ -55,6 +55,8 @@ scores in the data conditioned on the set of covariates declared in
 \code{late.X} and \code{late.Z}.
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
+
 ## Declaring a probability model.
 propensity(formula = d ~ z,
                data = dtm,

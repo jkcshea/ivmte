@@ -69,6 +69,8 @@ point estimate, and the corresponding moments (gammas) that will
 enter into the constraint matrix of the LP problem.
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
+
 ## Declare empty list to be updated (in the event multiple IV like
 ## specifications are provided)
 sSet <- list()

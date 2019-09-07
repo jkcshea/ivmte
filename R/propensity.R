@@ -39,6 +39,8 @@
 #'     value of the covariates in the probability model is returned.
 #'
 #' @examples
+#' dtm <- ivmte:::gendistMosquito()
+#' 
 #' ## Declaring a probability model.
 #' propensity(formula = d ~ z,
 #'                data = dtm,

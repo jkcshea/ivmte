@@ -5,6 +5,7 @@ set.seed(10L)
 ## Run MST estimator
 ##------------------------
 
+dtsf <- ivmte:::gendistSplines()$data.full
 ivlike <- c(ey ~ d,
             ey ~ d + x,
             ey ~ d + x | z + x)
@@ -199,7 +200,7 @@ g5 <- genGammaSplinesTT(distr = dts,
 ##-------------------------
 
 test_that("Gamma moments", {
-    expect_equal(result$gstar, gstar)
+    expect_equal(result$gstar[c("g0", "g1")], gstar)
     expect_equal(list(g0 = result$sset$s1$g0,
                       g1 = result$sset$s1$g1), g1)
     expect_equal(list(g0 = result$sset$s2$g0,

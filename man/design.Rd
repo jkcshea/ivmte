@@ -24,6 +24,7 @@ This function generates the design matrix given an IV
 specification.
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
 design(formula = ey ~ d | z,
            data = dtm,
            subset = z \%in\% c(1, 2))

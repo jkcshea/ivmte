@@ -39,6 +39,8 @@ each of them with respect to \code{u}. Each integral corresponds to
 E[md | D, X, Z].
 }
 \examples{
+dtm <- ivmte:::gendistMosquito()
+
 ## Declare MTR functions
 formula1 = ~ 1 + u
 formula0 = ~ 1 + u

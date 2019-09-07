@@ -5,6 +5,7 @@ set.seed(10L)
 ## Run MST estimator
 ##------------------------
 
+dtcf <- ivmte:::gendistCovariates()$data.full
 ivlike <- c(ey ~ d,
             ey ~ d + x1,
             ey ~ d + x1 + x2,
