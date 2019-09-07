@@ -210,7 +210,7 @@ utils::globalVariables("u")
 #'     effect bound. Set to \code{'both'} to construct both types of
 #'     confidence intervals.
 #' @param specification.test boolean, default set to
-#'     \code{TRUE}. Function performs a misspecificaiton test for the
+#'     \code{TRUE}. Function performs a specificaiton test for the
 #'     partially identified case when \code{bootstraps > 0}.
 #' @param pvalue.tol numeric, default set to 1e-08. The p-value under
 #'     the partially identified case is constructed by iteratively
@@ -1712,6 +1712,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                         tol = pvalue.tol))
                 names(pvalue) <- c("backward", "forward")
             }
+            
             if (ci.type == "both") {
                 for (i in c("backward", "forward")) {
                     cat("\nBootstrapped confidence intervals (",
@@ -1754,11 +1755,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         pvalue, "\n", sep = "")
                 }
             }
-            ## Obtain misspecification test
+            ## Obtain specification test
             if (specification.test) {
                 criterionPValue <- mean(origEstimate$audit.minobseq <=
                                         bootCriterion)
-                cat("\nBootstrapped misspecification test p-value: ",
+                cat("\nBootstrapped specification test p-value: ",
                     criterionPValue, "\n\n", sep = "")
             }
             ## Inform users of failed bootstraps, if any
@@ -1776,7 +1777,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              bootstraps = bootstraps,
                              failed.bootstraps = bootFailN))
             if (specification.test) {
-                output$misspecification.pvalue <- criterionPValue
+                output$specification.pvalue <- criterionPValue
             }
             output$call.options <- opList
             class(output) <- "ivmte"
@@ -3596,10 +3597,11 @@ summary.ivmte <- function(x) {
             } else {
                 cat("\n")
             }
-            ## Return confidence intervals
+            ## Return confidence intervals and p-values
             levels <- as.numeric(rownames(x$ci[[1]]))
             ciTypes <- names(x$ci)
             for (i in ciTypes) {
+                ## Confidence intervals
                 cat("\nBootstrapped confidence intervals (",
                     i, "):\n", sep = "")
                 for (j in 1:length(levels)) {
@@ -3613,23 +3615,14 @@ summary.ivmte <- function(x) {
                         "%: ",
                         cistr, "\n", sep = "")
                 }
+                ## p-values
+                cat("p-value: ",
+                    fmtResult(x$pvalue[1]), "\n", sep = "")
             }
-            ## Return p-values
-            cat("\n")
-            cat("Bootstrapped p-values:\n")
-            for (i in ciTypes) {
-                if (i == "backward") {
-                    cat("    Backward: ",
-                        fmtResult(x$pvalue[1]), "\n", sep = "")
-                } else {
-                    cat("    Forward:  ",
-                        fmtResult(x$pvalue[2]), "\n", sep = "")
-                }
-            }
-            ## Return misspecification test
-            if (!is.null(x$misspecification.pvalue)) {
-                cat("\nBootstrapped misspecification test p-value: ",
-                    fmtResult(x$misspecification.pvalue), "\n", sep = "")
+            ## Return specification test
+            if (!is.null(x$specification.pvalue)) {
+                cat("\nBootstrapped specification test p-value: ",
+                    fmtResult(x$specification.pvalue), "\n", sep = "")
             }
         }
     }
