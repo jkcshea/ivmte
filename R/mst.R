@@ -1712,48 +1712,28 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                         tol = pvalue.tol))
                 names(pvalue) <- c("backward", "forward")
             }
-            
-            if (ci.type == "both") {
-                for (i in c("backward", "forward")) {
-                    cat("\nBootstrapped confidence intervals (",
-                        i, "):\n", sep = "")
-                    for (j in 1:length(levels)) {
-                        cistr <- paste0("[",
-                                        fmtResult(ci[[i]][j, 1]),
-                                        ", ",
-                                        fmtResult(ci[[i]][j, 2]),
-                                        "]")
-                        cat("    ",
-                            levels[j] * 100,
-                            "%: ",
-                            cistr, "\n", sep = "")
-                    }
-                }
-                cat("\nBootstrapped p-values:\n")
-                cat("    Backward: ", fmtResult(pvalue[1]), "\n", sep = "")
-                cat("    Forward:  ", fmtResult(pvalue[2]), "\n", sep = "")
+            if (ci.type == "both")  {
+                ciTypes <- c("backward", "forward")
             } else {
+                ciTypes <- ci.type
+            }
+            ciN <- 1
+            for (i in ciTypes) {
                 cat("\nBootstrapped confidence intervals (",
-                    ci.type, "):", sep = "")
+                    i, "):\n", sep = "")
                 for (j in 1:length(levels)) {
                     cistr <- paste0("[",
-                                    fmtResult(ci[j, 1]),
+                                    fmtResult(ci[[i]][j, 1]),
                                     ", ",
-                                    fmtResult(ci[j, 2]),
+                                    fmtResult(ci[[i]][j, 2]),
                                     "]")
                     cat("    ",
                         levels[j] * 100,
                         "%: ",
                         cistr, "\n", sep = "")
                 }
-                if (ci.type == "backward") {
-                    cat("\nBootstrapped p-value (backward): ",
-                        pvalue, "\n", sep = "")
-                }
-                if (ci.type == "forward") {
-                    cat("\nBootstrapped p-value (forward): ",
-                        pvalue, "\n", sep = "")
-                }
+                cat("p-value: ", fmtResult(pvalue[ciN]), "\n", sep = "")
+                ciN <- ciN + 1
             }
             ## Obtain specification test
             if (specification.test) {
@@ -1926,10 +1906,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             propSE  <- apply(propEstimates, 1, sd)
         }
         ## Construct p-values (point estimate and J-test)
-        pvalue <- (sum(teEstimates - origEstimate$pointestimate >=
-                       abs(origEstimate$pointestimate)) +
-                   sum(teEstimates - origEstimate$pointestimate <=
-                       -abs(origEstimate$pointestimate))) / bootstraps
+        pvalue <- c(nonparametric =
+                        (sum(teEstimates - origEstimate$pointestimate >=
+                             abs(origEstimate$pointestimate)) +
+                         sum(teEstimates - origEstimate$pointestimate <=
+                             -abs(origEstimate$pointestimate))) / bootstraps,
+                    parametric =
+                        pnorm(-abs(origEstimate$pointestimate -
+                                   mean(teEstimates)) / bootSE) * 2)
         if (!is.null(jstats)) {
             jstats <- jstats - mean(jstats) + origEstimate$Jtest[3]
             jtest <- c(mean(jstats >= origEstimate$Jtest[1]),
@@ -1998,30 +1982,47 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         output1 <- c(output1,
                      list(pointestimate.bootstraps = teEstimates,
                           mtr.bootstraps = t(mtrEstimates)))
-        output2 <- list()
+        ci.pointestimate <- list()
+        ci.mtr <- list()
+        if (!is.null(propEstimates)) {
+            ci.propensity <- list()
+        }
         for (level in levels) {
-            output2[[paste0("pointestimate.ci1.", level * 100)]] <-
-                get(paste0("ci1", level * 100))
-            output2[[paste0("mtr.ci1.", level * 100)]] <-
+            ci.pointestimate$ci1 <-
+                rbind(ci.pointestimate$ci1,
+                      get(paste0("ci1", level * 100)))
+            ci.pointestimate$ci2 <-
+                rbind(ci.pointestimate$ci2,
+                      get(paste0("ci2", level * 100)))
+
+            ci.mtr$ci1[[paste0("level", level * 100)]] <-
                 t(get(paste0("mtrci1", level * 100)))
-            if (!is.null(propEstimates)) {
-                output2[[paste0("prop.ci1.", level * 100)]] <-
-                    t(get(paste0("propci1", level * 100)))
-            }
-            output2[[paste0("pointestimate.ci2.", level * 100)]] <-
-                get(paste0("ci2", level * 100))
-            output2[[paste0("mtr.ci2.", level * 100)]] <-
+            ci.mtr$ci2[[paste0("level", level * 100)]] <-
                 t(get(paste0("mtrci2", level * 100)))
             if (!is.null(propEstimates)) {
-                output2[[paste0("prop.ci2.", level * 100)]] <-
+                ci.propensity$ci1[[paste0("level", level * 100)]] <-
+                    t(get(paste0("propci1", level * 100)))
+                ci.propensity$ci2[[paste0("level", level * 100)]] <-
                     t(get(paste0("propci2", level * 100)))
             }
         }
+        rownames(ci.pointestimate$ci1) <- levels
+        rownames(ci.pointestimate$ci2) <- levels
+        colnames(ci.pointestimate$ci1) <- c("lb", "ub")
+        colnames(ci.pointestimate$ci2) <- c("lb", "ub")
+        output2 <- list(ci.pointestimate = ci.pointestimate,
+                        ci.mtr = ci.mtr,
+                        ci.propensity = ci.propensity)
         output3 <- list(pvalue = pvalue,
                         bootstraps = bootstraps,
                         failed.bootstraps = length(bootFailIndex),
                         jtest = jtest)
         output <- c(output1, output2, output3)
+        if (noisy) {
+            cat("--------------------------------------------------\n")
+            cat("Results", "\n")
+            cat("--------------------------------------------------\n")
+        }
         cat("\nPoint estimate of the target parameter: ",
             fmtResult(origEstimate$pointestimate), "\n",
             sep = "")
@@ -2038,7 +2039,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 "%: ",
                 ci1str, "\n", sep = "")
         }
-        cat("\nBootstrapped confidence intervals (normal quantiles):\n")
+        cat("p-value: ",
+            fmtResult(pvalue[1]), "\n\n", sep = "")
+        cat("Bootstrapped confidence intervals (normal quantiles):\n")
         for (level in levels) {
             ci2str <- get(paste0("ci2", level * 100))
             ci2str <- paste0("[",
@@ -2051,8 +2054,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 "%: ",
                 ci2str, "\n", sep = "")
         }
-        cat("\nBootstrapped p-value: ",
-            fmtResult(pvalue), "\n\n", sep = "")
+        cat("p-value: ",
+            fmtResult(pvalue[2]), "\n\n", sep = "")
         if (totalBootstraps > bootstraps) {
             warning(gsub("\\s+", " ",
                          paste0("In order to obtain ", bootstraps, " boostrap
@@ -3561,6 +3564,40 @@ fmtResult <- function(x) {
     return(fx)
 }
 
+#' Print results
+#'
+#' This function uses the print method on the ivmte return list.
+#'
+#' @param x an object returned from '\code{ivmte}'.
+#' @return basic set of results.
+#' @export
+print.ivmte <- function(x) {
+    stopifnot(inherits(x, "ivmte"))
+    if (!is.null(x$bounds)) {
+        cat("\n")
+        ## Return bounds, audit cout, and minumum criterion
+        cat(sprintf("Bounds on the target parameter: [%s, %s]\n",
+                    fmtResult(x$bounds[1]),
+                    fmtResult(x$bounds[2])))
+        if (!is.null(x$audit.grid$violations)) {
+            cat(sprintf("Audit reached audit.max (%s)\n",
+                        x$audit.count))
+        } else {
+            if (x$audit.count == 1) rs <- "round"
+            if (x$audit.count > 1) rs <- "rounds"
+            cat(sprintf("Audit terminated successfully after %s",
+                        x$audit.count), rs, "\n")
+        }
+        cat(sprintf("Minimum criterion: %s \n", x$audit.minobseq))
+    }
+    if (!is.null(x$pointestimate)) {
+        cat("\n")
+        ## Return point estimate
+        cat(sprintf("Point estimate of the target parameter: %s\n",
+                    fmtResult(x$pointestimate)))
+    }
+}
+
 #' Summarize results
 #'
 #' This function uses the summary method on the ivmte return list.
@@ -3570,6 +3607,7 @@ fmtResult <- function(x) {
 #' @export
 summary.ivmte <- function(x) {
     stopifnot(inherits(x, "ivmte"))
+    ## Summary for the partially identified case
     if (!is.null(x$bounds)) {
         cat("\n")
         ## Return bounds, audit cout, and minumum criterion
@@ -3600,6 +3638,7 @@ summary.ivmte <- function(x) {
             ## Return confidence intervals and p-values
             levels <- as.numeric(rownames(x$ci[[1]]))
             ciTypes <- names(x$ci)
+            ciN <- 1
             for (i in ciTypes) {
                 ## Confidence intervals
                 cat("\nBootstrapped confidence intervals (",
@@ -3617,12 +3656,62 @@ summary.ivmte <- function(x) {
                 }
                 ## p-values
                 cat("p-value: ",
-                    fmtResult(x$pvalue[1]), "\n", sep = "")
+                    fmtResult(x$pvalue[ciN]), "\n", sep = "")
+                ciN <- ciN + 1
             }
             ## Return specification test
             if (!is.null(x$specification.pvalue)) {
                 cat("\nBootstrapped specification test p-value: ",
                     fmtResult(x$specification.pvalue), "\n", sep = "")
+            }
+        }
+    }
+    ## Summary for the point identified case
+    if (!is.null(x$pointestimate)) {
+        cat("\n")
+        ## Return bounds, audit cout, and minumum criterion
+        cat(sprintf("Point estimate of the target parameter: %s\n",
+                    fmtResult(x$pointestimate)))
+        if (!is.null(x$bootstraps)) {
+            ## Return bootstrap counts
+            cat("\n")
+            cat(sprintf("Number of bootstraps: %s",
+                        x$bootstraps))
+            if (x$failed.bootstraps > 0) {
+                cat(sprintf("(%s failed and redrawn)\n",
+                            x$failed.bootstraps > 0))
+            } else {
+                cat("\n")
+            }
+            ## Return confidence intervals and p-values
+            levels <- as.numeric(rownames(results$ci.pointestimate$ci1))
+            ciTypes <- c("nonparametric", "parametric")
+            for (i in 1:2) {
+                if (i == 1) ciType <- "nonparametric"
+                if (i == 2) ciType <- "normal quantiles"
+
+                ## Confidence intervals
+                cat("\nBootstrapped confidence intervals (",
+                    ciType, "):\n", sep = "")
+                for (j in 1:length(levels)) {
+                    cistr <- paste0("[",
+                                    fmtResult(x$ci.pointestimate[[i]][j, 1]),
+                                    ", ",
+                                    fmtResult(x$ci.pointestimate[[i]][j, 2]),
+                                    "]")
+                    cat("    ",
+                        levels[j] * 100,
+                        "%: ",
+                        cistr, "\n", sep = "")
+                }
+                ## p-values
+                cat("p-value: ",
+                    fmtResult(x$pvalue[i]), "\n", sep = "")
+            }
+            ## Return specification test
+            if (!is.null(x$jtest)) {
+                cat("\nBootstrapped J-test p-value: ",
+                    fmtResult(x$jtest), "\n", sep = "")
             }
         }
     }
