@@ -1514,9 +1514,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     }
                 }
             }
-            class(origEstimate) <- "ivmte"
             output <- origEstimate
             output$call.options <- opList
+            output <- output[sort(names(output))]
+            class(output) <- "ivmte"
             return(output)
         } else {
             ## Obtain audit grid from original estimate
@@ -1526,6 +1527,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             set.seed(seed)
             bseeds <- round(runif(bootstraps) * 1000000)
             boundEstimates <- NULL
+            propEstimates <- NULL
             b <- 1
             bootCriterion <- NULL
             bootFailN <- 0
@@ -1574,6 +1576,18 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     if (specification.test) {
                         bootCriterion <- c(bootCriterion,
                                            bootEstimate$audit.minobseq)
+                    }
+                    if (!"propensity.coef" %in% names(bootEstimate) &&
+                        class(bootEstimate$propensity$model)[1]
+                        != "data.frame" &&
+                           class(bootEstimate$propensity$model)[1]
+                        != "data.table") {
+                        propEstimates <-
+                            cbind(propEstimates,
+                                  bootEstimate$propensity$model$coef)
+                    } else {
+                        propEstimates <- cbind(propEstimates,
+                                               bootEstimate$propensity.coef)
                     }
                     b <- b + 1
                     if (noisy == TRUE) {
@@ -1640,7 +1654,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             ## Obtain standard errors of bounds
             bootSE <- apply(boundEstimates, 2, sd)
-            ## Construct confidence intervals
+            ## Construct confidence intervals for bounds
             if (ci.type == "backward" | ci.type == "forward") {
                 ci <- boundCI(bounds = origEstimate$bounds,
                               bounds.resamples = boundEstimates,
@@ -1670,6 +1684,38 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                           m = bootstraps.m,
                           levels = levels,
                           type = ci.type)
+            ## Construct confidence intervals for propensity scores
+            if (!is.null(propEstimates)) {
+                propensity.ci <- list()
+                if (!"propensity.coef" %in% names(origEstimate) &&
+                    class(origEstimate$propensity$model)[1]
+                    != "data.frame" &&
+                       class(origEstimate$propensity$model)[1]
+                    != "data.table") {
+                    propCoef <- origEstimate$propensity$model$coef
+                } else {
+                    propCoef <- origEstimate$propensity.coef
+                }
+                propSE  <- apply(propEstimates, 1, sd)
+                for (level in levels) {
+                    pLower <- (1 - level) / 2
+                    pUpper <- 1 - (1 - level) / 2
+                    probVec <- c(pLower, pUpper)
+                    tmpPropCi1 <- apply(propEstimates, 1, quantile,
+                                        probs = probVec,
+                                        type = 1)
+                    tmpPropCi2 <- sweep(x = tcrossprod(c(qnorm(pLower),
+                                                         qnorm(pUpper)),
+                                                       propSE), MARGIN = 2,
+                                        propCoef, FUN = "+")
+                    colnames(tmpPropCi2) <- colnames(tmpPropCi1)
+                    rownames(tmpPropCi2) <- rownames(tmpPropCi1)
+                    propensity.ci$ci1[[paste0("level", level * 100)]] <-
+                        t(tmpPropCi1)
+                    propensity.ci$ci2[[paste0("level", level * 100)]] <-
+                        t(tmpPropCi2)
+                }
+            }
             ## Obtain p-value
             if (ci.type == "backward") {
                 pvalue <- boundPValue(ci = ci,
@@ -1752,14 +1798,19 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             output <- c(origEstimate,
                         list(bounds.se = bootSE,
                              bounds.bootstraps = boundEstimates,
-                             ci = ci,
+                             bounds.ci = ci,
                              pvalue = pvalue,
                              bootstraps = bootstraps,
-                             failed.bootstraps = bootFailN))
+                             bootstraps.failed = bootFailN))
             if (specification.test) {
                 output$specification.pvalue <- criterionPValue
             }
+            if (!is.null(propEstimates)) {
+                output$propensity.se <- propSE
+                output$propensity.ci  <- propensity.ci
+            }
             output$call.options <- opList
+            output <- output[sort(names(output))]
             class(output) <- "ivmte"
             return(output)
         }
@@ -1773,9 +1824,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 fmtResult(origEstimate$pointestimate), "\n\n",
                 sep = "")
         }
-        class(origEstimate) <- "ivmte"
         output <- origEstimate
         output$call.options = opList
+        output <- output[sort(names(output))]
+        class(output) <- "ivmte"
         return(output)
     }
     ## Point estimate with resampling
@@ -1877,8 +1929,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     propEstimates <- cbind(propEstimates,
                                            bootEstimate$propensity.coef)
                 }
-                if (!is.null(bootEstimate$Jtest)) {
-                    jstats <- c(jstats, bootEstimate$Jtest[1])
+                if (!is.null(bootEstimate$jtest)) {
+                    jstats <- c(jstats, bootEstimate$jtest[1])
                 }
                 b <- b + 1
                 if (noisy == TRUE) {
@@ -1915,9 +1967,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         pnorm(-abs(origEstimate$pointestimate -
                                    mean(teEstimates)) / bootSE) * 2)
         if (!is.null(jstats)) {
-            jstats <- jstats - mean(jstats) + origEstimate$Jtest[3]
-            jtest <- c(mean(jstats >= origEstimate$Jtest[1]),
-                       origEstimate$Jtest[3])
+            jstats <- jstats - mean(jstats) + origEstimate$jtest[3]
+            jtest <- c(mean(jstats >= origEstimate$jtest[1]),
+                       origEstimate$jtest[3])
             names(jtest) <- c("p-value", "df")
         } else {
             jtest <- NULL
@@ -1978,44 +2030,44 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         output1 <- c(origEstimate,
                      list(pointestimate.se = bootSE,
                           mtr.se = mtrSE))
-        if (!is.null(propEstimates)) output1$prop.se <- propSE
+        if (!is.null(propEstimates)) output1$propensity.se <- propSE
         output1 <- c(output1,
                      list(pointestimate.bootstraps = teEstimates,
                           mtr.bootstraps = t(mtrEstimates)))
-        ci.pointestimate <- list()
-        ci.mtr <- list()
+        pointestimate.ci <- list()
+        mtr.ci <- list()
         if (!is.null(propEstimates)) {
-            ci.propensity <- list()
+            propensity.ci <- list()
         }
         for (level in levels) {
-            ci.pointestimate$ci1 <-
-                rbind(ci.pointestimate$ci1,
+            pointestimate.ci$ci1 <-
+                rbind(pointestimate.ci$ci1,
                       get(paste0("ci1", level * 100)))
-            ci.pointestimate$ci2 <-
-                rbind(ci.pointestimate$ci2,
+            pointestimate.ci$ci2 <-
+                rbind(pointestimate.ci$ci2,
                       get(paste0("ci2", level * 100)))
 
-            ci.mtr$ci1[[paste0("level", level * 100)]] <-
+            mtr.ci$ci1[[paste0("level", level * 100)]] <-
                 t(get(paste0("mtrci1", level * 100)))
-            ci.mtr$ci2[[paste0("level", level * 100)]] <-
+            mtr.ci$ci2[[paste0("level", level * 100)]] <-
                 t(get(paste0("mtrci2", level * 100)))
             if (!is.null(propEstimates)) {
-                ci.propensity$ci1[[paste0("level", level * 100)]] <-
+                propensity.ci$ci1[[paste0("level", level * 100)]] <-
                     t(get(paste0("propci1", level * 100)))
-                ci.propensity$ci2[[paste0("level", level * 100)]] <-
+                propensity.ci$ci2[[paste0("level", level * 100)]] <-
                     t(get(paste0("propci2", level * 100)))
             }
         }
-        rownames(ci.pointestimate$ci1) <- levels
-        rownames(ci.pointestimate$ci2) <- levels
-        colnames(ci.pointestimate$ci1) <- c("lb", "ub")
-        colnames(ci.pointestimate$ci2) <- c("lb", "ub")
-        output2 <- list(ci.pointestimate = ci.pointestimate,
-                        ci.mtr = ci.mtr,
-                        ci.propensity = ci.propensity)
+        rownames(pointestimate.ci$ci1) <- levels
+        rownames(pointestimate.ci$ci2) <- levels
+        colnames(pointestimate.ci$ci1) <- c("lb", "ub")
+        colnames(pointestimate.ci$ci2) <- c("lb", "ub")
+        output2 <- list(pointestimate.ci = pointestimate.ci,
+                        mtr.ci = mtr.ci,
+                        propensity.ci = propensity.ci)
         output3 <- list(pvalue = pvalue,
                         bootstraps = bootstraps,
-                        failed.bootstraps = length(bootFailIndex),
+                        bootstraps.failed = length(bootFailIndex),
                         jtest = jtest)
         output <- c(output1, output2, output3)
         if (noisy) {
@@ -2067,6 +2119,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                          boostrap samples.")), call. = FALSE)
         }
         output$call.options <- opList
+        output <- output[sort(names(output))]
         class(output) <- "ivmte"
         return(output)
     }
@@ -2512,7 +2565,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                      g1 = colMeans(gstar1)),
                         propensity = pmodel,
                         pointestimate = gmmResult$pointestimate,
-                        Jtest = gmmResult$Jtest,
+                        jtest = gmmResult$jtest,
                         mtr.coef = gmmResult$coef))
         } else {
             sset <- lapply(sset, function(x) {
@@ -2527,7 +2580,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                            gstar = list(g0 = colMeans(gstar0),
                                         g1 = colMeans(gstar1)),
                            pointestimate = gmmResult$pointestimate,
-                           Jtest = gmmResult$Jtest,
+                           jtest = gmmResult$jtest,
                            mtr.coef = gmmResult$coef)
             if (all(class(pmodel$model) != "NULL")) {
                 output$propensity.coef <- pmodel$model$coef
@@ -3523,13 +3576,13 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     }
     theta <- gmmObj$coefficients
     if (length(sset) > gn0 + gn1) {
-        Jtest <- gmmObj$objective * nrow(gstar0)
-        Jtest <- c(Jtest,
-                   1 - pchisq(Jtest, df = length(sset) - gn0 - gn1),
+        jtest <- gmmObj$objective * nrow(gstar0)
+        jtest <- c(jtest,
+                   1 - pchisq(jtest, df = length(sset) - gn0 - gn1),
                    length(sset) - gn0 - gn1)
-        names(Jtest) <- c("J-statistic", "p-value", "df")
+        names(jtest) <- c("J-statistic", "p-value", "df")
     } else {
-        Jtest <- NULL
+        jtest <- NULL
     }
     ## Construct point estimate and CI of TE
     names(theta) <- c(paste0("m0.", colnames(gstar0)),
@@ -3541,7 +3594,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     }
     return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta,
-                Jtest = Jtest))
+                jtest = jtest))
 }
 
 #' Format result for display
@@ -3629,15 +3682,15 @@ summary.ivmte <- function(x) {
             cat("\n")
             cat(sprintf("Number of bootstraps: %s",
                         x$bootstraps))
-            if (x$failed.bootstraps > 0) {
+            if (x$bootstraps.failed > 0) {
                 cat(sprintf("(%s failed and redrawn)\n",
-                            x$failed.bootstraps > 0))
+                            x$bootstraps.failed > 0))
             } else {
                 cat("\n")
             }
             ## Return confidence intervals and p-values
-            levels <- as.numeric(rownames(x$ci[[1]]))
-            ciTypes <- names(x$ci)
+            levels <- as.numeric(rownames(x$bounds.ci[[1]]))
+            ciTypes <- names(x$bounds.ci)
             ciN <- 1
             for (i in ciTypes) {
                 ## Confidence intervals
@@ -3645,9 +3698,9 @@ summary.ivmte <- function(x) {
                     i, "):\n", sep = "")
                 for (j in 1:length(levels)) {
                     cistr <- paste0("[",
-                                    fmtResult(x$ci[[i]][j, 1]),
+                                    fmtResult(x$bounds.ci[[i]][j, 1]),
                                     ", ",
-                                    fmtResult(x$ci[[i]][j, 2]),
+                                    fmtResult(x$bounds.ci[[i]][j, 2]),
                                     "]")
                     cat("    ",
                         levels[j] * 100,
@@ -3677,14 +3730,14 @@ summary.ivmte <- function(x) {
             cat("\n")
             cat(sprintf("Number of bootstraps: %s",
                         x$bootstraps))
-            if (x$failed.bootstraps > 0) {
+            if (x$bootstraps.failed > 0) {
                 cat(sprintf("(%s failed and redrawn)\n",
-                            x$failed.bootstraps > 0))
+                            x$bootstraps.failed > 0))
             } else {
                 cat("\n")
             }
             ## Return confidence intervals and p-values
-            levels <- as.numeric(rownames(results$ci.pointestimate$ci1))
+            levels <- as.numeric(rownames(results$pointestimate.ci$ci1))
             ciTypes <- c("nonparametric", "parametric")
             for (i in 1:2) {
                 if (i == 1) ciType <- "nonparametric"
@@ -3695,9 +3748,9 @@ summary.ivmte <- function(x) {
                     ciType, "):\n", sep = "")
                 for (j in 1:length(levels)) {
                     cistr <- paste0("[",
-                                    fmtResult(x$ci.pointestimate[[i]][j, 1]),
+                                    fmtResult(x$pointestimate.ci[[i]][j, 1]),
                                     ", ",
-                                    fmtResult(x$ci.pointestimate[[i]][j, 2]),
+                                    fmtResult(x$pointestimate.ci[[i]][j, 2]),
                                     "]")
                     cat("    ",
                         levels[j] * 100,
