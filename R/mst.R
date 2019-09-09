@@ -3518,6 +3518,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
              call. = FALSE)
     }
     if (qr(Amat)$rank < length(sset)) {
+        ## print("This part is wrong. Whenever you ar overidentified, this message will pop up.")
         qAmat <- qr(Amat)
         redundantMoments <- seq(length(sset))[-qAmat$pivot[seq(qAmat$rank)]]
         redundantNames <- sapply(redundantMoments,
@@ -3528,19 +3529,19 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
                                               function(x) sset[[x]]$ivspec),
                        b = redundantNames)
         colnames(redundantMat) <- c("IV specification", "Component")
-        cat("\nRedundant components:\n")
-        cat(paste0(capture.output(print(redundantMat, row.names = FALSE)),
-                   collapse = "\n"), "\n", sep = "")
-        stop(gsub("\\s+", " ",
-                  paste0("GMM system is collinear: there are ",
-                  length(sset),
-                  " moment conditions defined by the
-                    IV-like specifications, but only ",
-                  qr(Amat)$rank,
-                  " are linearly independent. The table above
-                  indicates the set of components whose moment conditions are
-                  linearly dependent and can be removed from the S-set.")),
-             call. = FALSE)
+        ## cat("\nRedundant components:\n")
+        ## cat(paste0(capture.output(print(redundantMat, row.names = FALSE)),
+        ##            collapse = "\n"), "\n", sep = "")
+        ## stop(gsub("\\s+", " ",
+        ##           paste0("GMM system is collinear: there are ",
+        ##           length(sset),
+        ##           " moment conditions defined by the
+        ##             IV-like specifications, but only ",
+        ##           qr(Amat)$rank,
+        ##           " are linearly independent. The table above
+        ##           indicates the set of components whose moment conditions are
+        ##           linearly dependent and can be removed from the S-set.")),
+        ##      call. = FALSE)
     }
     ## This function defines the moment conditions for the GMM
     ## estimator, allowing for recentering. The argument 'theta' is

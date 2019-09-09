@@ -54,7 +54,7 @@
 #'
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
-#' 
+#'
 #' ## Declare empty list to be updated (in the event multiple IV like
 #' ## specifications are provided
 #' sSet <- list()
@@ -479,11 +479,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
             audit_count <- audit_count + 1
             if (audit_count <= audit.max) {
                 if (noisy) {
+                    if (length(violateIndexes) > 1) ps <- 'points'
+                    if (length(violateIndexes) == 1) ps <- 'point'
                     cat("    ",
                         gsub("\\s+", " ",
                              paste0("Expanding constraint grid to
                                         include ", length(violateIndexes),
-                                    " additional points...")), sep = "")
+                                    " additional ", ps, "...")), sep = "")
                 }
             } else {
                 if (noisy) {
@@ -628,26 +630,40 @@ selectViolations <- function(diffVec, audit.add,
                                    mbmap))
     colnames(violateMat) <- c("row", "type", "grid.x")
     violateMat$diff <- diffVec
-    violateMat <- violateMat[order(violateMat$type,
-                                   violateMat$grid.x,
-                                   violateMat$diff), ]
-    violateMat$i <- seq(1, nrow(violateMat))
-    violateMat[violateMat$diff <= 0, "i"] <- 0
-    ## For each point in the X-grid, find the U that violats
-    ## the constraints the most
-    vmaxu <- aggregate(violateMat$i,
-                       by = list(violateMat$type,
-                                 violateMat$grid.x),
-                       FUN = max)
-    vmaxu <- vmaxu$x
-    vmaxu <- vmaxu[vmaxu > 0]
-    violateMat <- violateMat[vmaxu, ]
-    ## Select audit.add number of points to add to the constraint grid
-    violateMat <- violateMat[order(violateMat$type,
-                                   -violateMat$diff), ]
-    violateMat$counts <- c(unlist(sapply(table(violateMat$type),
-                                         function(x) seq(1, x))))
-    violateMat <- violateMat[violateMat$counts <= audit.add, ]
-
-    return(violateMat)
+    violateMat <- violateMat[violateMat$diff > 0, ]
+    if (nrow(violateMat) < audit.add) {
+        return(violateMat)
+    } else {
+        ## For each point in the X-grid, find the U that violats
+        ## the constraints the most
+        violateMat <- violateMat[order(violateMat$type,
+                                       violateMat$grid.x,
+                                       -violateMat$diff), ]
+        violateMat$group.name <- paste0(violateMat$type,
+                                        ".", violateMat$grid.x)
+        violateMat$group.count <- unlist(sapply(table(violateMat$group.name),
+                                                function(x) seq(x)))
+        if (nrow(violateMat[violateMat$group.count <= 1, ]) >= audit.add) {
+            return(violateMat[violateMat$group.count <= 1, ])
+        } else {
+            k <- 2
+            for (i in 2:max(violateMat$group.count)) {
+                if (nrow(violateMat[violateMat$group.count <= k, ]) >=
+                    audit.add) {
+                    break
+                } else {
+                    k <- k + 1
+                }
+            }
+            vmatTmp <- violateMat[violateMat$group.count <= (k - 1), ]
+            vmatAdd <- violateMat[violateMat$group.count == k, ]
+            vmatAdd <- vmatAdd[order(-vmatAdd$diff), ]
+            vmatAdd <- vmatAdd[1:(audit.add - nrow(vmatTmp)), ]
+            violateMat <- rbind(vmatTmp, vmatAdd)
+            violateMat <- violateMat[order(violateMat$type,
+                                           violateMat$grid.x,
+                                           -violateMat$diff), ]
+            return(violateMat)
+        }
+    }
 }
