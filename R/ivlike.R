@@ -284,7 +284,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
                          excluded = TRUE)
             bhat <- ivfit$coef
             collinearInst <- ivfit$collinearInst
-            if (sum(is.na(bhat)) || sum(collinearInst)) {
+            if (sum(is.na(bhat)) | sum(collinearInst)) {
                 if (sum(is.na(bhat))) {
                     collinearPos <- which(is.na(bhat))
                     mfX <- mf$X[, -collinearPos]
@@ -302,7 +302,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
                     mfZ <- mf$Z
                 }
                 sweight <- tsls(mfX, mfZ, components, treat, order)
-                bhat <- bhat[-collinearPos]
+                if (sum(is.na(bhat))) bhat <- bhat[-collinearPos]
             } else {
                 sweight <- tsls(mf$X, mf$Z, components, treat, order)
             }
