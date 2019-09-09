@@ -3517,32 +3517,31 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
                     IV-like specifications, or adjust m0 and m1.")),
              call. = FALSE)
     }
-    if (qr(Amat)$rank < length(sset)) {
-        ## print("This part is wrong. Whenever you ar overidentified, this message will pop up.")
-        qAmat <- qr(Amat)
-        redundantMoments <- seq(length(sset))[-qAmat$pivot[seq(qAmat$rank)]]
-        redundantNames <- sapply(redundantMoments,
-                                 function(x) names(sset[[x]]$beta))
-        redundantNames[redundantNames == "(Intercept)"] <- "intercept"
-        redundantMat <-
-            data.frame(a = sapply(redundantMoments,
-                                              function(x) sset[[x]]$ivspec),
-                       b = redundantNames)
-        colnames(redundantMat) <- c("IV specification", "Component")
-        ## cat("\nRedundant components:\n")
-        ## cat(paste0(capture.output(print(redundantMat, row.names = FALSE)),
-        ##            collapse = "\n"), "\n", sep = "")
-        ## stop(gsub("\\s+", " ",
-        ##           paste0("GMM system is collinear: there are ",
-        ##           length(sset),
-        ##           " moment conditions defined by the
-        ##             IV-like specifications, but only ",
-        ##           qr(Amat)$rank,
-        ##           " are linearly independent. The table above
-        ##           indicates the set of components whose moment conditions are
-        ##           linearly dependent and can be removed from the S-set.")),
-        ##      call. = FALSE)
-    }
+    ## if (qr(Amat)$rank < length(sset)) {
+    ##     qAmat <- qr(Amat)
+    ##     redundantMoments <- seq(length(sset))[-qAmat$pivot[seq(qAmat$rank)]]
+    ##     redundantNames <- sapply(redundantMoments,
+    ##                              function(x) names(sset[[x]]$beta))
+    ##     redundantNames[redundantNames == "(Intercept)"] <- "intercept"
+    ##     redundantMat <-
+    ##         data.frame(a = sapply(redundantMoments,
+    ##                                           function(x) sset[[x]]$ivspec),
+    ##                    b = redundantNames)
+    ##     colnames(redundantMat) <- c("IV specification", "Component")
+    ##     cat("\nRedundant components:\n")
+    ##     cat(paste0(capture.output(print(redundantMat, row.names = FALSE)),
+    ##                collapse = "\n"), "\n", sep = "")
+    ##     stop(gsub("\\s+", " ",
+    ##               paste0("GMM system is collinear: there are ",
+    ##               length(sset),
+    ##               " moment conditions defined by the
+    ##                 IV-like specifications, but only ",
+    ##               qr(Amat)$rank,
+    ##               " are linearly independent. The table above
+    ##               indicates the set of components whose moment conditions are
+    ##               linearly dependent and can be removed from the S-set.")),
+    ##          call. = FALSE)
+    ## }
     ## This function defines the moment conditions for the GMM
     ## estimator, allowing for recentering. The argument 'theta' is
     ## for a vector storing the parameters of interest in the
@@ -3574,13 +3573,24 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     }
     ## Perform GMM
     if (identity == FALSE) {
-        gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
-                           t0 = rep(0, times = (gn0 + gn1)),
-                           prewhite = 1)
+        gmmObj <- try(gmm::gmm(momentConditions, x = momentMatrix(),
+                               t0 = rep(0, times = (gn0 + gn1)),
+                               prewhite = 0), silent = TRUE)
+        if (class(gmmObj) == "try-error") {
+            gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
+                               t0 = rep(0, times = (gn0 + gn1)),
+                               prewhite = 0, wmatrix = "ident")
+            warning(gsub("\\s+", " ",
+                         "Failure in estimating optimal weighting matrix,
+                          which can occur due to redundant moments.
+                          GMM estimate performed using identity
+                          weighting matrix."),
+                    call. = FALSE)
+        }
     } else {
         gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
                            t0 = rep(0, times = (gn0 + gn1)),
-                           prewhite = 1, wmatrix = "ident")
+                           prewhite = 0, wmatrix = "ident")
     }
     theta <- gmmObj$coefficients
     if (length(sset) > gn0 + gn1) {
