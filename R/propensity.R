@@ -40,7 +40,7 @@
 #'
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
-#' 
+#'
 #' ## Declaring a probability model.
 #' propensity(formula = d ~ z,
 #'                data = dtm,
@@ -95,25 +95,6 @@ propensity <- function(formula, data, link = "logit", late.Z,
             stop('Provided propensity scores are not between 0 and 1.')
         }
         model <- NULL
-        if (hasArg(late.Z)) {
-            ## Generate a matrix of propensity scores corresponding to
-            ## each X and Z---this only works if the X and Z are
-            ## declared for the LATE variables.
-            propVars <- NULL
-            if (hasArg(late.X)) propVars <- c(propVars, late.X)
-            if (hasArg(late.Z)) propVars <- c(propVars, late.Z)
-            propVars <- c(propVars, pname)
-            model <- unique(data[, propVars])
-            ## There should be no duplicate (X, Z)s in the model
-            ## (i.e. for each set of (X, Z), there should only be one
-            ## propensity score)
-            if(max(duplicated(model[, c(late.X, late.Z)]))) {
-                stop(gsub("\\s+", " ",
-                          "Custom propensity score is not well defined: some
-                          (X, Z) values are mapped to more than one
-                          propensity."))
-           }
-        }
         return(list(variable = pname, model = model, phat = phat))
     } else {
         stop(gsub("\\s+", " ",

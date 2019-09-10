@@ -145,22 +145,6 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
         bto   <- predict.glm(model, fixDataTo,
                            type = "response")
     }
-    ## Predict propensity scores using data.frame model
-    if (modclass == "data.frame") {
-        cond_from <- mapply(function(a, b) paste(a, "==", b), Z, from)
-        cond_from <- paste(cond_from, collapse = " & ")
-        cond_to <- mapply(function(a, b) paste(a, "==", b), Z, to)
-        cond_to <- paste(cond_to, collapse = " & ")
-        if (!is.null(X)) {
-            condX <- mapply(function(a, b) paste(a, "==", b), X, eval.X)
-            condX <- paste(condX, collapse = " & ")
-            cond_from <- paste(c(cond_from, condX), collapse = " & ")
-            cond_to   <- paste(c(cond_to, condX), collapse = " & ")
-        }
-        pname <- colnames(model)[(!colnames(model) %in% c(Z, X))]
-        bfrom <- subset(model, eval(parse(text = cond_from)))[, pname]
-        bto   <- subset(model, eval(parse(text = cond_to)))[, pname]
-    }
     ## Ensure the bounds are within 0 and 1
     if (length(which(bfrom < 0)) > 0 | length(which(bto < 0)) > 0) {
         warning("Propensity scores below 0 set to 0.", immediate. = TRUE)
