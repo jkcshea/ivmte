@@ -642,7 +642,7 @@ selectViolations <- function(diffVec, audit.add,
                                        -violateMat$diff), ]
         violateMat$group.name <- paste0(violateMat$type,
                                         ".", violateMat$grid.x)
-        violateMat$group.count <- unlist(sapply(table(violateMat$group.name),
+        violateMat$group.count <- unlist(lapply(table(violateMat$group.name),
                                                 function(x) seq(x)))
         if (nrow(violateMat[violateMat$group.count <= 1, ]) >= audit.add) {
             return(violateMat[violateMat$group.count <= 1, ])

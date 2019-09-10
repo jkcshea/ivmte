@@ -496,7 +496,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 ## restrict to expressions only. Below is the code to
                 ## revert to the case where logical vectors are
                 ## allowed.
-                ##
                 ## subsetList <- list()
                 ## subsetList[[1]] <- subset
                 ## subset <- subsetList
@@ -1053,7 +1052,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (length(propensity) == 3) {
                 ptreat <- all.vars(propensity)[1]
                 vars_propensity <- all.vars(propensity)
-                if (target == "late") {
+                if (hasArg(target) && target == "late") {
                     if (!all(late.Z %in% vars_propensity)) {
                         stop (gsub("\\s+", " ",
                                    "All variables in 'late.to' and 'late.from'
@@ -1286,13 +1285,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                      call. = FALSE)
             }
         }
-        if (length(late.Z) + nLateX != length(vars_propensity) - 1) {
-            stop(gsub("\\s+", " ",
-                      "When estimating the LATE, all covariates in the
-                       propensity model must be fixed using 'late.Z' and
-                       'late.X'. Currently, not all variables are fixed."),
-                 call. = FALSE)
-        }
+        ## if (length(late.Z) + nLateX != length(vars_propensity) - 1) {
+        ##     stop(gsub("\\s+", " ",
+        ##               "When estimating the LATE, all covariates in the
+        ##                propensity model must be fixed using 'late.Z' and
+        ##                'late.X'. Currently, not all variables are fixed."),
+        ##          call. = FALSE)
+        ## }
     }
     ## Keep only complete cases
     varFound1 <- sapply(allvars, exists, where = data)

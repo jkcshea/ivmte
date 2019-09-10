@@ -118,8 +118,17 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
         colnames(fixDataFrom) <- c(X, Z)
         colnames(fixDataTo)   <- c(X, Z)
     }
-    ## Determine the type of model we are working with (lm vs. glm)
+    ## Determine the type of model we are working with (lm vs. glm),
+    ## and update the to/from values for the LATE
     modclass <- class(model)[1]
+    if (modclass != "data.frame") {
+        pvars <- names(model$coef)
+        pxvars <- pvars[!pvars %in% c(X, Z, "(Intercept)")]
+    }
+    pxdata <- data.frame(data[, pxvars])
+    colnames(pxdata) <- pxvars
+    fixDataFrom <- cbind(pxdata, fixDataFrom[rep(1, nrow(data)), ])
+    fixDataTo <- cbind(pxdata, fixDataTo[rep(1, nrow(data)), ])
     ## Predict propensity scores for 'from' case
     if (modclass ==  "lm") {
         bfrom <- predict.lm(model, fixDataFrom)

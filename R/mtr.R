@@ -52,7 +52,7 @@ vecextract <- function(vector, position, truncation = 0) {
 #'
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
-#' 
+#'
 #' ## Declare MTR functions
 #' formula1 = ~ 1 + u
 #' formula0 = ~ 1 + u
@@ -249,7 +249,7 @@ polyProduct <- function(poly1, poly2) {
 #'
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
-#' 
+#'
 #' ## Declare MTR formula
 #' formula0 = ~ 1 + u
 #'

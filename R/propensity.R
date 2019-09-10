@@ -56,6 +56,7 @@ propensity <- function(formula, data, link = "logit", late.Z,
                        late.X, env = parent.frame()) {
     formula <- Formula::as.Formula(formula)
     environment(formula) <- env
+    propVars <- all.vars(formula)
     ## If two-sided formula is provided, estimate propensity score
     ## accordingly
     if (length(formula)[1] == 1 & length(formula)[2] == 1) {
