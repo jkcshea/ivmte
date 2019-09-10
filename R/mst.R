@@ -1576,7 +1576,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                              bootEstimate$bound)
                     if (specification.test) {
                         bootCriterion <- c(bootCriterion,
-                                           bootEstimate$audit.minobseq)
+                                           bootEstimate$specification.test)
                     }
                     if (!"propensity.coef" %in% names(bootEstimate) &&
                         class(bootEstimate$propensity$model)[1]
@@ -2732,9 +2732,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             output$propensity.coef <- pmodel$model$coef
         }
     }
-    if (save.grid) {
-        output$audit.grid$a_mbobj <- audit$gridobj$a_mbobj
-    }
+    if (save.grid) output$audit.grid$a_mbobj <- audit$gridobj$a_mbobj
+    if (!is.null(audit$spectest)) output$specification.test <- audit$spectest
     return(output)
 }
 

@@ -239,9 +239,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
 
         ## Minimize violation of observational equivalence
-        lpobj <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
+        lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
-        minobseq <- obsEqMin(sset, orig.sset, orig.criterion,
+        minobseq <- obsEqMin(sset, NULL, NULL,
                              obseq.tol, lpobj, lpsolver)
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
@@ -251,15 +251,15 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
             lpobjAlt <- lpSetup(sset = sset,
-                                orig.sset = orig.sset,
+                                orig.sset = NULL,
                                 mbA = mbobj$mbA,
                                 mbs = mbobj$mbs,
                                 mbrhs = mbobj$mbrhs,
                                 lpsolver = lpsolver,
                                 shape = FALSE)
             minobseqAlt <- obsEqMin(sset = sset,
-                                    orig.sset = orig.sset,
-                                    orig.criterion = orig.criterion,
+                                    orig.sset = NULL,
+                                    orig.criterion = NULL,
                                     obseq.tol = obseq.tol,
                                     lpobj = lpobjAlt,
                                     lpsolver = lpsolver)
@@ -340,6 +340,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (noisy) {
             cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
                 sep = "")
+        }
+        ## Perform specification test
+        if (!is.null(orig.sset) & !is.null(orig.criterion)) {
+            lpobjTest <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
+                                 mbobj$mbrhs, lpsolver)
+            minobseqTest <- obsEqMin(sset, orig.sset, orig.criterion,
+                                     obseq.tol, lpobjTest, lpsolver)
         }
 
         ## Obtain bounds
@@ -428,11 +435,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                          monov = monov))
                 a_mbobj <- eval(monoboundAcall)
             } else {
-                if (!is.null(orig.sset)) {
-                    sn <- length(orig.sset)
-                } else {
-                    sn <- length(sset)
-                }
+                sn <- length(sset)
                 a_mbobj <- audit.grid
             }
             a_mbA <- a_mbobj$mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)]
@@ -546,6 +549,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                   audit = a_mbobj$gridobj,
                                   violations = violations),
                    auditcount = audit_count)
+    if (!is.null(orig.sset) && !is.null(orig.criterion)) {
+        output$spectest = minobseqTest$obj
+    }
     if (save.grid) {
         output$gridobj$a_mbobj <- a_mbobj
     }
