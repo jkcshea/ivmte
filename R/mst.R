@@ -614,13 +614,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                  call. = FALSE)
         }
         if (target == "late") {
+            ## Check the LATE arguments are declared properly.
             if (!(hasArg(late.to) & hasArg(late.from))) {
                 stop(gsub("\\s+", " ",
-                          "Target paramter of 'late' requires arguments
+                          "Target paramter 'late' requires arguments
                           'late.to', and 'late.from'."),
                      call. = FALSE)
             }
-            ## Check the LATE arguments are declared properly.
             if (classList(late.to)) late.to <- unlist(late.to)
             if (classList(late.from)) late.from <- unlist(late.from)
             zIsVec <- substr(deparse(substitute(late.Z)), 1, 2) == "c("
@@ -1097,8 +1097,22 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 } else {
                     treat <- treatStr
                 }
+                if (hasArg(target) && target == 'late') {
+                    stop(gsub("\\s+", " ",
+                              "Target parameter 'late' requires a propensity
+                           score model. Agrument 'propensity' should be
+                           a two-sided formula."),
+                         call. = FALSE)
+                }
             }
         } else {
+            if (hasArg(target) && target == 'late') {
+                stop(gsub("\\s+", " ",
+                          "Target parameter 'late' requires a propensity
+                           score model. Agrument 'propensity' should be
+                           a two-sided formula."),
+                     call. = FALSE)
+            }
             propStr <- deparse(substitute(propensity))
             propStr <- gsub("~", "", propStr)
             propStr <- gsub("\\\"", "", propStr)
@@ -1285,13 +1299,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                      call. = FALSE)
             }
         }
-        ## if (length(late.Z) + nLateX != length(vars_propensity) - 1) {
-        ##     stop(gsub("\\s+", " ",
-        ##               "When estimating the LATE, all covariates in the
-        ##                propensity model must be fixed using 'late.Z' and
-        ##                'late.X'. Currently, not all variables are fixed."),
-        ##          call. = FALSE)
-        ## }
     }
     ## Keep only complete cases
     varFound1 <- sapply(allvars, exists, where = data)
@@ -1578,10 +1585,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                            bootEstimate$specification.test)
                     }
                     if (!"propensity.coef" %in% names(bootEstimate) &&
-                        class(bootEstimate$propensity$model)[1]
-                        != "data.frame" &&
-                           class(bootEstimate$propensity$model)[1]
-                        != "data.table") {
+                        (class(bootEstimate$propensity$model)[1] == "lm" |
+                         class(bootEstimate$propensity$model)[1] == "glm")) {
                         propEstimates <-
                             cbind(propEstimates,
                                   bootEstimate$propensity$model$coef)
