@@ -397,10 +397,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                     colnames(a_grid) <- uname
                     a_grid_index <- NULL
                 } else {
-                    resid_support <- support[grid_resid, ]
-                    if (is.null(dim(resid_support))) {
-                        resid_support <- as.matrix(resid_support)
-                    }
                     ## Generate alternate grid from residual indexes
                     audit.nx <- min(audit.nx, length(grid_resid))
                     if (audit.nx == length(grid_resid)) {
@@ -409,9 +405,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         a_grid_index <- sample(grid_resid,
                                                audit.nx,
                                                replace = FALSE,
-                                               prob = replicate(
-                                                   nrow(resid_support),
-                                               (1 / nrow(resid_support))))
+                                               prob = replicate(audit.nx,
+                                               (1 / audit.nx)))
                     }
                     if (length(a_grid_index) == 0) {
                         a_grid_index <- grid_index
