@@ -3677,6 +3677,7 @@ print.ivmte <- function(x, ...) {
         cat(sprintf("Point estimate of the target parameter: %s\n",
                     fmtResult(x$pointestimate)))
     }
+    cat("\n")
 }
 
 #' Summarize results
@@ -3797,4 +3798,5 @@ summary.ivmte <- function(object, ...) {
             }
         }
     }
+    cat("\n")
 }
