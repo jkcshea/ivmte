@@ -668,3 +668,26 @@ selectViolations <- function(diffVec, audit.add,
         }
     }
 }
+
+#' Generate Halton sequence
+#'
+#' This function generates a one dimensional Halton sequence.
+#'
+#' @param n Number of draws.
+#' @param base Base used for the Halton sequence, set to 2 by default.
+#' @return A sequence of randomly drawn numbers.
+rhalton <- function(n, base = 2) {
+    output <- NULL
+    for (j in 1:n) {
+        f <- 1
+        r <- 0
+        i <- j
+        while(i > 0) {
+            f  <- f / base
+            r <- r + f * (i %% base)
+            i <- floor(i / base)
+        }
+        output <- c(output, r)
+    }
+    return(output)
+}
