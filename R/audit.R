@@ -178,7 +178,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                      ## variable. I use this in case I want to
                      ## generalize the monotonciity restrictions to
                      ## other covariates
-    uvec <- round(seq(0, 1, length.out = initgrid.nu), 8)
     xvars <- unique(vars_mtr)
     xvars <- xvars[xvars != uname]
     xvars <- xvars[xvars %in% vars_data]
@@ -193,37 +192,50 @@ audit <- function(data, uname, m0, m1, splinesobj,
     ## deal with case in which there are no covariates.
     if (length(xvars) == 0) {
         noX <- TRUE
-        grid_index <- NULL
     } else {
         noX <- FALSE
         rownames(support) <- seq(1, nrow(support))
         ## Select first iteration of the grid
         full_index <- seq(1, nrow(support))
         initgrid.nx <- min(initgrid.nx, nrow(support))
-        grid_index <- sample(full_index,
-                             initgrid.nx,
-                             replace = FALSE,
-                             prob = replicate(nrow(support), (1/nrow(support))))
-        grid_resid <- full_index[!(full_index %in% grid_index)]
+        audit.nx <- min(audit.nx, nrow(support))
     }
     ## Begin performing the audit
     prevbound <- c(-Inf, Inf)
     existsolution <- FALSE
     audit_count <- 1
-    while (audit_count <= audit.max) {
-        if (noisy) {
-            cat("\n\n    Audit count: ", audit_count, "\n", sep = "")
-        }
-        ## Generate all monotonicity and boundedness matrices for initial grid
-        if (audit_count == 1) {
-            if (noisy) cat("    Generating initial constraint grid...\n")
-            monoboundAlist <- c('sset', 'gstar0', 'gstar1',
-                                'm1.ub', 'm0.ub',
-                                'm1.lb', 'm0.lb',
-                                'mte.ub', 'mte.lb',
-                                'm0.dec', 'm0.inc',
-                                'm1.dec', 'm1.inc',
-                                'mte.dec', 'mte.inc')
+    ## Generate a new grid for the audit
+    monoboundAlist <- c('sset', 'gstar0', 'gstar1',
+                        'm1.ub', 'm0.ub',
+                        'm1.lb', 'm0.lb',
+                        'mte.ub', 'mte.lb',
+                        'm0.dec', 'm0.inc',
+                        'm1.dec', 'm1.inc',
+                        'mte.dec', 'mte.inc')
+    if (audit_count == 1) {
+        if (is.null(audit.grid)) {
+            sn <- length(sset)
+            a_uvec <- sort(c(round(rhalton(audit.nu), 8)))
+            if (noX) {
+                a_grid <- data.frame(a_uvec)
+                colnames(a_grid) <- uname
+                a_grid_index <- NULL
+            } else {
+                ## Generate alternate grid from residual indexes
+                if (audit.nx == length(full_index)) {
+                    a_grid_index <- full_index
+                } else {
+                    a_grid_index <- sort(
+                        sample(full_index,
+                               audit.nx,
+                               replace = FALSE,
+                               prob = replicate(length(full_index),
+                               (1 / length(full_index)))))
+                }
+            }
+            ## Generate all monotonicity and boundedness matrices
+            ## for the audit
+            if (noisy) cat("    Generating audit grid...\n")
             monoboundAcall <- modcall(call,
                                       newcall = genmonoboundA,
                                       keepargs = monoboundAlist,
@@ -231,13 +243,53 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                      m1 = m1,
                                                      uname = uname,
                                                      support = support,
-                                                     grid_index = grid_index,
-                                                     uvec = uvec,
-                                                     splinesobj = splinesobj,
+                                                     grid_index =
+                                                         a_grid_index,
+                                                     uvec = a_uvec,
+                                                     splinesobj =
+                                                         splinesobj,
                                                      monov = monov))
-            mbobj <- eval(monoboundAcall)
+            a_mbobj <- eval(monoboundAcall)
+        } else {
+            sn <- length(sset)
+            a_mbobj <- audit.grid
         }
+        a_mbA <- a_mbobj$mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)]
+        negatepos <- which(a_mbobj$mbs == ">=")
+        a_mbA[negatepos, ] <- -a_mbA[negatepos, ]
+        a_mbrhs <- a_mbobj$mbrhs
+        a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
+        ## Generate all monotonicity and boundedness matrices for initial grid
+        if (noisy) cat("    Generating initial constraint grid...\n")
+        if (noX) {
+            grid_index <- NULL
+        } else {
+            grid_index <- sort(
+                sample(a_grid_index,
+                       initgrid.nx,
+                       replace = FALSE,
+                       prob = replicate(length(a_grid_index),
+                       (1/length(a_grid_index)))))
+        }
+        uvec <- sort(c(round(rhalton(initgrid.nu), 8)))
+        monoboundAcall <- modcall(call,
+                                  newcall = genmonoboundA,
+                                  keepargs = monoboundAlist,
+                                  newargs = list(m0 = m0,
+                                                 m1 = m1,
+                                                 uname = uname,
+                                                 support = support,
+                                                 grid_index = grid_index,
+                                                 uvec = uvec,
+                                                 splinesobj = splinesobj,
+                                                 monov = monov))
+        mbobj <- eval(monoboundAcall)
+    }
 
+    while (audit_count <= audit.max) {
+        if (noisy) {
+            cat("\n\n    Audit count: ", audit_count, "\n", sep = "")
+        }
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
@@ -387,58 +439,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             if (existsolution == FALSE) existsolution <- TRUE
             prevbound <- c(lpresult$min, lpresult$max)
         }
-        ## Generate a new grid for the audit
-        if (audit_count == 1) {
-            if (is.null(audit.grid)) {
-                sn <- length(sset)
-                a_uvec <- sort(c(round(runif(audit.nu), 8), 0, 1))
-                if (noX) {
-                    a_grid <- data.frame(a_uvec)
-                    colnames(a_grid) <- uname
-                    a_grid_index <- NULL
-                } else {
-                    ## Generate alternate grid from residual indexes
-                    audit.nx <- min(audit.nx, length(grid_resid))
-                    if (audit.nx == length(grid_resid)) {
-                        a_grid_index <- grid_resid
-                    } else {
-                        a_grid_index <- sample(grid_resid,
-                                               audit.nx,
-                                               replace = FALSE,
-                                               prob = replicate(audit.nx,
-                                               (1 / audit.nx)))
-                    }
-                    if (length(a_grid_index) == 0) {
-                        a_grid_index <- grid_index
-                    }
-                }
-                ## Generate all monotonicity and boundedness matrices
-                ## for the audit
-                if (noisy) cat("    Generating audit grid...\n")
-                monoboundAcall <- modcall(call,
-                                          newcall = genmonoboundA,
-                                          keepargs = monoboundAlist,
-                                          newargs = list(m0 = m0,
-                                                         m1 = m1,
-                                                         uname = uname,
-                                                         support = support,
-                                                         grid_index =
-                                                             a_grid_index,
-                                                         uvec = a_uvec,
-                                                         splinesobj =
-                                                             splinesobj,
-                                                         monov = monov))
-                a_mbobj <- eval(monoboundAcall)
-            } else {
-                sn <- length(sset)
-                a_mbobj <- audit.grid
-            }
-            a_mbA <- a_mbobj$mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)]
-            negatepos <- which(a_mbobj$mbs == ">=")
-            a_mbA[negatepos, ] <- -a_mbA[negatepos, ]
-            a_mbrhs <- a_mbobj$mbrhs
-            a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
-        }
+
         ## Test for violations for minimization problem
         violateDiffMin <- round(a_mbA %*% solVecMin - a_mbrhs,
                                 digits = 10)

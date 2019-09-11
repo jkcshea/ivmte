@@ -846,6 +846,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         stop("'audit.nx' must be an integer greater than or equal to 1.",
              call. = FALSE)
     }
+    if (audit.nx < initgrid.nx) {
+        stop("'audit.nx' must be larger than 'initgrid.nx'.")
+    }
+    if (audit.nu < initgrid.nu) {
+        stop("'audit.nu' must be larger than 'initgrid.nu'.")
+    }
     if (!((audit.add %% 1 == 0) & audit.add > 0)) {
         stop("'audit.add' must be an integer greater than or equal to 1.",
              call. = FALSE)
@@ -2598,7 +2604,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ## 4. Define constraint matrices using the audit
     ##---------------------------
     if (noisy == TRUE) {
-        cat("Performing audit procedure...")
+        cat("Performing audit procedure...\n")
     }
     audit.args <- c("uname", "vars_data",
                     "initgrid.nu", "initgrid.nx",
