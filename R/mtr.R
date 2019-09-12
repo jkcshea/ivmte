@@ -439,8 +439,20 @@ removeSplines <- function(formula, env = parent.frame()) {
             ## Recover original spline names
             interobjStr <- gsub("\\)", "\\\\)",
                                 gsub("\\(", "\\\\(", interobj))
+            interobjStr <- gsub("\\^", "\\\\^", interobjStr)
             if (interobjStr != "1") {
-                origSpline <- gsub(":", "", gsub(interobjStr, "", splineobj))
+                vlist <- unlist(strsplit(interobjStr, ":"))
+                for (v in vlist) {
+                    if (grepl(paste0("^", v, ":"), splineobj)) {
+                        splineobj <- gsub(paste0("^", v, ":"), "", splineobj)
+                    }
+                    if (grepl(paste0(":", v, ":"), splineobj)) {
+                        splineobj <- gsub(paste0(":", v, ":"), ":", splineobj)
+                    }
+                    if (grepl(paste0(":", v, "$"), splineobj)) {
+                        splineobj <- gsub(paste0(":", v, "$"), "", splineobj)
+                    }
+                }
             } else {
                 origSpline <- splineobj
             }
