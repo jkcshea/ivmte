@@ -2273,6 +2273,32 @@ boundPValue <- function(ci, bounds, bounds.resamples, n, m, levels,
     return(1 - levelLB)
 }
 
+#' Check polynomial form of the u-term
+#'
+#' This function ensures that the unobservable term enters into the
+#' MTR in the correct manner. That is, it enters as a polynomial.
+#'
+#' @param formula a formula.
+#' @param uname name of the unobserved variable.
+#' @return If the unobservable term is entered correctly into the
+#'     formula, then \code{NULL} is returned. Otherwise, the vector of
+#'     incorrect terms is returned.
+checkU <- function(formula, uname) {
+    termsList <- attr(terms(formula), "term.labels")
+    termsList <- unique(unlist(strsplit(termsList, ":")))
+    print(termsList)
+    termsVarList <- lapply(termsList, function(x) {
+        all.vars(as.formula(paste("~", x)))
+    })
+    upos <- unlist(lapply(termsVarList, function(x) uname %in% x))
+    parPos <- unlist(lapply(termsList, function(x) grepl("\\(", x)))
+    termsList <- termsList[as.logical(upos * parPos)]
+    checkVec <- grepl(paste0("^I\\(", uname, "\\^[0-9]+\\)$"), termsList)
+    if (all(checkVec))  errorTermsFormula <- NULL
+    if (!all(checkVec)) errorTermsFormula <- termsList[!checkVec]
+    return(errorTermsFormula)
+}
+
 #' Single iteration of estimation procedure from Mogstad, Torgovitsky,
 #' Santos (2018)
 #'
