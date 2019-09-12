@@ -1018,14 +1018,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                           collapse = "+"))), uname)
     }
     if (length(m0uCheck) + length(m0uSplineCheck) > 0) {
-        message0 <- paste("m0:",
+        message0 <- paste("  m0:",
                           paste(c(m0uCheck, m0uSplineCheck), collapse = ", "),
                           "\n")
     } else {
         message0 <- NULL
     }
     if (length(m1uCheck) + length(m1uSplineCheck) > 0) {
-        message1 <- paste("m1:",
+        message1 <- paste("  m1:",
                           paste(c(m1uCheck, m1uSplineCheck), collapse = ", "),
                           "\n")
 
@@ -1038,9 +1038,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         } else {
             egv <- "v"
         }
-        e1 <- paste0(uname, ", I(", uname, " ^ 3)")
-        e2 <- paste0(egv, ":", uname, ", ", egv, ":I(", uname, " ^ 3)")
-        e3 <- paste0("exp(", uname, "), I((", egv, " * ", uname, ") ^ 2)")
+        e1 <- paste0(uname, ", I(", uname, "^3)")
+        e2 <- paste0(egv, ":", uname, ", ", egv, ":I(", uname, "^3)")
+        e3 <- paste0("exp(", uname, "), I((", egv, " * ", uname, ")^2)")
         stop(gsub("\\s+", " ",
                   "The following terms are not declared properly."),
              "\n", message0, message1,
