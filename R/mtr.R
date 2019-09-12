@@ -453,10 +453,7 @@ removeSplines <- function(formula, env = parent.frame()) {
                         splineobj <- gsub(paste0(":", v, "$"), "", splineobj)
                     }
                 }
-            } else {
-                origSpline <- splineobj
             }
-            splinescall[[splinecmd]] <- origSpline
         }
         ## Now construct spline dictionary and spline keys
         splinesDict <- list()

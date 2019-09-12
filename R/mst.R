@@ -995,10 +995,67 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     }
     ## Collect list of all terms used in MTRs
     parentFrame <- parent.frame()
-    splinesobj <- list(removeSplines(m0, env = parentFrame),
-                       removeSplines(m1, env = parentFrame))
     origm0 <- m0
     origm1 <- m1
+    splinesobj <- list(removeSplines(m0, env = parentFrame),
+                       removeSplines(m1, env = parentFrame))
+    m0uCheck <- checkU(splinesobj[[1]]$formula, uname)
+    m1uCheck <- checkU(splinesobj[[2]]$formula, uname)
+    if (is.null(splinesobj[[1]]$splinesdict)) {
+        m0uSplineCheck <- NULL
+    } else {
+        m0uSplineCheck <-
+            checkU(as.formula(paste("~",
+                                    paste(unlist(splinesobj[[1]]$splineslist),
+                                          collapse = "+"))), uname)
+    }
+    if (is.null(splinesobj[[2]]$splinesdict)) {
+        m1uSplineCheck <- NULL
+    } else {
+        m1uSplineCheck <-
+            checkU(as.formula(paste("~",
+                                    paste(unlist(splinesobj[[2]]$splineslist),
+                                          collapse = "+"))), uname)
+    }
+    if (length(m0uCheck) + length(m0uSplineCheck) > 0) {
+        message0 <- paste("m0:",
+                          paste(c(m0uCheck, m0uSplineCheck), collapse = ", "),
+                          "\n")
+    } else {
+        message0 <- NULL
+    }
+    if (length(m1uCheck) + length(m1uSplineCheck) > 0) {
+        message1 <- paste("m1:",
+                          paste(c(m1uCheck, m1uSplineCheck), collapse = ", "),
+                          "\n")
+
+    } else {
+        message1 <- NULL
+    }
+    if (!is.null(message0) | !is.null(message1)) {
+        if (uname != "x") {
+            egv <- "x"
+        } else {
+            egv <- "v"
+        }
+        e1 <- paste0(uname, ", I(", uname, " ^ 3)")
+        e2 <- paste0(egv, ":", uname, ", ", egv, ":I(", uname, " ^ 3)")
+        e3 <- paste0("exp(", uname, "), I((", egv, " * ", uname, ") ^ 2)")
+        stop(gsub("\\s+", " ",
+                  "The following terms are not declared properly."),
+             "\n", message0, message1,
+             gsub("\\s+", " ",
+                  paste0("The unobserved variable '",
+                         uname, "' must be declared as a
+                         monomial, e.g. ", e1, ". The monomial can be
+                         interacted with other variables, e.g. ",
+                         e2, ". Expressions where the unobservable term
+                         is not a monomial are either not permissable or
+                         will not be parsed correctly,
+                         e.g. ", e3, ". Try to rewrite the expression so
+                         that '",  uname, "' is only included in monomials.")),
+             call. = FALSE)
+    }
     m0 <- splinesobj[[1]]$formula
     m1 <- splinesobj[[2]]$formula
     vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
@@ -2286,7 +2343,6 @@ boundPValue <- function(ci, bounds, bounds.resamples, n, m, levels,
 checkU <- function(formula, uname) {
     termsList <- attr(terms(formula), "term.labels")
     termsList <- unique(unlist(strsplit(termsList, ":")))
-    print(termsList)
     termsVarList <- lapply(termsList, function(x) {
         all.vars(as.formula(paste("~", x)))
     })
