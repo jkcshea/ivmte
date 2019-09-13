@@ -182,7 +182,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
     xvars <- xvars[xvars != uname]
     xvars <- xvars[xvars %in% vars_data]
     otherx  <- xvars[xvars != monov]
-    support <- unique(data[, xvars])
+    if (!is.null(audit.grid)) support <- audit.grid$support
+    if (is.null(audit.grid))  support <- unique(data[, xvars])
     ## check if support is vector or matrix; it can be a vector if
     ## there is only one X term
     if (is.null(dim(support))) {
@@ -250,9 +251,15 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                          splinesobj,
                                                      monov = monov))
             a_mbobj <- eval(monoboundAcall)
+            a_mbobj$support <- support
         } else {
             sn <- length(sset)
             a_mbobj <- audit.grid
+            a_grid_index <- unique(audit.grid$gridobj$map)
+            if (length(a_grid_index) == 1 && a_grid_index == 0) {
+                a_grid_index <- NULL
+                noX <- TRUE
+            }
         }
         a_mbA <- a_mbobj$mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)]
         negatepos <- which(a_mbobj$mbs == ">=")
@@ -260,7 +267,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         a_mbrhs <- a_mbobj$mbrhs
         a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
         ## Generate all monotonicity and boundedness matrices for initial grid
-        if (noisy) cat("    Generating initial constraint grid...")
+        if (noisy) cat("    Generating initial constraint grid...")        
         if (noX) {
             grid_index <- NULL
         } else {
@@ -285,7 +292,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                  monov = monov))
         mbobj <- eval(monoboundAcall)
     }
-
+    
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n\n    Audit count: ", audit_count, "\n", sep = "")

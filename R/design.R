@@ -36,7 +36,6 @@ design <- function(formula, data, subset) {
     ## extract response, terms, model matrices
     if (onesided == FALSE) Y <- model.response(mf, "numeric")
     if (onesided == TRUE)  Y <- NULL
-    mt  <- terms(formula, data = data)
     mtX <- terms(formula, data = data, rhs = 1)
     X   <- model.matrix(mtX, mf)
     if(length(formula)[2] < 2L) {

@@ -1826,6 +1826,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                         tol = pvalue.tol))
                 names(pvalue) <- c("backward", "forward")
             }
+            boundPvalueAlt(bounds = origEstimate$bounds,
+                           bounds.resamples = boundEstimates,
+                           n = nrow(data),
+                           m = bootstraps.m,
+                           type = "backward")
             if (ci.type == "both")  {
                 ciTypes <- c("backward", "forward")
             } else {
@@ -2331,7 +2336,22 @@ boundPValue <- function(ci, bounds, bounds.resamples, n, m, levels,
 }
 
 boundPvalueAlt <- function(bounds, bounds.resamples, n, m, type) {
-    ## boundCI(bounds, bounds.resamples, n, m, levels, type)
+    ## Given thenumber of bootstrps, you can determine the number of
+    ## quantiles. Then you do the `lapply` to all quantiles.
+    levels <- seq(0, 1, 1 / nrow(bounds.resamples))[-1]
+    print(levels)
+    cis <- boundCI(bounds, bounds.resamples, n, m, levels, type)
+    posNo0 <- apply(cis, MARGIN = 1, FUN = function(x) {
+        !((0 >= x[1]) && (0 <= x[2]))
+    })
+    if (all(posNo0)) {
+        return(0)
+    } else if (all(!posNo0)) {
+        return(1)
+    } else {
+        print(1 - max(levels[posNo0]))
+        return(1 - max(levels[posNo0]))
+    }
 }
 
 #' Check polynomial form of the u-term

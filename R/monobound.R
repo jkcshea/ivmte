@@ -591,7 +591,7 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
         colnames(grid) <- c(uname, ".grid.order", ".u.order")
         grid_index <- rownames(grid)
         gridobj <- list(grid = grid,
-                        map  = replicate(length(uvec), 1))
+                        map  = replicate(length(uvec), 0))
     } else {
         gridobj <- gengrid(grid_index,
                            support,
