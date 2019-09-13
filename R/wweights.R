@@ -110,25 +110,28 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
     if (!hasArg(eval.X)) {
         fixDataFrom <- data.frame(matrix(from, nrow = 1))
         fixDataTo   <- data.frame(matrix(to, nrow = 1))
-        colnames(fixDataFrom) <- Z
-        colnames(fixDataTo)   <- Z
     } else {
         fixDataFrom <- data.frame(matrix(c(eval.X, from), nrow = 1))
         fixDataTo   <- data.frame(matrix(c(eval.X, to), nrow = 1))
-        colnames(fixDataFrom) <- c(X, Z)
-        colnames(fixDataTo)   <- c(X, Z)
     }
     ## Determine the type of model we are working with (lm vs. glm),
     ## and update the to/from values for the LATE
+    pformula <- as.formula(paste("~", model$formula[3]))
     modclass <- class(model)[1]
-    if (modclass != "data.frame") {
-        pvars <- names(model$coef)
-        pxvars <- pvars[!pvars %in% c(X, Z, "(Intercept)")]
+    pvars <- all.vars(pformula)
+    pxvars <- pvars[!pvars %in% c(X, Z)]
+    if (length(pxvars) > 0) {
+        pxdata <- data.frame(data[, pxvars])
+        fixDataFrom <- cbind(pxdata, fixDataFrom[rep(1, nrow(data)), ])
+        fixDataTo <- cbind(pxdata, fixDataTo[rep(1, nrow(data)), ])
+        colnames(fixDataFrom) <- c(pxvars, X, Z)
+        colnames(fixDataTo) <- c(pxvars, X, Z)
+    } else {
+        fixDataFrom <- data.frame(fixDataFrom[rep(1, nrow(data)), ])
+        fixDataTo <- data.frame(fixDataTo[rep(1, nrow(data)), ])
+        colnames(fixDataFrom) <- c(X, Z)
+        colnames(fixDataTo) <- c(X, Z)
     }
-    pxdata <- data.frame(data[, pxvars])
-    colnames(pxdata) <- pxvars
-    fixDataFrom <- cbind(pxdata, fixDataFrom[rep(1, nrow(data)), ])
-    fixDataTo <- cbind(pxdata, fixDataTo[rep(1, nrow(data)), ])
     ## Predict propensity scores for 'from' case
     if (modclass ==  "lm") {
         bfrom <- predict.lm(model, fixDataFrom)
