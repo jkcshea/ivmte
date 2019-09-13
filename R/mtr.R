@@ -454,6 +454,8 @@ removeSplines <- function(formula, env = parent.frame()) {
                     }
                 }
             }
+            splinescall[[splinecmd]] <- unique(c(splinescall[[splinecmd]],
+                                                 splineobj))
         }
         ## Now construct spline dictionary and spline keys
         splinesDict <- list()

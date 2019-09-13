@@ -2330,6 +2330,10 @@ boundPValue <- function(ci, bounds, bounds.resamples, n, m, levels,
     return(1 - levelLB)
 }
 
+boundPvalueAlt <- function(bounds, bounds.resamples, n, m, type) {
+    ## boundCI(bounds, bounds.resamples, n, m, levels, type)
+}
+
 #' Check polynomial form of the u-term
 #'
 #' This function ensures that the unobservable term enters into the
