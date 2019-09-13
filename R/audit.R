@@ -267,7 +267,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         a_mbrhs <- a_mbobj$mbrhs
         a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
         ## Generate all monotonicity and boundedness matrices for initial grid
-        if (noisy) cat("    Generating initial constraint grid...")        
+        if (noisy) cat("    Generating initial constraint grid...")
         if (noX) {
             grid_index <- NULL
         } else {
@@ -292,7 +292,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                  monov = monov))
         mbobj <- eval(monoboundAcall)
     }
-    
+
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n\n    Audit count: ", audit_count, "\n", sep = "")

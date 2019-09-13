@@ -212,12 +212,6 @@ utils::globalVariables("u")
 #' @param specification.test boolean, default set to
 #'     \code{TRUE}. Function performs a specificaiton test for the
 #'     partially identified case when \code{bootstraps > 0}.
-#' @param pvalue.tol numeric, default set to 1e-08. The p-value under
-#'     the partially identified case is constructed by iteratively
-#'     adjusting the confidence level to find a confidence interval
-#'     that does not contain 0. When the adjustment of the confidence
-#'     level falls below \code{pvalue.tol}, no further iterations are
-#'     performed.
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
@@ -304,7 +298,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'both',
                   specification.test = TRUE,
-                  pvalue.tol = 1e-08, noisy = TRUE,
+                  noisy = TRUE,
                   smallreturnlist = FALSE, seed = 12345) {
     call <- match.call(expand.dots = FALSE)
     envList <- list(m0 = environment(m0),
@@ -1786,51 +1780,34 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             ## Obtain p-value
             if (ci.type == "backward") {
-                pvalue <- boundPValue(ci = ci,
-                                      bounds = origEstimate$bounds,
+                pvalue <- boundPvalue(bounds = origEstimate$bounds,
                                       bounds.resamples = boundEstimates,
                                       n = nrow(data),
                                       m = bootstraps.m,
-                                      levels = levels,
-                                      type = "backward",
-                                      tol = pvalue.tol)
+                                      type = "backward")
                 names(pvalue) <- "backward"
             }
             if (ci.type == "forward") {
-                pvalue <- boundPValue(ci = ci,
-                                      bounds = origEstimate$bounds,
+                pvalue <- boundPvalue(bounds = origEstimate$bounds,
                                       bounds.resamples = boundEstimates,
                                       n = nrow(data),
                                       m = bootstraps.m,
-                                      levels = levels,
-                                      type = "forward",
-                                      tol = pvalue.tol)
+                                      type = "forward")
                 names(pvalue) <- "forward"
             }
             if (ci.type == "both") {
-                pvalue <- c(boundPValue(ci = ci$backward,
-                                        bounds = origEstimate$bounds,
+                pvalue <- c(boundPvalue(bounds = origEstimate$bounds,
                                         bounds.resamples = boundEstimates,
                                         n = nrow(data),
                                         m = bootstraps.m,
-                                        levels = levels,
-                                        type = "backward",
-                                        tol = pvalue.tol),
-                            boundPValue(ci = ci$forward,
-                                        bounds = origEstimate$bounds,
+                                        type = "backward"),
+                            boundPvalue(bounds = origEstimate$bounds,
                                         bounds.resamples = boundEstimates,
                                         n = nrow(data),
                                         m = bootstraps.m,
-                                        levels = levels,
-                                        type = "forward",
-                                        tol = pvalue.tol))
+                                        type = "forward"))
                 names(pvalue) <- c("backward", "forward")
             }
-            boundPvalueAlt(bounds = origEstimate$bounds,
-                           bounds.resamples = boundEstimates,
-                           n = nrow(data),
-                           m = bootstraps.m,
-                           type = "backward")
             if (ci.type == "both")  {
                 ciTypes <- c("backward", "forward")
             } else {
@@ -2277,13 +2254,6 @@ boundCI <- function(bounds, bounds.resamples, n, m, levels, type) {
 #' partial identification. p-values corresponding to forward and
 #' backward confidence intervals can be returned.
 #'
-#' @param ci matrix or list. If \code{type} is set to 'forward' or
-#'     'backward', then \code{ci} should be a matrix of forward or
-#'     backward confidence intervals corresponding to the levels
-#'     declared in the option \code{levels}. If \code{type} is set to
-#'     'both', then \code{ci} should be a list of two elements. One
-#'     element is a matrix of forward confidence intervals, and the
-#'     other element is a matrix of backward confidence intervals.
 #' @param bounds vector, bounds of the treatment effects under partial
 #'     identification.
 #' @param bounds.resamples matrix, stacked bounds of the treatment
@@ -2291,55 +2261,18 @@ boundCI <- function(bounds, bounds.resamples, n, m, levels, type) {
 #'     subset resampled from the original data set.
 #' @param n integer, size of original data set.
 #' @param m integer, size of resampled data sets.
-#' @param levels vector, real numbers between 0 and 1. Values
-#'     correspond to the level of the confidence intervals constructed
-#'     via bootstrap.
 #' @param type character. Set to 'forward' to construct the forward
 #'     confidence interval for the treatment effect bounds. Set to
 #'     'backward' to construct the backward confidence interval for
 #'     the treatment effect bounds. Set to 'both' to construct both
 #'     types of confidence intervals.
-#' @param tol numeric, default set to 1e-08. The p-value is
-#'     constructed by iteratively adjusting the confidence level to
-#'     find a confidence interval that does not contain 0. When the
-#'     adjustment of the confidence level falls below \code{tol}, no
-#'     further iterations are performed.
 #' @return If \code{type} is 'forward' or 'backward', a scalar p-value
 #'     corresponding to the type of confidence interval is
 #'     returned. If \code{type} is 'both', a vector of p-values
 #'     corresponding to the forward and backward confidence intervals
 #'     is returned.
-boundPValue <- function(ci, bounds, bounds.resamples, n, m, levels,
-                        type, tol = 1e-08) {
-    ci <- rbind(c(Inf, -Inf), ci, c(-Inf, Inf))
-    rownames(ci) <- c(0, levels, 1)
-    inVec <- apply(ci, 1, function(x) 0 > x[1] & 0 < x[2])
-    lbPos <- which(sapply(seq(1, length(inVec) - 1), function(x) {
-        inVec[x] == inVec[x + 1]
-    }) == FALSE)
-    levelLB <- c(0, levels, 1)[lbPos]
-    levelUB <- c(0, levels, 1)[lbPos + 1]
-    contains0 <- TRUE
-    while (levelUB - levelLB > tol) {
-        midpoint <- 0.5 * (levelLB + levelUB)
-        newCI <- boundCI(bounds, bounds.resamples, n = n, m = m,
-                         levels = midpoint, type = type)
-        if (0 > newCI[1] & 0 < newCI[2]) {
-            levelUB <- midpoint
-            contains0 <- TRUE
-        } else {
-            levelLB <- midpoint
-            contains0 <- FALSE
-        }
-    }
-    return(1 - levelLB)
-}
-
-boundPvalueAlt <- function(bounds, bounds.resamples, n, m, type) {
-    ## Given thenumber of bootstrps, you can determine the number of
-    ## quantiles. Then you do the `lapply` to all quantiles.
+boundPvalue <- function(bounds, bounds.resamples, n, m, type) {
     levels <- seq(0, 1, 1 / nrow(bounds.resamples))[-1]
-    print(levels)
     cis <- boundCI(bounds, bounds.resamples, n, m, levels, type)
     posNo0 <- apply(cis, MARGIN = 1, FUN = function(x) {
         !((0 >= x[1]) && (0 <= x[2]))
@@ -2349,7 +2282,6 @@ boundPvalueAlt <- function(bounds, bounds.resamples, n, m, type) {
     } else if (all(!posNo0)) {
         return(1)
     } else {
-        print(1 - max(levels[posNo0]))
         return(1 - max(levels[posNo0]))
     }
 }
