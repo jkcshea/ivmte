@@ -132,21 +132,29 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
         colnames(fixDataFrom) <- c(X, Z)
         colnames(fixDataTo) <- c(X, Z)
     }
+    ## Check if propensity model is rank-deficient
+    rankDeficient <- any(is.na(model$coef))
+    if (any(rankDeficient)) {
+        warning(gsub("\\s+", " ",
+                     "Propensity score model is rank-deficient. Propensity
+                      score estimates used to construct the LATE may be
+                      incorrect."), call. = FALSE)
+    }
     ## Predict propensity scores for 'from' case
     if (modclass ==  "lm") {
-        bfrom <- predict.lm(model, fixDataFrom)
+        bfrom <- suppressWarnings(predict.lm(model, fixDataFrom))
     }
     if (modclass == "glm") {
-        bfrom <- predict.glm(model, fixDataFrom,
-                             type = "response")
+        bfrom <- suppressWarnings(predict.glm(model, fixDataFrom,
+                                              type = "response"))
     }
     ## Predict propensity scores for 'to' case
     if (modclass ==  "lm") {
-        bto   <- predict.lm(model, fixDataTo)
+        bto <- suppressWarnings(predict.lm(model, fixDataTo))
     }
     if (modclass == "glm") {
-        bto   <- predict.glm(model, fixDataTo,
-                           type = "response")
+        bto <- suppressWarnings(predict.glm(model, fixDataTo,
+                                            type = "response"))
     }
     ## Ensure the bounds are within 0 and 1
     if (length(which(bfrom < 0)) > 0 | length(which(bto < 0)) > 0) {
