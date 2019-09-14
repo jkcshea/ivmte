@@ -240,6 +240,8 @@ polyProduct <- function(poly1, poly2) {
 #'     E[md]. If FALSE, then function instead returns each term of
 #'     E[md | D, X, Z]. This is useful for testing the code,
 #'     i.e. obtaining population estimates.
+#' @param late.rows Boolean vector indicating which observations to
+#'     include when conditioning on covariates X.
 #' @return If \code{means = TRUE}, then the function returns a vector
 #'     of the additive terms in Gamma (i.e. the expectation is over D,
 #'     X, Z, and u). If \code{means = FALSE}, then the function
@@ -272,7 +274,8 @@ polyProduct <- function(poly1, poly2) {
 #'
 #' @export
 genGamma <- function(monomials, lb, ub, multiplier = 1,
-                     subset = NULL, means = TRUE) {
+                     subset = NULL, means = TRUE, late.rows = NULL) {
+    if (is.null(late.rows)) late.rows <- rep(TRUE, nrow(monomials$polymat))    
     exporder <- monomials$exporder
     polymat <- monomials$polymat
     if (!is.null(subset)) polymat <- as.matrix(polymat[subset, ])
@@ -287,6 +290,7 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
         uUbMat <- cbind(uUbMat, monoIntegral(ub, exp) * multiplier)
     }
     preGamma <- polymat * (uUbMat - uLbMat)
+    preGamma <- preGamma[late.rows, ]
     if (means) {
         if (is.matrix(preGamma)) {
             gstar <- colMeans(preGamma)
@@ -707,6 +711,8 @@ uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 #'     \code{TRUE} if estimates of the gamma moments should be
 #'     returned. Set to \code{FALSE} if the gamma estimates for each
 #'     observation should be returned.
+#' @param late.rows Boolean vector indicating which observations to
+#'     include when conditioning on covariates X.
 #' @return a matrix, corresponding to the splines being integrated
 #'     over the region specified by \code{lb} and \code{ub},
 #'     accounting for the interaction terms. The number of rows is
@@ -720,7 +726,9 @@ uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
 #'     to. "[b]" will be an integer reflect which component of the
 #'     basis the column pertains to.
 genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
-                            subset, d = NULL, means = TRUE) {
+                            subset, d = NULL, means = TRUE,
+                            late.rows = NULL) {
+    if (is.null(late.rows)) late.rows <- rep(TRUE, nrow(data))
     splines <- splinesobj$splineslist
     inters  <- splinesobj$splinesinter
     if (is.null(splines)) {
@@ -729,9 +737,6 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
     } else {
         if (!hasArg(subset)) {
             subset <- replicate(nrow(data), TRUE)
-            gmmRownames <- rownames(data)
-        } else {
-            gmmRownames <- rownames(data)[as.integer(eval(subset, data))]
         }
         if (length(lb) == 1) lb <- replicate(nrow(data[subset, ]), lb)
         if (length(ub) == 1) ub <- replicate(nrow(data[subset, ]), ub)
@@ -803,12 +808,12 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
         }
         splinesNames <- gsub(":\\(Intercept\\)", ":1", splinesNames)
         splinesNames <- gsub("\\(Intercept\\):", "1:", splinesNames)
+        splinesGamma <- splinesGamma[late.rows, ]
         if (means == TRUE) {
             splinesGamma <- colMeans(splinesGamma)
             names(splinesGamma) <- splinesNames
         } else {
             colnames(splinesGamma) <- splinesNames
-            rownames(splinesGamma) <- gmmRownames
         }
         return(list(gamma = splinesGamma,
                     interactions = splinesInter))

@@ -2860,6 +2860,11 @@ genTarget <- function(treat, m0, m1, target,
                       eval.X, genlate.lb, genlate.ub,
                       data, splinesobj, pmodobj, pm0, pm1,
                       point = FALSE, noisy = TRUE) {
+    if (!hasArg(late.X)) {
+        late.X <- NULL
+        eval.X <- NULL
+        lateRows <- NULL
+    }
     if (hasArg(target)) target   <- tolower(target)
     if (hasArg(target)) {
         if (target == "ate") {
@@ -2875,31 +2880,27 @@ genTarget <- function(treat, m0, m1, target,
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "late") {
-            if (!hasArg(late.X)) {
-                late.X <- NULL
-                eval.X <- NULL
-            } else {
+            if (!is.null(late.X)) {
+                ## Create index to restrict data to those with the
+                ## correct value of X
                 condX <- mapply(function(a, b) paste(a, "==", b),
                                 late.X, eval.X)
                 condX <- paste(condX, collapse = " & ")
-                data <- subset(data, eval(parse(text = condX)))
-                if (nrow(data) == 0) {
+                lateRows <- eval(parse(text = condX), data)
+                if (sum(lateRows) == 0) {
                     stop(gsub("\\s+", " ",
                               "no observations with the values specified in
                                'eval.X'."), call. = FALSE)
                 }
             }
-            if (!is.null(m0)) pm0$polymat <- pm0$polymat[rownames(data), ]
-            if (!is.null(m1)) pm1$polymat <- pm1$polymat[rownames(data), ]
+            if (!is.null(m0)) pm0$polymat <- pm0$polymat
+            if (!is.null(m1)) pm1$polymat <- pm1$polymat
             w1 <- wlate1(data, late.from, late.to, late.Z,
                          pmodobj$model, late.X, eval.X)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "genlate") {
-            if (!hasArg(late.X)) {
-                late.X <- NULL
-                eval.X <- NULL
-            } else {
+            if (!is.null(late.X)) {
                 condX <- mapply(function(a, b) paste(a, "==", b),
                                 late.X, eval.X)
                 condX <- paste(condX, collapse = " & ")
@@ -2925,21 +2926,39 @@ genTarget <- function(treat, m0, m1, target,
                 cat("    Integrating terms for control group...\n")
             }
             if (point == FALSE) {
-                gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp)
+                gstar0 <- genGamma(monomials = pm0,
+                                   lb = w0$lb,
+                                   ub = w0$ub,
+                                   multiplier = w0$mp,
+                                   late.rows = lateRows)
             } else {
-                gstar0 <- genGamma(pm0, w0$lb, w0$ub, w0$mp, means = FALSE)
+                gstar0 <- genGamma(monomials = pm0,
+                                   lb = w0$lb,
+                                   ub = w0$ub,
+                                   multiplier = w0$mp,
+                                   means = FALSE,
+                                   late.rows = lateRows)
             }
         } else {
             gstar0 <- NULL
-        }
+        }        
         if (!is.null(m1)) {
             if (noisy == TRUE) {
                 cat("    Integrating terms for treated group...\n")
             }
             if (point == FALSE) {
-                gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp)
+                gstar1 <- genGamma(monomials = pm1,
+                                   lb = w1$lb,
+                                   ub = w1$ub,
+                                   multiplier = w1$mp,
+                                   late.rows = lateRows)
             } else {
-                gstar1 <- genGamma(pm1, w1$lb, w1$ub, w1$mp, means = FALSE)
+                gstar1 <- genGamma(monomials = pm1,
+                                   lb = w1$lb,
+                                   ub = w1$ub,
+                                   multiplier = w1$mp,
+                                   means = FALSE,
+                                   late.rows = lateRows)
             }
         } else {
             gstar1 <- NULL
@@ -2950,14 +2969,16 @@ genTarget <- function(treat, m0, m1, target,
                                                lb = w0$lb,
                                                ub = w0$ub,
                                                multiplier = w0$mp,
-                                               d = 0)
+                                               d = 0,
+                                               late.rows = lateRows)
             gstarSpline0 <- gstarSplineObj0$gamma
             gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                                data = data,
                                                lb = w1$lb,
                                                ub = w1$ub,
                                                multiplier = w1$mp,
-                                               d = 1)
+                                               d = 1,
+                                               late.rows = lateRows)
             gstarSpline1 <- gstarSplineObj1$gamma
         } else {
             gstarSplineObj0 <- genGammaSplines(splinesobj = splinesobj[[1]],
@@ -2966,7 +2987,8 @@ genTarget <- function(treat, m0, m1, target,
                                                ub = w0$ub,
                                                multiplier = w0$mp,
                                                d = 0,
-                                               means = FALSE)
+                                               means = FALSE,
+                                               late.rows = lateRows)
             gstarSpline0 <- gstarSplineObj0$gamma
             gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
                                                data = data,
@@ -2974,7 +2996,8 @@ genTarget <- function(treat, m0, m1, target,
                                                ub = w1$ub,
                                                multiplier = w1$mp,
                                                d = 1,
-                                               means = FALSE)
+                                               means = FALSE,
+                                               late.rows = lateRows)
             gstarSpline1 <- gstarSplineObj1$gamma
         }
     } else {
