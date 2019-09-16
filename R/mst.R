@@ -296,7 +296,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   point = FALSE, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
-                  levels = c(0.99, 0.95, 0.90), ci.type = 'both',
+                  levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
                   specification.test = TRUE,
                   noisy = TRUE,
                   smallreturnlist = FALSE, seed = 12345) {
@@ -1694,10 +1694,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 fmtResult(origEstimate$bounds[1]), ", ",
                 fmtResult(origEstimate$bounds[2]), "]\n\n",
                 sep = "")
-
-
-            if (origEstimate$audit.count == 1) rs <- "round.\n"
-            if (origEstimate$audit.count > 1) rs <- "rounds.\n"
+            if (origEstimate$audit.count == 1) rs <- "round."
+            if (origEstimate$audit.count > 1) rs <- "rounds."
             if (origEstimate$audit.count < audit.max) {
                 cat("Audit terminated successfully after",
                     origEstimate$audit.count,
@@ -1716,45 +1714,23 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             immediate. = TRUE)
                 }
             }
-            if (length(bootFailIndex) > 0) {
-                warning(gsub("\\s+", " ",
-                             paste0("Bootstrap iteration(s) ",
-                                    paste(bootFailIndex, collapse = ", "),
-                                    " failed. Failed bootstraps are
-                                        repeated.")))
+            cat(sprintf("\nNumber of bootstraps: %s",
+                        bootstraps))
+            if (bootFailN > 0) {
+                cat(sprintf(" (%s failed and redrawn)\n",
+                            bootFailN))
+            } else {
+                cat("\n")
             }
             ## Obtain standard errors of bounds
             bootSE <- apply(boundEstimates, 2, sd)
             ## Construct confidence intervals for bounds
-            if (ci.type == "backward" | ci.type == "forward") {
-                ci <- boundCI(bounds = origEstimate$bounds,
-                              bounds.resamples = boundEstimates,
-                              n = nrow(data),
-                              m = bootstraps.m,
-                              levels = levels,
-                              type = ci.type)
-            }
-            if (ci.type == "both") {
-                ci <- list()
-                ci$backward <- boundCI(bounds = origEstimate$bounds,
-                                       bounds.resamples = boundEstimates,
-                                       n = nrow(data),
-                                       m = bootstraps.m,
-                                       levels = levels,
-                                       type = "backward")
-                ci$forward <- boundCI(bounds = origEstimate$bounds,
-                                      bounds.resamples = boundEstimates,
-                                      n = nrow(data),
-                                      m = bootstraps.m,
-                                      levels = levels,
-                                      type = "forward")
-            }
             ci <- boundCI(bounds = origEstimate$bounds,
                           bounds.resamples = boundEstimates,
                           n = nrow(data),
                           m = bootstraps.m,
                           levels = levels,
-                          type = ci.type)
+                          type = "both")
             ## Construct confidence intervals for propensity scores
             if (!is.null(propEstimates)) {
                 propensity.ci <- list()
@@ -1788,35 +1764,17 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
             }
             ## Obtain p-value
-            if (ci.type == "backward") {
-                pvalue <- boundPvalue(bounds = origEstimate$bounds,
-                                      bounds.resamples = boundEstimates,
-                                      n = nrow(data),
-                                      m = bootstraps.m,
-                                      type = "backward")
-                names(pvalue) <- "backward"
-            }
-            if (ci.type == "forward") {
-                pvalue <- boundPvalue(bounds = origEstimate$bounds,
-                                      bounds.resamples = boundEstimates,
-                                      n = nrow(data),
-                                      m = bootstraps.m,
-                                      type = "forward")
-                names(pvalue) <- "forward"
-            }
-            if (ci.type == "both") {
-                pvalue <- c(boundPvalue(bounds = origEstimate$bounds,
-                                        bounds.resamples = boundEstimates,
-                                        n = nrow(data),
-                                        m = bootstraps.m,
-                                        type = "backward"),
-                            boundPvalue(bounds = origEstimate$bounds,
-                                        bounds.resamples = boundEstimates,
-                                        n = nrow(data),
-                                        m = bootstraps.m,
-                                        type = "forward"))
-                names(pvalue) <- c("backward", "forward")
-            }
+            pvalue <- c(boundPvalue(bounds = origEstimate$bounds,
+                                    bounds.resamples = boundEstimates,
+                                    n = nrow(data),
+                                    m = bootstraps.m,
+                                    type = "backward"),
+                        boundPvalue(bounds = origEstimate$bounds,
+                                    bounds.resamples = boundEstimates,
+                                    n = nrow(data),
+                                    m = bootstraps.m,
+                                    type = "forward"))
+            names(pvalue) <- c("backward", "forward")
             if (ci.type == "both")  {
                 ciTypes <- c("backward", "forward")
             } else {
@@ -1827,19 +1785,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 cat("\nBootstrapped confidence intervals (",
                     i, "):\n", sep = "")
                 for (j in 1:length(levels)) {
-                    if (length(ciTypes) == 2) {
-                        cistr <- paste0("[",
-                                        fmtResult(ci[[i]][j, 1]),
-                                        ", ",
-                                        fmtResult(ci[[i]][j, 2]),
-                                        "]")
-                    } else {
-                        cistr <- paste0("[",
-                                        fmtResult(ci[j, 1]),
-                                        ", ",
-                                        fmtResult(ci[j, 2]),
-                                        "]")
-                    }
+                    cistr <- paste0("[",
+                                    fmtResult(ci[[i]][j, 1]),
+                                    ", ",
+                                    fmtResult(ci[[i]][j, 2]),
+                                    "]")
                     cat("    ",
                         levels[j] * 100,
                         "%: ",
@@ -1855,12 +1805,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 cat("\nBootstrapped specification test p-value: ",
                     criterionPValue, "\n\n", sep = "")
             }
-            ## Inform users of failed bootstraps, if any
-            if (bootFailN > 0) warning(paste("Number of failed bootstraps:",
-                                             bootFailN),
-                                       call. = FALSE,
-                                       immediate. = TRUE)
-            cat("\n")
             ## Return output
             output <- c(origEstimate,
                         list(bounds.se = bootSE,
@@ -2013,7 +1957,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 bootFailIndex <- unique(c(bootFailIndex, b))
             }
         }
-        if (length(bootFailIndex) > 0) {
+        if (bootFailN > 0) {
             warning(gsub("\\s+", " ",
                          paste0("Bootstrap iteration(s) ",
                                 paste(bootFailIndex, collapse = ", "),
@@ -2107,34 +2051,35 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             propensity.ci <- list()
         }
         for (level in levels) {
-            pointestimate.ci$ci1 <-
-                rbind(pointestimate.ci$ci1,
+            pointestimate.ci$nonparametric <-
+                rbind(pointestimate.ci$nonparametric,
                       get(paste0("ci1", level * 100)))
-            pointestimate.ci$ci2 <-
-                rbind(pointestimate.ci$ci2,
+            pointestimate.ci$normal <-
+                rbind(pointestimate.ci$normal,
                       get(paste0("ci2", level * 100)))
-
-            mtr.ci$ci1[[paste0("level", level * 100)]] <-
+            mtr.ci$nonparametric[[paste0("level", level * 100)]] <-
                 t(get(paste0("mtrci1", level * 100)))
-            mtr.ci$ci2[[paste0("level", level * 100)]] <-
+            mtr.ci$normal[[paste0("level", level * 100)]] <-
                 t(get(paste0("mtrci2", level * 100)))
             if (!is.null(propEstimates)) {
-                propensity.ci$ci1[[paste0("level", level * 100)]] <-
+                propensity.ci$nonparametric[[paste0("level", level * 100)]] <-
                     t(get(paste0("propci1", level * 100)))
-                propensity.ci$ci2[[paste0("level", level * 100)]] <-
+                propensity.ci$normal[[paste0("level", level * 100)]] <-
                     t(get(paste0("propci2", level * 100)))
             }
         }
-        rownames(pointestimate.ci$ci1) <- levels
-        rownames(pointestimate.ci$ci2) <- levels
-        colnames(pointestimate.ci$ci1) <- c("lb", "ub")
-        colnames(pointestimate.ci$ci2) <- c("lb", "ub")
+        rownames(pointestimate.ci$nonparametric) <- levels
+        rownames(pointestimate.ci$normal) <- levels
+        colnames(pointestimate.ci$nonparametric) <- c("lb", "ub")
+        colnames(pointestimate.ci$normal) <- c("lb", "ub")
         output2 <- list(pointestimate.ci = pointestimate.ci,
-                        mtr.ci = mtr.ci,
-                        propensity.ci = propensity.ci)
+                        mtr.ci = mtr.ci)
+        if (!is.null(propEstimates)) {
+            output2$propensity.ci = propensity.ci
+        }
         output3 <- list(pvalue = pvalue,
                         bootstraps = bootstraps,
-                        bootstraps.failed = length(bootFailIndex),
+                        bootstraps.failed = bootFailN,
                         jtest = jtest)
         output <- c(output1, output2, output3)
         if (noisy) {
@@ -2145,6 +2090,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         cat("\nPoint estimate of the target parameter: ",
             fmtResult(origEstimate$pointestimate), "\n",
             sep = "")
+        cat(sprintf("\nNumber of bootstraps: %s",
+                    bootstraps))
+        if (bootFailN > 0) {
+            cat(sprintf(" (%s failed and redrawn)\n",
+                        gbootFailN))
+        } else {
+            cat("\n")
+        }
         cat("\nBootstrapped confidence intervals (nonparametric):\n")
         for (level in levels) {
             ci1str <- get(paste0("ci1", level * 100))
@@ -2160,21 +2113,21 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         cat("p-value: ",
             fmtResult(pvalue[1]), "\n\n", sep = "")
-        cat("Bootstrapped confidence intervals (normal quantiles):\n")
-        for (level in levels) {
-            ci2str <- get(paste0("ci2", level * 100))
-            ci2str <- paste0("[",
-                             fmtResult(ci2str[1]),
-                             ", ",
-                             fmtResult(ci2str[2]),
-                             "]")
-            cat("    ",
-                level * 100,
-                "%: ",
-                ci2str, "\n", sep = "")
-        }
-        cat("p-value: ",
-            fmtResult(pvalue[2]), "\n\n", sep = "")
+        ## cat("Bootstrapped confidence intervals (normal quantiles):\n")
+        ## for (level in levels) {
+        ##     ci2str <- get(paste0("ci2", level * 100))
+        ##     ci2str <- paste0("[",
+        ##                      fmtResult(ci2str[1]),
+        ##                      ", ",
+        ##                      fmtResult(ci2str[2]),
+        ##                      "]")
+        ##     cat("    ",
+        ##         level * 100,
+        ##         "%: ",
+        ##         ci2str, "\n", sep = "")
+        ## }
+        ## cat("p-value: ",
+        ##     fmtResult(pvalue[2]), "\n\n", sep = "")
         if (totalBootstraps > bootstraps) {
             warning(gsub("\\s+", " ",
                          paste0("In order to obtain ", bootstraps, " boostrap
@@ -3791,14 +3744,15 @@ summary.ivmte <- function(object, ...) {
             cat(sprintf("Number of bootstraps: %s",
                         object$bootstraps))
             if (object$bootstraps.failed > 0) {
-                cat(sprintf("(%s failed and redrawn)\n",
-                            object$bootstraps.failed > 0))
+                cat(sprintf(" (%s failed and redrawn)\n",
+                            object$bootstraps.failed))
             } else {
                 cat("\n")
             }
             ## Return confidence intervals and p-values
             levels <- as.numeric(rownames(object$bounds.ci[[1]]))
-            ciTypes <- names(object$bounds.ci)
+            ## ciTypes <- names(object$bounds.ci)
+            ciTypes <- "backward"
             ciN <- 1
             for (i in ciTypes) {
                 ## Confidence intervals
@@ -3839,27 +3793,28 @@ summary.ivmte <- function(object, ...) {
             cat(sprintf("Number of bootstraps: %s",
                         object$bootstraps))
             if (object$bootstraps.failed > 0) {
-                cat(sprintf("(%s failed and redrawn)\n",
-                            object$bootstraps.failed > 0))
+                cat(sprintf(" (%s failed and redrawn)\n",
+                            object$bootstraps.failed))
             } else {
                 cat("\n")
             }
             ## Return confidence intervals and p-values
-            levels <- as.numeric(rownames(object$pointestimate.ci$ci1))
+            levels <- as.numeric(rownames(object$pointestimate.ci[[1]]))
             ciTypes <- c("nonparametric", "parametric")
-            for (i in 1:2) {
+            for (i in 1:1) { ## Note: 1:1 is deliberate, only want to
+                             ## present nonparametric CI
                 if (i == 1) ciType <- "nonparametric"
                 if (i == 2) ciType <- "normal quantiles"
-
                 ## Confidence intervals
                 cat("\nBootstrapped confidence intervals (",
                     ciType, "):\n", sep = "")
                 for (j in 1:length(levels)) {
-                    cistr <- paste0("[",
-                                    fmtResult(object$pointestimate.ci[[i]][j, 1]),
-                                    ", ",
-                                    fmtResult(object$pointestimate.ci[[i]][j, 2]),
-                                    "]")
+                    cistr <-
+                        paste0("[",
+                               fmtResult(object$pointestimate.ci[[i]][j, 1]),
+                               ", ",
+                               fmtResult(object$pointestimate.ci[[i]][j, 2]),
+                               "]")
                     cat("    ",
                         levels[j] * 100,
                         "%: ",
@@ -3872,7 +3827,7 @@ summary.ivmte <- function(object, ...) {
             ## Return specification test
             if (!is.null(object$jtest)) {
                 cat("\nBootstrapped J-test p-value: ",
-                    fmtResult(object$jtest), "\n", sep = "")
+                    fmtResult(object$jtest[2]), "\n", sep = "")
             }
         }
     }

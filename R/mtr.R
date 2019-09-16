@@ -300,6 +300,7 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
         names(gstar) <- monomials$terms
         return(gstar)
     } else {
+        if (!is.matrix(preGamma)) preGamma <- matrix(preGamma, ncol = 1)
         colnames(preGamma) <- monomials$terms
         return(preGamma)
     }
