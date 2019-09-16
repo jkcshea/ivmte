@@ -993,8 +993,16 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     origm1 <- m1
     splinesobj <- list(removeSplines(m0, env = parentFrame),
                        removeSplines(m1, env = parentFrame))
-    m0uCheck <- checkU(splinesobj[[1]]$formula, uname)
-    m1uCheck <- checkU(splinesobj[[2]]$formula, uname)
+    if (is.null(splinesobj[[1]]$formula)) {
+        m0uCheck <- NULL
+    } else {
+        m0uCheck <- checkU(splinesobj[[1]]$formula, uname)
+    }
+    if (is.null(splinesobj[[2]]$formula)) {
+        m1uCheck <- NULL
+    } else {
+        m1uCheck <- checkU(splinesobj[[2]]$formula, uname)
+    }
     if (is.null(splinesobj[[1]]$splinesdict)) {
         m0uSplineCheck <- NULL
     } else {
