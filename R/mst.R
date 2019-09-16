@@ -349,6 +349,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                  call. = FALSE)
         }
     }
+
     ##---------------------------
     ## 2. Check format of non-numeric arguments
     ##---------------------------
@@ -1826,11 +1827,19 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 cat("\nBootstrapped confidence intervals (",
                     i, "):\n", sep = "")
                 for (j in 1:length(levels)) {
-                    cistr <- paste0("[",
-                                    fmtResult(ci[[i]][j, 1]),
-                                    ", ",
-                                    fmtResult(ci[[i]][j, 2]),
-                                    "]")
+                    if (length(ciTypes) == 2) {
+                        cistr <- paste0("[",
+                                        fmtResult(ci[[i]][j, 1]),
+                                        ", ",
+                                        fmtResult(ci[[i]][j, 2]),
+                                        "]")
+                    } else {
+                        cistr <- paste0("[",
+                                        fmtResult(ci[j, 1]),
+                                        ", ",
+                                        fmtResult(ci[j, 2]),
+                                        "]")
+                    }
                     cat("    ",
                         levels[j] * 100,
                         "%: ",
@@ -2949,7 +2958,7 @@ genTarget <- function(treat, m0, m1, target,
             }
         } else {
             gstar0 <- NULL
-        }        
+        }
         if (!is.null(m1)) {
             if (noisy == TRUE) {
                 cat("    Integrating terms for treated group...\n")

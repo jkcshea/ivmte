@@ -356,7 +356,6 @@ monoIntegral <- function(u, exp) {
 #'
 #' @export
 removeSplines <- function(formula, env = parent.frame()) {
-    print("am I doing this?")
     fterms <- attr(terms(formula), "term.labels")
     fterms <- gsub("\\s+", " ", fterms)
     finter <- attr(terms(formula), "intercept")
