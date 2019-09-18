@@ -183,28 +183,6 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
 wgenlate1 <- function(data, ulb, uub) {
-    ## ## EXPERIMENTING ----------------
-    ## output <- list()
-    ## print("(You must account for complete cases and such.")
-    ## if (length(ulb) == 1) output$lb <- replicate(nrow(data), ulb)
-    ## if (length(ulb) == nrow(data)) output$lb <- ulb
-    ## if (length(ulb) > 1 & length(ulb) != nrow(data)) {
-    ##     stop(gsub("\\s+", " ",
-    ##               "Generalized late bounds should either
-    ##                be scalars in the [0, 1] interval, or vectors
-    ##                with an equal number of entries as rows in the data."))
-    ## }
-    ## if (length(uub) == 1) output$ub <- replicate(nrow(data), uub)
-    ## if (length(uub) == nrow(data)) output$ub <- uub
-    ## if (length(uub) > 1 & length(uub) != nrow(data)) {
-    ##     stop(gsub("\\s+", " ",
-    ##               "Generalized late bounds should either
-    ##                be scalars in the [0, 1] interval, or vectors
-    ##                with an equal number of entries as rows in the data."))
-    ## }
-    ## mp = 1 / (uub - ulb)
-    ## return(output)
-    ## ## ENd experiment --------------------------
     return(list(lb = replicate(nrow(data), ulb),
                 ub = replicate(nrow(data), uub),
                 mp = 1 / (uub - ulb)))
