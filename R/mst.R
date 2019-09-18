@@ -2094,7 +2094,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     bootstraps))
         if (bootFailN > 0) {
             cat(sprintf(" (%s failed and redrawn)\n",
-                        gbootFailN))
+                        bootFailN))
         } else {
             cat("\n")
         }
@@ -2871,18 +2871,20 @@ genTarget <- function(treat, m0, m1, target,
             w0$mp <- -1 * w0$mp
         } else if (target == "genlate") {
             if (!is.null(late.X)) {
+                ## Create index to restrict data to those with the
+                ## correct value of X
                 condX <- mapply(function(a, b) paste(a, "==", b),
                                 late.X, eval.X)
                 condX <- paste(condX, collapse = " & ")
-                data <- subset(data, eval(parse(text = condX)))
-                if (nrow(data) == 0) {
+                lateRows <- eval(parse(text = condX), data)
+                if (sum(lateRows) == 0) {
                     stop(gsub("\\s+", " ",
                               "no observations with the values specified in
                                'eval.X'."), call. = FALSE)
                 }
-                if (!is.null(m0)) pm0$polymat <- pm0$polymat[rownames(data), ]
-                if (!is.null(m1)) pm1$polymat <- pm1$polymat[rownames(data), ]
             }
+            if (!is.null(m0)) pm0$polymat <- pm0$polymat
+            if (!is.null(m1)) pm1$polymat <- pm1$polymat
             w1 <- wgenlate1(data, genlate.lb, genlate.ub)
             w0 <- w1
             w0$mp <- -1 * w0$mp

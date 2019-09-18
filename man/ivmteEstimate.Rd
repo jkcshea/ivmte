@@ -10,13 +10,14 @@ ivmteEstimate(data, target, late.Z, late.from, late.to, late.X, eval.X,
   target.knots0 = NULL, target.knots1 = NULL, m0, m1, uname = u,
   m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec,
   m1.inc, mte.dec, mte.inc, ivlike, components, subset, propensity,
-  link = "logit", treat, lpsolver, obseq.tol = 0, initgrid.nx = 20,
-  initgrid.nu = 20, audit.nx = 2500, audit.nu = 25,
-  audit.add = 100, audit.max = 25, audit.grid = NULL,
-  save.grid = FALSE, point = FALSE, point.eyeweight = FALSE,
-  point.center = NULL, orig.sset = NULL, orig.criterion = NULL,
-  vars_y, vars_mtr, terms_mtr0, terms_mtr1, vars_data, splinesobj,
-  noisy = TRUE, smallreturnlist = FALSE, seed = 12345, environments)
+  link = "logit", treat, lpsolver, criterion.tol = 0,
+  initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
+  audit.nu = 25, audit.add = 100, audit.max = 25,
+  audit.grid = NULL, save.grid = FALSE, point = FALSE,
+  point.eyeweight = FALSE, point.center = NULL, orig.sset = NULL,
+  orig.criterion = NULL, vars_y, vars_mtr, terms_mtr0, terms_mtr1,
+  vars_data, splinesobj, noisy = TRUE, smallreturnlist = FALSE,
+  seed = 12345, environments)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -183,7 +184,7 @@ in R used to obtain the bounds on the treatment effect. The
 function supports \code{'gurobi'}, \code{'cplexapi'},
 \code{'lpsolveapi'}.}
 
-\item{obseq.tol}{tolerance for violation of observational
+\item{criterion.tol}{tolerance for violation of observational
 equivalence, set to 0 by default. Statistical noise may
 prohibit the theoretical LP problem from being feasible. That
 is, there may not exist a set of coefficients on the MTR that
@@ -193,7 +194,7 @@ the minimum violation of observational equivalence. This is
 reported in the output under the name 'minimum criterion'. The
 constraints in the LP problem pertaining to observational
 equivalence are then relaxed by the amount \code{minimum
-criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
+criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a value
 greater than 0 to allow for more conservative bounds.}
 
 \item{initgrid.nx}{integer determining the number of points of the

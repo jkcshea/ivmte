@@ -12,8 +12,8 @@ audit(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr0, terms_mtr1,
   m1.lb.default = FALSE, m0.lb.default = FALSE, mte.ub, mte.lb,
   m0.dec = FALSE, m0.inc = FALSE, m1.dec = FALSE, m1.inc = FALSE,
   mte.dec = FALSE, mte.inc = FALSE, sset, gstar0, gstar1,
-  orig.sset = NULL, orig.criterion = NULL, obseq.tol = 0, lpsolver,
-  noisy = TRUE, seed = 12345)
+  orig.sset = NULL, orig.criterion = NULL, criterion.tol = 0,
+  lpsolver, noisy = TRUE, seed = 12345)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -163,7 +163,7 @@ IV-like coefficients.}
 corresponds to the minimum observational equivalence criterion
 from the original sample.}
 
-\item{obseq.tol}{tolerance for violation of observational
+\item{criterion.tol}{tolerance for violation of observational
 equivalence, set to 0 by default. Statistical noise may
 prohibit the theoretical LP problem from being feasible. That
 is, there may not exist a set of coefficients on the MTR that
@@ -173,7 +173,7 @@ the minimum violation of observational equivalence. This is
 reported in the output under the name 'minimum criterion'. The
 constraints in the LP problem pertaining to observational
 equivalence are then relaxed by the amount \code{minimum
-criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
+criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a value
 greater than 0 to allow for more conservative bounds.}
 
 \item{lpsolver}{character, name of the linear programming package

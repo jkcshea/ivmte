@@ -5,7 +5,7 @@
 \title{Estimating expectations of terms in the MTR (gamma objects)}
 \usage{
 genGamma(monomials, lb, ub, multiplier = 1, subset = NULL,
-  means = TRUE)
+  means = TRUE, late.rows = NULL)
 }
 \arguments{
 \item{monomials}{[UPDATE DESCRIPTION] object containing list of
@@ -31,6 +31,9 @@ which to estimate gamma.}
 E[md]. If FALSE, then function instead returns each term of
 E[md | D, X, Z]. This is useful for testing the code,
 i.e. obtaining population estimates.}
+
+\item{late.rows}{Boolean vector indicating which observations to
+include when conditioning on covariates X.}
 }
 \value{
 If \code{means = TRUE}, then the function returns a vector

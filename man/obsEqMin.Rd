@@ -5,7 +5,7 @@
 \title{Minimizing violation of observational equivalence}
 \usage{
 obsEqMin(sset, orig.sset = NULL, orig.criterion = NULL,
-  obseq.tol = 0, lpobj, lpsolver)
+  criterion.tol = 0, lpobj, lpsolver)
 }
 \arguments{
 \item{sset}{A list of IV-like estimates and the corresponding gamma
@@ -19,7 +19,7 @@ well as the IV-like coefficients.}
 corresponds to the minimum observational equivalence criterion
 from the original sample.}
 
-\item{obseq.tol}{tolerance for violation of observational
+\item{criterion.tol}{tolerance for violation of observational
 equivalence, set to 0 by default.}
 
 \item{lpobj}{A list of matrices and vectors defining an LP problem.}

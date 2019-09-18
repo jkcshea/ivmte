@@ -9,13 +9,13 @@ ivmte(data, target, late.from, late.to, late.X, genlate.lb, genlate.ub,
   target.knots1 = NULL, m0, m1, uname = u, m1.ub, m0.ub, m1.lb, m0.lb,
   mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
   components, subset, propensity, link = "logit", treat,
-  lpsolver = NULL, obseq.tol = 0, initgrid.nx = 20,
+  lpsolver = NULL, criterion.tol = 0, initgrid.nx = 20,
   initgrid.nu = 20, audit.nx = 2500, audit.nu = 25,
   audit.add = 100, audit.max = 25, point = FALSE,
   point.eyeweight = FALSE, bootstraps = 0, bootstraps.m,
   bootstraps.replace = TRUE, levels = c(0.99, 0.95, 0.9),
-  ci.type = "both", specification.test = TRUE, pvalue.tol = 1e-08,
-  noisy = TRUE, smallreturnlist = FALSE, seed = 12345)
+  ci.type = "backward", specification.test = TRUE, noisy = TRUE,
+  smallreturnlist = FALSE, seed = 12345)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -182,7 +182,7 @@ in R used to obtain the bounds on the treatment effect. The
 function supports \code{'gurobi'}, \code{'cplexapi'},
 \code{'lpsolveapi'}.}
 
-\item{obseq.tol}{tolerance for violation of observational
+\item{criterion.tol}{tolerance for violation of observational
 equivalence, set to 0 by default. Statistical noise may
 prohibit the theoretical LP problem from being feasible. That
 is, there may not exist a set of coefficients on the MTR that
@@ -192,7 +192,7 @@ the minimum violation of observational equivalence. This is
 reported in the output under the name 'minimum criterion'. The
 constraints in the LP problem pertaining to observational
 equivalence are then relaxed by the amount \code{minimum
-criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
+criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a value
 greater than 0 to allow for more conservative bounds.}
 
 \item{initgrid.nx}{integer determining the number of points of the
@@ -259,13 +259,6 @@ confidence intervals.}
 \item{specification.test}{boolean, default set to
 \code{TRUE}. Function performs a specificaiton test for the
 partially identified case when \code{bootstraps > 0}.}
-
-\item{pvalue.tol}{numeric, default set to 1e-08. The p-value under
-the partially identified case is constructed by iteratively
-adjusting the confidence level to find a confidence interval
-that does not contain 0. When the adjustment of the confidence
-level falls below \code{pvalue.tol}, no further iterations are
-performed.}
 
 \item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
 then messages are provided throughout the estimation

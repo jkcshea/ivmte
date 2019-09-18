@@ -4,7 +4,7 @@
 \alias{design}
 \title{Generating design matrices}
 \usage{
-design(formula, data, subset)
+design(formula, data, subset, treat, orig.names)
 }
 \arguments{
 \item{formula}{Formula with which to generate the design matrix.}
@@ -13,6 +13,18 @@ design(formula, data, subset)
 matrix.}
 
 \item{subset}{Condition to select subset of data.}
+
+\item{treat}{The name of the treatment variable. This should only
+be passed when constructing OLS weights.}
+
+\item{orig.names}{This should only be passed when constructing OLS
+weights. This is required when the user declares an IV-like
+formula where the treatment variable is passed into the
+\code{factor} function. Since the treatment variable has to be
+fixed to 0 or 1, the design matrix will be unable to construct
+the contrasts. The argument \code{orig.names} is a vector of
+the terms in the IV-like specification prior to fixing the
+treatment variable.}
 }
 \value{
 Three matrices are returned: one for the outcome variable,
