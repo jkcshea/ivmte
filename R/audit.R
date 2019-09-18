@@ -449,11 +449,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
         ## Test for violations for minimization problem
         violateDiffMin <- round(a_mbA %*% solVecMin - a_mbrhs,
-                                digits = 10)
+                                digits = 8)
         violatevecMin <- violateDiffMin > 0
         ## Test for violations for maximization problem
         violateDiffMax <- round(a_mbA %*% solVecMax - a_mbrhs,
-                                digits = 10)
+                                digits = 8)
         violatevecMax <- violateDiffMax > 0
         ## Generate violation data set
         violatevec <- violatevecMin + violatevecMax

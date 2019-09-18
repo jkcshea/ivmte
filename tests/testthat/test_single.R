@@ -6,22 +6,23 @@ set.seed(10L)
 ##------------------------
 
 dtcf <- ivmte:::gendistCovariates()$data.full
+dtc <- ivmte:::gendistCovariates()$data.dist
 result <- ivmte(ivlike = ey ~ 1 +d + x1 + x2,
                 data = dtcf,
                 components = l(d, x1),
                 subset = z2 %in% c(2, 3),
                 propensity = d ~ x1 + x2 + z1 + z2,
                 link = "logit",
-                m0 = ~ x1 + x2:u + x2:I( u^2),
-                m1 = ~ x1 + I(x1 * x2) + u + x:u + x2:I(u^2),
+                m0 = ~ x1 + x2:u + x2:I(u^2),
+                m1 = ~ x1 + x1:x2 + u + x1:u + x2:I(u^2),
                 uname = u,
                 target = "late",
                 late.from = c(z1 = 1, z2 = 2),
                 late.to = c(z1 = 0, z2 = 3),
                 late.X = c(x1 = 0, x2 = 1),
                 criterion.tol = 0.01,
-                initgrid.nu = 5,
-                initgrid.nx = 5,
+                initgrid.nu = 4,
+                initgrid.nx = 2,
                 audit.nx = 5,
                 audit.nu = 5,
                 lpsolver = "lpSolveAPI",
@@ -141,10 +142,11 @@ for (i in 1:nrow(A)) {
     Aextra[i, (i * 2)] <- 1
 }
 grid <- result$audit.grid$initial[, 1:3]
-mono0 <- model.matrix(~ x1 + I(x2 * u) + I(x2 * u^2),
+mono0 <- model.matrix(~ x1 + x2:u + x2:I(u^2),
                       data = grid)
-mono1 <- model.matrix(~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
+mono1 <- model.matrix(~ x1 + x1:x2 + u + x1:u + x2:I(u^2),
                       data = grid)
+
 ## Construct boundedness matrix components
 maxy <- max(subset(dtc, dtc$z2 %in% c(2, 3))[, c("ey0", "ey1")])
 miny <- min(subset(dtc, dtc$z2 %in% c(2, 3))[, c("ey0", "ey1")])
@@ -156,9 +158,9 @@ m1bound <- cbind(Bzeroes, b0zeroes, mono1)
 
 ## Expand grid to include audit violations
 agrid <- result$audit.grid$audit[, 1:3]
-amono0 <- model.matrix(~ x1 + I(x2 * u) + I(x2 * u^2),
+amono0 <- model.matrix(~ x1 + x2:u + x2:I(u^2),
                        data = agrid)
-amono1 <- model.matrix(~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
+amono1 <- model.matrix(~ x1 + x1:x2 + u + x1:u + x2:I(u^2),
                        data = agrid)
 aBzeroes <- matrix(0, ncol = ncol(Aextra), nrow(agrid))
 ab0zeroes <- matrix(0, ncol = ncol(amono0), nrow = nrow(agrid))
@@ -179,7 +181,8 @@ aA <- rbind(am0bound,
             am1bound,
             am0bound,
             am1bound)
-violateVec <- c(7, 6)
+violateVec <- c(35, 38, 39, 40, 41, 42, 43, 44, 45, 69, 70, 109, 110, 111,
+                112, 113, 114, 115, 116, 117, 118, 119, 140)
 addShapeRhs <- arhs[violateVec]
 addShapeSense <- asense[violateVec]
 addShapeA <- aA[violateVec, ]

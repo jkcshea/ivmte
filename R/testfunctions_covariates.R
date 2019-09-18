@@ -83,15 +83,15 @@ genGammaTT <- function(data, s0, s1, lb, ub) {
     if (!hasArg(lb) | !hasArg(ub)) {
         data$g.1.d.0 <- data$p * data[, s1]
         data$g.1.d.1 <- data$p * data$x1 * data[, s1]
-        data$g.1.d.2 <- data$p * data$x1 * data$x2 * data[, s1]
-        data$g.1.d.3 <- mInt(data$p, 0, c(0, 1, 0)) * data[, s1]
+        data$g.1.d.2 <- mInt(data$p, 0, c(0, 1, 0)) * data[, s1]
+        data$g.1.d.3 <- data$p * data$x1 * data$x2 * data[, s1]
         data$g.1.d.4 <- mInt(data$p, 0, c(0, 1, 0)) * data$x1 * data[, s1]
         data$g.1.d.5 <- mInt(data$p, 0, c(0, 0, 1)) * data$x2 * data[, s1]
     } else {
         data$g.1.d.0 <- (ub - lb) * data[, s1]
         data$g.1.d.1 <- (ub - lb) * data$x1 * data[, s1]
-        data$g.1.d.2 <- (ub - lb) * data$x1 * data$x2 * data[, s1]
-        data$g.1.d.3 <- mInt(ub, lb, c(0, 1, 0)) * data[, s1]
+        data$g.1.d.2 <- mInt(ub, lb, c(0, 1, 0)) * data[, s1]
+        data$g.1.d.3 <- (ub - lb) * data$x1 * data$x2 * data[, s1]
         data$g.1.d.4 <- mInt(ub, lb, c(0, 1, 0)) * data$x1 * data[, s1]
         data$g.1.d.5 <- mInt(ub, lb, c(0, 0, 1)) * data$x2 * data[, s1]
     }

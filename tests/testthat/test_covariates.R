@@ -6,6 +6,7 @@ set.seed(10L)
 ##------------------------
 
 dtcf <- ivmte:::gendistCovariates()$data.full
+dtc <- ivmte:::gendistCovariates()$data.dist
 ivlike <- c(ey ~ d,
             ey ~ d + x1,
             ey ~ d + x1 + x2,
@@ -18,17 +19,17 @@ result <- ivmte(ivlike = ivlike,
                 components = components,
                 subset = subsets,
                 propensity = p,
-                m0 = ~ x1 + I(x2 * u) + I(x2 * u^2),
-                m1 = ~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
+                m0 = ~ x1 + x2:u + x2:I(u^2),
+                m1 = ~ x1 + x1:x2 + u + x1:u + x2:I(u^2),
                 uname = u,
                 target = "genlate",
                 genlate.lb = 0.2,
                 genlate.ub = 0.7,
                 criterion.tol = 0.01,
-                initgrid.nu = 3,
+                initgrid.nu = 1,
                 initgrid.nx = 2,
-                audit.nu = 3,
-                audit.nx = 2,
+                audit.nu = 5,
+                audit.nx = 3,
                 m0.inc = TRUE,
                 m1.inc = TRUE,
                 mte.dec = TRUE,
@@ -303,7 +304,7 @@ A.extra <- matrix(c(-1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                   byrow = TRUE,
                   nrow = 7)
 ## Construct monotonicity matrix components
-grid <- matrix(c(0, 3, 0, 2), nrow = 2, byrow = TRUE)
+grid <- matrix(c(0, 2, 1, 2), nrow = 2, byrow = TRUE)
 grid <- Reduce("rbind",
                lapply(lapply(split(grid, c(1, 2)),
                              FUN = replicate,
@@ -315,9 +316,9 @@ rownames(grid) <- NULL
 grid <- data.frame(grid)
 colnames(grid) <- c("x1", "x2", "u")
 
-mono0 <- model.matrix(~ x1 + I(x2 * u) + I(x2 * u^2),
+mono0 <- model.matrix(~ x1 + x2:u + x2:I(u^2),
                       data = grid)
-mono1 <- model.matrix(~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
+mono1 <- model.matrix(~ x1 + x1:x2 + u + x1:u + x2:I(u^2),
                       data = grid)
 monoA0 <- mono0[c(2, 3, 5, 6), ] - mono0[c(1, 2, 4, 5), ]
 monoA1 <- mono1[c(2, 3, 5, 6), ] - mono1[c(1, 2, 4, 5), ]
@@ -338,59 +339,6 @@ m0bound <- cbind(Bzeroes, mono0, b1zeroes)
 m1bound <- cbind(Bzeroes, b0zeroes, mono1)
 
 ##-------------------------
-## Expand the above according to the audit
-##-------------------------
-
-agrid <- result$audit.grid$audit
-amono0 <- model.matrix(~ x1 + I(x2 * u) + I(x2 * u^2),
-                      data = agrid)
-amono1 <- model.matrix(~ x1 + I(x1 * x2) + u + I(x1 * u) + I(x2 * u^2),
-                       data = agrid)
-amonoA0 <- amono0[seq(2, 7), ] - amono0[seq(1, 6), ]
-amonoA1 <- amono1[seq(2, 7), ] - amono1[seq(1, 6), ]
-aAzeroes <- matrix(0, ncol = 14, nrow = 6)
-am0zeroes <- matrix(0, ncol = 6, nrow = 6)
-am1zeroes <- matrix(0, ncol = 4, nrow = 6)
-am0mono  <- cbind(aAzeroes, amonoA0, am0zeroes)
-am1mono  <- cbind(aAzeroes, am1zeroes, amonoA1)
-amtemono <- cbind(aAzeroes, -amonoA0, amonoA1)
-
-## Construct boundedness matrix components
-aBzeroes <- matrix(0, ncol = 14, nrow = nrow(agrid))
-ab0zeroes <- matrix(0, ncol = ncol(amono0), nrow = nrow(agrid))
-ab1zeroes <- matrix(0, ncol = ncol(amono1), nrow = nrow(agrid))
-am0bound <- cbind(aBzeroes, amono0, ab1zeroes)
-am1bound <- cbind(aBzeroes, ab0zeroes, amono1)
-
-## Construct the audit matrices
-arhs <- c(replicate(nrow(am0bound), miny),
-          replicate(nrow(am1bound), miny),
-          replicate(nrow(am0bound), maxy),
-          replicate(nrow(am1bound), maxy),
-          replicate(nrow(am0mono), 0),
-          replicate(nrow(am1mono), 0),
-          replicate(nrow(amtemono), 0))
-asense <- c(replicate(nrow(am0bound), ">="),
-            replicate(nrow(am1bound), ">="),
-            replicate(nrow(am0bound), "<="),
-            replicate(nrow(am1bound), "<="),
-            replicate(nrow(am0mono), ">="),
-            replicate(nrow(am1mono), ">="),
-            replicate(nrow(amtemono), "<="))
-aA <- rbind(am0bound,
-            am1bound,
-            am0bound,
-            am1bound,
-            am0mono,
-            am1mono,
-            amtemono)
-
-violateVec <- c(14, 22, 34, 40, 46, 29, 42)
-addShapeRhs <- arhs[violateVec]
-addShapeSense <- asense[violateVec]
-addShapeA <- aA[violateVec, ]
-
-##-------------------------
 ## Obtain minimum criteiron
 ##-------------------------
 
@@ -404,8 +352,7 @@ model.o$rhs <- c(estimates,
                  replicate(nrow(m1bound), maxy),
                  replicate(nrow(m0mono), 0),
                  replicate(nrow(m1mono), 0),
-                 replicate(nrow(mtemono), 0),
-                 addShapeRhs)
+                 replicate(nrow(mtemono), 0))
 model.o$sense <- c(replicate(7, "="),
                    replicate(nrow(m0bound), ">="),
                    replicate(nrow(m1bound), ">="),
@@ -413,8 +360,7 @@ model.o$sense <- c(replicate(7, "="),
                    replicate(nrow(m1bound), "<="),
                    replicate(nrow(m0mono), ">="),
                    replicate(nrow(m1mono), ">="),
-                   replicate(nrow(mtemono), "<="),
-                   addShapeSense)
+                   replicate(nrow(mtemono), "<="))
 model.o$A <- rbind(cbind(A.extra, A),
                    m0bound,
                    m1bound,
@@ -422,8 +368,7 @@ model.o$A <- rbind(cbind(A.extra, A),
                    m1bound,
                    m0mono,
                    m1mono,
-                   mtemono,
-                   addShapeA)
+                   mtemono)
 model.o$ub <- c(replicate(14, Inf), replicate(10, Inf))
 model.o$lb <- c(replicate(14, 0), replicate(10, -Inf))
 ## Minimize observational equivalence deviation

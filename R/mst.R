@@ -829,8 +829,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     if (!(is.numeric(criterion.tol) & criterion.tol >= 0)) {
         stop("Cannot set 'criterion.tol' below 0.", call. = FALSE)
     }
-    if (!((initgrid.nu %% 1 == 0) & initgrid.nu >= 2)) {
-        stop("initgrid.nu must be an integer greater than or equal to 2.",
+    if (!((initgrid.nu %% 1 == 0) & initgrid.nu >= 0)) {
+        stop(gsub("\\s+", " ",
+                  "'initgrid.nu' must be an integer than or equal to 0
+                    (end points 0 and 1 are always included)."),
              call. = FALSE)
     }
     if (!((initgrid.nx %% 1 == 0) & initgrid.nx >= 0)) {
@@ -858,8 +860,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         hasArg(m1.lb) | hasArg(m1.ub) |
         hasArg(mte.lb) | hasArg(mte.ub)) {
         noshape = FALSE ## indicator for whether shape restrictions declared
-        if (!((audit.nu %% 1 == 0) & audit.nu > 0) | audit.nu < 2) {
-            stop("'audit.nu' must be an integer greater than or equal to 2.",
+        if (!((audit.nu %% 1 == 0) & audit.nu >= 0)) {
+            stop(gsub("\\s+", " ",
+                      "'audit.nu' must be an integer than or equal to 0
+                       (end points 0 and 1 are always included)."),
                  call. = FALSE)
         }
     } else {

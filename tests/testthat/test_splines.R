@@ -6,6 +6,7 @@ set.seed(10L)
 ##------------------------
 
 dtsf <- ivmte:::gendistSplines()$data.full
+dts <- ivmte:::gendistSplines()$data.dist
 ivlike <- c(ey ~ d,
             ey ~ d + x,
             ey ~ d + x | z + x)
@@ -30,8 +31,8 @@ result <- ivmte(ivlike = ivlike,
                 criterion.tol = 0.01,
                 initgrid.nu = 3,
                 initgrid.nx = 2,
-                audit.nu = 3,
-                audit.nx = 2,
+                audit.nu = 5,
+                audit.nx = 3,
                 m1.ub = 55,
                 m0.lb = 0,
                 mte.inc = TRUE,
@@ -229,6 +230,7 @@ for (i in 1:nrow(A)) {
     Aextra[i, (i * 2 - 1)] <- -1
     Aextra[i, (i * 2)] <- 1
 }
+
 ## Construct monotonicity matrix components
 uGrid <- unique(result$audit.grid$initial[, "u"])
 xMat <- cbind(1, result$audit.grid$initial[, "x"])
@@ -236,12 +238,12 @@ u1s1 <- splines2::bSpline(x = uGrid,
                           degree = 2,
                           knots = c(0.3, 0.6),
                           intercept = FALSE)
-u1s1 <- do.call("rbind", rep(list(u1s1), 3))
+u1s1 <- do.call("rbind", rep(list(u1s1), 2))
 u0s1 <- splines2::bSpline(x = uGrid,
                           degree = 0,
                           knots = c(0.2, 0.5, 0.8),
                           intercept = TRUE)
-u0s1 <- do.call("rbind", rep(list(u0s1), 3))
+u0s1 <- do.call("rbind", rep(list(u0s1), 2))
 u0s1 <- sweep(x = u0s1,
               MARGIN = 1,
               STATS = xMat[, 2],
@@ -250,8 +252,8 @@ u0s2 <- splines2::bSpline(x = uGrid,
                           degree = 1,
                           knots = c(0.4),
                           intercept = TRUE)
-u0s2 <- do.call("rbind", rep(list(u0s2), 3))
-u2Mat <- rep(uGrid ^ 2, 3)
+u0s2 <- do.call("rbind", rep(list(u0s2), 2))
+u2Mat <- rep(uGrid ^ 2, 2)
 mono0 <- cbind(u2Mat, u0s2, u0s1)
 mono1 <- cbind(xMat, u1s1)
 colnames(mono0) <- c("I(u^2)",
@@ -259,26 +261,26 @@ colnames(mono0) <- c("I(u^2)",
                      "u0S2.1:x", "u0S2.2:x", "u0S2.3:x", "u0S2.4:x")
 colnames(mono1) <- c("(Intercept)", "x",
                      "u1S1.1:1", "u1S1.2:1", "u1S1.3:1", "u1S1.4:1")
-monoA0 <- mono0[seq(1, 3 * length(uGrid))[-seq(1,
-                                               3 * length(uGrid),
+monoA0 <- mono0[seq(1, 2 * length(uGrid))[-seq(1,
+                                               2 * length(uGrid),
                                                by = length(uGrid))], ] -
-    mono0[seq(1, 3 * length(uGrid))[-seq(length(uGrid),
-                                         3 * length(uGrid),
+    mono0[seq(1, 2 * length(uGrid))[-seq(length(uGrid),
+                                         2 * length(uGrid),
                                          by = length(uGrid))], ]
-monoA1 <- mono1[seq(1, 3 * length(uGrid))[-seq(1,
-                                               3 * length(uGrid),
+monoA1 <- mono1[seq(1, 2 * length(uGrid))[-seq(1,
+                                               2 * length(uGrid),
                                                by = length(uGrid))], ] -
-    mono1[seq(1, 3 * length(uGrid))[-seq(length(uGrid),
-                                         3 * length(uGrid),
+    mono1[seq(1, 2 * length(uGrid))[-seq(length(uGrid),
+                                         2 * length(uGrid),
                                          by = length(uGrid))], ]
 Azeroes <- matrix(0, ncol = ncol(Aextra), nrow = nrow(monoA0))
 mtemono <- cbind(Azeroes, -monoA0, monoA1)
 ## Construct boundedness matrix components
 maxy <- max(c(dts$ey0, dts$ey1))
 miny <- min(c(dts$ey0, dts$ey1))
-Bzeroes <- matrix(0, ncol = ncol(Aextra), 3 * length(uGrid))
-b0zeroes <- matrix(0, ncol = ncol(mono0), nrow = 3 * length(uGrid))
-b1zeroes <- matrix(0, ncol = ncol(mono1), nrow = 3 * length(uGrid))
+Bzeroes <- matrix(0, ncol = ncol(Aextra), 2 * length(uGrid))
+b0zeroes <- matrix(0, ncol = ncol(mono0), nrow = 2 * length(uGrid))
+b1zeroes <- matrix(0, ncol = ncol(mono1), nrow = 2 * length(uGrid))
 m0bound <- cbind(Bzeroes, mono0, b1zeroes)
 m1bound <- cbind(Bzeroes, b0zeroes, mono1)
 
@@ -339,10 +341,10 @@ am0bound <- cbind(aBzeroes, amono0, ab1zeroes)
 am1bound <- cbind(aBzeroes, ab0zeroes, amono1)
 
 ## Construct the audit matrices
-arhs <- c(replicate(nrow(am0bound), miny),
+arhs <- c(replicate(nrow(am0bound), 0),
           replicate(nrow(am1bound), miny),
           replicate(nrow(am0bound), maxy),
-          replicate(nrow(am1bound), maxy),
+          replicate(nrow(am1bound), 55),
           replicate(nrow(amtemono), 0))
 asense <- c(replicate(nrow(am0bound), ">="),
             replicate(nrow(am1bound), ">="),
@@ -354,7 +356,8 @@ aA <- rbind(am0bound,
             am0bound,
             am1bound,
             amtemono)
-violateVec <- c(37, 45, 86, 97, 91)
+violateVec <- c(1, 2, 3, 23, 30, 37, 58, 68, 69, 70, 85, 86, 87, 88,
+                91, 94, 97, 100, 45, 90)
 addShapeRhs <- arhs[violateVec]
 addShapeSense <- asense[violateVec]
 addShapeA <- aA[violateVec, ]
@@ -471,11 +474,11 @@ resultAlt <- ivmte(ivlike = ivlike,
                    target.weight0 = c(weight01, weight02),
                    target.weight1 = weight11,
                    target.knots0 = knots01,
-                   obseq.tol = 0.01,
+                   criterion.tol = 0.01,
                    initgrid.nu = 3,
                    initgrid.nx = 2,
-                   audit.nx = 1,
                    audit.nu = 5,
+                   audit.nx = 3,
                    audit.max = 10,
                    m1.ub = 55,
                    m0.lb = 0,

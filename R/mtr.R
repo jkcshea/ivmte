@@ -234,8 +234,8 @@ polyProduct <- function(poly1, poly2) {
 #'     integration. Each element corresponds to an observation.
 #' @param multiplier a vector of the weights that enter into the
 #'     integral. Each element corresponds to an observation.
-#' @param subset Subset condition used to select observations with
-#'     which to estimate gamma.
+#' @param subset The row names/numbers of the subset of observations
+#'     to use.
 #' @param means logical, if TRUE then function returns the terms of
 #'     E[md]. If FALSE, then function instead returns each term of
 #'     E[md | D, X, Z]. This is useful for testing the code,
@@ -278,7 +278,10 @@ genGamma <- function(monomials, lb, ub, multiplier = 1,
     if (is.null(late.rows)) late.rows <- rep(TRUE, nrow(monomials$polymat))    
     exporder <- monomials$exporder
     polymat <- monomials$polymat
-    if (!is.null(subset)) polymat <- as.matrix(polymat[subset, ])
+    if (!is.null(subset)) {
+        polymat <- as.matrix(polymat[subset, ])
+        late.rows <- late.rows[as.integer(subset)]
+    }
     nmono <- length(exporder)
     ## Determine bounds of integrals (i.e. include weights)
     if (length(ub) == 1) ub <- replicate(nrow(polymat), ub)
@@ -738,6 +741,8 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
     } else {
         if (!hasArg(subset)) {
             subset <- replicate(nrow(data), TRUE)
+        } else {
+            late.rows <- late.rows[as.integer(subset)]
         }
         if (length(lb) == 1) lb <- replicate(nrow(data[subset, ]), lb)
         if (length(ub) == 1) ub <- replicate(nrow(data[subset, ]), ub)
