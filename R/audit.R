@@ -156,7 +156,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   mte.dec = FALSE, mte.inc = FALSE,
                   sset, gstar0, gstar1,
                   orig.sset = NULL, orig.criterion = NULL,
-                  obseq.tol = 0, lpsolver,
+                  criterion.tol = 0, lpsolver,
                   noisy = TRUE, seed = 12345) {
     set.seed(seed)
     call  <- match.call()
@@ -301,7 +301,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
         minobseq <- obsEqMin(sset, NULL, NULL,
-                             obseq.tol, lpobj, lpsolver)
+                             criterion.tol, lpobj, lpsolver)
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -319,7 +319,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             minobseqAlt <- obsEqMin(sset = sset,
                                     orig.sset = NULL,
                                     orig.criterion = NULL,
-                                    obseq.tol = obseq.tol,
+                                    criterion.tol = criterion.tol,
                                     lpobj = lpobjAlt,
                                     lpsolver = lpsolver)
             solVec <- minobseqAlt$result$x
@@ -405,7 +405,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             lpobjTest <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
                                  mbobj$mbrhs, lpsolver)
             minobseqTest <- obsEqMin(sset, orig.sset, orig.criterion,
-                                     obseq.tol, lpobjTest, lpsolver)
+                                     criterion.tol, lpobjTest, lpsolver)
         }
 
         ## Obtain bounds
@@ -416,7 +416,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                            g1 = gstar1,
                            sset = sset,
                            lpobj = lpobj,
-                           obseq.factor = minobseq$obj * (1 + obseq.tol),
+                           obseq.factor = minobseq$obj * (1 + criterion.tol),
                            lpsolver = lpsolver)
         if (is.null(lpresult)) {
             message("    LP solutions are unbounded.")
@@ -428,9 +428,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
         optstatus <- min(c(lpresult$minstatus,
                            lpresult$maxstatus))
         if (optstatus == 0) {
-            if (obseq.tol == 0) {
+            if (criterion.tol == 0) {
                 stop(gsub("\\s+", " ",
-                          "Unable to obtain bounds. Try setting obseq.tol
+                          "Unable to obtain bounds. Try setting criterion.tol
                           to be greater than 0 to allow for model
                           misspecification, or expanding the initial constraint
                           grid size for imposing the shape restrictions

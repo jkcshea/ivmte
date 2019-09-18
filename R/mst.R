@@ -149,7 +149,7 @@ utils::globalVariables("u")
 #'     in R used to obtain the bounds on the treatment effect. The
 #'     function supports \code{'gurobi'}, \code{'cplexapi'},
 #'     \code{'lpsolveapi'}.
-#' @param obseq.tol tolerance for violation of observational
+#' @param criterion.tol tolerance for violation of observational
 #'     equivalence, set to 0 by default. Statistical noise may
 #'     prohibit the theoretical LP problem from being feasible. That
 #'     is, there may not exist a set of coefficients on the MTR that
@@ -159,7 +159,7 @@ utils::globalVariables("u")
 #'     reported in the output under the name 'minimum criterion'. The
 #'     constraints in the LP problem pertaining to observational
 #'     equivalence are then relaxed by the amount \code{minimum
-#'     criterion * (1 + obseq.tol)}. Set \code{obseq.tol} to a value
+#'     criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a value
 #'     greater than 0 to allow for more conservative bounds.
 #' @param initgrid.nx integer determining the number of points of the
 #'     covariates used to form the initial constraint grid for
@@ -290,7 +290,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                   m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
                   components, subset, propensity, link = 'logit',
-                  treat, lpsolver = NULL, obseq.tol = 0,
+                  treat, lpsolver = NULL, criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
                   point = FALSE, point.eyeweight = FALSE,
@@ -826,8 +826,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         stop("'seed' must be a scalar.", call. = FALSE)
     }
     ## Audit checks
-    if (!(is.numeric(obseq.tol) & obseq.tol >= 0)) {
-        stop("Cannot set 'obseq.tol' below 0.", call. = FALSE)
+    if (!(is.numeric(criterion.tol) & criterion.tol >= 0)) {
+        stop("Cannot set 'criterion.tol' below 0.", call. = FALSE)
     }
     if (!((initgrid.nu %% 1 == 0) & initgrid.nu >= 2)) {
         stop("initgrid.nu must be an integer greater than or equal to 2.",
@@ -2376,7 +2376,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
                           components, subset, propensity,
                           link = "logit", treat, lpsolver,
-                          obseq.tol = 0, initgrid.nx = 20,
+                          criterion.tol = 0, initgrid.nx = 20,
                           initgrid.nu = 20, audit.nx = 2500,
                           audit.nu = 25, audit.add = 100,
                           audit.max = 25, audit.grid = NULL,
@@ -2622,7 +2622,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
-                    "mte.inc", "obseq.tol",
+                    "mte.inc", "criterion.tol",
                     "orig.sset", "orig.criterion",
                     "noisy", "seed")
     audit_call <- modcall(call,

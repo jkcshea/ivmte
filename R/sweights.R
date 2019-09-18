@@ -40,6 +40,16 @@ extractcols <- function(M, components) {
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
 olsj <- function(X, X0, X1, components, treat) {
+    if(!all(colnames(X) == colnames(X0)) |
+       !all(colnames(X) == colnames(X1))) {
+        stop(gsub("\\s+", " ",
+                  "Column names of design matrices to construct OLS
+                   weights do not match. This is most likely because
+                   the IV-like specification has the treatment variable
+                   inside the factor() command. Try rewriting the
+                   IV-like specification without placing the treatment
+                   variable inside the factor command."))
+    }
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"

@@ -155,7 +155,7 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 #' @param orig.criterion numeric, only used for bootstraps. The scalar
 #'     corresponds to the minimum observational equivalence criterion
 #'     from the original sample.
-#' @param obseq.tol tolerance for violation of observational
+#' @param criterion.tol tolerance for violation of observational
 #'     equivalence, set to 0 by default.
 #' @param lpobj A list of matrices and vectors defining an LP problem.
 #' @param lpsolver string, name of the package used to solve the LP
@@ -254,7 +254,7 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 #'
 #' @export
 obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
-                     obseq.tol = 0, lpobj, lpsolver) {
+                     criterion.tol = 0, lpobj, lpsolver) {
     if (!is.null(orig.sset)) {
         ## Prepare to obtain 'recentered' bootstrap criterion
         tmpA <- NULL
@@ -281,7 +281,7 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
                                    nrow = nrow(lpobj$A),
                                    ncol = length(orig.sset) * 2),
                                lpobj$A))
-        lpobj$rhs <- c(orig.criterion * (1 + obseq.tol),
+        lpobj$rhs <- c(orig.criterion * (1 + criterion.tol),
                        tmpRhs, lpobj$rhs)
         lpobj$sense <- c("<=", tmpSense, lpobj$sense)
         lpobj$obj <- c(rep(0, 2 * length(orig.sset)), lpobj$obj)

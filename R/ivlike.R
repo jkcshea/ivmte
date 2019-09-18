@@ -247,20 +247,30 @@ ivEstimate <- function(formula, data, subset, components, treat,
         ## matrices where we fix treatment.
         if (list == TRUE) {
             data[, colnames(data) == treat] <- 0
-            mf0 <- design(formula, data)
+            mf0 <- design(formula = formula,
+                          data = data,
+                          treat = treat,
+                          orig.names = colnames(mf$X))
             data[, colnames(data) == treat] <- 1
-            mf1 <- design(formula, data)
+            mf1 <- design(formula = formula,
+                          data = data,
+                          treat = treat,
+                          orig.names = colnames(mf$X))
         } else {
             data[, colnames(data) == treat] <- 0
             mf0 <- eval(modcall(call,
                                  newcall = design,
                                  keepargs = c("formula", "subset"),
-                                 newargs = list(data = quote(data))))
+                                newargs = list(data = quote(data),
+                                               treat = treat,
+                                               orig.names = colnames(mf$X))))
             data[, colnames(data) == treat] <- 1
             mf1 <- eval(modcall(call,
-                                 newcall = design,
-                                 keepargs = c("formula", "subset"),
-                                 newargs = list(data = quote(data))))
+                                newcall = design,
+                                keepargs = c("formula", "subset"),
+                                newargs = list(data = quote(data),
+                                               treat = treat,
+                                               orig.names = colnames(mf$X))))
         }
         bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents, order = order,
                     excluded = FALSE)$coef
