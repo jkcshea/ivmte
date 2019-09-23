@@ -11,18 +11,21 @@
 #
 # We have run this and saved it in .csv format, which this script downloads.
 # The file is around 80 MB, so not included with the package.
+#
 # This script creates smaller version by removing unneeded columns.
 rm(list = ls())
 
-#### WAITING FOR WEB SPACE FROM U CHICAGO
+temp = "AE.csv"
+download.file(
+    "http://ivmte.data.s3-website.us-east-2.amazonaws.com/AE-1980-AllWomen.csv",
+    temp
+)
+AE <- read.csv(temp)
+unlink(temp) # delete the file
 
-#download.file("http://sites.bu.edu/ivanf/files/2014/03/m_d_806.dta_.zip",temp)
-#aedata <- read_dta(unz(temp, "m_d_806.dta"))
-#unlink(temp)
-
-AE = read.csv("1980-AllWomen.csv")
 AE <- subset(AE, agefstm >= 20)
 AE <- subset(AE, select=c(workedm, hourswm, morekids, samesex, YOBM))
 colnames(AE) <- c("worked", "hours", "morekids", "samesex", "yob")
+rownames(AE) <- NULL
 library("devtools")
 use_data(AE, overwrite = TRUE)
