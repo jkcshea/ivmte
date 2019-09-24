@@ -286,10 +286,10 @@ ivEstimate <- function(formula, data, subset, components, treat,
             collinearCompPos <- which(components %in% names(bhat)[collinearPos])
             if (length(collinearCompPos) > 0) components <-
                                                   components[-collinearCompPos]
-            sweight <- olsj(mfX, mf0X, mf1X, components, treat)
+            sweight <- olsj(mfX, mf0X, mf1X, components, treat, order)
             bhat <- bhat[-collinearPos]
         } else {
-            sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat)
+            sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat, order)
         }
     } else {
         if (length(formula)[2] == 2 &

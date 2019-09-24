@@ -36,10 +36,12 @@ extractcols <- function(M, components) {
 #' @param components Vector of variable names of which user wants the
 #'     S-weights for.
 #' @param treat Variable name for the treatment indicator.
-#'
+#' @param order integer, default set to \code{NULL}. This is simply an
+#'     index of which IV-like specification the estimate corresponds
+#'     to.
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
-olsj <- function(X, X0, X1, components, treat) {
+olsj <- function(X, X0, X1, components, treat, order = NULL) {
     if(!all(colnames(X) == colnames(X0)) |
        !all(colnames(X) == colnames(X1))) {
         stop(gsub("\\s+", " ",
@@ -53,7 +55,69 @@ olsj <- function(X, X0, X1, components, treat) {
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
-    cpos <- which(colnames(X) %in% components)
+    cpos <- unlist(sapply(components, function(x) which(colnames(X) == x)))
+    cposcheck <- which(!components %in% colnames(X))
+    if (length(cposcheck) > 0) {
+        errornames  <- components[cposcheck]
+        matrixnames <- paste(colnames(X), collapse = ", ")
+        ## Address the case where a factor variable is declared as a
+        ## component, but is missing from the design matrix. This will
+        ## be assumed to be due to collinearities. The program will
+        ## continue on.
+
+        ## errorfactorpos <- grep("factor(.)", errornames)
+        ## if (length(errorfactorpos) > 0) {
+        ##     errorfactors <- errornames[errorfactorpos]
+        ##     components <- components[! components %in% errorfactors]
+        ##     errorfactors <- paste(errorfactors, collapse = ", ")
+        ##     errornames   <- errornames[-errorfactorpos]
+        ##     allfactors <- paste(grep("factor(.)", colnames(X)),
+        ##                         collapse = ", ")
+        ##     efmessage <- paste0("The following factor components have been
+        ##                    dropped: ", paste(errorfactors, collapse = ", "),
+        ##                    ".  This may be due to colinearity in the
+        ##                    IV specification, or that the factors were not
+        ##                    included in the IV specification. The factor
+        ##                    variables included in the design matrix are:",
+        ##                    allfactors, ".")
+        ##     efmessage <- gsub("\\s+", " ", efmessage)
+        ##     warning(efmessage)
+        ## } else {
+        ##     errorfactors <- NULL
+        ## }
+
+        ## NOTE: If the code directly above is commented out, then the
+        ## code below will stop the function if there are ANY
+        ## variables declared as components missing from the design
+        ## matrix. This could be either due to errneous input, or
+        ## collinearities.
+
+        ## Now address the case where the non-factor
+        ## variables declared as components are missing. If any of
+        ## them are missing, then it is not assumed to be
+        ## collinearity, and the program is stopped.
+        if (length(errornames) > 0) {
+            errornames <- paste(errornames,
+                                  collapse = ", ")
+            if (is.null(order)) {
+                emessageIV <- "This may be due to collinearity, or that the
+                              variable was never included in the IV-like
+                              specification."
+            } else {
+                emessageIV <- paste0("This may be due to collinearity, or that the
+                              variable was never included in IV-like
+                              specification ", order, ".")
+            }
+            emessage <-
+                paste0("The following components are not found in the design
+                       matrix: ", errornames, ". ", emessageIV, " The variables
+                       included in the design matrix are: ", matrixnames,
+                       ". Please select the components from the listed variables
+                       in the design matrix.")
+            emessage <- gsub("\\s+", " ", emessage)
+            stop(emessage)
+        }
+    }
     wvec0 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X0)
     wvec0 <- extractcols(t(wvec0), cpos)
     colnames(wvec0) <- components
@@ -192,7 +256,7 @@ tsls <- function(X, Z, components, treat, order = NULL) {
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
-    cpos <- which(colnames(X) %in% components)
+    cpos <- unlist(sapply(components, function(x) which(colnames(X) == x)))
     cposcheck <- which(!components %in% colnames(X))
     if (length(cposcheck) > 0) {
         errornames  <- components[cposcheck]
@@ -247,7 +311,7 @@ tsls <- function(X, Z, components, treat, order = NULL) {
             }
             emessage <-
                 paste0("The following components are not found in the design
-                       matrix: ", errornames, ".", emessageIV, " The variables
+                       matrix: ", errornames, ". ", emessageIV, " The variables
                        included in the design matrix are: ", matrixnames,
                        ". Please select the components from the listed variables
                        in the design matrix.")

@@ -285,7 +285,7 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
                        tmpRhs, lpobj$rhs)
         lpobj$sense <- c("<=", tmpSense, lpobj$sense)
         lpobj$obj <- c(rep(0, 2 * length(orig.sset)), lpobj$obj)
-    }
+    }   
     lpsolver <- tolower(lpsolver)
     if (lpsolver == "gurobi") {
         model <- list()
