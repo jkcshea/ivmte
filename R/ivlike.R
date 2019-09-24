@@ -219,8 +219,10 @@ ivEstimate <- function(formula, data, subset, components, treat,
         compFactors <- unique(compFactors)
         components <- c(components[-factorSelect], compFactors)
     }
-    ## Deal with boolean expressions (the user will have to fllow a
-    ## naming convention, e.g. var1==1TRUE.
+    ## Deal with boolean expressions (this will select anything with
+    ## the boolean expression, e.g. if X == 1TRUE and X == 1FALSE is
+    ## included, and the boolean expression (X == 1) is a component,
+    ## then both will be selected.
     for (op in c("==", "!=",
                  ">", ">=", "<", "<=")) {
         boolPos <- grep(op, components)
@@ -229,7 +231,20 @@ ivEstimate <- function(formula, data, subset, components, treat,
             xVars <- colnames(mf$X)
             boolVarsPos <- sapply(components[boolPos], grep, x = xVars)
             boolVarsFull <- lapply(boolVarsPos, function(x) xVars[x])
-            components[boolVarsPos] <- unlist(boolVarsFull)
+            if (length(boolPos) == 1) {
+                boolVarsFull <- list(unlist(boolVarsFull))
+            }
+            clist <- list()
+            j <- 1
+            for (i in 1:length(components)) {
+                if (! i %in% boolPos) {
+                    clist <- c(clist, components[i])
+                } else {
+                    clist <- c(clist, boolVarsFull[j])
+                    j <- j + 1
+                }
+            }
+            components <- unlist(clist)
         }
     }
     ## Ensure components are uniquely declared
