@@ -88,8 +88,12 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL, order = NULL,
                          ". Check the specification and its
                           corresponding subset condition.")), call. = FALSE)
     }
-    nullCheck <- apply(X = fstage$coef, MARGIN = 1,
-                       FUN = function(x) any(is.na(x)))
+    if (is.null(dim(fstage$coef))) {
+        nullCheck <- is.na(fstage$coef)
+    } else {
+        nullCheck <- apply(X = fstage$coef, MARGIN = 1,
+                           FUN = function(x) any(is.na(x)))
+    }
     Xhat <- as.matrix(fstage$fitted.values)
     colnames(Xhat) <- colnames(X)
     ## main regression
