@@ -187,7 +187,7 @@ utils::globalVariables("u")
 #'     procedure is implemented to estimate the treatment
 #'     effects. Shape constraints on the MTRs will be ignored under
 #'     point identification.
-#' @param point.eyeweight boolean, default set to \code{FALSE}. Set to
+#' @param point.eyeweight boolean, default set to \code{TRUE}. Set to
 #'     \code{TRUE} if the GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
 #' @param bootstraps integer, default set to 0.
@@ -293,7 +293,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   treat, lpsolver = NULL, criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
-                  point = FALSE, point.eyeweight = FALSE,
+                  point = FALSE, point.eyeweight = TRUE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
@@ -2386,7 +2386,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           audit.max = 25, audit.grid = NULL,
                           save.grid = FALSE,
                           point = FALSE,
-                          point.eyeweight = FALSE,
+                          point.eyeweight = TRUE,
                           point.center = NULL, orig.sset = NULL,
                           orig.criterion = NULL, vars_y,
                           vars_mtr, terms_mtr0, terms_mtr1, vars_data,
@@ -3434,7 +3434,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     identified case obtained from the original sample can be passed
 #'     through this argument to recenter the bootstrap distribution of
 #'     the J-statistic.
-#' @param identity boolean, default set to \code{FALSE}. Set to
+#' @param identity boolean, default set to \code{TRUE}. Set to
 #'     \code{TRUE} if GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
@@ -3520,7 +3520,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'
 #' @export
 gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
-                        identity = FALSE, noisy = TRUE) {
+                        identity = TRUE, noisy = TRUE) {
     gn0 <- ncol(gstar0)
     gn1 <- ncol(gstar1)
     if ((gn0 + gn1) > length(sset)) {
@@ -3621,11 +3621,11 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     if (identity == FALSE) {
         gmmObj <- try(gmm::gmm(momentConditions, x = momentMatrix(),
                                t0 = rep(0, times = (gn0 + gn1)),
-                               prewhite = 0), silent = TRUE)
+                               prewhite = 0, vcov = "iid"), silent = TRUE)
         if (class(gmmObj) == "try-error") {
             gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
                                t0 = rep(0, times = (gn0 + gn1)),
-                               prewhite = 0, wmatrix = "ident")
+                               prewhite = 0, vcov = "iid", wmatrix = "ident")
             warning(gsub("\\s+", " ",
                          "Failure in estimating optimal weighting matrix,
                           which can occur due to redundant moments.
@@ -3636,7 +3636,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     } else {
         gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
                            t0 = rep(0, times = (gn0 + gn1)),
-                           prewhite = 0, wmatrix = "ident")
+                           prewhite = 0, vcov = "iid", wmatrix = "ident")
     }
     theta <- gmmObj$coefficients
     if (length(sset) > gn0 + gn1) {

@@ -285,7 +285,7 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
                        tmpRhs, lpobj$rhs)
         lpobj$sense <- c("<=", tmpSense, lpobj$sense)
         lpobj$obj <- c(rep(0, 2 * length(orig.sset)), lpobj$obj)
-    }   
+    }
     lpsolver <- tolower(lpsolver)
     if (lpsolver == "gurobi") {
         model <- list()
@@ -319,7 +319,6 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
                   (2 * lpobj$sn + lpobj$gn0 + lpobj$gn1)]
     names(g0sol) <- names(sset$gstar$g0)
     names(g1sol) <- names(sset$gstar$g1)
-
     return(list(obj = obseqmin,
                 g0 = g0sol,
                 g1 = g1sol,
@@ -515,7 +514,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         cat("Max status: ", maxstatus, "\n", sep = "")
         cat("Bound: (", min, ", ", max, ")\n", sep = "")
     }
-
     return(list(max = max,
                 maxg0 = maxg0,
                 maxg1 = maxg1,
