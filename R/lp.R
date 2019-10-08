@@ -301,38 +301,6 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
         optx     <- result$x
         status   <- result$status
     }
-    if (lpsolver == "cvxr") {
-        xvars <- CVXR::Variable(ncol(lpobj$A))
-        cobj <- CVXR::Minimize(t(lpobj$obj) %*% xvars)
-        lpobj$sense[lpobj$sense == "="] <- "=="
-        constraints <- list()
-        for (i in 1:nrow(lpobj$A)) {
-            constraints <- c(constraints,
-                             eval(parse(text = paste0("t(lpobj$A[",
-                                                      i,
-                                                      ", ]) %*% xvars",
-                                                      lpobj$sense[i],
-                                                      lpobj$rhs[i]))))
-        }
-        for (i in 1:length(lpobj$lb)) {
-            if (lpobj$lb[i] != -Inf) {
-                constraints <- c(constraints,
-                                 eval(parse(text = paste0("xvars[", i, "] >= ",
-                                                    lpobj$lb[i]))))
-            }
-        }
-        for (i in 1:length(lpobj$ub)) {
-            if (lpobj$ub[i] != Inf) {
-                constraints <- c(constraints,
-                                 eval(parse(text = paste0("xvars[", i, "] <= ",
-                                                          lpobj$ub[i]))))
-            }
-        }
-        result <- solve(CVXR::Problem(cobj, constraints))
-        obseqmin <- result$value
-        optx     <- result$getValue(xvars)
-        status   <- result$status
-    }
     if (lpsolver == "cplexapi") {
         result <- runCplexAPI(lpobj, cplexAPI::CPX_MIN)
         obseqmin <- result$objval
@@ -505,45 +473,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
         maxstatus <- 0
         if (maxresult$status == "OPTIMAL") maxstatus <- 1
         maxoptx <- maxresult$x
-    }
-    if (lpsolver == "cvxr") {
-        xvars <- CVXR::Variable(ncol(model$A))
-        model$sense[model$sense == "="] <- "=="
-        constraints <- list()
-        for (i in 1:nrow(model$A)) {
-            constraints <- c(constraints,
-                             eval(parse(text = paste0("t(model$A[",
-                                                      i,
-                                                      ", ]) %*% xvars",
-                                                      model$sense[i],
-                                                      model$rhs[i]))))
-        }
-        for (i in 1:length(model$lb)) {
-            if (model$lb[i] != -Inf) {
-                constraints <- c(constraints,
-                                 eval(parse(text = paste0("xvars[", i, "] >= ",
-                                                    model$lb[i]))))
-            }
-        }
-        for (i in 1:length(model$ub)) {
-            if (model$ub[i] != Inf) {
-                constraints <- c(constraints,
-                                 eval(parse(text = paste0("xvars[", i, "] <= ",
-                                                          model$ub[i]))))
-            }
-        }
-        cobj <- CVXR::Minimize(t(model$obj) %*% xvars)
-        minresult <- solve(CVXR::Problem(cobj, constraints))
-        minstatus <- 0
-        if (minresult$status == "optimal") minstatus <- 1
-        minoptx <- minresult$getValue(xvars)
-        min <- minresult$value
-        cobj <- CVXR::Maximize(t(model$obj) %*% xvars)
-        maxresult <- solve(CVXR::Problem(cobj, constraints))
-        maxstatus <- 0
-        if (maxresult$status == "optimal") maxstatus <- 1
-        maxoptx <- maxresult$getValue(xvars)
-        max <- maxresult$value
     }
     if (lpsolver == "cplexapi") {
         minresult <- runCplexAPI(model, cplexAPI::CPX_MIN)
