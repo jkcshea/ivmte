@@ -332,7 +332,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                       estimation:
                       gurobi (version 7.5-1 or later);
                       cplexAPI (version 1.3.3 or later);
-                      lpSolveAPI (version 5.6.13 or later)."),
+                      lpSolveAPI (version 5.5.2.0 or later)."),
                  call. = FALSE)
         }
     } else {
@@ -345,7 +345,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              following linear programming packages instead:
                              gurobi (version 7.5-1 or later);
                              cplexAPI (version 1.3.3 or later);
-                             lpSolveAPI (version 3.4.4 or later).")),
+                             lpSolveAPI (version 5.5.2.0 or later).")),
                  call. = FALSE)
         }
     }
