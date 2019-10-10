@@ -52,17 +52,6 @@ olsj <- function(X, X0, X1, components, treat, order = NULL) {
                    IV-like specification without placing the treatment
                    variable inside the factor command."))
     }
-
-    print("colnames X")
-    print(colnames(X))
-    print("colnames X0")
-    print(colnames(X0))
-    print("colnames X1")
-    print(colnames(X1))
-
-    print("the componnets")
-    print(components %in% colnames(X))
-    
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
@@ -129,9 +118,7 @@ olsj <- function(X, X0, X1, components, treat, order = NULL) {
             stop(emessage)
         }
     }
-    print("here")
     wvec0 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X0)
-    print("made it here")
     wvec0 <- extractcols(t(wvec0), cpos)
     colnames(wvec0) <- components
     wvec1 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X1)
