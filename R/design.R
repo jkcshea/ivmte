@@ -71,7 +71,7 @@ design <- function(formula, data, subset, treat, orig.names) {
                            newargs = list(formula = formula,
                                           drop.unused.levels = TRUE))
     mf <- eval(design_call, parent.frame())
-    ## extract response, terms, model matrices
+    ## Extract response, terms, model matrices
     if (onesided == FALSE) Y <- model.response(mf, "numeric")
     if (onesided == TRUE)  Y <- NULL
     mtX <- terms(formula, data = data, rhs = 1)
@@ -92,5 +92,8 @@ design <- function(formula, data, subset, treat, orig.names) {
         mtZ <- delete.response(terms(formula, data = data, rhs = 2))
         Z   <- model.matrix(mtZ, mf)
     }
+    ## Update column names
+    colnames(X) <- parenthBoolean(colnames(X))
+    colnames(Z) <- parenthBoolean(colnames(Z))
     return(list(Y = Y, X = X, Z = Z))
 }

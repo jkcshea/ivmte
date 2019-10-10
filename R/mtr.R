@@ -919,13 +919,15 @@ parenthBoolean <- function(termsList) {
             if (length(boolPos > 0)) {
                 for (j in boolPos) {
                     if (substr(tmpTerms[j], 1, 1) != "(") {
-                        tmpTerms[j] <- paste0("(", tmpTerms[j], ")")
-                        tmpTerms[j] <- gsub("TRUE)",
-                                            ")TRUE",
-                                            tmpTerms[j])
-                        tmpTerms[j] <- gsub("FALSE)",
-                                            ")FALSE",
-                                            tmpTerms[j])
+                        if (substr(tmpTerms[j], 1, 2) != "I(") {
+                            tmpTerms[j] <- paste0("(", tmpTerms[j], ")")
+                            tmpTerms[j] <- gsub("TRUE)",
+                                                ")TRUE",
+                                                tmpTerms[j])
+                            tmpTerms[j] <- gsub("FALSE)",
+                                                ")FALSE",
+                                                tmpTerms[j])
+                        }
                     }
                 }
             }

@@ -96,6 +96,9 @@ piv <- function(Y, X, Z, lmcomponents, weights = NULL, order = NULL,
     }
     Xhat <- as.matrix(fstage$fitted.values)
     colnames(Xhat) <- colnames(X)
+    print(colnames(Xhat))
+    print("the selected components")
+    print(lmcomponents)
     ## main regression
     if (is.null(weights)) {
         fit <- lm.fit(Xhat, Y)
@@ -142,22 +145,20 @@ ivEstimate <- function(formula, data, subset, components, treat,
     ## Select components
     if (list == TRUE) {
         if (!is.character(components)) {
-            components <- deparse(components)
+            components <- unlist(deparse(components))
         }
     } else {
-        components <- (unlist(lapply(components, deparse)))
+        components <- unlist(lapply(components, deparse))
         components <- paste0("c(",
                             paste(components, collapse = ", "),
                             ")")
     }
-    ## Address deparse byte limit
     if (length(components > 1)) {
         components <- gsub("\\s+", " ", Reduce(paste, components))
     }
-    ## Address factors whose values are listed, e.g. factor(x)-1,
-    ## factor(x)-2. General declaration of factors is dealt with
-    ## below.
-    components <- gsub(") - ", ")", components)
+    ## ------------------------------------------------------
+    ## NEW TESTING---COMPLETE REWRITE
+
     ## Covert components into a vector of strings
     stringComp <- (substr(components, 1, 2) == "c(" &
         substr(components, nchar(components), nchar(components)) == ")")
@@ -165,20 +166,59 @@ ivEstimate <- function(formula, data, subset, components, treat,
         components   <- substr(components, 3, nchar(components) - 1)
         components   <- strsplit(components, ", ")[[1]]
     }
-    ## Some interactions  may need  to be  relabled by  reordering the
-    ## order of the interaction
-    termsR <- attr(terms(formula), "term.labels")
-    failTerms <- which(!components %in% termsR)
-    for (fail in failTerms) {
-        vars <- strsplit(components[fail], ":")[[1]]
-        varsPerm <- permute(vars)
-        varsPerm <- unlist(lapply(varsPerm,
-                                  function(x) paste(x, collapse = ":")))
-        correctPos <- which(varsPerm %in% termsR)
-        if (length(correctPos) > 0) {
-            components[fail] <- varsPerm[correctPos]
+
+    ## Remove dash defining specific factor components
+    components <- gsub(") - ", ")", components)
+
+    ## Break apart each component
+    componentsSplit <- strsplit(components, ":")
+
+    ## Prepare expansion of components
+    componentsFull <- NULL
+    for (comp in componentsSplit) {
+        complist <- list()
+        for (subcomp in comp) {
+            ## Exand the undeclared factor variables
+            fcheck <- grepl(pattern = "^factor\\(.*\\)$", x = subcomp)
+            if (fcheck) {
+                fvar <- all.vars(as.formula(paste("~", subcomp)))
+                if (length(fvar) > 1) {
+                    stop(gsub("\\s+", " ",
+                              paste0("Factor expression ",
+                                     subcomp, " includes more than
+                                     one variable.")))
+                }
+                fval <- names(table(data[, fvar]))
+                fexpanded <- paste0("factor(", fvar, ")", fval)
+                complist[[length(complist) + 1]] <-  fexpanded
+            }
+            ## Expand the boolean variables
+            bcheck <- any(sapply(c("==", "!=", ">", ">=", "<", "<="),
+                                 grepl, x = subcomp))
+            if (bcheck) {
+                bexpanded <- paste0(subcomp, c("TRUE", "FALSE"))
+                complist[[length(complist) + 1]] <- bexpanded
+            }
+            if (!fcheck && !bcheck) {
+                complist[[length(complist) + 1]] <-  subcomp
+            }
         }
+        ## Construct the full set of components
+        if (length(complist) == 1) {
+            componentsExp <- complist[[1]]
+        } else {
+            componentsExp <- complist[[1]]
+            for (i in 2:(length(complist))) {
+                componentsExp <- outer(componentsExp,
+                                       complist[[i]],
+                                       paste,
+                                       sep = ":")
+            }
+            componentsExp <- c(componentsExp)
+        }
+        componentsFull <- c(componentsFull, componentsExp)
     }
+    components <- componentsFull
     ## Obtain design matrices
     if (list == TRUE) {
         mf <- design(formula, data)
@@ -189,66 +229,23 @@ ivEstimate <- function(formula, data, subset, components, treat,
                            newargs = list(data = quote(data))))
     }
     instrumented <- !is.null(mf$Z)
-    ## Address factors whose values are not explicitly listed (i.e. if
-    ## factor(var1) is povided as a component, this will choose every
-    ## variable beginning with factor(var1) in the design matrix
-    componentsSplit <- strsplit(components, ":")
-    factorPos <- lapply(componentsSplit, function(x) {
-        grep(pattern = "^factor\\(.*\\)$", x = x)
-    })
-    factorSelect <- which(lapply(factorPos, length) > 0)
-    if (length(factorSelect > 0)) {
-        factorVars <- componentsSplit[factorSelect]
-        factorPos <- factorPos[factorSelect]
-        xVars <- strsplit(colnames(mf$X), ":")
-        compFactors <- NULL
-        for (i in 1:length(factorVars)) {
-            includeVec <- unlist(lapply(xVars, length)) ==
-                length(factorVars[[i]])
-            for (j in 1:length(factorVars[[i]])) {
-                tmpName <- factorVars[[i]][j]
-                tmpName <- gsub("\\(", "\\\\\\(", tmpName)
-                tmpName <- gsub("\\)", "\\\\\\)", tmpName)
-                tmpIncVec <- unlist(lapply(xVars,
-                                           function(x) max(grepl(tmpName, x))))
-                includeVec <- includeVec * tmpIncVec
-            }
-            compFactors <- c(compFactors,
-                             colnames(mf$X)[as.logical(includeVec)])
-        }
-        compFactors <- unique(compFactors)
-        components <- c(components[-factorSelect], compFactors)
-    }
-    ## Deal with boolean expressions (this will select anything with
-    ## the boolean expression, e.g. if X == 1TRUE and X == 1FALSE is
-    ## included, and the boolean expression (X == 1) is a component,
-    ## then both will be selected.
-    for (op in c("==", "!=",
-                 ">", ">=", "<", "<=")) {
-        boolPos <- grep(op, components)
-        if (length(boolPos) > 0) {
-            boolVars <- components[boolPos]
-            xVars <- colnames(mf$X)
-            boolVarsPos <- sapply(components[boolPos], grep, x = xVars)
-            boolVarsFull <- lapply(boolVarsPos, function(x) xVars[x])
-            if (length(boolPos) == 1) {
-                boolVarsFull <- list(unlist(boolVarsFull))
-            }
-            clist <- list()
-            j <- 1
-            for (i in 1:length(components)) {
-                if (! i %in% boolPos) {
-                    clist <- c(clist, components[i])
-                } else {
-                    clist <- c(clist, boolVarsFull[j])
-                    j <- j + 1
-                }
-            }
-            components <- unlist(clist)
+    xVars <- colnames(mf$X)
+    ## Some interactions  may need  to be  relabled by  reordering the
+    ## order of the interaction
+    failTerms <- which(!components %in% xVars)
+    for (fail in failTerms) {
+        vars <- strsplit(components[fail], ":")[[1]]
+        varsPerm <- permute(vars)
+        varsPerm <- unlist(lapply(varsPerm,
+                                  function(x) paste(x, collapse = ":")))
+        correctPos <- which(varsPerm %in% xVars)
+        if (length(correctPos) > 0) {
+            components[fail] <- varsPerm[correctPos]
         }
     }
-    ## Ensure components are uniquely declared
+    ## Restrict the components to those actually available in the regression
     components <- unique(components)
+    components <- components[components %in% xVars]
     if (sum(!components[components != "intercept"] %in% colnames(mf$X))) {
         errorVars <- components[!components %in% colnames(mf$X)]
         errorVars <- errorVars[errorVars != "intercept"]
@@ -257,9 +254,12 @@ ivEstimate <- function(formula, data, subset, components, treat,
                           IV-like specification ", order, ": ",
                          paste(errorVars, sep = ", "), ".")))
     }
+    warning("INCLUDE A CHECK FOR WHICH FACTORS WERE MANUALLY DECLARED. YOU MAY NEED TO DROP SOME. THE POINT IS TO CHECK WHICH ONES YOU MUST ACTUALLY WARN ABOUT.")
     ## Generate the lmcomponents vector
     lmcomponents <- components
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
+    print("the lm componnets")
+    print(lmcomponents)
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
         ## For the OLS case, we need to obtain additional design
@@ -294,6 +294,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
         bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents, order = order,
                     excluded = FALSE)$coef
         if (sum(is.na(bhat))) {
+            print("do I have collinearities?")
             collinearPos <- which(is.na(bhat))
             mfX <- mf$X[, -collinearPos]
             mf0X <- mf0$X[, -collinearPos]
@@ -304,6 +305,9 @@ ivEstimate <- function(formula, data, subset, components, treat,
             sweight <- olsj(mfX, mf0X, mf1X, components, treat, order)
             bhat <- bhat[-collinearPos]
         } else {
+            print("apparently I do not have collinearities?")
+            print(qr(mf$X)$rank)
+            print(dim(mf$X))
             sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat, order)
         }
     } else {
