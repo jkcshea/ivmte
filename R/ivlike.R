@@ -159,9 +159,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
     if (length(components > 1)) {
         components <- gsub("\\s+", " ", Reduce(paste, components))
     }
-    ## ------------------------------------------------------
-    ## NEW TESTING---COMPLETE REWRITE
-
     ## Obtain design matrices
     if (list == TRUE) {
         mf <- design(formula, data)
@@ -173,7 +170,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
     }
     instrumented <- !is.null(mf$Z)
     xVars <- colnames(mf$X)
-
     ## Covert components into a vector of strings
     stringComp <- (substr(components, 1, 2) == "c(" &
         substr(components, nchar(components), nchar(components)) == ")")
@@ -181,13 +177,9 @@ ivEstimate <- function(formula, data, subset, components, treat,
         components   <- substr(components, 3, nchar(components) - 1)
         components   <- strsplit(components, ", ")[[1]]
     }
-
-    ## Remove dash defining specific factor components
     components <- gsub(") - ", ")", components)
     origComponents <- components
-    ## Break apart each component
     componentsSplit <- strsplit(components, ":")
-
     ## Prepare expansion of components
     componentsFull <- NULL
     componentsType <- NULL
@@ -231,11 +223,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
                 comptype <- c(comptype, "s")
             }
         }
-        ## Create a dictionary:
-        ## You need to indicate variables which involve NO expansion at all, SOME expansion, and ALL expansion.
-        ## NO expansion variables can never be dropped
-        ## SOME expansion variables will be dropped with a warning.
-        ## ALL expansions will be dropped without warning.
+        ## Classify the types of components
         comptype <- unique(comptype)
         if (length(comptype) == 1 && comptype == "s") {
             comptype <- 1 ## Specified component---cannot be dropped
@@ -248,7 +236,6 @@ ivEstimate <- function(formula, data, subset, components, treat,
             comptype <- 3 ## Only expanded components. Can also be
                           ## dropped without warning.
         }
-
         ## Construct the full set of components
         if (length(complist) == 1) {
             componentsExp <- complist[[1]]
@@ -269,7 +256,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
                              rep(ci, length(componentsExp)))
         ci <- ci + 1
     }
-    components <- componentsFull
+    components <- parenthBoolean(componentsFull)
     ## Some interactions  may need  to be  relabled by  reordering the
     ## order of the interaction
     failTerms <- which(!components %in% xVars)
