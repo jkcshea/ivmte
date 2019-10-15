@@ -330,7 +330,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbrhs <- mbobj$mbrhs
             mbrhs[negatepos] <- -mbrhs[negatepos]
             violateDiff <- round(mbA %*% solVec - mbrhs,
-                                 digits = 10)
+                                 digits = 6)
             violatevec <- violateDiff > 0
             violatepos <- which(violatevec == TRUE)
             violateType <- sapply(violatepos, function(x) {
@@ -407,7 +407,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             minobseqTest <- obsEqMin(sset, orig.sset, orig.criterion,
                                      criterion.tol, lpobjTest, lpsolver)
         }
-
+        
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
@@ -451,11 +451,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
 
         ## Test for violations for minimization problem
         violateDiffMin <- round(a_mbA %*% solVecMin - a_mbrhs,
-                                digits = 8)
+                                digits = 6)
         violatevecMin <- violateDiffMin > 0
         ## Test for violations for maximization problem
         violateDiffMax <- round(a_mbA %*% solVecMax - a_mbrhs,
-                                digits = 8)
+                                digits = 6)
         violatevecMax <- violateDiffMax > 0
         ## Generate violation data set
         violatevec <- violatevecMin + violatevecMax

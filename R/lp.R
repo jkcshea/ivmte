@@ -457,18 +457,57 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
               replicate(lpobj$gn0 + lpobj$gn1, 0))
     model$A <- rbind(avec, lpobj$A)
     model$sense <- c("<=", lpobj$sense)
+
+    ## TESTING SCALING --------------------------------
+    magnitude <- function(x) {
+        sapply(x, function(y) {
+            if (y == 0) return(NA)
+            else return(floor(log(abs(y), 10)))
+        })
+    }    
+    dmat <- diag(10^abs(rnorm(ncol(model$A), sd = 5)))
+
+    ## dmat <- diag(rep(1, ncol(model$A)))
+    model$obj <- model$obj %*% dmat
+    model$A <- matrix(model$A, nrow = nrow(model$A)) %*% dmat  
+    model$ub <- model$ub * diag(solve(dmat))
+    model$lb <- model$lb * diag(solve(dmat))
+    ## TESTING ------------------------
+    tmpA <- c(matrix(model$A, ncol = 1))
+    tmpA <- tmpA[tmpA != 0]   
+    magDiffA <- max(magnitude(tmpA), na.rm = TRUE) -
+        min(magnitude(tmpA), na.rm = TRUE)
+    magDiffObj <- max(magnitude(model$obj), na.rm = TRUE) -
+        min(magnitude(model$obj), na.rm = TRUE)
+    magDiffRhs <- max(magnitude(model$rhs), na.rm = TRUE) -
+        min(magnitude(model$rhs), na.rm = TRUE)
+    modelStats  <-
+        data.frame(matrix(c(min(abs(tmpA)),
+                            min(abs(model$rhs[model$rhs != 0])),
+                            min(abs(model$obj[model$obj != 0])),
+                            max(abs(tmpA)),
+                            max(abs(model$rhs[model$rhs != 0])),
+                            max(abs(model$obj[model$obj != 0])),
+                            magDiffA, magDiffRhs, magDiffObj),
+                          ncol = 3))
+    colnames(modelStats) <- c("Min abs.", "Max abs.", "Magnitude diff.")
+    rownames(modelStats) <- c("Constraint matrix (A)",
+                              "RHS (b)",
+                              "Objective (c)")    
     ## obtain lower and upper bounds
     if (lpsolver == "gurobi") {
         model$modelsense <- "min"
         minresult <- gurobi::gurobi(model, list(outputflag = 0,
-                                                dualreductions = 1))
+                                                dualreductions = 1,
+                                                FeasibilityTol = 1e-6))
         min <- minresult$objval
         minstatus <- 0
         if (minresult$status == "OPTIMAL") minstatus <- 1
         minoptx <- minresult$x
         model$modelsense <- "max"
         maxresult <- gurobi::gurobi(model, list(outputflag = 0,
-                                                dualreductions = 1))
+                                                dualreductions = 1,
+                                                FeasibilityTol = 1e-6))
         max <- maxresult$objval
         maxstatus <- 0
         if (maxresult$status == "OPTIMAL") maxstatus <- 1
@@ -542,6 +581,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
 #'     amongst other things.
 runCplexAPI <- function(lpobj, lpdir) {
     env  <- cplexAPI::openEnvCPLEX()
+    cplexAPI::setDblParmCPLEX(env, 1016, 1e-06)
     prob <- cplexAPI::initProbCPLEX(env)
     cplexAPI::chgProbNameCPLEX(env, prob, "sample")
     sense <- lpobj$sense
@@ -626,7 +666,8 @@ runLpSolveAPI <- function(lpobj, modelsense) {
     lpSolveAPI::set.objfn(lprec = lpmodel,
                           obj = lpobj$obj)
     lpSolveAPI::lp.control(lprec = lpmodel,
-                           sense = modelsense)
+                           sense = modelsense,
+                           epslevel = "tight")
     lpSolveAPI::set.bounds(lprec = lpmodel,
                            lower = lpobj$lb,
                            upper = lpobj$ub)

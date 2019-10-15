@@ -1566,6 +1566,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (bootstraps == 0) {
             if (!noisy) {
                 ## Some output must be returned, evne if noisy = FALSE
+                cat("\n")
                 cat("Bounds on the target parameter: [",
                     fmtResult(origEstimate$bounds[1]), ", ",
                 fmtResult(origEstimate$bounds[2]), "]\n",
@@ -1692,11 +1693,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (noisy) {
                 cat("--------------------------------------------------\n")
                 cat("Results", "\n")
-                cat("--------------------------------------------------\n\n")
+                cat("--------------------------------------------------\n")
             }
+            cat("\n")
+            ## Some output must be returned, evne if noisy = FALSE
             cat("Bounds on the target parameter: [",
                 fmtResult(origEstimate$bounds[1]), ", ",
-                fmtResult(origEstimate$bounds[2]), "]\n\n",
+                fmtResult(origEstimate$bounds[2]), "]\n",
                 sep = "")
             if (origEstimate$audit.count == 1) rs <- "round."
             if (origEstimate$audit.count > 1) rs <- "rounds."
@@ -1835,6 +1838,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         origEstimate <- eval(estimateCall)
         if (!noisy) {
             ## Some output must be returned, even if noisy = FALSE
+            cat("\n")
             cat("Point estimate of the target parameter: ",
                 fmtResult(origEstimate$pointestimate), "\n\n",
                 sep = "")
@@ -2405,12 +2409,31 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     uname <- gsub("~", "", uname)
     uname <- gsub("\\\"", "", uname)
 
+    if (noisy == TRUE && hasArg(lpsolver)) {
+        if (lpsolver == "gurobi") cat("\nLP solver: Gurobi ('gurobi')\n\n")
+        if (lpsolver == "cplexapi") cat("\nLP solver: CPLEX ('cplexAPI')\n\n")
+        if (lpsolver == "lpsolveapi") {
+            cat("\nLP solver: lp_solve ('lpSolveAPI')\n\n")
+            warning(gsub("\\s+", " ",
+                     "The R package 'lpSolveAPI' interfaces with 'lp_solve',
+                      which is outdated and potentially unreliable. It is
+                      recommended to use commercial solvers
+                      Gurobi (lpsolver = 'gurobi')
+                      or CPLEX (lpsolver = 'cplexAPI') instead.
+                      Free academic licenses can be obtained for these
+                      commercial solvers."),
+                "\n", call. = FALSE, immediate. = TRUE)
+        }
+
+    }
+
     ##---------------------------
     ## 1. Obtain propensity scores
     ##---------------------------
     if (noisy == TRUE) {
         cat("Obtaining propensity scores...\n")
     }
+
     ## Estimate propensity scores
     pcall <- modcall(call,
                      newcall = propensity,
@@ -2713,27 +2736,31 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n\n", sep = "")
     }
     ## include additional output material
+    if (lpsolver == "gurobi") lpsolver <- "Gurobi ('gurobi')"
+    if (lpsolver == "lpsolveapi") lpsolver <- "lp_solve ('lpSolveAPI')"
+    if (lpsolver == "cplexapi") lpsolver <- "CPLEX ('cplexAPI')"
     if (!smallreturnlist) {
         output <- list(sset  = sset,
-                    gstar = list(g0 = gstar0,
-                                 g1 = gstar1,
+                       gstar = list(g0 = gstar0,
+                                    g1 = gstar1,
                                  n = targetGammas$n),
-                    gstar.weights = list(w0 = targetGammas$w0,
+                       gstar.weights = list(w0 = targetGammas$w0,
                                          w1 = targetGammas$w1),
-                    gstar.coef = list(min.g0 = audit$lpresult$ming0,
-                                     max.g0 = audit$lpresult$maxg0,
-                                     min.g1 = audit$lpresult$ming1,
-                                     max.g1 = audit$lpresult$maxg1),
-                    propensity = pmodel,
-                    bounds = c(audit$min, audit$max),
-                    lpresult =  audit$lpresult,
-                    audit.grid = list(initial = audit$gridobj$initial$grid,
-                                      audit = audit$gridobj$audit$grid,
-                                      violations = audit$gridobj$violations),
-                    audit.count = audit$auditcount,
-                    audit.minobseq = audit$minobseq,
-                    splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
-                                       m1 = splinesobj[[2]]$splinesdict))
+                       gstar.coef = list(min.g0 = audit$lpresult$ming0,
+                                         max.g0 = audit$lpresult$maxg0,
+                                         min.g1 = audit$lpresult$ming1,
+                                         max.g1 = audit$lpresult$maxg1),
+                       propensity = pmodel,
+                       bounds = c(audit$min, audit$max),
+                       lpresult =  audit$lpresult,
+                       lpsolver = lpsolver,
+                       audit.grid = list(initial = audit$gridobj$initial$grid,
+                                         audit = audit$gridobj$audit$grid,
+                                         violations = audit$gridobj$violations),
+                       audit.count = audit$auditcount,
+                       audit.minobseq = audit$minobseq,
+                       splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
+                                          m1 = splinesobj[[2]]$splinesdict))
     } else {
         sset <- lapply(sset, function(x) {
             x[c("ivspec", "beta", "g0", "g1")]
@@ -2746,6 +2773,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                         ming1 = audit$ming1,
                                         maxg1 = audit$maxg1),
                        bounds = c(audit$min, audit$max),
+                       lpsolver = lpsolver,
                        audit.count = audit$auditcount,
                        audit.minobseq = audit$minobseq,
                        splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
@@ -3707,6 +3735,20 @@ print.ivmte <- function(x, ...) {
                         x$audit.count), rs, "\n")
         }
         cat(sprintf("Minimum criterion: %s \n", x$audit.minobseq))
+        ## Return LP solver used
+        cat(sprintf("LP solver: %s\n", x$lpsolver))
+        if (x$lpsolver == "lp_solve ('lpSolveAPI')") {
+            warning(
+                gsub("\\s+", " ",
+                     "The R package 'lpSolveAPI' interfaces with 'lp_solve',
+                      which is outdated and potentially unreliable.  It is
+                      recommended to use commercial solvers
+                      Gurobi (lpsolver = 'gurobi')
+                      or CPLEX (lpsolver = 'cplexAPI') instead.
+                      Free academic licenses can be obtained for these
+                      commercial solvers."),
+                "\n", call. = FALSE)
+        }
     }
     if (!is.null(x$pointestimate)) {
         cat("\n")
@@ -3730,7 +3772,7 @@ summary.ivmte <- function(object, ...) {
     ## Summary for the partially identified case
     if (!is.null(object$bounds)) {
         cat("\n")
-        ## Return bounds, audit cout, and minumum criterion
+        ## Return bounds, audit count, and minumum criterion
         cat(sprintf("Bounds on the target parameter: [%s, %s]\n",
                     fmtResult(object$bounds[1]),
                     fmtResult(object$bounds[2])))
@@ -3744,6 +3786,20 @@ summary.ivmte <- function(object, ...) {
                         object$audit.count), rs, "\n")
         }
         cat(sprintf("Minimum criterion: %s \n", object$audit.minobseq))
+        ## Return LP solver used
+        cat(sprintf("LP solver: %s\n", object$lpsolver))
+        if (object$lpsolver == "lp_solve ('lpSolveAPI')") {
+            warning(
+                gsub("\\s+", " ",
+                     "The R package 'lpSolveAPI' interfaces with 'lp_solve',
+                      which is outdated and potentially unreliable.  It is
+                      recommended to use commercial solvers
+                      Gurobi (lpsolver = 'gurobi')
+                      or CPLEX (lpsolver = 'cplexAPI') instead.
+                      Free academic licenses can be obtained for these
+                      commercial solvers."),
+                "\n", call. = FALSE)
+        }
         if (!is.null(object$bootstraps)) {
             ## Return bootstrap counts
             cat("\n")
