@@ -407,7 +407,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             minobseqTest <- obsEqMin(sset, orig.sset, orig.criterion,
                                      criterion.tol, lpobjTest, lpsolver)
         }
-        
+
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")

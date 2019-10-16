@@ -2734,6 +2734,24 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (noisy) {
         cat("Bounds on the target parameter: [",
             fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n\n", sep = "")
+        if (any(audit$lpresult$modelstats[, 3] > 6)) {
+            bMessage <- "The following sets of coefficients defining the
+                    LP problem exhibit ranges exceeding 6 orders of magnitude: "
+            if (audit$lpresult$modelstats[1, 3] > 6) {
+                bMessage <- paste(bMessage, "constraint matrix")
+            }
+            if (audit$lpresult$modelstats[2, 3] > 6) {
+                bMessage <- paste(bMessage, "RHS vector (IV-like coefficients)")
+            }
+            if (audit$lpresult$modelstats[3, 3] > 6) {
+                bMessage <- paste(bMessage, "objective vector (gamma moments)")
+            }
+            bMessage <- paste0(bMessage, ". Large ranges in the coefficients
+                                         increase computational burden, and can
+                                         potentially lead to infeasibility.")
+            warning(gsub("\\s+", " ", bMessage),
+                    call. = FALSE, immediate. = TRUE)
+        }
     }
     ## include additional output material
     if (lpsolver == "gurobi") lpsolver <- "Gurobi ('gurobi')"

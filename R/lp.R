@@ -457,24 +457,9 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
               replicate(lpobj$gn0 + lpobj$gn1, 0))
     model$A <- rbind(avec, lpobj$A)
     model$sense <- c("<=", lpobj$sense)
-
-    ## TESTING SCALING --------------------------------
-    magnitude <- function(x) {
-        sapply(x, function(y) {
-            if (y == 0) return(NA)
-            else return(floor(log(abs(y), 10)))
-        })
-    }    
-    dmat <- diag(10^abs(rnorm(ncol(model$A), sd = 5)))
-
-    ## dmat <- diag(rep(1, ncol(model$A)))
-    model$obj <- model$obj %*% dmat
-    model$A <- matrix(model$A, nrow = nrow(model$A)) %*% dmat  
-    model$ub <- model$ub * diag(solve(dmat))
-    model$lb <- model$lb * diag(solve(dmat))
-    ## TESTING ------------------------
+    ## check scaling of model
     tmpA <- c(matrix(model$A, ncol = 1))
-    tmpA <- tmpA[tmpA != 0]   
+    tmpA <- tmpA[tmpA != 0]
     magDiffA <- max(magnitude(tmpA), na.rm = TRUE) -
         min(magnitude(tmpA), na.rm = TRUE)
     magDiffObj <- max(magnitude(model$obj), na.rm = TRUE) -
@@ -491,9 +476,10 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
                             magDiffA, magDiffRhs, magDiffObj),
                           ncol = 3))
     colnames(modelStats) <- c("Min abs.", "Max abs.", "Magnitude diff.")
-    rownames(modelStats) <- c("Constraint matrix (A)",
-                              "RHS (b)",
-                              "Objective (c)")    
+    rownames(modelStats) <- c("Constraint matrix",
+                              "RHS",
+                              "Objective")
+    rm(tmpA)
     ## obtain lower and upper bounds
     if (lpsolver == "gurobi") {
         model$modelsense <- "min"
@@ -563,7 +549,8 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
                 ming1 = ming1,
                 minresult = minresult,
                 minstatus = minstatus,
-                model = model))
+                model = model,
+                modelstats = modelStats))
 }
 
 #' Running cplexAPI LP solver
@@ -677,4 +664,17 @@ runLpSolveAPI <- function(lpobj, modelsense) {
     return(list(objval = lpSolveAPI::get.objective(lpmodel),
                 optx   = lpSolveAPI::get.variables(lpmodel),
                 status = status))
+}
+
+#' Check magnitude of real number
+#'
+#' This function returns the order of magnitude of a a number.
+#'
+#' @param x The number to be checked.
+#' @return An integer indicating the order of magnitude.
+magnitude <- function(x) {
+    sapply(x, function(y) {
+        if (y == 0) return(NA)
+        else return(floor(log(abs(y), 10)))
+    })
 }
