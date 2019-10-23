@@ -7,3 +7,5 @@ inst/doc
 
 *.*~
 data-raw/1980-AllWomen.csv
+
+vignettes/intro_cache/
