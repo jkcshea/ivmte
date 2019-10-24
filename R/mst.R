@@ -1988,8 +1988,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                    mean(teEstimates)) / bootSE) * 2)
         if (!is.null(jstats)) {
             jstats <- jstats - mean(jstats) + origEstimate$jtest[3]
-            jtest <- c(mean(jstats >= origEstimate$jtest[1]))
-            names(jtest) <- c("p-value")
+            jtest <- c(mean(jstats >= origEstimate$jtest[1]),
+                       origEstimate$jtest)
+            names(jtest) <- c("Bootstrapped p-value", names(origEstimate$jtest))
         } else {
             jtest <- NULL
         }
@@ -2089,6 +2090,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         bootstraps = bootstraps,
                         bootstraps.failed = bootFailN,
                         jtest = jtest)
+        if ("jtest" %in% names(output1) &&
+            "jtest" %in% names(output3)) {
+            output1$jtest <- NULL
+        }
         output <- c(output1, output2, output3)
         if (noisy) {
             cat("--------------------------------------------------\n")
@@ -2122,7 +2127,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         cat("p-value: ",
             fmtResult(pvalue[1]), "\n\n", sep = "")
         if (!is.null(jtest)) {
-            cat("Bootstrapped J-test test p-value: ",
+            cat("Bootstrapped J-test p-value: ",
                 fmtResult(jtest[1]), "\n", sep = "")
         }
         cat("\n")
@@ -3912,7 +3917,7 @@ summary.ivmte <- function(object, ...) {
             ## Return specification test
             if (!is.null(object$jtest)) {
                 cat("\nBootstrapped J-test p-value: ",
-                    fmtResult(object$jtest[2]), "\n", sep = "")
+                    fmtResult(object$jtest[1]), "\n", sep = "")
             }
         }
     }
