@@ -817,7 +817,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 warning(gsub("\\s+", " ",
                              "If argument 'point' is set to TRUE, then shape
                              restrictions on m0 and m1 are ignored, and the
-                             audit procedure is not implemented."))
+                             audit procedure is not implemented."),
+                        call. = FALSE)
             }
         }
     }
@@ -1987,9 +1988,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                    mean(teEstimates)) / bootSE) * 2)
         if (!is.null(jstats)) {
             jstats <- jstats - mean(jstats) + origEstimate$jtest[3]
-            jtest <- c(mean(jstats >= origEstimate$jtest[1]),
-                       origEstimate$jtest[3])
-            names(jtest) <- c("p-value", "df")
+            jtest <- c(mean(jstats >= origEstimate$jtest[1]))
+            names(jtest) <- c("p-value")
         } else {
             jtest <- NULL
         }
@@ -2121,6 +2121,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         cat("p-value: ",
             fmtResult(pvalue[1]), "\n\n", sep = "")
+        if (!is.null(jtest)) {
+            cat("Bootstrapped J-test test p-value: ",
+                fmtResult(jtest[1]), "\n", sep = "")
+        }
+        cat("\n")
         ## cat("Bootstrapped confidence intervals (normal quantiles):\n")
         ## for (level in levels) {
         ##     ci2str <- get(paste0("ci2", level * 100))
