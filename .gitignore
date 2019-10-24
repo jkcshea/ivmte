@@ -3,7 +3,7 @@ inst/doc
 .Rhistory
 .RData
 
-*.html
-
 *.*~
 data-raw/1980-AllWomen.csv
+
+vignettes/intro_cache/

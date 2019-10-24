@@ -1,10 +1,11 @@
 ---
 title: "ivmte: An R Package for Marginal Treatment Effect Methods"
 author: "Joshua Ka Chun Shea and Alexander Torgovitsky"
-date: "`r Sys.Date()`"
 bibliography: refs.bib
 output:
   html_document:
+    toc: true
+  github_document:
     toc: true
 vignette: >
   %\VignetteIndexEntry{ivmte}
@@ -24,24 +25,20 @@ require(AER)
 require(ivmte)
 ```
 
-```{r, startTime, echo = FALSE, result='hide'}
-startTime <- proc.time()
-```
-
 ## Introduction
 
-@heckmanvytlacil2005e introduced the marginal treatment effect (MTE) to provide a choice-theoretic interpretation to the widely used instrumental variables model of @imbensangrist1994e.
-This interpretation can be used to formally extrapolate from the compliers to estimate treatment effects for other subpopulations.
+@heckmanvytlacil2005e introduced the marginal treatment effect (MTE) to provide a choice-theoretic interpretation for the widely used instrumental variables model of @imbensangrist1994e.
+The MTE can be used to formally extrapolate from the compliers to estimate treatment effects for other subpopulations.
 
 The **ivmte** package provides a flexible set of methods for conducting this extrapolation.
-The package uses the moment-based framework developed by @mogstadsantostorgovitsky2018e, which accomodates either point identification or partial identification (bounds), and allows the user to maintain shape constraints.
+The package uses the moment-based framework developed by @mogstadsantostorgovitsky2018e, which accommodates both point identification and partial identification (bounds), both parametric and nonparametric models, and allows the user to maintain additional shape constraints.
 
-## Scope of This Vignette
+## Scope of this Vignette
 
 This vignette is intended as a guide to using **ivmte** for users already familiar with MTE methods.
 The key defintions and concepts from that literature are used without further explanation.
-We have written a paper [@sheatorgovitsky2019wp] that discusses both MTE methodology and the usage of **ivmte**, which should be helpful for users unfamiliar with MTE methods.
-The survey article by @mogstadtorgovitsky2018aroe provides additional theoretical background for MTE methods, including the moment-based implementation used in this module, as well as a full literature review to previous work.
+We have written a paper [@sheatorgovitsky2019wp] that discusses both the MTE methodology and the usage of **ivmte**, which should be helpful for users unfamiliar with MTE methods.
+The survey article by @mogstadtorgovitsky2018aroe provides additional theoretical background on MTE methods, including the moment-based implementation used in this module.
 
 ## Installation and Requirements
 
@@ -58,41 +55,47 @@ devtools::install_github("jkcshea/ivmte")
 
 Three additional packages are also required for **ivmte**:
 
-1. **gmm** for implementing generalized method of moments estimation.
-2. **splines2** for specifying models with polynomial splines.
-3. A package for solving linear programs. There are three options here:
-    i. Gurobi and the Gurobi R package **gurobi**, which can be obtained from <http://www.gurobi.com/index>.
+1. **AER** for two stage least squares estimation. This package is available on CRAN.
+2. **gmm** for implementing generalized method of moments estimation. This package is available on CRAN.
+3. **splines2** for specifying models with polynomial splines. This package is available on CRAN.
+4. A package for solving linear programs.
+   There are three options here:
+    i. Gurobi and the Gurobi R package **gurobi**, which can be obtained from [Gurobi Optimization](http://www.gurobi.com/index).
     This option requires a Gurobi software license, which Gurobi Optimization offers at no cost to academic researchers.
     i. CPLEX and the package **cplexAPI**,  which is available on CRAN.
-    CPLEX can be obtained from <https://www.ibm.com/analytics/cplex-optimizer>.
-    It requires a software license, which IBM offers at no cost to academic researchers.
+    CPLEX can be obtained from [IBM](https://www.ibm.com/analytics/cplex-optimizer).
+    This option requires a software license, which IBM offers at no cost to academic researchers.
     i. The **lpSolveAPI** package, which is free and open-source, and available from CRAN.
+    Note that **lpSolveAPI** is a wrapper for [lp_solve](http://lpsolve.sourceforge.net/5.5/), which is no longer
+    actively developed.
 
-We recommend that users start with **lpSolve**, since this is the easiest to install.
-However, Gurobi and CPLEX tend to be at least an order of magnitude faster than **lpSolve**, so if one is doing extensive work with **ivmte** it makes sense to invest a few minutes setting up one of these options.
-The package tries to automatically choose a solver from those available, with preference being given to Gurobi and CPLEX.
+**ivmte** tries to automatically choose a solver from those available, with preference being given to Gurobi and CPLEX.
+We have provided the option to use **lpSolveAPI** because it appears to be the
+only interface for solving linear programs that can be installed solely through
+```install.packages```.
+However, we _strongly_ recommend using Gurobi or CPLEX, since these are
+actively developed, much more stable, and typically an order of magnitude faster
+than **lpSolveAPI**.
 
-## Demonstration
+## Usage Demonstration
 
-### Data
+### Data and Background
 
-#### Real Data
-
-We will use a subsample of 50,000 women from the data used in @angristevans1998taer.
+We will use a subsample of `r nrow(AE)` women from the data used in @angristevans1998taer.
 The data is included with **ivmte** and has the following structure.
 
 ```{r, drawData-ae}
-ae <- read.csv("ae-small.csv")
-knitr::kable(head(ae, n = 10))
+library(ivmte)
+knitr::kable(head(AE, n = 10))
 ```
 
 We will use these variables as follows:
 
 * `worked` is a binary outcome variable that indicates whether the woman was working.
 * `hours` is a multivalued outcome variable that measures the number of hours the woman worked per week.
-* `morekids` indicates whether a woman had more than two children or exactly two children.
-    + Note that @angristevans1998taer removed women with fewer than two children when constructing their sample. This is necessary to use `samesex` as an IV.
-    + Also note that the treatment variable in `ivmte` must be binary. Methods extending the framework of @mogstadsantostorgovitsky2018e to multivalued treatments have not yet been developed.
+* `morekids` is a binary treatment variable that indicates whether a woman had more than two children or exactly two children.
+    + Note that @angristevans1998taer removed women with fewer than two children when constructing their sample.
+    + Also note that the treatment variable must be binary.
 * `samesex` is an indicator for whether the woman's first two children had the same sex (male-male or female-female). This is used as an instrument for `morekids`.
 * `yob` is the woman's year of birth (i.e. her age), which will be used as a conditioning variable.
 
@@ -100,7 +103,7 @@ A goal of @angristevans1998taer was to estimate the causal effect of `morekids` 
 A linear regression of `worked` on `morekids` yields:
 
 ```{r, ols, results='markdown'}
-lm(data = ae, worked ~ morekids)
+lm(data = AE, worked ~ morekids)
 ```
 
 The regression shows that women with three or more children are about 14--15% less likely to be working than women with exactly two children.
@@ -112,7 +115,7 @@ We expect that `samesex` is randomly assigned, so that among women with two or m
 A regression shows that women whose first two children had the same sex are also more likely to go on to have a third child:
 
 ```{r, fs, results='markdown'}
-lm(data = ae, morekids ~ samesex)
+lm(data = AE, morekids ~ samesex)
 ```
 
 Thus, `samesex` constitutes a potential instrumental variable for `morekids`.
@@ -120,27 +123,27 @@ We can run a simple instrumental variable regression using the `ivreg` command f
 
 ```{r, ivreg, results='markdown'}
 library("AER")
-ivreg(data = ae, worked ~ morekids | samesex )
+ivreg(data = AE, worked ~ morekids | samesex )
 ```
 
 The coefficient on `morekids` is smaller in magnitude than it was in the linear regression of `worked` on `morekids`.
 This suggests that the linear regression overstates the negative impact that children have on a woman's labor supply.
 The likely explanation is that women who have more children were less likely to work anyway.
 
-An important caveat to this reasoning, first discussed by @imbensangrist1994e, is that it applies only to the group of so-called _compliers_, whose would have a third child if and only if their first two children were same sex.
+An important caveat to this reasoning, first discussed by @imbensangrist1994e, is that it applies only to the group of _compliers_ who would have had a third child if and only if their first two children were same sex.
 (This interpretation requires the so-called _monotonicity_ condition.)
 The first stage regression of `morekids` on `samesex` shows that this group comprises less than 6\% of the entire population.
-Thus, the complier subpopulation is a small and arguably specialized group of individuals.
+Thus, the complier subpopulation is a small and potentially unrepresentative group of individuals.
 
-Is the relationship between fertility and labor supply for these individuals the same as for other groups?
+Is the relationship between fertility and labor supply for the compliers the same as for other groups?
 The answer is important if we want to use an instrumental variable estimator to inform policy questions.
 The purpose of **ivmte** is to provide a formal framework for answering this type of extrapolation question.
 
-#### Simulated Data
+--------------------------------------
 
-For demonstrating some of the features of `ivmte`, it will also be useful to use a simulated dataset.
-The following bit of code, which is contained in `/data-raw/ivmteSimData.R`, generates some simulated data from a simple DGP.
-The simulated data is also included with the package as `/data/ivmteSimData.rda`.
+For demonstrating some of the features of **ivmte*, it will also be useful to use a simulated dataset.
+The following code, which is contained in `./data-raw/ivmteSimData.R`, generates some simulated data from a simple DGP.
+The simulated data is also included with the package as `./data/ivmteSimData.rda`.
 
 ```{r, drawData-sim, results='markdown'}
 set.seed(1)
@@ -172,7 +175,7 @@ It has the following basic syntax:
 
 ```{r, syntax, eval = FALSE}
 library("ivmte")
-results <- ivmte(data = ae,
+results <- ivmte(data = AE,
                  target = "att",
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
@@ -181,19 +184,17 @@ results <- ivmte(data = ae,
 ```
 Here's what these required parameters refer to:
 
-1. `data = ae` is the usual reference to the dataframe to be used.
-1. `target = "att"` specifies the target parameter to be the average treatment on the treated (ATT).
-Ahead, we discuss how to specify different target parameters.
-1. `m0` and `m1` are formulas specifying the MTR functions for the untreated and treated arms, respectively.
+* `data = AE` is the usual reference to the data to be used.
+* `target = "att"` specifies the target parameter to be the average treatment on the treated (ATT).
+* `m0` and `m1` are formulas specifying the MTR functions for the untreated and treated arms, respectively.
 The symbol `u` in the formula refers to the unobservable latent variable in the selection equation.
-We provide further examples ahead of how to specify the functional form.
-1. `ivlike` indicates the regression to be run to create moments to which the model is fit. Ahead, we discuss how to specify multiple equations and how to select subsets of moments, or estimate them on a subset of the data.
-1. `propensity` provides an estimating equation for the propensity score.
+* `ivlike` indicates the regressions to be run to create moments to which the model is fit.
+* `propensity` specifies a model for the propensity score.
 
 This is what happens when the code above is run:
 
 ```{r, syntaxrun}
-results <- ivmte(data = ae,
+results <- ivmte(data = AE,
                  target = "att",
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
@@ -204,12 +205,12 @@ results <- ivmte(data = ae,
 The `ivmte` function indicates its progress in performing a sequence of intermediate operations.
 It then runs through an audit procedure to enforce shape constraints.
 The audit procedure is described in more detail [ahead](#audit).
-Finally, when the audit procedure terminates, it reports bounds on the resulting bounds on the target parameter, which in this case is the average treatment on the treated (`target = att`).
-These bounds are the main product of the method.
+After the audit procedure terminates, `ivmte` returns bounds on the target parameter, which in this case is the average treatment on the treated (`target = "att"`).
+These bounds are the primary output of interest.
 The detailed output can be suppressed by passing `noisy = FALSE` as an additional parameter:
 
 ```{r, syntaxrun.quiet}
-results <- ivmte(data = ae,
+results <- ivmte(data = AE,
                  target = "att",
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
@@ -228,32 +229,33 @@ This variable can be included in formulas in the same way as other observable va
 For example,
 
 ```{r, mtrbasics}
-args <- list(data = ae,
+args <- list(data = AE,
              ivlike =  worked ~ morekids + samesex + morekids*samesex,
              target = "att",
              m0 = ~ u + I(u^2) + yob + u*yob,
              m1 = ~ u + I(u^2) + I(u^3) + yob + u*yob,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
 ```
 
 A restriction that we make for computational purposes is that `u` can only appear in polynomial terms (perhaps interacted with other variables).
-Thus, the following raises an error **Issue 118**
-```{r, non.polynomial.u.error, eval = FALSE}
-args[["m0"]] <- log(u) + yob
+Thus, the following raises an error
+```{r, non.polynomial.u.error, error = TRUE}
+args[["m0"]] <- ~ log(u) + yob
 r <- do.call(ivmte, args)
 ```
 
-Names other than `u` can be used for the selection equation unobservable, but one must remember to pass the option `uname` to indicate the new name. **ISSUE 117**
+Names other than `u` can be used for the selection equation unobservable, but one must remember to pass the option `uname` to indicate the new name.
 
-```{r, uname, eval = FALSE}
+```{r, uname}
 args[["m0"]] <- ~ v + I(v^2) + yob + v*yob
 args[["m1"]] <- ~ v + I(v^2) + I(v^3) + yob + v*yob
 args[["uname"]] <- "v"
 r <- do.call(ivmte, args)
 ```
 
-Because we need to parse these formulas for the variable `u`, there are some limitations regarding the use of factor variables.
+Because we need to parse these formulas for the variable indicated by `uname`, there are some limitations regarding the use of factor variables.
 For example, this will trigger an error.
 
 ```{r, factor.error, error = TRUE}
@@ -262,10 +264,9 @@ args[["m0"]] <- ~ u + yob
 args[["m1"]] <- ~ u + factor(yob)-55 + factor(yob)-60
 r <- do.call(ivmte, args)
 ```
-However, one can work around this as follows.
+However, one can work around this in a natural way.
 
-**ERROR RELATED To 111***
-```{r, factor.ok, eval = FALSE}
+```{r, factor.ok}
 args[["m1"]] <- ~ u + (yob == 55) + (yob == 60)
 r <- do.call(ivmte, args)
 ```
@@ -276,25 +277,26 @@ In addition to global polynomials in `u`, `ivmte` also allows for polynomial spl
 For example,
 
 ```{r, spline}
-args <- list(data = ae,
+args <- list(data = AE,
              ivlike =  worked ~ morekids + samesex + morekids*samesex,
              target = "att",
              m0 = ~ u + uSplines(degree = 2, knots = c(.2, .4, .6, .8)) + yob,
              m1 = ~ uSplines(degree = 3, knots = c(.1, .3, .5, .7))*yob,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
 ```
 The `degree` refers to the polynomial degree, so that `degree = 2` is a quadratic spline, and `degree = 3` is a cubic spline.
-Constant splines, which have an important role in some of the theory developed by @mogstadsantostorgovitsky2018e, have `degree = 0`.
+Constant splines, which have an important role in some of the theory developed by @mogstadsantostorgovitsky2018e, can be implemented with `degree = 0`.
 The vector `knots` indicates the piecewise regions for the spline.
-Note that `0` and `1` are always automatically included as `knots`, so that only the internal points need to be specified.
+Note that `0` and `1` are always automatically included as `knots`, so that only the interior knots need to be specified.
 
 #### Shape Restrictions
 
 One can also require the MTR functions to satisfy the following nonparametric shape restrictions.
 
 * Boundedness of the MTR functions, via the parameters `m0.lb`, `m0.ub`, `m1.lb`, and `m1.ub`, which all take scalar values.
-In order to produce non-trivial bounds in cases of partial identification, `m0.lb` and `m1.lb` are set to the smallest value of the response variable (as inferred from `ivlike`) that is observed in the data, while `m0.lb` and `m1.lb` are set to the largest value.
+In order to produce non-trivial bounds in cases of partial identification, `m0.lb` and `m1.lb` are by default set to the smallest value of the response variable (which is inferred from `ivlike`) that is observed in the data, while `m0.lb` and `m1.lb` are set to the largest value.
 * Boundedness of the MTE function, that is, `m1 - m0`, by setting `mte.lb` and `mte.ub`.
 By default, these are set to the values logically implied by the default values for `m0.lb`, `m0.ub`, `m1.lb`, and `m1.ub`.
 * Monotonicity of the MTR functions in `u` for each value of the other observed variables, via the parameters `m0.dec`, `m0.inc`, `m1.dec`, `m1.inc`, which all take boolean values.
@@ -303,39 +305,41 @@ By default, these are set to the values logically implied by the default values 
 Here is an example with monotonicity restrictions:
 
 ```{r, bounds}
-args <- list(data = ae,
+args <- list(data = AE,
              ivlike =  worked ~ morekids + samesex + morekids*samesex,
              target = "att",
              m0 = ~ u + uSplines(degree = 2, knots = c(.2, .4, .6, .8)) + yob,
              m1 = ~ uSplines(degree = 3, knots = c(.1, .3, .5, .7))*yob,
              m1.inc = TRUE,
              m0.inc = TRUE,
-             propensity = morekids ~ samesex)
+             mte.dec = TRUE,
+             propensity = morekids ~ samesex,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
 ```
 
 #### The Audit Procedure {#audit}
 The shape restrictions in the previous section are enforced by adding constraints to a linear program.
 It is difficult in general to ensure that a function satisfies restrictions such as boundedness or monotonicity, even if that function is known to be a polynomial.
-This difficulty is addressed in the `ivmte` function through an auditing procedure.
+This difficulty is addressed in **ivmte** through an auditing procedure.
 
-The auditing procedure is based on two grids: a relatively small _constraint grid_, and a relatively large _audit grid_.
-The MTR functions (and implied MTE function) are made to satisfy the specified shape restrictions on the constraint grid by adding constraints to the linear programs that are solved.
-However, these constraints might not ensure that the MTR functions satisfy these constraints "everywhere."
+The auditing procedure is based on two grids: A relatively small _constraint grid_, and a relatively large _audit grid_.
+The MTR functions (and implied MTE function) are made to satisfy the specified shape restrictions on the constraint grid by adding constraints to the linear programs.
+While this ensures that the MTR functions satisfy the shape restrictions on the constraint grid, it does not ensure that they satisfy the restrictions "everywhere."
 Thus, after solving the programs, we evaluate the solution MTR functions on the large audit grid, which is relatively inexpensive computationally.
-If the solution MTRs violate the desired restrictions at some of the points in the audit grid, we add some of these points to the constraint grid and repeat the procedure.
+If there are points in the audit grid at which the solution MTRs violate the desired restrictions, then we add some of these points to the constraint grid and repeat the procedure.
 The procedure ends (the audit is passed), when the solution MTRs satisfy the constraints over the entire audit grid.
 
-There are certain parameters that are required for the audit procedure: the initial points in the constraint grid (`initgrid.nu` and `initgrid.nx`), the points in the audit grid (`audit.nu` and `audit.nx`), the maximum number of points that are added from the audit grid to the constraint grid (`audit.add`), and the maximum number of times the audit procedure is repeated before giving up (`audit.max`).
+There are certain parameters that can be used to tune the audit procedure: The number of initial points in the constraint grid (`initgrid.nu` and `initgrid.nx`), the number of points in the audit grid (`audit.nu` and `audit.nx`), the maximum number of points that are added from the audit grid to the constraint grid (`audit.add`) for each constraint, and the maximum number of times the audit procedure is repeated before giving up (`audit.max`).
 We have tried to choose defaults for these parameters that should be suitable for most applications.
 However, if `ivmte` takes a very long time to run, one might want to try adjusting these parameters.
-Also, if `audit.max` is hit, which should be unlikely given the default settings, one should either adjust the settings or examine the `violations` field of the returned results to see the extent to which the shape restrictions are not met.
+Also, if `audit.max` is hit, which should be unlikely given the default settings, one should either adjust the settings or examine the `violations` field of the returned results to see the extent to which the shape restrictions are not satisfied.
 
 ### Specifying the Target Parameter
 
 The target parameter is the object the researcher wants to know.
-The package has built-in support for conventional target parameters and a rich class of generalized LATEs.
-It also has a system that allows users to input their own target parameters.
+**ivmte** has built-in support for conventional target parameters and a class of generalized LATEs.
+It also has a system that allows users to construct their own target parameters by defining the associated weights.
 
 #### Conventional Target Parameters
 
@@ -343,12 +347,13 @@ The target parameter can be set to the average treatment effect (ATE), average t
 For example:
 
 ```{r, conventional.tgt.params}
-args <- list(data = ae,
+args <- list(data = AE,
              ivlike =  worked ~ morekids + samesex + morekids*samesex,
              target = "att",
              m0 = ~ u + I(u^2) + yob + u*yob,
              m1 = ~ u + I(u^2) + I(u^3) + yob + u*yob,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
 args[["target"]] <- "ate"
 r <- do.call(ivmte, args)
@@ -358,9 +363,9 @@ r <- do.call(ivmte, args)
 LATEs can be set as target parameters by passing `target = late` and including named lists called `late.from` and `late.to`.
 The named lists should contain variable name and value pairs, where the variable names must also appear in the propensity score formula.
 Typically, one would choose instruments for these variables, although `ivmte` will let you include control variables as well.
-We demonstrate this using the simulated data. **ISSUE 104**
+We demonstrate this using the simulated data.
 
-```{r, late, eval = FALSE}
+```{r, late}
 args <- list(data = ivmteSimData,
              ivlike =  y ~ d + z + d*z,
              target = "late",
@@ -368,20 +373,21 @@ args <- list(data = ivmteSimData,
              late.to = c(z = 3),
              m0 = ~ u + I(u^2) + I(u^3) + x,
              m1 = ~ u + I(u^2) + I(u^3) + x,
-             propensity = d ~ z + x)
+             propensity = d ~ z + x,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
 ```
 
-We can condition on covariates in the definition of the LATE by adding the named list `late.X` as follows. **NOT EVALUATED UNTIL THE ABOVE IS**
+We can condition on covariates in the definition of the LATE by adding the named list `late.X` as follows.
 
-```{r, late.cond, eval = FALSE}
+```{r, late.cond}
 args[["late.X"]] = c(x = 2)
 r <- do.call(ivmte, args)
 args[["late.X"]] = c(x = 8)
 r <- do.call(ivmte, args)
 ```
 
-The package also provides support for generalized LATEs, i.e. LATEs where the intervals of `u` that are being considered may or may not correspond to points in the support of the propensity score.
+**ivmte** also provides support for generalized LATEs, i.e. LATEs where the intervals of `u` that are being considered may or may not correspond to points in the support of the propensity score.
 These objects are useful for a number of extrapolation purposes, see e.g. @mogstadsantostorgovitsky2018e.
 They are set with `target = "genlate"` and the additional scalars `genlate.lb` and `genlate.ub`.
 For example,
@@ -394,39 +400,38 @@ args <- list(data = ivmteSimData,
              genlate.ub = .4,
              m0 = ~ u + I(u^2) + I(u^3) + x,
              m1 = ~ u + I(u^2) + I(u^3) + x,
-             propensity = d ~ z + x)
+             propensity = d ~ z + x,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
-p <- predict(r$propensity$model,
-             newdata = data.frame(samesex = c(0,1)),
-             type = "response")
-args[["genlate.lb"]] <- p[1]
-args[["genlate.ub"]] <- p[3]
-r <- do.call(ivmte, args) # should coincide with standard LATE 1 -> 3 from above
+args[["genlate.ub"]] <- .41
+r <- do.call(ivmte, args)
+args[["genlate.ub"]] <- .42
+r <- do.call(ivmte, args)
 ```
 
 Generalized LATEs can also be made conditional-on-covariates by passing `late.X`:
 
 ```{r, genlate.cond}
 args[["late.X"]] <- c(x = 2)
-r <- do.call(ivmte, args) # should coincide with above
+r <- do.call(ivmte, args)
 ```
 
 #### Custom Target Parameters
-Since there are potentially a large and diverse array of target parameters that a researcher might be interested in across various applications, the `ivmte` package also allows the specification of custom target parameters.
+Since there are potentially a large and diverse array of target parameters that a researcher might be interested in across various applications, the **ivmte** package also allows the specification of custom target parameters.
 This is done by specifying the two weighting functions for the target parameters.
 
 To facilitate computation, these functions must be expressible as constant splines in `u`.
 For the untreated weights, the knots of the spline are specified with `target.knots0` and the weights to place in between each knot is given by `target.weight0`.
 Since the weighting functions might depend on both the instrument and other covariates, both `target.knots0` and `target.weight0` should be lists consisting of functions or scalars.
 (A scalar is interpreted as a constant function.)
-Specifying the treated weights works the same way but with `target.knots1` and `target.weight`.
+Specifying the treated weights works the same way but with `target.knots1` and `target.weight1`.
 Note that the `target` option is ignored when a set of knots and weights are passed.
 
-Here is an example of using custom weights to replicate the LATE from above.
+Here is an example of using custom weights to replicate the conditional LATE from above.
 
 ```{r, custom.weights}
 pmodel <- r$propensity$model # returned from the previous run of ivmte
-xeval = 1 # x = xeval is the point we condition on
+xeval = 2 # x = xeval is the group that is conditioned on
 px <- mean(ivmteSimData$x == xeval) # probability that x = xeval
 z.from = 1
 z.to = 3
@@ -434,42 +439,53 @@ weight1a  <- function(x) {
     if (x != xeval) {
         return(0)
     } else {
-        x.to <- data.frame(x = xeval, z = zfrom)
-        x.from <- data.frame(x = xeval, z = zto)
-        p.to <- predict(pmodel, newdata = x.to, type = "response")
-        p.from <- predict(pmodel, newdata = x.from, type = "response")
+        xz.from <- data.frame(x = xeval, z = z.from)
+        xz.to <- data.frame(x = xeval, z = z.to)
+        p.from <- predict(pmodel, newdata = xz.from, type = "response")
+        p.to <- predict(pmodel, newdata = xz.to, type = "response")
         return(1 / ((p.to - p.from) * px))
     }
 }
-weight0a <- function(x1) {
-    return(-weight1a(x1))
+weight0a <- function(x) {
+    return(-weight1a(x))
 }
 ## Define knots (same for treated and control)
 knot1a <- function(x) {
-    x.from <- data.frame(x = x, z = z.from)
-    p.from <- predict(pmodel, newdata = x.from, type = "response")
+    xz.from <- data.frame(x = x, z = z.from)
+    p.from <- predict(pmodel, newdata = xz.from, type = "response")
     return(p.from)
 }
 knot2a <- function(x) {
-    x.to <- data.frame(x = x, z = z.to)
-    p.to <- predict.glm(pmodelA, x.to, type = "response")
+    xz.to <- data.frame(x = x, z = z.to)
+    p.to <- predict.glm(pmodel, newdata = xz.to, type = "response")
     return(p.to)
 }
+
+args <- list(data = ivmteSimData,
+             ivlike =  y ~ d + z + d*z,
+             target.knots0 = c(knot1a, knot2a),
+             target.knots1 = c(knot1a, knot2a),
+             target.weight0 = c(0, weight0a, 0),
+             target.weight1 = c(0, weight1a, 0),
+             m0 = ~ u + I(u^2) + I(u^3) + x,
+             m1 = ~ u + I(u^2) + I(u^3) + x,
+             propensity = d ~ z + x,
+             noisy = FALSE)
+r <- do.call(ivmte, args)
 ```
 
 The knot specification here is the same for both the treated and untreated weights.
-It specifies two knots that depend on whether `x == 0`, so that there are four knots total when accounting for 0 and 1, which are always included.
+It specifies two knots that depend on whether `x == 2`, so that there are four knots total when accounting for 0 and 1, which are always included automatically.
+These four knots divide the interval between 0 and 1 into three regions.
 The first region is from 0 to the value of the propensity score when evaluated at `x` and `z.from`.
 The second region is between this point and the propensity score evaluated at `x` and `z.to`.
 The third and final region is from this point up to 1.
 
 Since the knot specification creates three regions, three weight functions must be passed.
 Here, the weights in the first and third regions are set to 0 regardless of the value of `x` by just passing a scalar `0`.
-The weights in the second region are only non-zero when `x == 0`, in which case they are equal to the inverse of the distance between the second and third knot points.
-Thus, the weighting scheme applies equal weight to compliers with `x == 0`, and zero weight to all other others.
+The weights in the second region are only non-zero when `x == 2`, in which case they are equal to the inverse of the distance between the second and third knot points.
+Thus, the weighting scheme applies equal weight to compliers with `x == 2`, and zero weight to all others.
 As expected, the resulting bounds match those that we computed above using `target == late`.
-
-**ADD A MORE INTERESTING EXAMPLE? Depends on what built-in functionality we end up keeping**
 
 ### Specifying the IV--Like Estimands
 
@@ -480,7 +496,7 @@ There are three aspects that can be changed, which we discuss in order subsequen
 First, one can specify one or multiple LR and TSLS formulas from which moments are used.
 By default, all moments from each formula are used.
 Second, one can specify that only certain moments from a formula are used.
-Third, one can specify a subset of the data on which the formula is run, which allows one to condition on observables.
+Third, one can specify a subset of the data on which the formula is run, which provides an easy way to nonparametrically condition on observables.
 
 #### List of Linear Model Formulas
 
@@ -492,37 +508,40 @@ For example,
 
 ```{r, multi.ivlike}
 args <- list(data = ivmteSimData,
-             ivlike =  c(y ~ z + x,
+             ivlike =  c(y ~ (z == 1) + (z == 2) + (z == 3) + x,
                          y ~ d + x,
                          y ~ d | z),
              target = "ate",
-             m0 = ~ u + I(u^2) + I(u^3) + x,
-             m1 = ~ u + I(u^2) + I(u^3) + x,
-             propensity = d ~ z + x)
+             m0 = ~ uSplines(degree = 1, knots = c(.25, .5, .75)) + x,
+             m1 = ~ uSplines(degree = 1, knots = c(.25, .5, .75)) + x,
+             propensity = d ~ z + x,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
 ```
 
-As indicated by the output, there are 8 moments being fit in this specification.
-Three of these moments correspond to the constant and the coefficients on `z` and `x` from the first linear regression of `y` on `z` and `x`.
-There are three more from the second regression of `y` on `d` and `x`.
+There are 10 moments being fit in this specification.
+Five of these moments correspond to the constant term, the coefficients on the three dummies `(z == 1)`, `(z == 2)` and `(z == 3)`, and the coefficient on `x` from the first linear regression.
+There are three more coefficients from the second regression of `y` on `d`, `x`,
+and a constant.
 Finally, there are two moments from the TSLS (simple IV in this case) regression of `y` on `d` and a constant, using `z` and a constant as instruments.
 
 #### Using Only Subcomponents
 
-The default behavior of `ivmte` is to use all of the moments from equal formula included in `ivlike`.
+The default behavior of `ivmte` is to use all of the moments from each formula included in `ivlike`.
 There are reasons one might not want to do this, such as if certain moments are estimated poorly (i.e. with substantial statistical error).
 For more information, see the discussions in @mogstadsantostorgovitsky2018e and @mogstadtorgovitsky2018aroe.
 
-One can tell `imvte` to only include certain moments and not others by passing the `components` option.
+One can tell `ivmte` to only include certain moments and not others by passing the `components` option.
 This option expects a list of the same length as the list passed to `ivlike`.
-Each component of the list is itself a list of the variables names for the coefficients to be included from that formula.
-For example, the following includes the constant (intercept) term and the coefficient on `z` from the first formula, all moments from the second formula, and just the coefficient on `d` from the third formula.
+Each component of the list is itself a list that contains the variable names for the coefficients to be included from that formula.
+For example, the following includes the coefficients on the intercept and `x` from the first formula, the coefficient on `d` from the second formula, and all coefficients in the third formula.
 
 ```{r, ivlike.components}
-args[["components"]] <- l(c(intercept, x), , d)
+args[["components"]] <- l(c(intercept, x), c(d), )
 r <- do.call(ivmte, args)
 ```
-Note that `intercept` is a reserved word.
+Note that `intercept` is a reserved word that is used to specify the coefficient
+on the constant term.
 
 #### Subsetting
 The formulas can be run conditional on certain subgroups by adding the `subset` option.
@@ -531,92 +550,94 @@ One can use the entire data by leaving the statement blank, or inserting a tauto
 For example, the following would run the first regression on the entire subsample, the second regression only on those observations that have `z` equal to 1 or 3, and the third (TSLS) formula only on observations with `x` smaller than 5.
 
 ```{r, ivlike.subsets}
-args[["subset"]] <- l(1 == 1, z %in% c(1,3), x <= 5)
+args <- list(data = ivmteSimData,
+             ivlike =  c(y ~ z + x,
+                         y ~ d + x,
+                         y ~ d | z),
+             subset = l(x <= 9, 1 == 1, z %in% c(1,3)),
+             target = "ate",
+             m0 = ~ uSplines(degree = 3, knots = c(.25, .5, .75)) + x,
+             m1 = ~ uSplines(degree = 3, knots = c(.25, .5, .75)) + x,
+             propensity = d ~ z + x,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
 ```
 
 ### Specifying the Propensity Score
 
-The procedure implemented by `ivmte` requires first estimating the propensity score, that is the probability that the binary treatment variable is 1, conditional on the instrument and other covariates.
-This must be specified with the `propensity` option which expects a formula.
+The procedure implemented by `ivmte` requires first estimating the propensity score, that is, the probability that the binary treatment variable is 1, conditional on the instrument and other covariates.
+This must be specified with the `propensity` option, which expects a formula.
 The treatment variable is inferred to be the variable on the left-hand side of the `propensity`.
-The default is to estimate the formula as a logit model via the `glm` command, but this can be change this to `"linear"` or `"probit"` using the `link` option.
+The default is to estimate the formula as a logit model via the `glm` command, but this can be changed to `"linear"` or `"probit"` with the `link` option.
 
 ```{r, pscore}
-results <- ivmte(data = ae,
+results <- ivmte(data = AE,
                  target = "att",
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
                  propensity = morekids ~ samesex + yob,
-                 link = "probit")
+                 link = "probit",
+                 noisy = FALSE)
 ```
 
 ### Point Identified Models
 The default of the `ivmte` command is to estimate bounds on the target parameter.
-If one believes the model is in fact point identified, then `point == TRUE` can be included.
-Typically, this will be the case when `ivlike`, `components` and `subset` are set such that they have more (non-redundant) components than there are free parameters in `m0` and `m1`.
+If one believes the model is in fact point identified, then `point == TRUE` can be included as an option.
+Point identification will typically occur when `ivlike`, `components` and `subset` are such that they have more (non-redundant) components than there are free parameters in `m0` and `m1`.
 Bounds in this case will typically shrink to a point.
 
-**ISSUE 119**
-
-```{r, point.id, eval = FALSE}
-args <- list(data = ae,
+```{r, point.id}
+args <- list(data = AE,
              target = "att",
              m0 = ~ u,
              m1 = ~ u,
              ivlike = worked ~ morekids + samesex + morekids*samesex + yob,
-             propensity = morekids ~ samesex + yob + samesex*yob)
+             propensity = morekids ~ samesex + yob + samesex*yob,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
 ```
-Notice that even though `point = FALSE` and `point = TRUE` provide a single number for the target parameter in this scenario, that number is slightly different.
-The reason is that, for computational reasons, `point = TRUE` uses the usual quadratic loss, while `point = FALSE` uses absolute deviations loss.
-One should use `point = TRUE` if the model is point identified, since it computes confidence intervals and specification tests (discussed ahead) in a well-understood way.
-The default when `point = TRUE` is to use two-step GMM via the **gmm** package, however the identitiy weighting can also be used by passing `point.eyeweight = TRUE`.
-
-**ISSUE 119**
-
-```{r, point.id.eyeweight, eval = FALSE}
-args[["point.eyeweight"]] <- TRUE
-r <- do.call(ivmte, args)
-```
+Notice that even though ```point = FALSE``` and ```point = TRUE``` provide a single number for the target parameter in this scenario, that number is slightly different.
+The reason is that, for computational reasons, ```point = TRUE``` uses the usual quadratic loss, while ```point = FALSE``` uses absolute deviations loss.
+One should use ```point = TRUE``` if the model is point identified, since it computes confidence intervals and specification tests (discussed ahead) in a well-understood way.
+The default when ```point = TRUE``` is to use the identity weighting, however the optimal two-step GMM weighting (as computed by the **gmm** package) can be computed by passing ```point.eyeweight = FALSE```.
 
 ### Confidence Intervals
 
-The `ivmte` command does provide functionality for constructing confidence regions, although this is turned off by default, since it can be computationally expensive.
-To turn it on, set `bootstraps` to be a positive integer.
-
-**ISSUE 120 -- very strange results here**
+The ```ivmte``` command does provide functionality for constructing confidence regions, although this is turned off by default, since it can be computationally expensive.
+To turn it on, set ```bootstraps``` to be a positive integer.
 
 ```{r, partial.ci}
-results <- ivmte(data = ae,
+results <- ivmte(data = AE,
                  target = "att",
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
                  propensity = morekids ~ samesex,
-                 bootstraps = 20)
+                 bootstraps = 50,
+                 noisy = FALSE)
 ```
 
 Other options relevent to confidence region construction are `bootstraps.m`, which indicates the number of observations to draw from the sample on each bootstrap replication, and `bootstraps.replace` to indicate whether these observations should be drawn with or without replacement.
-The default is to set `bootstraps.m` to the the sample size of the observed data with `bootstraps.replace == TRUE`.
+The default is to set `bootstraps.m` to the sample size of the observed data with `bootstraps.replace = TRUE`.
 This corresponds to the usual nonparametric bootstrap.
 Choosing `bootstraps.m` to be smaller than the sample size and settings `bootstraps.replace` to be `TRUE` or `FALSE` corresponds to the "m out of n" bootstrap or subsampling, respectively.
-Regardless of these settings, two types of confidence regions are constructed following the terminology of @andrewshan2009ej; see @sheatorgovitsky2019wp for more detail, references, and important caveats to the procedures.
+Regardless of these settings, two types of confidence regions are constructed following the terminology of @andrewshan2009ej; see @sheatorgovitsky2019wp for more detail, references, and important theoretical caveats to the procedures.
 
 Confidence regions can also be constructed when `point == TRUE` in a similar way.
 
 ```{r, point.id.bootstrap}
-args <- list(data = ae,
+args <- list(data = AE,
              target = "att",
              m0 = ~ u,
              m1 = ~ u,
              ivlike = worked ~ morekids + samesex + morekids*samesex,
              propensity = morekids ~ samesex,
              point = TRUE,
-             bootstraps = 20)
+             bootstraps = 50,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
 ```
 The p-value reported in both cases is for the null hypothesis that the target parameter is equal to 0,which we infer here by finding the largest confidence region that does not contain 0.
@@ -633,9 +654,7 @@ In the partially identified case, we implement the misspecification test discuss
 The specification tests are automatically conducted when `bootstraps` is positive and the minimum criterion value in the sample problem is larger than 0.
 However, it can be turned off by setting `specification.test = FALSE`.
 
-**ISSUE 119 PREVENTS RUNNING THE SECOND PART**
-
-```{r, misspecification.test, eval = FALSE}
+```{r, misspecification.test}
 args <- list(data = ivmteSimData,
              ivlike =  y ~ d + factor(z),
              target = "ate",
@@ -644,7 +663,8 @@ args <- list(data = ivmteSimData,
              m0.dec = TRUE,
              m1.dec = TRUE,
              propensity = d ~ factor(z),
-             bootstraps = 20)
+             bootstraps = 50,
+             noisy = FALSE)
 r <- do.call(ivmte, args)
 
 args[["ivlike"]] <- y ~ d + factor(z) + d*factor(z) # many more moments
@@ -654,6 +674,6 @@ r <- do.call(ivmte, args)
 
 ## Help, Feature Requests and Bug Reports
 
-For help, feature requests and bug reports, please post an issue on our GitHub repository.
+Please post an issue on the [GitHub repository](https://github.com/jkcshea/ivmte/issues).
 
 ## References
