@@ -254,7 +254,7 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 #'
 #' @export
 obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
-                     criterion.tol = 0, lpobj, lpsolver) {
+                     criterion.tol = 0, lpobj, lpsolver, debug = FALSE) {
     if (!is.null(orig.sset)) {
         ## Prepare to obtain 'recentered' bootstrap criterion
         tmpA <- NULL
@@ -288,6 +288,12 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
     }
     lpsolver <- tolower(lpsolver)
     if (lpsolver == "gurobi") {
+        if (debug) {
+            outputflag <- 1
+            message("\nMinimum criterion optimization statistics:")
+            message("------------------------------------------")
+        }
+        if (!debug) outputflag <- 0
         model <- list()
         model$modelsense <- "min"
         model$obj   <- lpobj$obj
@@ -296,10 +302,11 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
         model$sense <- lpobj$sense
         model$ub    <- lpobj$ub
         model$lb    <- lpobj$lb
-        result   <- gurobi::gurobi(model, list(outputflag = 0))
+        result   <- gurobi::gurobi(model, list(outputflag = outputflag))
         obseqmin <- result$objval
         optx     <- result$x
         status   <- result$status
+        if (debug) cat("\n")
     }
     if (lpsolver == "cplexapi") {
         result <- runCplexAPI(lpobj, cplexAPI::CPX_MIN)
@@ -445,7 +452,8 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
 #'       lpsolver = "lpSolveAPI")
 #'
 #' @export
-bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
+bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE,
+                  debug = FALSE) {
     lpsolver <- tolower(lpsolver)
     ## define model
     model <- list()
@@ -482,22 +490,33 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE) {
     rm(tmpA)
     ## obtain lower and upper bounds
     if (lpsolver == "gurobi") {
+        if (debug == FALSE) outputflag <- 0
+        if (debug == TRUE) outputflag <- 1
+        if (debug == TRUE) {
+            message("\nLower bound optimization statistics:")
+            message("------------------------------------")
+        }
         model$modelsense <- "min"
-        minresult <- gurobi::gurobi(model, list(outputflag = 0,
+        minresult <- gurobi::gurobi(model, list(outputflag = outputflag,
                                                 dualreductions = 1,
                                                 FeasibilityTol = 1e-6))
         min <- minresult$objval
         minstatus <- 0
         if (minresult$status == "OPTIMAL") minstatus <- 1
         minoptx <- minresult$x
+        if (debug == TRUE) {
+            message("\nUpper bound optimization statistics:")
+            message("------------------------------------")
+        }
         model$modelsense <- "max"
-        maxresult <- gurobi::gurobi(model, list(outputflag = 0,
+        maxresult <- gurobi::gurobi(model, list(outputflag = outputflag,
                                                 dualreductions = 1,
                                                 FeasibilityTol = 1e-6))
         max <- maxresult$objval
         maxstatus <- 0
         if (maxresult$status == "OPTIMAL") maxstatus <- 1
         maxoptx <- maxresult$x
+        if (debug) cat("\n")
     }
     if (lpsolver == "cplexapi") {
         minresult <- runCplexAPI(model, cplexAPI::CPX_MIN)

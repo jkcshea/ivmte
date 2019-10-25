@@ -159,8 +159,8 @@ utils::globalVariables("u")
 #'     reported in the output under the name 'minimum criterion'. The
 #'     constraints in the LP problem pertaining to observational
 #'     equivalence are then relaxed by the amount \code{minimum
-#'     criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a value
-#'     greater than 0 to allow for more conservative bounds.
+#'     criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a
+#'     value greater than 0 to allow for more conservative bounds.
 #' @param initgrid.nx integer determining the number of points of the
 #'     covariates used to form the initial constraint grid for
 #'     imposing shape restrictions on the MTRs.
@@ -222,6 +222,10 @@ utils::globalVariables("u")
 #'     from being included in the return list.
 #' @param seed integer, the seed that determines the random grid in
 #'     the audit procedure.
+#' @param debug boolean, indicates whether or not the function should
+#'     provide output when obtaining bounds. The option is only
+#'     applied when \code{lpsolver = 'gurobi'}. The output provided is
+#'     the same as what the Gurobi API would send to the console.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -299,7 +303,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
                   specification.test = TRUE,
                   noisy = TRUE,
-                  smallreturnlist = FALSE, seed = 12345) {
+                  smallreturnlist = FALSE, seed = 12345, debug = FALSE) {
     call <- match.call(expand.dots = FALSE)
     envList <- list(m0 = environment(m0),
                     m1 = environment(m1),
@@ -347,6 +351,22 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              cplexAPI (version 1.3.3 or later);
                              lpSolveAPI (version 5.5.2.0 or later).")),
                  call. = FALSE)
+        }
+    }
+    if (debug) {
+        if (lpsolver != "gurobi") {
+            lpsolver <- "gurobi"
+            warning(gsub("\\s+", " ",
+                         "'debug = TRUE' is only permitted if
+                          'lpsolver = \"gurobi\"'.
+                           Linear programming output below is generated
+                           by Gurobi."),
+                    call. = FALSE, immediate. = TRUE)
+        }
+        if (!requireNamespace("gurobi", quietly = TRUE)) {
+            stop(gsub("\\s+", " ",
+                      "'debug = TRUE' is only permitted if
+                       'lpsolver = \"gurobi\"'."))
         }
     }
 
@@ -1882,7 +1902,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             totalBootstraps <- totalBootstraps + 1
             bootIDs  <- sample(seq(1, nrow(data)),
                                  size = bootstraps.m,
-                                 replace = bootstraps.replace)
+                               replace = bootstraps.replace)
+            bootIDs <- bootIDsAlt
             bdata <- data[bootIDs, ]
             ## Check if the bootstrap data contains sufficient
             ## variation in all boolean and factor expressions.
@@ -1991,6 +2012,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             jtest <- c(mean(jstats >= origEstimate$jtest[1]),
                        origEstimate$jtest)
             names(jtest) <- c("Bootstrapped p-value", names(origEstimate$jtest))
+            jtest <- jtest[c(2, 1, 3, 4)]
         } else {
             jtest <- NULL
         }
@@ -2406,7 +2428,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                           splinesobj, noisy = TRUE,
                           smallreturnlist = FALSE, seed = 12345,
-                          environments) {
+                          debug = FALSE, environments) {
     call <- match.call(expand.dots = FALSE)
     if (classFormula(ivlike)) ivlike <- c(ivlike)
     ## Character arguments will be converted to lowercase
@@ -2661,7 +2683,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
                     "mte.inc", "criterion.tol",
                     "orig.sset", "orig.criterion",
-                    "noisy", "seed")
+                    "noisy", "seed", "debug")
     audit_call <- modcall(call,
                           newcall = audit,
                           keepargs = audit.args,
@@ -2744,24 +2766,24 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (noisy) {
         cat("Bounds on the target parameter: [",
             fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n\n", sep = "")
-        if (any(audit$lpresult$modelstats[, 3] > 6)) {
-            bMessage <- "The following sets of coefficients defining the
-                    LP problem exhibit ranges exceeding 6 orders of magnitude: "
-            if (audit$lpresult$modelstats[1, 3] > 6) {
-                bMessage <- paste(bMessage, "constraint matrix")
-            }
-            if (audit$lpresult$modelstats[2, 3] > 6) {
-                bMessage <- paste(bMessage, "RHS vector (IV-like coefficients)")
-            }
-            if (audit$lpresult$modelstats[3, 3] > 6) {
-                bMessage <- paste(bMessage, "objective vector (gamma moments)")
-            }
-            bMessage <- paste0(bMessage, ". Large ranges in the coefficients
-                                         increase computational burden, and can
-                                         potentially lead to infeasibility.")
-            warning(gsub("\\s+", " ", bMessage),
-                    call. = FALSE, immediate. = TRUE)
-        }
+        ## if (any(audit$lpresult$modelstats[, 3] > 6)) {
+        ##     bMessage <- "The following sets of coefficients defining the
+        ##             LP problem exhibit ranges exceeding 6 orders of magnitude: "
+        ##     if (audit$lpresult$modelstats[1, 3] > 6) {
+        ##         bMessage <- paste(bMessage, "constraint matrix")
+        ##     }
+        ##     if (audit$lpresult$modelstats[2, 3] > 6) {
+        ##         bMessage <- paste(bMessage, "RHS vector (IV-like coefficients)")
+        ##     }
+        ##     if (audit$lpresult$modelstats[3, 3] > 6) {
+        ##         bMessage <- paste(bMessage, "objective vector (gamma moments)")
+        ##     }
+        ##     bMessage <- paste0(bMessage, ". Large ranges in the coefficients
+        ##                                  increase computational burden, and can
+        ##                                  potentially lead to infeasibility.")
+        ##     warning(gsub("\\s+", " ", bMessage),
+        ##             call. = FALSE, immediate. = TRUE)
+        ## }
     }
     ## include additional output material
     if (lpsolver == "gurobi") lpsolver <- "Gurobi ('gurobi')"
@@ -3700,7 +3722,8 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
         jtest <- c(jtest,
                    1 - pchisq(jtest, df = length(sset) - gn0 - gn1),
                    length(sset) - gn0 - gn1)
-        names(jtest) <- c("J-statistic", "p-value", "df")
+        names(jtest) <- c("J-statistic",
+                          "p-value (ignoring first step)", "df")
     } else {
         jtest <- NULL
     }
@@ -3917,7 +3940,7 @@ summary.ivmte <- function(object, ...) {
             ## Return specification test
             if (!is.null(object$jtest)) {
                 cat("\nBootstrapped J-test p-value: ",
-                    fmtResult(object$jtest[1]), "\n", sep = "")
+                    fmtResult(object$jtest[2]), "\n", sep = "")
             }
         }
     }

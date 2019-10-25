@@ -157,7 +157,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   sset, gstar0, gstar1,
                   orig.sset = NULL, orig.criterion = NULL,
                   criterion.tol = 0, lpsolver,
-                  noisy = TRUE, seed = 12345) {
+                  noisy = TRUE, seed = 12345, debug = FALSE) {
     set.seed(seed)
     call  <- match.call()
     lpsolver <- tolower(lpsolver)
@@ -301,7 +301,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
         minobseq <- obsEqMin(sset, NULL, NULL,
-                             criterion.tol, lpobj, lpsolver)
+                             criterion.tol, lpobj, lpsolver, debug)
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -417,7 +417,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                            sset = sset,
                            lpobj = lpobj,
                            obseq.factor = minobseq$obj * (1 + criterion.tol),
-                           lpsolver = lpsolver)
+                           lpsolver = lpsolver,
+                           debug = debug)
         if (is.null(lpresult)) {
             if (noisy) {
                 message("    LP solutions are unbounded.")
@@ -450,13 +451,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
 
         ## Test for violations for minimization problem
-        violateDiffMin <- round(a_mbA %*% solVecMin - a_mbrhs,
-                                digits = 6)
-        violatevecMin <- violateDiffMin > 0
+        violateDiffMin <- a_mbA %*% solVecMin - a_mbrhs
+        violatevecMin <- violateDiffMin > 1e-06
         ## Test for violations for maximization problem
-        violateDiffMax <- round(a_mbA %*% solVecMax - a_mbrhs,
-                                digits = 6)
-        violatevecMax <- violateDiffMax > 0
+        violateDiffMax <- a_mbA %*% solVecMax - a_mbrhs
+        violatevecMax <- violateDiffMax > 1e-06
         ## Generate violation data set
         violatevec <- violatevecMin + violatevecMax
         violate <- as.logical(sum(violatevec))
