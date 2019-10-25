@@ -2725,6 +2725,22 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                  m0.lb.default = TRUE))
         }
     }
+    if (!hasArg(mte.lb) | !hasArg(mte.ub)) {
+        tmp.m0.lb <- as.list(audit_call)$m0.lb
+        tmp.m0.ub <- as.list(audit_call)$m0.ub
+        tmp.m1.lb <- as.list(audit_call)$m1.lb
+        tmp.m1.ub <- as.list(audit_call)$m1.ub
+        if (!hasArg(mte.lb)) {
+            audit_call <- modcall(audit_call,
+                                  newargs = list(mte.lb = tmp.m1.lb - tmp.m0.ub,
+                                                 mte.lb.default = TRUE))
+        }
+        if (!hasArg(mte.ub)) {
+            audit_call <- modcall(audit_call,
+                                  newargs = list(mte.ub = tmp.m1.ub - tmp.m0.lb,
+                                                 mte.ub.default = TRUE))
+        }
+    }
 
     ##---------------------------
     ## 5. Obtain the bounds

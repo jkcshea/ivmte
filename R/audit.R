@@ -25,13 +25,17 @@
 #'     option is used for inference procedure under partial
 #'     identification, which uses the fine grid from the original
 #'     sample in all bootstrap resamples.
-#' @param m1.ub.default boolean, default set to TRUE. Indicator for
+#' @param m1.ub.default boolean, default set to FALSE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
-#' @param m0.ub.default boolean, default set to TRUE. Indicator for
+#' @param m0.ub.default boolean, default set to FALSE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
-#' @param m1.lb.default boolean, default set to TRUE. Indicator for
+#' @param mte.ub.default boolean, default set to FALSE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
-#' @param m0.lb.default boolean, default set to TRUE. Indicator for
+#' @param m1.lb.default boolean, default set to FALSE. Indicator for
+#'     whether the value assigned was by the user, or set by default.
+#' @param m0.lb.default boolean, default set to FALSE. Indicator for
+#'     whether the value assigned was by the user, or set by default.
+#' @param mte.lb.default boolean, default set to FALSE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
 #' @param sset a list containing the point estimates and gamma
 #' @param gstar0 set of expectations for each terms of the MTR for the
@@ -145,12 +149,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   audit.nx = 2500, audit.nu = 25, audit.add = 100,
                   audit.max = 25, audit.grid = NULL,
                   save.grid = FALSE,
-                  m1.ub, m0.ub, m1.lb, m0.lb,
+                  m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                   m1.ub.default = FALSE,
                   m0.ub.default = FALSE,
+                  mte.ub.default = FALSE,
                   m1.lb.default = FALSE,
                   m0.lb.default = FALSE,
-                  mte.ub, mte.lb,
+                  mte.lb.default = FALSE,
                   m0.dec = FALSE, m0.inc = FALSE,
                   m1.dec = FALSE, m1.inc = FALSE,
                   mte.dec = FALSE, mte.inc = FALSE,
@@ -351,7 +356,12 @@ audit <- function(data, uname, m0, m1, splinesobj,
                     }
                 }
                 if (x %in% mbobj$lbteseq) {
-                    return(paste0("mte.lb = ", mte.lb))
+                    if (mte.lb.default == TRUE) {
+                        return(paste0("mte.lb = ", mte.lb,
+                                      " (min. treatment effect by default)"))
+                    } else {
+                        return(paste0("mte.lb = ", mte.lb))
+                    }
                 }
                 if (x %in% mbobj$ub0seq) {
                     if (m0.ub.default == TRUE) {
@@ -370,7 +380,12 @@ audit <- function(data, uname, m0, m1, splinesobj,
                     }
                 }
                 if (x %in% mbobj$ubteseq) {
-                    return(paste0("mte.ub = ", mte.ub))
+                    if (mte.ub.default == TRUE) {
+                        return(paste0("mte.ub = ", mte.ub,
+                                      " (max. treatment effect by default)"))
+                    } else {
+                        return(paste0("mte.ub = ", mte.ub))
+                    }
                 }
                 if (x %in% mbobj$mono0seq) {
                     if (m0.inc == TRUE) return("m0.inc = TRUE")
