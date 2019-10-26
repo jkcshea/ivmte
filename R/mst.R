@@ -2149,7 +2149,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             fmtResult(pvalue[1]), "\n\n", sep = "")
         if (!is.null(jtest)) {
             cat("Bootstrapped J-test p-value: ",
-                fmtResult(jtest[1]), "\n", sep = "")
+                fmtResult(jtest[2]), "\n", sep = "")
         }
         cat("\n")
         ## cat("Bootstrapped confidence intervals (normal quantiles):\n")

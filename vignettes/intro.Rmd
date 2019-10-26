@@ -1,16 +1,16 @@
 ---
 title: "ivmte: An R Package for Marginal Treatment Effect Methods"
-author: "Joshua Ka Chun Shea and Alexander Torgovitsky"
+author: "Joshua Shea and Alexander Torgovitsky"
 bibliography: refs.bib
 output:
-  html_document:
-    toc: true
   github_document:
+    toc: true
+  html_document:
     toc: true
 vignette: >
   %\VignetteIndexEntry{ivmte}
-  %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
 ---
 
 ```{r setup, include = FALSE}
@@ -55,10 +55,9 @@ devtools::install_github("jkcshea/ivmte")
 
 Three additional packages are also required for **ivmte**:
 
-1. **AER** for two stage least squares estimation. This package is available on CRAN.
-2. **gmm** for implementing generalized method of moments estimation. This package is available on CRAN.
-3. **splines2** for specifying models with polynomial splines. This package is available on CRAN.
-4. A package for solving linear programs.
+1. **gmm** for implementing generalized method of moments estimation. This package is available on CRAN.
+2. **splines2** for specifying models with polynomial splines. This package is available on CRAN.
+3. A package for solving linear programs.
    There are three options here:
     i. Gurobi and the Gurobi R package **gurobi**, which can be obtained from [Gurobi Optimization](http://www.gurobi.com/index).
     This option requires a Gurobi software license, which Gurobi Optimization offers at no cost to academic researchers.
@@ -141,7 +140,7 @@ The purpose of **ivmte** is to provide a formal framework for answering this typ
 
 --------------------------------------
 
-For demonstrating some of the features of **ivmte*, it will also be useful to use a simulated dataset.
+For demonstrating some of the features of **ivmte**, it will also be useful to use a simulated dataset.
 The following code, which is contained in `./data-raw/ivmteSimData.R`, generates some simulated data from a simple DGP.
 The simulated data is also included with the package as `./data/ivmteSimData.rda`.
 
@@ -296,7 +295,7 @@ Note that `0` and `1` are always automatically included as `knots`, so that only
 One can also require the MTR functions to satisfy the following nonparametric shape restrictions.
 
 * Boundedness of the MTR functions, via the parameters `m0.lb`, `m0.ub`, `m1.lb`, and `m1.ub`, which all take scalar values.
-In order to produce non-trivial bounds in cases of partial identification, `m0.lb` and `m1.lb` are by default set to the smallest value of the response variable (which is inferred from `ivlike`) that is observed in the data, while `m0.lb` and `m1.lb` are set to the largest value.
+In order to produce non-trivial bounds in cases of partial identification, `m0.lb` and `m1.lb` are by default set to the smallest value of the response variable (which is inferred from `ivlike`) that is observed in the data, while `m0.ub` and `m1.ub` are set to the largest value.
 * Boundedness of the MTE function, that is, `m1 - m0`, by setting `mte.lb` and `mte.ub`.
 By default, these are set to the values logically implied by the default values for `m0.lb`, `m0.ub`, `m1.lb`, and `m1.ub`.
 * Monotonicity of the MTR functions in `u` for each value of the other observed variables, via the parameters `m0.dec`, `m0.inc`, `m1.dec`, `m1.inc`, which all take boolean values.
@@ -435,7 +434,7 @@ xeval = 2 # x = xeval is the group that is conditioned on
 px <- mean(ivmteSimData$x == xeval) # probability that x = xeval
 z.from = 1
 z.to = 3
-weight1a  <- function(x) {
+weight1  <- function(x) {
     if (x != xeval) {
         return(0)
     } else {
@@ -446,16 +445,16 @@ weight1a  <- function(x) {
         return(1 / ((p.to - p.from) * px))
     }
 }
-weight0a <- function(x) {
-    return(-weight1a(x))
+weight0 <- function(x) {
+    return(-weight1(x))
 }
 ## Define knots (same for treated and control)
-knot1a <- function(x) {
+knot1 <- function(x) {
     xz.from <- data.frame(x = x, z = z.from)
     p.from <- predict(pmodel, newdata = xz.from, type = "response")
     return(p.from)
 }
-knot2a <- function(x) {
+knot2 <- function(x) {
     xz.to <- data.frame(x = x, z = z.to)
     p.to <- predict.glm(pmodel, newdata = xz.to, type = "response")
     return(p.to)
@@ -463,10 +462,10 @@ knot2a <- function(x) {
 
 args <- list(data = ivmteSimData,
              ivlike =  y ~ d + z + d*z,
-             target.knots0 = c(knot1a, knot2a),
-             target.knots1 = c(knot1a, knot2a),
-             target.weight0 = c(0, weight0a, 0),
-             target.weight1 = c(0, weight1a, 0),
+             target.knots0 = c(knot1, knot2),
+             target.knots1 = c(knot1, knot2),
+             target.weight0 = c(0, weight0, 0),
+             target.weight1 = c(0, weight1, 0),
              m0 = ~ u + I(u^2) + I(u^3) + x,
              m1 = ~ u + I(u^2) + I(u^3) + x,
              propensity = d ~ z + x,
@@ -547,7 +546,7 @@ on the constant term.
 The formulas can be run conditional on certain subgroups by adding the `subset` option.
 This option expects a list of logical statements with the same length as `ivlike`.
 One can use the entire data by leaving the statement blank, or inserting a tautology such as `1 == 1`.
-For example, the following would run the first regression on the entire subsample, the second regression only on those observations that have `z` equal to 1 or 3, and the third (TSLS) formula only on observations with `x` smaller than 5.
+For example, the following would run the first regression only on observations with `x` less than or equal to 9, the second regression on the entire sample, and the third (TSLS) formula only on those observations that have `z` equal to 1 or 3.
 
 ```{r, ivlike.subsets}
 args <- list(data = ivmteSimData,
@@ -623,7 +622,7 @@ results <- ivmte(data = AE,
 Other options relevent to confidence region construction are `bootstraps.m`, which indicates the number of observations to draw from the sample on each bootstrap replication, and `bootstraps.replace` to indicate whether these observations should be drawn with or without replacement.
 The default is to set `bootstraps.m` to the sample size of the observed data with `bootstraps.replace = TRUE`.
 This corresponds to the usual nonparametric bootstrap.
-Choosing `bootstraps.m` to be smaller than the sample size and settings `bootstraps.replace` to be `TRUE` or `FALSE` corresponds to the "m out of n" bootstrap or subsampling, respectively.
+Choosing `bootstraps.m` to be smaller than the sample size and setting `bootstraps.replace` to be `TRUE` or `FALSE` corresponds to the "m out of n" bootstrap or subsampling, respectively.
 Regardless of these settings, two types of confidence regions are constructed following the terminology of @andrewshan2009ej; see @sheatorgovitsky2019wp for more detail, references, and important theoretical caveats to the procedures.
 
 Confidence regions can also be constructed when `point == TRUE` in a similar way.
