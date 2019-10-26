@@ -1903,8 +1903,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             bootIDs  <- sample(seq(1, nrow(data)),
                                  size = bootstraps.m,
                                replace = bootstraps.replace)
-            bootIDs <- bootIDsAlt
-            bdata <- data[bootIDs, ]
+            bdata <- data[bootIDs, ]            
             ## Check if the bootstrap data contains sufficient
             ## variation in all boolean and factor expressions.
             if (!is.null(factorDict)) {
