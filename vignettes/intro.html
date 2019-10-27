@@ -10,7 +10,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Joshua Ka Chun Shea and Alexander Torgovitsky" />
+<meta name="author" content="Joshua Shea and Alexander Torgovitsky" />
 
 
 <title>ivmte: An R Package for Marginal Treatment Effect Methods</title>
@@ -363,7 +363,7 @@ summary {
 
 
 <h1 class="title toc-ignore">ivmte: An R Package for Marginal Treatment Effect Methods</h1>
-<h4 class="author">Joshua Ka Chun Shea and Alexander Torgovitsky</h4>
+<h4 class="author">Joshua Shea and Alexander Torgovitsky</h4>
 
 </div>
 
@@ -371,9 +371,7 @@ summary {
 <ul>
 <li><a href="#introduction">Introduction</a></li>
 <li><a href="#scope-of-this-vignette">Scope of this Vignette</a></li>
-<li><a href="#installation-and-requirements">Installation and Requirements</a></li>
-<li><a href="#usage-demonstration">Usage Demonstration</a><ul>
-<li><a href="#data-and-background">Data and Background</a></li>
+<li><a href="#installation-and-requirements">Installation and Requirements</a><ul>
 <li><a href="#syntax-and-output-overview">Syntax and Output Overview</a></li>
 <li><a href="#specifying-the-mtr-functions">Specifying the MTR Functions</a></li>
 <li><a href="#specifying-the-target-parameter">Specifying the Target Parameter</a></li>
@@ -405,7 +403,6 @@ summary {
 <pre class="r"><code>devtools::install_github(&quot;jkcshea/ivmte&quot;)</code></pre>
 <p>Three additional packages are also required for <strong>ivmte</strong>:</p>
 <ol style="list-style-type: decimal">
-<li><strong>AER</strong> for two stage least squares estimation. This package is available on CRAN.</li>
 <li><strong>gmm</strong> for implementing generalized method of moments estimation. This package is available on CRAN.</li>
 <li><strong>splines2</strong> for specifying models with polynomial splines. This package is available on CRAN.</li>
 <li>A package for solving linear programs. There are three options here:
@@ -415,14 +412,21 @@ summary {
 <li>The <strong>lpSolveAPI</strong> package, which is free and open-source, and available from CRAN. Note that <strong>lpSolveAPI</strong> is a wrapper for <a href="http://lpsolve.sourceforge.net/5.5/">lp_solve</a>, which is no longer actively developed.</li>
 </ol></li>
 </ol>
-<p><strong>ivmte</strong> tries to automatically choose a solver from those available, with preference being given to Gurobi and CPLEX. We have provided the option to use <strong>lpSolveAPI</strong> because it appears to be the only interface for solving linear programs that can be installed solely through <code>install.packages</code>. However, we <em>strongly</em> recommend using Gurobi or CPLEX, since these are actively developed, much more stable, and typically an order of magnitude faster than <strong>lpSolveAPI</strong>.</p>
-</div>
-<div id="usage-demonstration" class="section level2">
-<h2>Usage Demonstration</h2>
-<div id="data-and-background" class="section level3">
-<h3>Data and Background</h3>
-<p>We will use a subsample of 209133 women from the data used in <span class="citation">Angrist and Evans (1998)</span>. The data is included with <strong>ivmte</strong> and has the following structure.</p>
-<pre class="r"><code>library(ivmte)
+<p><strong>ivmte</strong> tries to automatically choose a solver from those available, with preference being given to Gurobi and CPLEX. We have provided the option to use <strong>lpSolveAPI</strong> because it appears to be the only interface for solving linear programs that can be installed solely through</p>
+<pre class="install.packages```."><code>However, we _strongly_ recommend using Gurobi or CPLEX, since these are
+actively developed, much more stable, and typically an order of magnitude faster
+than **lpSolveAPI**.
+
+## Usage Demonstration
+
+### Data and Background
+
+We will use a subsample of 209133 women from the data used in @angristevans1998taer.
+The data is included with **ivmte** and has the following structure.
+
+
+```r
+library(ivmte)
 knitr::kable(head(AE, n = 10))</code></pre>
 <table>
 <thead>
@@ -552,7 +556,7 @@ ivreg(data = AE, worked ~ morekids | samesex )
 <p>An important caveat to this reasoning, first discussed by <span class="citation">Imbens and Angrist (1994)</span>, is that it applies only to the group of <em>compliers</em> who would have had a third child if and only if their first two children were same sex. (This interpretation requires the so-called <em>monotonicity</em> condition.) The first stage regression of <code>morekids</code> on <code>samesex</code> shows that this group comprises less than 6% of the entire population. Thus, the complier subpopulation is a small and potentially unrepresentative group of individuals.</p>
 <p>Is the relationship between fertility and labor supply for the compliers the same as for other groups? The answer is important if we want to use an instrumental variable estimator to inform policy questions. The purpose of <strong>ivmte</strong> is to provide a formal framework for answering this type of extrapolation question.</p>
 <hr />
-<p>For demonstrating some of the features of **ivmte*, it will also be useful to use a simulated dataset. The following code, which is contained in <code>./data-raw/ivmteSimData.R</code>, generates some simulated data from a simple DGP. The simulated data is also included with the package as <code>./data/ivmteSimData.rda</code>.</p>
+<p>For demonstrating some of the features of <strong>ivmte</strong>, it will also be useful to use a simulated dataset. The following code, which is contained in <code>./data-raw/ivmteSimData.R</code>, generates some simulated data from a simple DGP. The simulated data is also included with the package as <code>./data/ivmteSimData.rda</code>.</p>
 <pre class="r"><code>set.seed(1)
 n &lt;- 5000
 u &lt;- runif(n)
@@ -644,7 +648,6 @@ knitr::kable(head(ivmteSimData, n = 10))</code></pre>
 </tr>
 </tbody>
 </table>
-</div>
 <div id="syntax-and-output-overview" class="section level3">
 <h3>Syntax and Output Overview</h3>
 <p>The main command of the <strong>ivmte</strong> package is also called <code>ivmte</code>. It has the following basic syntax:</p>
@@ -671,7 +674,7 @@ results &lt;- ivmte(data = AE,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
                  propensity = morekids ~ samesex)
 #&gt; 
-#&gt; LP solver: Gurobi ('gurobi')
+#&gt; LP solver: Gurobi (&#39;gurobi&#39;)
 #&gt; 
 #&gt; Obtaining propensity scores...
 #&gt; Generating target moments...
@@ -692,11 +695,7 @@ results &lt;- ivmte(data = AE,
 #&gt;     Violations: 0
 #&gt;     Audit finished.
 #&gt; 
-#&gt; Bounds on the target parameter: [-0.09835591, -0.08285941]
-#&gt; Warning: The following sets of coefficients defining the LP problem exhibit
-#&gt; ranges exceeding 6 orders of magnitude: constraint matrix. Large ranges in
-#&gt; the coefficients increase computational burden, and can potentially lead to
-#&gt; infeasibility.</code></pre>
+#&gt; Bounds on the target parameter: [-0.09835591, -0.08285941]</code></pre>
 <p>The <code>ivmte</code> function indicates its progress in performing a sequence of intermediate operations. It then runs through an audit procedure to enforce shape constraints. The audit procedure is described in more detail <a href="#audit">ahead</a>. After the audit procedure terminates, <code>ivmte</code> returns bounds on the target parameter, which in this case is the average treatment on the treated (<code>target = &quot;att&quot;</code>). These bounds are the primary output of interest. The detailed output can be suppressed by passing <code>noisy = FALSE</code> as an additional parameter:</p>
 <pre class="r"><code>results &lt;- ivmte(data = AE,
                  target = &quot;att&quot;,
@@ -730,7 +729,7 @@ r &lt;- do.call(ivmte, args)
 r &lt;- do.call(ivmte, args)
 #&gt; Error: The following terms are not declared properly.
 #&gt;   m0: log(u) 
-#&gt; The unobserved variable 'u' must be declared as a monomial, e.g. u, I(u^3). The monomial can be interacted with other variables, e.g. x:u, x:I(u^3). Expressions where the unobservable term is not a monomial are either not permissable or will not be parsed correctly, e.g. exp(u), I((x * u)^2). Try to rewrite the expression so that 'u' is only included in monomials.</code></pre>
+#&gt; The unobserved variable &#39;u&#39; must be declared as a monomial, e.g. u, I(u^3). The monomial can be interacted with other variables, e.g. x:u, x:I(u^3). Expressions where the unobservable term is not a monomial are either not permissable or will not be parsed correctly, e.g. exp(u), I((x * u)^2). Try to rewrite the expression so that &#39;u&#39; is only included in monomials.</code></pre>
 <p>Names other than <code>u</code> can be used for the selection equation unobservable, but one must remember to pass the option <code>uname</code> to indicate the new name.</p>
 <pre class="r"><code>args[[&quot;m0&quot;]] &lt;- ~ v + I(v^2) + yob + v*yob
 args[[&quot;m1&quot;]] &lt;- ~ v + I(v^2) + I(v^3) + yob + v*yob
@@ -772,7 +771,7 @@ r &lt;- do.call(ivmte, args)
 <h4>Shape Restrictions</h4>
 <p>One can also require the MTR functions to satisfy the following nonparametric shape restrictions.</p>
 <ul>
-<li>Boundedness of the MTR functions, via the parameters <code>m0.lb</code>, <code>m0.ub</code>, <code>m1.lb</code>, and <code>m1.ub</code>, which all take scalar values. In order to produce non-trivial bounds in cases of partial identification, <code>m0.lb</code> and <code>m1.lb</code> are by default set to the smallest value of the response variable (which is inferred from <code>ivlike</code>) that is observed in the data, while <code>m0.lb</code> and <code>m1.lb</code> are set to the largest value.</li>
+<li>Boundedness of the MTR functions, via the parameters <code>m0.lb</code>, <code>m0.ub</code>, <code>m1.lb</code>, and <code>m1.ub</code>, which all take scalar values. In order to produce non-trivial bounds in cases of partial identification, <code>m0.lb</code> and <code>m1.lb</code> are by default set to the smallest value of the response variable (which is inferred from <code>ivlike</code>) that is observed in the data, while <code>m0.ub</code> and <code>m1.ub</code> are set to the largest value.</li>
 <li>Boundedness of the MTE function, that is, <code>m1 - m0</code>, by setting <code>mte.lb</code> and <code>mte.ub</code>. By default, these are set to the values logically implied by the default values for <code>m0.lb</code>, <code>m0.ub</code>, <code>m1.lb</code>, and <code>m1.ub</code>.</li>
 <li>Monotonicity of the MTR functions in <code>u</code> for each value of the other observed variables, via the parameters <code>m0.dec</code>, <code>m0.inc</code>, <code>m1.dec</code>, <code>m1.inc</code>, which all take boolean values.</li>
 <li>Monotonicity of the MTE function in <code>u</code>, via the parameters <code>mte.dec</code> and <code>mte.inc</code>.</li>
@@ -850,7 +849,7 @@ r &lt;- do.call(ivmte, args)
 #&gt; 
 #&gt; Bounds on the target parameter: [-0.7721625, -0.3209851]
 #&gt; Audit terminated successfully after 2 rounds.</code></pre>
-<p><strong>ivmte</strong> also provides support for generalized LATEs, i.e. LATEs where the intervals of <code>u</code> that are being considered may or may not correspond to points in the support of the propensity score. These objects are useful for a number of extrapolation purposes, see e.g. <span class="citation">Mogstad, Santos, and Torgovitsky (2018)</span>. They are set with <code>target = &quot;genlate&quot;</code> and the additional scalars <code>genlate.lb</code> and <code>genlate.ub</code>. For example,</p>
+<p><strong>ivmte</strong> also provides support for generalized LATEs, i.e. LATEs where the intervals of <code>u</code> that are being considered may or may not correspond to points in the support of the propensity score. These objects are useful for a number of extrapolation purposes, see e.g. <span class="citation">Mogstad, Santos, and Torgovitsky (2018)</span>. They are set with <code>target = &quot;genlate&quot;</code> and the additional scalars <code>genlate.lb</code> and <code>genlate.ub</code>. For example,</p>
 <pre class="r"><code>args &lt;- list(data = ivmteSimData,
              ivlike =  y ~ d + z + d*z,
              target = &quot;genlate&quot;,
@@ -891,7 +890,7 @@ xeval = 2 # x = xeval is the group that is conditioned on
 px &lt;- mean(ivmteSimData$x == xeval) # probability that x = xeval
 z.from = 1
 z.to = 3
-weight1a  &lt;- function(x) {
+weight1  &lt;- function(x) {
     if (x != xeval) {
         return(0)
     } else {
@@ -902,16 +901,16 @@ weight1a  &lt;- function(x) {
         return(1 / ((p.to - p.from) * px))
     }
 }
-weight0a &lt;- function(x) {
-    return(-weight1a(x))
+weight0 &lt;- function(x) {
+    return(-weight1(x))
 }
 ## Define knots (same for treated and control)
-knot1a &lt;- function(x) {
+knot1 &lt;- function(x) {
     xz.from &lt;- data.frame(x = x, z = z.from)
     p.from &lt;- predict(pmodel, newdata = xz.from, type = &quot;response&quot;)
     return(p.from)
 }
-knot2a &lt;- function(x) {
+knot2 &lt;- function(x) {
     xz.to &lt;- data.frame(x = x, z = z.to)
     p.to &lt;- predict.glm(pmodel, newdata = xz.to, type = &quot;response&quot;)
     return(p.to)
@@ -919,10 +918,10 @@ knot2a &lt;- function(x) {
 
 args &lt;- list(data = ivmteSimData,
              ivlike =  y ~ d + z + d*z,
-             target.knots0 = c(knot1a, knot2a),
-             target.knots1 = c(knot1a, knot2a),
-             target.weight0 = c(0, weight0a, 0),
-             target.weight1 = c(0, weight1a, 0),
+             target.knots0 = c(knot1, knot2),
+             target.knots1 = c(knot1, knot2),
+             target.weight0 = c(0, weight0, 0),
+             target.weight1 = c(0, weight1, 0),
              m0 = ~ u + I(u^2) + I(u^3) + x,
              m1 = ~ u + I(u^2) + I(u^3) + x,
              propensity = d ~ z + x,
@@ -970,7 +969,7 @@ r &lt;- do.call(ivmte, args)
 </div>
 <div id="subsetting" class="section level4">
 <h4>Subsetting</h4>
-<p>The formulas can be run conditional on certain subgroups by adding the <code>subset</code> option. This option expects a list of logical statements with the same length as <code>ivlike</code>. One can use the entire data by leaving the statement blank, or inserting a tautology such as <code>1 == 1</code>. For example, the following would run the first regression on the entire subsample, the second regression only on those observations that have <code>z</code> equal to 1 or 3, and the third (TSLS) formula only on observations with <code>x</code> smaller than 5.</p>
+<p>The formulas can be run conditional on certain subgroups by adding the <code>subset</code> option. This option expects a list of logical statements with the same length as <code>ivlike</code>. One can use the entire data by leaving the statement blank, or inserting a tautology such as <code>1 == 1</code>. For example, the following would run the first regression only on observations with <code>x</code> less than or equal to 9, the second regression on the entire sample, and the third (TSLS) formula only on those observations that have <code>z</code> equal to 1 or 3.</p>
 <pre class="r"><code>args &lt;- list(data = ivmteSimData,
              ivlike =  c(y ~ z + x,
                          y ~ d + x,
@@ -1046,7 +1045,7 @@ r &lt;- do.call(ivmte, args)
 #&gt; p-value: 0.04
 #&gt; 
 #&gt; Bootstrapped specification test p-value: 1</code></pre>
-<p>Other options relevent to confidence region construction are <code>bootstraps.m</code>, which indicates the number of observations to draw from the sample on each bootstrap replication, and <code>bootstraps.replace</code> to indicate whether these observations should be drawn with or without replacement. The default is to set <code>bootstraps.m</code> to the sample size of the observed data with <code>bootstraps.replace = TRUE</code>. This corresponds to the usual nonparametric bootstrap. Choosing <code>bootstraps.m</code> to be smaller than the sample size and settings <code>bootstraps.replace</code> to be <code>TRUE</code> or <code>FALSE</code> corresponds to the “m out of n” bootstrap or subsampling, respectively. Regardless of these settings, two types of confidence regions are constructed following the terminology of <span class="citation">Andrews and Han (2009)</span>; see <span class="citation">Shea and Torgovitsky (2019)</span> for more detail, references, and important theoretical caveats to the procedures.</p>
+<p>Other options relevent to confidence region construction are <code>bootstraps.m</code>, which indicates the number of observations to draw from the sample on each bootstrap replication, and <code>bootstraps.replace</code> to indicate whether these observations should be drawn with or without replacement. The default is to set <code>bootstraps.m</code> to the sample size of the observed data with <code>bootstraps.replace = TRUE</code>. This corresponds to the usual nonparametric bootstrap. Choosing <code>bootstraps.m</code> to be smaller than the sample size and setting <code>bootstraps.replace</code> to be <code>TRUE</code> or <code>FALSE</code> corresponds to the “m out of n” bootstrap or subsampling, respectively. Regardless of these settings, two types of confidence regions are constructed following the terminology of <span class="citation">Andrews and Han (2009)</span>; see <span class="citation">Shea and Torgovitsky (2019)</span> for more detail, references, and important theoretical caveats to the procedures.</p>
 <p>Confidence regions can also be constructed when <code>point == TRUE</code> in a similar way.</p>
 <pre class="r"><code>args &lt;- list(data = AE,
              target = &quot;att&quot;,
@@ -1101,9 +1100,8 @@ r &lt;- do.call(ivmte, args)
 args[[&quot;ivlike&quot;]] &lt;- y ~ d + factor(z) + d*factor(z) # many more moments
 args[[&quot;point&quot;]] &lt;- TRUE
 r &lt;- do.call(ivmte, args)
-#&gt; Warning in (function (data, target, late.from, late.to, late.X,
-#&gt; genlate.lb, : If argument 'point' is set to TRUE, then shape restrictions
-#&gt; on m0 and m1 are ignored, and the audit procedure is not implemented.
+#&gt; Warning: If argument &#39;point&#39; is set to TRUE, then shape restrictions on m0
+#&gt; and m1 are ignored, and the audit procedure is not implemented.
 #&gt; 
 #&gt; Point estimate of the target parameter: -0.5949017
 #&gt; 
@@ -1113,7 +1111,9 @@ r &lt;- do.call(ivmte, args)
 #&gt;     90%: [-0.5949119, -0.5947554]
 #&gt;     95%: [-0.5949119, -0.5947554]
 #&gt;     99%: [-0.5949297, -0.594737]
-#&gt; p-value: 0</code></pre>
+#&gt; p-value: 0
+#&gt; 
+#&gt; Bootstrapped J-test p-value: 15.4373</code></pre>
 </div>
 </div>
 <div id="help-feature-requests-and-bug-reports" class="section level2">
@@ -1124,31 +1124,31 @@ r &lt;- do.call(ivmte, args)
 <h2>References</h2>
 <div id="refs" class="references">
 <div id="ref-andrewshan2009ej">
-<p>Andrews, Donald W. K., and Sukjin Han. 2009. “Invalidity of the Bootstrap and the M Out of N Bootstrap for Confidence Interval Endpoints Defined by Moment Inequalities.” <em>Econometrics Journal</em> 12. Blackwell Publishing Ltd: S172–S199. <a href="http://dx.doi.org/10.1111/j.1368-423X.2008.00265.x">http://dx.doi.org/10.1111/j.1368-423X.2008.00265.x</a>.</p>
+<p>Andrews, Donald W. K., and Sukjin Han. 2009. “Invalidity of the Bootstrap and the M Out of N Bootstrap for Confidence Interval Endpoints Defined by Moment Inequalities.” <em>Econometrics Journal</em> 12: S172–S199. <a href="http://dx.doi.org/10.1111/j.1368-423X.2008.00265.x">http://dx.doi.org/10.1111/j.1368-423X.2008.00265.x</a>.</p>
 </div>
 <div id="ref-angristevans1998taer">
-<p>Angrist, Joshua D., and William N. Evans. 1998. “Children and Their Parents’ Labor Supply: Evidence from Exogenous Variation in Family Size.” <em>The American Economic Review</em> 88 (3). American Economic Association: 450–77.</p>
+<p>Angrist, Joshua D., and William N. Evans. 1998. “Children and Their Parents’ Labor Supply: Evidence from Exogenous Variation in Family Size.” <em>The American Economic Review</em> 88 (3): 450–77. <a href="http://www.jstor.org/stable/116844">http://www.jstor.org/stable/116844</a>.</p>
 </div>
 <div id="ref-bugnicanayshi2015joe">
 <p>Bugni, Federico A., Ivan A. Canay, and Xiaoxia Shi. 2015. “Specification Tests for Partially Identified Models Defined by Moment Inequalities.” <em>Journal of Econometrics</em> 185 (1): 259–82. <a href="http://www.sciencedirect.com/science/article/pii/S0304407614002577">http://www.sciencedirect.com/science/article/pii/S0304407614002577</a>.</p>
 </div>
 <div id="ref-hallhorowitz1996e">
-<p>Hall, Peter, and Joel L. Horowitz. 1996. “Bootstrap Critical Values for Tests Based on Generalized-Method-of-Moments Estimators.” <em>Econometrica</em> 64 (4). The Econometric Society: 891–916.</p>
+<p>Hall, Peter, and Joel L. Horowitz. 1996. “Bootstrap Critical Values for Tests Based on Generalized-Method-of-Moments Estimators.” <em>Econometrica</em> 64 (4): 891–916. <a href="http://www.jstor.org/stable/2171849">http://www.jstor.org/stable/2171849</a>.</p>
 </div>
 <div id="ref-hansen1982e">
-<p>Hansen, Lars Peter. 1982. “Large Sample Properties of Generalized Method of Moments Estimators.” <em>Econometrica</em> 50 (4). The Econometric Society: 1029–54.</p>
+<p>Hansen, Lars Peter. 1982. “Large Sample Properties of Generalized Method of Moments Estimators.” <em>Econometrica</em> 50 (4): 1029–54. <a href="http://www.jstor.org/stable/1912775">http://www.jstor.org/stable/1912775</a>.</p>
 </div>
 <div id="ref-heckmanvytlacil2005e">
-<p>Heckman, James J., and Edward Vytlacil. 2005. “Structural Equations, Treatment Effects, and Econometric Policy Evaluation.” <em>Econometrica</em> 73 (3). Blackwell Publishing Ltd: 669–738. <a href="http://dx.doi.org/10.1111/j.1468-0262.2005.00594.x">http://dx.doi.org/10.1111/j.1468-0262.2005.00594.x</a>.</p>
+<p>Heckman, James J., and Edward Vytlacil. 2005. “Structural Equations, Treatment Effects, and Econometric Policy Evaluation.” <em>Econometrica</em> 73 (3): 669–738. <a href="http://dx.doi.org/10.1111/j.1468-0262.2005.00594.x">http://dx.doi.org/10.1111/j.1468-0262.2005.00594.x</a>.</p>
 </div>
 <div id="ref-imbensangrist1994e">
-<p>Imbens, Guido W., and Joshua D. Angrist. 1994. “Identification and Estimation of Local Average Treatment Effects.” <em>Econometrica</em> 62 (2): 467–75.</p>
+<p>Imbens, Guido W., and Joshua D. Angrist. 1994. “Identification and Estimation of Local Average Treatment Effects.” <em>Econometrica</em> 62 (2): 467–75. <a href="http://www.jstor.org/stable/2951620">http://www.jstor.org/stable/2951620</a>.</p>
 </div>
 <div id="ref-mogstadsantostorgovitsky2018e">
-<p>Mogstad, Magne, Andres Santos, and Alexander Torgovitsky. 2018. “Using Instrumental Variables for Inference About Policy Relevant Treatment Parameters.” <em>Econometrica</em> 86 (5). The Econometric Society: 1589–1619. <a href="https://doi.org/10.3982/ecta15463">https://doi.org/10.3982/ecta15463</a>.</p>
+<p>Mogstad, Magne, Andres Santos, and Alexander Torgovitsky. 2018. “Using Instrumental Variables for Inference About Policy Relevant Treatment Parameters.” <em>Econometrica</em> 86 (5): 1589–1619. <a href="https://doi.org/10.3982/ecta15463">https://doi.org/10.3982/ecta15463</a>.</p>
 </div>
 <div id="ref-mogstadtorgovitsky2018aroe">
-<p>Mogstad, Magne, and Alexander Torgovitsky. 2018. “Identification and Extrapolation of Causal Effects with Instrumental Variables.” <em>Annual Review of Economics</em> 10 (1). Annual Reviews. <a href="https://doi.org/10.1146/annurev-economics-101617-041813">https://doi.org/10.1146/annurev-economics-101617-041813</a>.</p>
+<p>Mogstad, Magne, and Alexander Torgovitsky. 2018. “Identification and Extrapolation of Causal Effects with Instrumental Variables.” <em>Annual Review of Economics</em> 10 (1). <a href="https://doi.org/10.1146/annurev-economics-101617-041813">https://doi.org/10.1146/annurev-economics-101617-041813</a>.</p>
 </div>
 <div id="ref-sheatorgovitsky2019wp">
 <p>Shea, Joshua Ka Chun, and Alexander Torgovitsky. 2019. “Ivmte: An R Package for Implementing Marginal Treatment Effect Methods.” <em>Working Paper</em>.</p>

@@ -3,10 +3,12 @@ title: "ivmte: An R Package for Marginal Treatment Effect Methods"
 author: "Joshua Shea and Alexander Torgovitsky"
 bibliography: refs.bib
 output:
-  github_document:
-    toc: true
   html_document:
     toc: true
+    keep_md: true
+  github_document:
+    toc: true
+    keep_html: true
 vignette: >
   %\VignetteIndexEntry{ivmte}
   %\VignetteEncoding{UTF-8}
