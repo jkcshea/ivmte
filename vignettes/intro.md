@@ -790,10 +790,12 @@ One can tell `ivmte` to only include certain moments and not others by
 passing the `components` option. This option expects a list of the same
 length as the list passed to `ivlike`. Each component of the list is
 itself a list that contains the variable names for the coefficients to
-be included from that formula. For example, the following includes the
-coefficients on the intercept and `x` from the first formula, the
-coefficient on `d` from the second formula, and all coefficients in the
-third formula.
+be included from that formula. The list should be declared using the `l`
+function, which is a generalization of the `list` function. The `l`
+function allows the user to list variables and expressions without
+quotations. For example, the following includes the coefficients on the
+intercept and `x` from the first formula, the coefficient on `d` from
+the second formula, and all coefficients in the third formula.
 
 ``` r
 args[["components"]] <- l(c(intercept, x), c(d), )
@@ -806,6 +808,17 @@ r <- do.call(ivmte, args)
 Note that `intercept` is a reserved word that is used to specify the
 coefficient on the constant term.
 
+If the function `list` is used to pass the `components` option, an error
+will follow.
+
+``` r
+args[["components"]] <- list(c(intercept, x), c(d), )
+#> Error in eval(expr, envir, enclos): object 'intercept' not found
+args[["components"]] <- list(c("intercept", "x"), c("d"), "")
+r <- do.call(ivmte, args)
+#> Error in terms.formula(fi, ...): invalid model formula in ExtractVars
+```
+
 #### Subsetting
 
 The formulas can be run conditional on certain subgroups by adding the
@@ -815,7 +828,8 @@ statement blank, or inserting a tautology such as `1 == 1`. For example,
 the following would run the first regression only on observations with
 `x` less than or equal to 9, the second regression on the entire sample,
 and the third (TSLS) formula only on those observations that have `z`
-equal to 1 or 3.
+equal to 1 or 3. Similar to the `components` option, the `subset` option
+should be passed using the `l` function.
 
 ``` r
 args <- list(data = ivmteSimData,

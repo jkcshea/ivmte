@@ -2754,29 +2754,42 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         if (is.list(audit)) {
             autoExpand <- Inf
         }
-        else {
+        if (!is.list(audit) && audit == "Failure to maximize/minimize.") {
             autoExpand <- autoExpand + 1
-            newGrid.nu <- ceiling(newGrid.nu * 1.5)
-            newGrid.nx <- ceiling(newGrid.nx * 1.5)
+            newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
+            newGrid.nx <- min(ceiling(newGrid.nx * 1.5), audit.nx)
             audit_call <-
                 modcall(audit_call,
                         dropargs = c("initgrid.nu", "initgrid.nx"),
                         newargs = list(initgrid.nu = newGrid.nu,
                                        initgrid.nx = newGrid.nx))
+            if (newGrid.nu == audit.nu && newGrid.nx == audit.nx) {
+                autoExpand <- autoExpandMax
+            }
+            if (autoExpand == autoExpandMax) {
+                autoExpand <- Inf
+                audit <- eval(audit_call)
+            }
         }
     }
+
     if (!is.list(audit) && autoExpand > autoExpandMax) {
         cat("\n\n")
-        stop(gsub("\\s+", " ",
-                  paste0("Automatic grid expansion limit reached.
+        stop(paste0(gsub("\\s+", " ",
+                         "Automatic grid expansion limit reached.
                          The LP problem is still unbounded.
                          Either impose additional shape constraints,
                          or increase the size of the initial grid
-                         for the audit.
-                         The last grid had 'initgrid.nx = ",
-                         ceiling(newGrid.nx / 1.5),
-                         "', 'initgrid.nu = ",
-                         ceiling(newGrid.nu / 1.5), "'.")),
+                         for the audit. Since the initial grid must
+                         be a subset of the audit grid, it may be
+                         necessary to increase the size of the audit
+                         grid also.
+                         The most recent options after automatic expansion
+                         were:"),
+                    "\ninitgrid.nx = ", newGrid.nx,
+                    "\ninitgrid.nu = ", newGrid.nu,
+                    "\naudit.nx = ", audit.nx,
+                    "\naudit.nu = ", audit.nu),
              call. = FALSE)
     }
     if (noisy) {

@@ -45,7 +45,6 @@ Suggests:
     testthat (>= 2.0.0),
     data.table (>= 1.11.2),
     splines2 (>= 0.2.8),
-    gmm (>= 1.6-2),
     Matrix,
     knitr,
     rmarkdown,
