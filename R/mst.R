@@ -1903,7 +1903,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             bootIDs  <- sample(seq(1, nrow(data)),
                                  size = bootstraps.m,
                                replace = bootstraps.replace)
-            bdata <- data[bootIDs, ]            
+            bdata <- data[bootIDs, ]
             ## Check if the bootstrap data contains sufficient
             ## variation in all boolean and factor expressions.
             if (!is.null(factorDict)) {
@@ -1957,7 +1957,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         newargs = list(data = quote(bdata),
                                        noisy = FALSE,
                                        seed = bseeds[b],
-                                       point.center = origEstimate$mtr.coef))
+                                       point.center = origEstimate$moments))
             bootEstimate <- try(eval(bootCall), silent = TRUE)
             if (is.list(bootEstimate)) {
                 teEstimates  <- c(teEstimates, bootEstimate$pointestimate)
@@ -2007,7 +2007,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         pnorm(-abs(origEstimate$pointestimate -
                                    mean(teEstimates)) / bootSE) * 2)
         if (!is.null(jstats)) {
-            jstats <- jstats - mean(jstats) + origEstimate$jtest[3]
             jtest <- c(mean(jstats >= origEstimate$jtest[1]),
                        origEstimate$jtest)
             names(jtest) <- c("Bootstrapped p-value", names(origEstimate$jtest))
@@ -2365,11 +2364,11 @@ checkU <- function(formula, uname) {
 #'     option is used for inference procedure under partial
 #'     identification, which uses the fine grid from the original
 #'     sample in all bootstrap resamples.
-#' @param point.center numeric, a vector of solutions to the GMM
-#'     problem. When bootstrapping, the solution to the point
-#'     identified case obtained from the original sample can be passed
-#'     through this argument to recenter the bootstrap distribution of
-#'     the J-statistic.
+#' @param point.center numeric, a vector of GMM moment conditoins
+#'     evaluated at a solution. When bootstrapping, the moment
+#'     conditions from the original sample can be passed through this
+#'     argument to recenter the bootstrap distribution of the
+#'     J-statistic.
 #' @param orig.sset list, only used for bootstraps. The list caontains
 #'     the gamma moments for each element in the S-set, as well as the
 #'     IV-like coefficients.
@@ -2633,7 +2632,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
                                  gstar1 = gstar1,
-                                 orig.solution = point.center,
+                                 center = point.center,
                                  identity = point.eyeweight,
                                  noisy = noisy)
         if (!smallreturnlist) {
@@ -2642,6 +2641,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                      g1 = colMeans(gstar1)),
                         propensity = pmodel,
                         pointestimate = gmmResult$pointestimate,
+                        moments = gmmResult$moments,
                         jtest = gmmResult$jtest,
                         mtr.coef = gmmResult$coef))
         } else {
@@ -2657,6 +2657,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                            gstar = list(g0 = colMeans(gstar0),
                                         g1 = colMeans(gstar1)),
                            pointestimate = gmmResult$pointestimate,
+                           moments = gmmResult$moments,
                            jtest = gmmResult$jtest,
                            mtr.coef = gmmResult$coef)
             if (all(class(pmodel$model) != "NULL")) {
@@ -3522,8 +3523,8 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     is what is used to generate the gamma moments.
 #' @param gstar0 vector, the target gamma moments for d = 0.
 #' @param gstar1 vector, the target gamma moments for d = 1.
-#' @param orig.solution numeric, a vector of solutions to the GMM
-#'     problem. When bootstrapping, the solution to the point
+#' @param center numeric, the GMM moment equations from the original
+#'     sample. When bootstrapping, the solution to the point
 #'     identified case obtained from the original sample can be passed
 #'     through this argument to recenter the bootstrap distribution of
 #'     the J-statistic.
@@ -3535,11 +3536,10 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     procedure. Set to \code{FALSE} to suppress all messages,
 #'     e.g. when performing the bootstrap.
 #' @return a list containing the point estimate of the treatment
-#'     effects, the standard errors, the 90% and 95% confidence
-#'     intervals, the convergence code (see
-#'     \code{\link[stats]{optim}}), the coefficients on the MTR, and
-#'     the variance/covariance matrix of the MTR coefficient
-#'     estimates.
+#'     effects, and the MTR coefficient estimates. The moment
+#'     conditions evaluated at the solution are also returned, along
+#'     with the J-test results. However, if the option \code{center}
+#'     is passed, then the moment conditions and J-test are centered.
 #'
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
@@ -3612,7 +3612,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'             gstar1 = targetGamma$gstar1)
 #'
 #' @export
-gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
+gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
                         identity = TRUE, noisy = TRUE) {
     gn0 <- ncol(gstar0)
     gn1 <- ncol(gstar1)
@@ -3681,59 +3681,66 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     ##               linearly dependent and can be removed from the S-set.")),
     ##          call. = FALSE)
     ## }
-    ## This function defines the moment conditions for the GMM
-    ## estimator, allowing for recentering. The argument 'theta' is
-    ## for a vector storing the parameters of interest in the
-    ## following order: (i) coefficients for m0; (ii) coefficients for
-    ## m1. The arugment 'center' is supposed to be a vector of value
-    ## of the moment conditions from the original sample---this is
-    ## used for bootstrapping.
-    momentConditionsBase <- function(theta, data, center = NULL) {
-        if (is.null(center)) center <- rep(0, length(sset))
-        momentMatrix <- NULL
-        for (s in 1:length(sset)) {
-            yvec <- data[, paste0("s", s, "y")]
-            gmat <- data[, c( paste0("s", s, "g0", seq(1, gn0)),
-                             paste0("s", s, "g1", seq(1, gn1)))]
-            momentMatrix <- cbind(momentMatrix,
-                                  yvec - gmat %*% theta[1:(gn0 + gn1)] -
-                                  center[s])
-        }
-        return(momentMatrix)
-    }
-    momentConditions <- function(theta, data) {
-        if (is.null(center))  return(momentConditionsBase(theta, data))
-        if (!is.null(center)) return(momentConditionsBase(theta, data, center))
-    }
-    ## Construct centering if necessary
-    center <- NULL
-    if (!is.null(orig.solution)) {
-        center <- colMeans(momentConditions(orig.solution, momentMatrix()))
-    }
-    ## Perform GMM
-    if (identity == FALSE) {
-        gmmObj <- try(gmm::gmm(momentConditions, x = momentMatrix(),
-                               t0 = rep(0, times = (gn0 + gn1)),
-                               prewhite = 0, vcov = "iid"), silent = TRUE)
-        if (class(gmmObj) == "try-error") {
-            gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
-                               t0 = rep(0, times = (gn0 + gn1)),
-                               prewhite = 0, vcov = "iid", wmatrix = "ident")
-            warning(gsub("\\s+", " ",
-                         "Failure in estimating optimal weighting matrix,
-                          which can occur due to redundant moments.
-                          GMM estimate performed using identity
-                          weighting matrix."),
-                    call. = FALSE)
-        }
+    ## Construct centering for bootstrap J test
+    ## Perform first step of GMM
+    mm <- momentMatrix()
+    mlist <- (seq(length(sset)) - 1) * (gn0 + gn1 + 1) + 1
+    altmm <- matrix(t(mm[, -mlist]), byrow = TRUE, ncol = (gn0 + gn1))
+    altmean <- Matrix::Matrix(t(rep(1, nrow(mm)) %x% diag(length(sset))),
+                              sparse = TRUE)
+    xmat <- matrix(altmean %*% altmm / nrow(mm), ncol = (gn0 + gn1))
+    ymat <- colMeans(mm[, mlist])
+    theta <- solve(t(xmat) %*% xmat) %*% t(xmat) %*% ymat
+    if (is.null(center)) {
+        thetaCentered <- NULL
     } else {
-        gmmObj <- gmm::gmm(momentConditions, x = momentMatrix(),
-                           t0 = rep(0, times = (gn0 + gn1)),
-                           prewhite = 0, vcov = "iid", wmatrix = "ident")
+        thetaCentered <- solve(t(xmat) %*% xmat) %*%
+            (t(xmat) %*% ymat - t(xmat) %*% center)
     }
-    theta <- gmmObj$coefficients
+    ## Perform second step of GMM
+    if (identity != TRUE) {
+        alty <- c(t(mm[, mlist]))
+        omegaMat <- alty - altmm %*% theta
+        omegaMat <- matrix(omegaMat, byrow = TRUE, ncol = length(sset))
+        omegaMat <- t(omegaMat) %*% omegaMat / nrow(mm)
+        omegaMat <- solve(omegaMat)
+        theta <- solve(t(xmat) %*% omegaMat %*% xmat) %*%
+            t(xmat) %*% omegaMat %*% ymat
+        if (!is.null(center)) {
+            omegaMatCentered <- alty - altmm %*% thetaCentered
+            omegaMatCentered <- matrix(omegaMatCentered,
+                                       byrow = TRUE,
+                                       ncol = length(sset))
+            omegaMatCentered <-
+                t(omegaMatCentered) %*% omegaMatCentered / nrow(mm)
+            omegaMatCentered <- solve(omegaMatCentered)
+            thetaCentered <- solve(t(xmat) %*% omegaMatCentered %*% xmat) %*%
+                (t(xmat) %*% omegaMatCentered %*% ymat -
+                 t(xmat) %*% omegaMatCentered %*% center)
+        }
+    }
+    moments <- ymat - xmat %*% theta
+    ## Perform J test
     if (length(sset) > gn0 + gn1) {
-        jtest <- gmmObj$objective * nrow(gstar0)
+        if (!is.null(center)) {
+            momentsCentered  <- ymat - xmat %*% thetaCentered
+            if (!identity) omegaMat <- omegaMatCentered
+        }
+        if (identity) {
+            if (is.null(center)) {
+                jtest <- nrow(mm) * t(moments) %*% moments
+            } else {
+                jtest <- nrow(mm) * t(momentsCentered - center) %*%
+                    (momentsCentered - center)
+            }
+        } else {
+            if (is.null(center)) {
+                jtest <- nrow(mm) * t(moments) %*% omegaMat %*% moments
+            } else {
+                jtest <- nrow(mm) * t(momentsCentered - center) %*%
+                    omegaMat %*% (momentsCentered - center)
+            }
+        }
         jtest <- c(jtest,
                    1 - pchisq(jtest, df = length(sset) - gn0 - gn1),
                    length(sset) - gn0 - gn1)
@@ -3742,7 +3749,6 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     } else {
         jtest <- NULL
     }
-    ## Construct point estimate and CI of TE
     names(theta) <- c(paste0("m0.", colnames(gstar0)),
                       paste0("m1.", colnames(gstar1)))
     pointestimate <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
@@ -3752,6 +3758,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, orig.solution = NULL,
     }
     return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta,
+                moments = moments,
                 jtest = jtest))
 }
 
