@@ -2548,7 +2548,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
-    
+
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
@@ -3708,16 +3708,22 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL, redundant = NULL,
         tmpOmegaMat <- t(tmpOmegaMat) %*% tmpOmegaMat / nrow(mm)
         rankCheck <- eigen(tmpOmegaMat)
         if (any(abs(rankCheck$values) < 1e-08)) {
-            colPos <- which(abs(rankCheck$values) < 1e-08)
             colDict <- list()
-            for (i in colPos) {
-                colVec <- rankCheck$vectors[, i]
-                colSeq <- which(!seq(length(colVec)) %in% colDrop)
+            colDrop <- seq(ncol(tmpOmegaMat))
+            colnames(tmpOmegaMat) <- seq(ncol(tmpOmegaMat))
+            while (any(abs(rankCheck$values) < 1e-08)) {
+                colPos <- which(abs(rankCheck$values) < 1e-08)[1]
+                colVec <- rankCheck$vectors[, colPos]
+                colSeq <- which(abs(colVec) > 1e-08)
                 colDropIndex <- max(colSeq)
-                colDrop <- c(colDrop, colDropIndex)
+                tmpOmegaMat <- tmpOmegaMat[-colDropIndex, -colDropIndex]
+                rankCheck <- eigen(tmpOmegaMat)
+                print(tmpOmegaMat)
             }
+            colDrop <- which(! colDrop %in% colnames(tmpOmegaMat))
         }
     } else {
+        colDict <- NULL
         if (length(redundant) == 1 && redundant == 0) {
             colDrop <- NULL
         } else {
