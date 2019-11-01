@@ -2548,7 +2548,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
-
+    
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
@@ -2597,7 +2597,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                   scount = scount,
                                   subset_index = subset_index,
                                   noisy = noisy,
-                                  ivn = ivlikeCounter)
+                                  ivn = ivlikeCounter,
+                                  redundant = point.redundant)
             } else {
                 setobj <- genSSet(data = data,
                                   sset = sset,
@@ -2613,12 +2614,13 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                   yvar = vars_y,
                                   dvar = treat,
                                   noisy = noisy,
-                                  ivn = ivlikeCounter)
+                                  ivn = ivlikeCounter,
+                                  redundant = point.redundant)
             }
-            ivlikeCounter <- ivlikeCounter + 1
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
+            ivlikeCounter <- ivlikeCounter + 1
         }
     } else {
         stop(gsub("\\s+", " ",
@@ -2626,6 +2628,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                   formulas."),
              call. = FALSE)
     }
+    if (!is.null(point.redundant)) point.redundant <- 0
     ## If bootstrapping, check that length of sset is equivalent in
     ## length to that of the original sset if bootstrapping
     if (!is.null(orig.sset)) {
@@ -3348,6 +3351,8 @@ genTarget <- function(treat, m0, m1, target,
 #'     e.g. when performing the bootstrap.
 #' @param ivn integer, the number indicating which IV specification
 #'     the component corresponds to.
+#' @param redundant vector of integers indicating which components in
+#'     the S-set are redundant.
 #' @return A list containing the point estimate for the IV regression,
 #'     and the expectation of each monomial term in the MTR.
 #'
@@ -3405,7 +3410,8 @@ genTarget <- function(treat, m0, m1, target,
 #' @export
 genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                     ncomponents, scount, subset_index, means = TRUE,
-                    yvar, dvar, noisy = TRUE, ivn = NULL) {
+                    yvar, dvar, noisy = TRUE, ivn = NULL,
+                    redundant = NULL) {
     if (!hasArg(subset_index)) {
         subset_index <- NULL
         n <- nrow(data)
@@ -3413,112 +3419,115 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         n <- length(subset_index)
     }
     for (j in 1:ncomponents) {
-        if (noisy == TRUE) {
-            cat("    Moment ", scount, "...\n", sep = "")
-        }
-        if (!is.null(pm0)) {
+        if (! scount %in% redundant) {
+            if (noisy == TRUE) {
+                cat("    Moment ", scount, "...\n", sep = "")
+            }
+            if (!is.null(pm0)) {
+                if (means == TRUE) {
+                    gs0 <- genGamma(monomials = pm0,
+                                    lb = pmodobj,
+                                    ub = 1,
+                                    multiplier = sest$sw0[, j],
+                                    subset = subset_index)
+                } else {
+                    gs0 <- genGamma(monomials = pm0,
+                                    lb = pmodobj,
+                                    ub = 1,
+                                    multiplier = sest$sw0[, j],
+                                    subset = subset_index,
+                                    means = FALSE)
+                }
+            } else {
+                gs0 <- NULL
+            }
+            sweight0 <- list(lb = pmodobj,
+                             ub = 1,
+                             multiplier = sest$sw0[, j])
+            if (!is.null(pm1)) {
+                if (means == TRUE) {
+                    gs1 <- genGamma(monomials = pm1,
+                                    lb = 0,
+                                    ub = pmodobj,
+                                    multiplier = sest$sw1[, j],
+                                    subset = subset_index)
+                } else {
+                    gs1 <- genGamma(monomials = pm1,
+                                    lb = 0,
+                                    ub = pmodobj,
+                                    multiplier = sest$sw1[, j],
+                                    subset = subset_index,
+                                    means = FALSE)
+                }
+            } else {
+                gs1 <- NULL
+            }
+            sweight1 <- list(lb = 0,
+                             ub = pmodobj,
+                             multiplier = sest$sw1[, j])
             if (means == TRUE) {
-                gs0 <- genGamma(monomials = pm0,
-                                lb = pmodobj,
-                                ub = 1,
-                                multiplier = sest$sw0[, j],
-                                subset = subset_index)
+                gsSpline0 <- genGammaSplines(splinesobj = splinesobj[[1]],
+                                             data = data,
+                                             lb = pmodobj,
+                                             ub = 1,
+                                             multiplier = sest$sw0[, j],
+                                             subset = subset_index,
+                                             d = 0)$gamma
+                gsSpline1 <- genGammaSplines(splinesobj = splinesobj[[2]],
+                                             data = data,
+                                             lb = 0,
+                                             ub = pmodobj,
+                                             multiplier = sest$sw1[, j],
+                                             subset = subset_index,
+                                             d = 1)$gamma
             } else {
-                gs0 <- genGamma(monomials = pm0,
-                                lb = pmodobj,
-                                ub = 1,
-                                multiplier = sest$sw0[, j],
-                                subset = subset_index,
-                                means = FALSE)
+                gsSpline0 <- genGammaSplines(splinesobj = splinesobj[[1]],
+                                             data = data,
+                                             lb = pmodobj,
+                                             ub = 1,
+                                             multiplier = sest$sw0[, j],
+                                             subset = subset_index,
+                                             d = 0,
+                                             means = FALSE)$gamma
+                gsSpline1 <- genGammaSplines(splinesobj = splinesobj[[2]],
+                                             data = data,
+                                             lb = 0,
+                                             ub = pmodobj,
+                                             multiplier = sest$sw1[, j],
+                                             subset = subset_index,
+                                             d = 1,
+                                             means = FALSE)$gamma
             }
-        } else {
-            gs0 <- NULL
-        }
-        sweight0 <- list(lb = pmodobj,
-                         ub = 1,
-                         multiplier = sest$sw0[, j])
-        if (!is.null(pm1)) {
+            ## generate components of constraints
             if (means == TRUE) {
-                gs1 <- genGamma(monomials = pm1,
-                                lb = 0,
-                                ub = pmodobj,
-                                multiplier = sest$sw1[, j],
-                                subset = subset_index)
+                sset[[paste0("s", scount)]] <- list(ivspec = ivn,
+                                                    beta = sest$beta[j],
+                                                    g0 = c(gs0, gsSpline0),
+                                                    g1 = c(gs1, gsSpline1),
+                                                    w0 = sweight0,
+                                                    w1 = sweight1,
+                                                    n = n)
             } else {
-                gs1 <- genGamma(monomials = pm1,
-                                lb = 0,
-                                ub = pmodobj,
-                                multiplier = sest$sw1[, j],
-                                subset = subset_index,
-                                means = FALSE)
+                ## Now generate the vectors for Y * S(D, Z).
+                if (!is.null(subset_index)) {
+                    newsubset <- subset_index
+                } else {
+                    newsubset <- seq(1, nrow(data))
+                }
+                yvec <- as.vector(data[newsubset, yvar])
+                dvec <- as.vector(data[newsubset, dvar])
+                yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] *
+                                (1 - dvec))
+                names(yvec) <- newsubset
+                sset[[paste0("s", scount)]] <- list(ivspec = ivn,
+                                                    beta = sest$beta[j],
+                                                    g0 = cbind(gs0, gsSpline0),
+                                                    g1 = cbind(gs1, gsSpline1),
+                                                    ys = yvec,
+                                                    w0 = sweight0,
+                                                    w1 = sweight1,
+                                                    n = n)
             }
-        } else {
-            gs1 <- NULL
-        }
-        sweight1 <- list(lb = 0,
-                         ub = pmodobj,
-                         multiplier = sest$sw1[, j])
-        if (means == TRUE) {
-            gsSpline0 <- genGammaSplines(splinesobj = splinesobj[[1]],
-                                         data = data,
-                                         lb = pmodobj,
-                                         ub = 1,
-                                         multiplier = sest$sw0[, j],
-                                         subset = subset_index,
-                                         d = 0)$gamma
-            gsSpline1 <- genGammaSplines(splinesobj = splinesobj[[2]],
-                                         data = data,
-                                         lb = 0,
-                                         ub = pmodobj,
-                                         multiplier = sest$sw1[, j],
-                                         subset = subset_index,
-                                         d = 1)$gamma
-        } else {
-            gsSpline0 <- genGammaSplines(splinesobj = splinesobj[[1]],
-                                         data = data,
-                                         lb = pmodobj,
-                                         ub = 1,
-                                         multiplier = sest$sw0[, j],
-                                         subset = subset_index,
-                                         d = 0,
-                                         means = FALSE)$gamma
-            gsSpline1 <- genGammaSplines(splinesobj = splinesobj[[2]],
-                                         data = data,
-                                         lb = 0,
-                                         ub = pmodobj,
-                                         multiplier = sest$sw1[, j],
-                                         subset = subset_index,
-                                         d = 1,
-                                         means = FALSE)$gamma
-        }
-        ## generate components of constraints
-        if (means == TRUE) {
-            sset[[paste0("s", scount)]] <- list(ivspec = ivn,
-                                                beta = sest$beta[j],
-                                                g0 = c(gs0, gsSpline0),
-                                                g1 = c(gs1, gsSpline1),
-                                                w0 = sweight0,
-                                                w1 = sweight1,
-                                                n = n)
-        } else {
-            ## Now generate the vectors for Y * S(D, Z).
-            if (!is.null(subset_index)) {
-                newsubset <- subset_index
-            } else {
-                newsubset <- seq(1, nrow(data))
-            }
-            yvec <- as.vector(data[newsubset, yvar])
-            dvec <- as.vector(data[newsubset, dvar])
-            yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] * (1 - dvec))
-            names(yvec) <- newsubset
-            sset[[paste0("s", scount)]] <- list(ivspec = ivn,
-                                                beta = sest$beta[j],
-                                                g0 = cbind(gs0, gsSpline0),
-                                                g1 = cbind(gs1, gsSpline1),
-                                                ys = yvec,
-                                                w0 = sweight0,
-                                                w1 = sweight1,
-                                                n = n)
         }
         ## update counter (note scount is not referring
         ## to the list of IV regressions, but the components
