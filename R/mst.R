@@ -3718,12 +3718,10 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL, redundant = NULL,
                 colDropIndex <- max(colSeq)
                 tmpOmegaMat <- tmpOmegaMat[-colDropIndex, -colDropIndex]
                 rankCheck <- eigen(tmpOmegaMat)
-                print(tmpOmegaMat)
             }
             colDrop <- which(! colDrop %in% colnames(tmpOmegaMat))
         }
     } else {
-        colDict <- NULL
         if (length(redundant) == 1 && redundant == 0) {
             colDrop <- NULL
         } else {
@@ -3767,11 +3765,10 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL, redundant = NULL,
         }
     }
     ## Perform first stage GMM
-    theta <- solve(t(xmat) %*% xmat) %*% t(xmat) %*% ymat
     if (is.null(center)) {
-        thetaCentered <- NULL
+        theta <- solve(t(xmat) %*% xmat) %*% t(xmat) %*% ymat
     } else {
-        thetaCentered <- solve(t(xmat) %*% xmat) %*%
+        theta <- solve(t(xmat) %*% xmat) %*%
             (t(xmat) %*% ymat - t(xmat) %*% center)
     }
     ## Perform second step of GMM
@@ -3782,49 +3779,42 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL, redundant = NULL,
         omegaMat <- t(omegaMat) %*% omegaMat / nrow(mm)
         if (!is.null(colDrop)) omegaMat <- omegaMat[-colDrop, -colDrop]
         omegaMat <- solve(omegaMat)
-        theta <- solve(t(xmat) %*% omegaMat %*% xmat) %*%
-            t(xmat) %*% omegaMat %*% ymat
-        if (!is.null(center)) {
-            omegaMatCentered <- alty - altmm %*% thetaCentered
-            omegaMatCentered <- matrix(omegaMatCentered,
-                                       byrow = TRUE,
-                                       ncol = length(sset))
-            omegaMatCentered <-
-                t(omegaMatCentered) %*% omegaMatCentered / nrow(mm)
-            if (!is.null(colDrop)) omegaMatCentered <-
-                                       omegaMatCentered[-colDrop, -colDrop]
-            omegaMatCentered <- solve(omegaMatCentered)
-            thetaCentered <- solve(t(xmat) %*% omegaMatCentered %*% xmat) %*%
-                (t(xmat) %*% omegaMatCentered %*% ymat -
-                 t(xmat) %*% omegaMatCentered %*% center)
+        if (is.null(center)) {
+            theta <- solve(t(xmat) %*% omegaMat %*% xmat) %*%
+                t(xmat) %*% omegaMat %*% ymat
+        } else {
+            theta <- solve(t(xmat) %*% omegaMat %*% xmat) %*%
+                (t(xmat) %*% omegaMat %*% ymat -
+                 t(xmat) %*% omegaMat %*% center)
         }
     }
     moments <- ymat - xmat %*% theta
     ## Perform J test
     if ((length(sset) - length(colDrop)) > gn0 + gn1) {
-        if (!is.null(center)) {
-            momentsCentered  <- ymat - xmat %*% thetaCentered
-            if (!identity) omegaMat <- omegaMatCentered
-        }
         if (identity) {
             if (is.null(center)) {
                 jtest <- nrow(mm) * t(moments) %*% moments
             } else {
-                jtest <- nrow(mm) * t(momentsCentered - center) %*%
-                    (momentsCentered - center)
+                jtest <- nrow(mm) * t(moments - center) %*%
+                    (moments - center)
             }
         } else {
             if (is.null(center)) {
                 jtest <- nrow(mm) * t(moments) %*% omegaMat %*% moments
             } else {
-                jtest <- nrow(mm) * t(momentsCentered - center) %*%
-                    omegaMat %*% (momentsCentered - center)
+                jtest <- nrow(mm) * t(moments - center) %*%
+                    omegaMat %*% (moments - center)
             }
+        }
+        if (is.null(redundant)) {
+            chiDf <- length(sset) - length(colDrop) - gn0 - gn1
+        } else {
+            chiDf <- length(sset) - gn0 - gn1
         }
         jtest <- c(jtest,
                    1 - pchisq(jtest,
-                              df = length(sset) - length(colDrop) - gn0 - gn1),
-                   length(sset) - length(colDrop) - gn0 - gn1)
+                              df = chiDf),
+                   chiDf)
         names(jtest) <- c("J-statistic",
                           "p-value (ignoring first step)", "df")
     } else {
