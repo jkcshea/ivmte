@@ -256,15 +256,16 @@ args[["uname"]] <- "v"
 r <- do.call(ivmte, args)
 ```
 
-Because we need to parse these formulas for the variable indicated by `uname`, there are some limitations regarding the use of factor variables.
+There are some limitations regarding the use of factor variables.
 For example, this will trigger an error.
 
 ```{r, factor.error, error = TRUE}
 args[["uname"]] <- ~ "u"
 args[["m0"]] <- ~ u + yob
-args[["m1"]] <- ~ u + factor(yob)-55 + factor(yob)-60
+args[["m1"]] <- ~ u + factor(yob)55 + factor(yob)60
 r <- do.call(ivmte, args)
 ```
+
 However, one can work around this in a natural way.
 
 ```{r, factor.ok}
