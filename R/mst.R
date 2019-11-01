@@ -1990,7 +1990,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             warning(gsub("\\s+", " ",
                          paste0("Bootstrap iteration(s) ",
                                 paste(bootFailIndex, collapse = ", "),
-                                " failed. Failed bootstraps are repeated.")))
+                                " failed. Failed bootstraps are repeated.")),
+                    call. = FALSE)
         }
         bootSE <- sd(teEstimates)
         mtrSE  <- apply(mtrEstimates, 1, sd)
@@ -2109,7 +2110,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         output3 <- list(pvalue = pvalue,
                         bootstraps = bootstraps,
                         bootstraps.failed = bootFailN,
-                        jtest = jtest)
+                        jtest = jtest,
+                        jtest.bootstraps = jstats)
         if ("jtest" %in% names(output1) &&
             "jtest" %in% names(output3)) {
             output1$jtest <- NULL
@@ -3669,31 +3671,6 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
                     IV-like specifications, or adjust m0 and m1.")),
              call. = FALSE)
     }
-    ## if (qr(Amat)$rank < length(sset)) {
-    ##     qAmat <- qr(Amat)
-    ##     redundantMoments <- seq(length(sset))[-qAmat$pivot[seq(qAmat$rank)]]
-    ##     redundantNames <- sapply(redundantMoments,
-    ##                              function(x) names(sset[[x]]$beta))
-    ##     redundantNames[redundantNames == "(Intercept)"] <- "intercept"
-    ##     redundantMat <-
-    ##         data.frame(a = sapply(redundantMoments,
-    ##                                           function(x) sset[[x]]$ivspec),
-    ##                    b = redundantNames)
-    ##     colnames(redundantMat) <- c("IV specification", "Component")
-    ##     cat("\nRedundant components:\n")
-    ##     cat(paste0(capture.output(print(redundantMat, row.names = FALSE)),
-    ##                collapse = "\n"), "\n", sep = "")
-    ##     stop(gsub("\\s+", " ",
-    ##               paste0("GMM system is collinear: there are ",
-    ##               length(sset),
-    ##               " moment conditions defined by the
-    ##                 IV-like specifications, but only ",
-    ##               qr(Amat)$rank,
-    ##               " are linearly independent. The table above
-    ##               indicates the set of components whose moment conditions are
-    ##               linearly dependent and can be removed from the S-set.")),
-    ##          call. = FALSE)
-    ## }
     ## Construct centering for bootstrap J test
     ## Perform first step of GMM
     mm <- momentMatrix()
@@ -3703,6 +3680,54 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
                               sparse = TRUE)
     xmat <- matrix(altmean %*% altmm / nrow(mm), ncol = (gn0 + gn1))
     ymat <- colMeans(mm[, mlist])
+    ## Address collinear moments
+    theta <- rnorm(gn0 + gn1) ## Random theta, to test for collinearity
+    omegaMat <- c(t(mm[, mlist]))
+    omegaMat <- omegaMat - altmm %*% theta
+    omegaMat <- matrix(omegaMat, byrow = TRUE, ncol = length(sset))
+    omegaMat <- t(omegaMat) %*% omegaMat / nrow(mm)
+
+    rankCheck <- eigen(omegaMat)
+    colDrop <- NULL
+    if (any(abs(rankCheck$values) < 1e-08)) {
+        colPos <- which(abs(rankCheck$values) < 1e-08)
+        colDict <- list()
+        for (i in colPos) {
+            colVec <- rankCheck$vectors[, i]
+            colSeq <- which(!seq(length(colVec)) %in% colDrop)
+            colDropIndex <- max(colSeq)
+            colDrop <- c(colDrop, colDropIndex)
+        }
+    }
+    if (!is.null(colDrop)) {
+        colDrop <- sort(colDrop)
+        xmat <- xmat[-colDrop, ]
+        ymat <- ymat[-colDrop]
+        colDropStr <- sapply(colDrop, FUN = function(x) {
+            c(sset[[x]]$ivspec, names(sset[[x]]$beta))
+        })
+
+
+        dropMessage <- paste("IV-like Spec.     Component\n",
+                             "----------------------------------------------\n",
+                             collapse = "")
+        for (i in 1:ncol(colDropStr)) {
+            dropMessage <-
+                paste(dropMessage, colDropStr[1, i],
+                      paste(rep(" ", 16 - length(colDropStr[1, i])),
+                            collapse = ""),
+                      colDropStr[2, i], "\n",
+                      collapse = "")
+        }
+        warning(paste(gsub("\\s+", " ",
+                           "The following components have been dropped due to
+                      collinearity:"),
+                      "\n",
+                      dropMessage,
+                      collapse = ""),
+                call. = FALSE,
+                immediate. = FALSE)
+    }
     theta <- solve(t(xmat) %*% xmat) %*% t(xmat) %*% ymat
     if (is.null(center)) {
         thetaCentered <- NULL
@@ -3711,11 +3736,12 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
             (t(xmat) %*% ymat - t(xmat) %*% center)
     }
     ## Perform second step of GMM
-    if (identity != TRUE) {
-        alty <- c(t(mm[, mlist]))
-        omegaMat <- alty - altmm %*% theta
+    if (!identity) {
+        omegaMat <- c(t(mm[, mlist]))
+        omegaMat <- omegaMat - altmm %*% theta
         omegaMat <- matrix(omegaMat, byrow = TRUE, ncol = length(sset))
         omegaMat <- t(omegaMat) %*% omegaMat / nrow(mm)
+        if (!is.null(colDrop)) omegaMat <- omegaMat[-colDrop, -colDrop]
         omegaMat <- solve(omegaMat)
         theta <- solve(t(xmat) %*% omegaMat %*% xmat) %*%
             t(xmat) %*% omegaMat %*% ymat
@@ -3734,7 +3760,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
     }
     moments <- ymat - xmat %*% theta
     ## Perform J test
-    if (length(sset) > gn0 + gn1) {
+    if ((length(sset) - length(colDrop)) > gn0 + gn1) {
         if (!is.null(center)) {
             momentsCentered  <- ymat - xmat %*% thetaCentered
             if (!identity) omegaMat <- omegaMatCentered
@@ -3755,8 +3781,9 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
             }
         }
         jtest <- c(jtest,
-                   1 - pchisq(jtest, df = length(sset) - gn0 - gn1),
-                   length(sset) - gn0 - gn1)
+                   1 - pchisq(jtest,
+                              df = length(sset) - length(colDrop) - gn0 - gn1),
+                   length(sset) - length(colDrop) - gn0 - gn1)
         names(jtest) <- c("J-statistic",
                           "p-value (ignoring first step)", "df")
     } else {
