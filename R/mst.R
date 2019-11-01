@@ -1957,8 +1957,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         newargs = list(data = quote(bdata),
                                        noisy = FALSE,
                                        seed = bseeds[b],
-                                       point.center = origEstimate$moments))
-            bootEstimate <- try(eval(bootCall), silent = FALSE)
+                                       point.center = origEstimate$moments,
+                                       point.redundant =
+                                           origEstimate$redundant))
+            bootEstimate <- try(eval(bootCall), silent = TRUE)
             if (is.list(bootEstimate)) {
                 teEstimates  <- c(teEstimates, bootEstimate$pointestimate)
                 mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
@@ -2371,6 +2373,8 @@ checkU <- function(formula, uname) {
 #'     conditions from the original sample can be passed through this
 #'     argument to recenter the bootstrap distribution of the
 #'     J-statistic.
+#' @param point.redundant vector of integers indicating which components in
+#'     the S-set are redundant.
 #' @param orig.sset list, only used for bootstraps. The list caontains
 #'     the gamma moments for each element in the S-set, as well as the
 #'     IV-like coefficients.
@@ -2423,7 +2427,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           save.grid = FALSE,
                           point = FALSE,
                           point.eyeweight = TRUE,
-                          point.center = NULL, orig.sset = NULL,
+                          point.center = NULL, point.redundant = NULL,
+                          orig.sset = NULL,
                           orig.criterion = NULL, vars_y,
                           vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                           splinesobj, noisy = TRUE,
@@ -2636,6 +2641,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                  gstar1 = gstar1,
                                  center = point.center,
                                  identity = point.eyeweight,
+                                 redundant = point.redundant,
                                  noisy = noisy)
         if (!smallreturnlist) {
             return(list(sset  = sset,
@@ -2644,6 +2650,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                         propensity = pmodel,
                         pointestimate = gmmResult$pointestimate,
                         moments = gmmResult$moments,
+                        redundant = gmmResult$redundant,
                         jtest = gmmResult$jtest,
                         mtr.coef = gmmResult$coef))
         } else {
@@ -2660,6 +2667,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                         g1 = colMeans(gstar1)),
                            pointestimate = gmmResult$pointestimate,
                            moments = gmmResult$moments,
+                           redundant = gmmResult$redundant,
                            jtest = gmmResult$jtest,
                            mtr.coef = gmmResult$coef)
             if (all(class(pmodel$model) != "NULL")) {
