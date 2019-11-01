@@ -1958,7 +1958,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                        noisy = FALSE,
                                        seed = bseeds[b],
                                        point.center = origEstimate$moments))
-            bootEstimate <- try(eval(bootCall), silent = TRUE)
+            bootEstimate <- try(eval(bootCall), silent = FALSE)
             if (is.list(bootEstimate)) {
                 teEstimates  <- c(teEstimates, bootEstimate$pointestimate)
                 mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
@@ -3543,6 +3543,8 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     identified case obtained from the original sample can be passed
 #'     through this argument to recenter the bootstrap distribution of
 #'     the J-statistic.
+#' @param redundant vector of integers indicating which components in
+#'     the S-set are redundant.
 #' @param identity boolean, default set to \code{TRUE}. Set to
 #'     \code{TRUE} if GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
@@ -3627,7 +3629,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'             gstar1 = targetGamma$gstar1)
 #'
 #' @export
-gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
+gmmEstimate <- function(sset, gstar0, gstar1, center = NULL, redundant = NULL,
                         identity = TRUE, noisy = TRUE) {
     gn0 <- ncol(gstar0)
     gn1 <- ncol(gstar1)
@@ -3671,7 +3673,6 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
                     IV-like specifications, or adjust m0 and m1.")),
              call. = FALSE)
     }
-    ## Construct centering for bootstrap J test
     ## Perform first step of GMM
     mm <- momentMatrix()
     mlist <- (seq(length(sset)) - 1) * (gn0 + gn1 + 1) + 1
@@ -3681,22 +3682,29 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
     xmat <- matrix(altmean %*% altmm / nrow(mm), ncol = (gn0 + gn1))
     ymat <- colMeans(mm[, mlist])
     ## Address collinear moments
-    theta <- rnorm(gn0 + gn1) ## Random theta, to test for collinearity
-    omegaMat <- c(t(mm[, mlist]))
-    omegaMat <- omegaMat - altmm %*% theta
-    omegaMat <- matrix(omegaMat, byrow = TRUE, ncol = length(sset))
-    omegaMat <- t(omegaMat) %*% omegaMat / nrow(mm)
-
-    rankCheck <- eigen(omegaMat)
-    colDrop <- NULL
-    if (any(abs(rankCheck$values) < 1e-08)) {
-        colPos <- which(abs(rankCheck$values) < 1e-08)
-        colDict <- list()
-        for (i in colPos) {
-            colVec <- rankCheck$vectors[, i]
-            colSeq <- which(!seq(length(colVec)) %in% colDrop)
-            colDropIndex <- max(colSeq)
-            colDrop <- c(colDrop, colDropIndex)
+    if (is.null(redundant)) {
+        colDrop <- NULL
+        theta <- rnorm(gn0 + gn1) ## Random theta, to test for collinearity
+        tmpOmegaMat <- c(t(mm[, mlist]))
+        tmpOmegaMat <- tmpOmegaMat - altmm %*% theta
+        tmpOmegaMat <- matrix(tmpOmegaMat, byrow = TRUE, ncol = length(sset))
+        tmpOmegaMat <- t(tmpOmegaMat) %*% tmpOmegaMat / nrow(mm)
+        rankCheck <- eigen(tmpOmegaMat)
+        if (any(abs(rankCheck$values) < 1e-08)) {
+            colPos <- which(abs(rankCheck$values) < 1e-08)
+            colDict <- list()
+            for (i in colPos) {
+                colVec <- rankCheck$vectors[, i]
+                colSeq <- which(!seq(length(colVec)) %in% colDrop)
+                colDropIndex <- max(colSeq)
+                colDrop <- c(colDrop, colDropIndex)
+            }
+        }
+    } else {
+        if (length(redundant) == 1 && redundant == 0) {
+            colDrop <- NULL
+        } else {
+            colDrop <- redundant
         }
     }
     if (!is.null(colDrop)) {
@@ -3706,28 +3714,36 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
         colDropStr <- sapply(colDrop, FUN = function(x) {
             c(sset[[x]]$ivspec, names(sset[[x]]$beta))
         })
-
-
-        dropMessage <- paste("IV-like Spec.     Component\n",
-                             "----------------------------------------------\n",
-                             collapse = "")
-        for (i in 1:ncol(colDropStr)) {
-            dropMessage <-
-                paste(dropMessage, colDropStr[1, i],
-                      paste(rep(" ", 16 - length(colDropStr[1, i])),
-                            collapse = ""),
-                      colDropStr[2, i], "\n",
-                      collapse = "")
+        if (is.null(redundant)) {
+            dropMessage <- paste("IV-like Spec.     Component\n",
+                                 "------------------------------------------\n",
+                                 collapse = "")
+            for (i in 1:ncol(colDropStr)) {
+                dropMessage <-
+                    paste(dropMessage, colDropStr[1, i],
+                          paste(rep(" ", 16 - length(colDropStr[1, i])),
+                                collapse = ""),
+                          colDropStr[2, i], "\n",
+                          collapse = "")
+            }
+            warning(paste(gsub("\\s+", " ",
+                               "The following components have been dropped
+                                due to collinearity:"),
+                          "\n",
+                          dropMessage,
+                          collapse = ""),
+                    call. = FALSE,
+                    immediate. = FALSE)
         }
-        warning(paste(gsub("\\s+", " ",
-                           "The following components have been dropped due to
-                      collinearity:"),
-                      "\n",
-                      dropMessage,
-                      collapse = ""),
-                call. = FALSE,
-                immediate. = FALSE)
     }
+    else {
+        if (length(redundant) == 1 && redundant == 0) {
+            colDrop <- NULL
+        } else {
+            colDrop <- redundant
+        }
+    }
+    ## Perform first stage GMM
     theta <- solve(t(xmat) %*% xmat) %*% t(xmat) %*% ymat
     if (is.null(center)) {
         thetaCentered <- NULL
@@ -3737,8 +3753,8 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
     }
     ## Perform second step of GMM
     if (!identity) {
-        omegaMat <- c(t(mm[, mlist]))
-        omegaMat <- omegaMat - altmm %*% theta
+        alty <- c(t(mm[, mlist]))
+        omegaMat <- alty - altmm %*% theta
         omegaMat <- matrix(omegaMat, byrow = TRUE, ncol = length(sset))
         omegaMat <- t(omegaMat) %*% omegaMat / nrow(mm)
         if (!is.null(colDrop)) omegaMat <- omegaMat[-colDrop, -colDrop]
@@ -3752,6 +3768,8 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
                                        ncol = length(sset))
             omegaMatCentered <-
                 t(omegaMatCentered) %*% omegaMatCentered / nrow(mm)
+            if (!is.null(colDrop)) omegaMatCentered <-
+                                       omegaMatCentered[-colDrop, -colDrop]
             omegaMatCentered <- solve(omegaMatCentered)
             thetaCentered <- solve(t(xmat) %*% omegaMatCentered %*% xmat) %*%
                 (t(xmat) %*% omegaMatCentered %*% ymat -
@@ -3796,10 +3814,12 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
         cat("\nPoint estimate of the target parameter: ",
             pointestimate, "\n\n", sep = "")
     }
+    if (is.null(colDrop)) colDrop <- 0
     return(list(pointestimate = as.numeric(pointestimate),
                 coef = theta,
                 moments = moments,
-                jtest = jtest))
+                jtest = jtest,
+                redundant = colDrop))
 }
 
 #' Format result for display
