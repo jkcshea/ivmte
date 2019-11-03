@@ -55,11 +55,10 @@ If you have the **devtools** package, you can install the latest version of the 
 devtools::install_github("jkcshea/ivmte")
 ```
 
-Three additional packages are also required for **ivmte**:
+Two additional packages are also required for **ivmte**:
 
-1. **gmm** for implementing generalized method of moments estimation. This package is available on CRAN.
-2. **splines2** for specifying models with polynomial splines. This package is available on CRAN.
-3. A package for solving linear programs.
+1. **splines2** for specifying models with polynomial splines. This package is available on CRAN.
+2. A package for solving linear programs.
    There are three options here:
     i. Gurobi and the Gurobi R package **gurobi**, which can be obtained from [Gurobi Optimization](http://www.gurobi.com/index).
     This option requires a Gurobi software license, which Gurobi Optimization offers at no cost to academic researchers.
@@ -77,6 +76,7 @@ only interface for solving linear programs that can be installed solely through
 However, we _strongly_ recommend using Gurobi or CPLEX, since these are
 actively developed, much more stable, and typically an order of magnitude faster
 than **lpSolveAPI**.
+A very clear installation guide for Gurobi can be found [here](https://cran.r-project.org/web/packages/prioritizr/vignettes/gurobi_installation.html)
 
 ## Usage Demonstration
 
@@ -619,7 +619,7 @@ r <- do.call(ivmte, args)
 Notice that even though ```point = FALSE``` and ```point = TRUE``` provide a single number for the target parameter in this scenario, that number is slightly different.
 The reason is that, for computational reasons, ```point = TRUE``` uses the usual quadratic loss, while ```point = FALSE``` uses absolute deviations loss.
 One should use ```point = TRUE``` if the model is point identified, since it computes confidence intervals and specification tests (discussed ahead) in a well-understood way.
-The default when ```point = TRUE``` is to use the identity weighting, however the optimal two-step GMM weighting (as computed by the **gmm** package) can be computed by passing ```point.eyeweight = FALSE```.
+The default when ```point = TRUE``` is to use the optimal two-step GMM weighting, however the identity weighting can be computed by passing ```point.eyeweight = TRUE```.
 
 ### Confidence Intervals
 
@@ -643,7 +643,7 @@ This corresponds to the usual nonparametric bootstrap.
 Choosing `bootstraps.m` to be smaller than the sample size and setting `bootstraps.replace` to be `TRUE` or `FALSE` corresponds to the "m out of n" bootstrap or subsampling, respectively.
 Regardless of these settings, two types of confidence regions are constructed following the terminology of @andrewshan2009ej; see @sheatorgovitsky2019wp for more detail, references, and important theoretical caveats to the procedures.
 
-Confidence regions can also be constructed when `point == TRUE` in a similar way.
+Confidence regions can also be constructed when ```point == TRUE``` in a similar way.
 
 ```{r, point.id.bootstrap}
 args <- list(data = AE,
@@ -657,7 +657,7 @@ args <- list(data = AE,
              noisy = FALSE)
 r <- do.call(ivmte, args)
 ```
-The p-value reported in both cases is for the null hypothesis that the target parameter is equal to 0,which we infer here by finding the largest confidence region that does not contain 0.
+The p-value reported in both cases is for the null hypothesis that the target parameter is equal to 0, which we infer here by finding the largest confidence region that does not contain 0.
 By default, `ivmte` returns 99%, 95%, and 90% confidence intervals.
 This can be changed with the `levels` option.
 
