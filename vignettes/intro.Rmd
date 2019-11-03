@@ -259,14 +259,18 @@ r <- do.call(ivmte, args)
 There are some limitations regarding the use of factor variables.
 For example, this will trigger an error.
 
-```{r, factor.error, error = TRUE}
+```{r, factor.error, error = TRUE, cache = FALSE}
 args[["uname"]] <- ~ "u"
 args[["m0"]] <- ~ u + yob
 args[["m1"]] <- ~ u + factor(yob)55 + factor(yob)60
-r <- do.call(ivmte, args)
 ```
 
 However, one can work around this in a natural way.
+
+```{r, factor.ok.prepare, echo = FALSE}
+args[["uname"]] <- ~ "u"
+args[["m0"]] <- ~ u + yob
+```
 
 ```{r, factor.ok}
 args[["m1"]] <- ~ u + (yob == 55) + (yob == 60)
