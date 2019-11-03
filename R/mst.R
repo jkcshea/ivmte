@@ -369,6 +369,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                        'lpsolver = \"gurobi\"'."))
         }
     }
+    ## EXPERIMENITNG
+    lpsolver <- "lpsolveapi"
+    ## END EXPERIMENTING
 
     ##---------------------------
     ## 2. Check format of non-numeric arguments
@@ -1743,14 +1746,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             immediate. = TRUE)
                 }
             }
-            cat(sprintf("\nNumber of bootstraps: %s",
-                        bootstraps))
-            if (bootFailN > 0) {
-                cat(sprintf(" (%s failed and redrawn)\n",
-                            bootFailN))
-            } else {
-                cat("\n")
-            }
             ## Obtain standard errors of bounds
             bootSE <- apply(boundEstimates, 2, sd)
             ## Construct confidence intervals for bounds
@@ -1831,8 +1826,17 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (specification.test) {
                 criterionPValue <- mean(origEstimate$audit.minobseq <=
                                         bootCriterion)
-                cat("\nBootstrapped specification test p-value: ",
-                    criterionPValue, "\n\n", sep = "")
+                cat("Bootstrapped specification test p-value: ",
+                    criterionPValue, "\n", sep = "")
+            }
+            ## Print bootstrap statistics
+            cat(sprintf("Number of bootstraps: %s",
+                        bootstraps))
+            if (bootFailN > 0) {
+                cat(sprintf(" (%s failed and redrawn)\n",
+                            bootFailN))
+            } else {
+                cat("\n")
             }
             ## Return output
             output <- c(origEstimate,
@@ -2128,14 +2132,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         cat("\nPoint estimate of the target parameter: ",
             fmtResult(origEstimate$pointestimate), "\n",
             sep = "")
-        cat(sprintf("\nNumber of bootstraps: %s",
-                    bootstraps))
-        if (bootFailN > 0) {
-            cat(sprintf(" (%s failed and redrawn)\n",
-                        bootFailN))
-        } else {
-            cat("\n")
-        }
         cat("\nBootstrapped confidence intervals (nonparametric):\n")
         for (level in levels) {
             ci1str <- get(paste0("ci1", level * 100))
@@ -2150,10 +2146,18 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 ci1str, "\n", sep = "")
         }
         cat("p-value: ",
-            fmtResult(pvalue[1]), "\n\n", sep = "")
+            fmtResult(pvalue[1]), "\n", sep = "")
         if (!is.null(jtest)) {
             cat("Bootstrapped J-test p-value: ",
                 fmtResult(jtest[2]), "\n", sep = "")
+        }
+        cat(sprintf("Number of bootstraps: %s",
+                    bootstraps))
+        if (bootFailN > 0) {
+            cat(sprintf(" (%s failed and redrawn)\n",
+                        bootFailN))
+        } else {
+            cat("\n")
         }
         cat("\n")
         ## cat("Bootstrapped confidence intervals (normal quantiles):\n")
@@ -3948,16 +3952,6 @@ summary.ivmte <- function(object, ...) {
                 "\n", call. = FALSE)
         }
         if (!is.null(object$bootstraps)) {
-            ## Return bootstrap counts
-            cat("\n")
-            cat(sprintf("Number of bootstraps: %s",
-                        object$bootstraps))
-            if (object$bootstraps.failed > 0) {
-                cat(sprintf(" (%s failed and redrawn)\n",
-                            object$bootstraps.failed))
-            } else {
-                cat("\n")
-            }
             ## Return confidence intervals and p-values
             levels <- as.numeric(rownames(object$bounds.ci[[1]]))
             ## ciTypes <- names(object$bounds.ci)
@@ -3985,8 +3979,17 @@ summary.ivmte <- function(object, ...) {
             }
             ## Return specification test
             if (!is.null(object$specification.pvalue)) {
-                cat("\nBootstrapped specification test p-value: ",
+                cat("Bootstrapped specification test p-value: ",
                     fmtResult(object$specification.pvalue), "\n", sep = "")
+            }
+            ## Return bootstrap counts
+            cat(sprintf("Number of bootstraps: %s",
+                        object$bootstraps))
+            if (object$bootstraps.failed > 0) {
+                cat(sprintf(" (%s failed and redrawn)\n",
+                            object$bootstraps.failed))
+            } else {
+                cat("\n")
             }
         }
     }
@@ -3997,16 +4000,6 @@ summary.ivmte <- function(object, ...) {
         cat(sprintf("Point estimate of the target parameter: %s\n",
                     fmtResult(object$pointestimate)))
         if (!is.null(object$bootstraps)) {
-            ## Return bootstrap counts
-            cat("\n")
-            cat(sprintf("Number of bootstraps: %s",
-                        object$bootstraps))
-            if (object$bootstraps.failed > 0) {
-                cat(sprintf(" (%s failed and redrawn)\n",
-                            object$bootstraps.failed))
-            } else {
-                cat("\n")
-            }
             ## Return confidence intervals and p-values
             levels <- as.numeric(rownames(object$pointestimate.ci[[1]]))
             ciTypes <- c("nonparametric", "parametric")
@@ -4035,8 +4028,17 @@ summary.ivmte <- function(object, ...) {
             }
             ## Return specification test
             if (!is.null(object$jtest)) {
-                cat("\nBootstrapped J-test p-value: ",
+                cat("Bootstrapped J-test p-value: ",
                     fmtResult(object$jtest[2]), "\n", sep = "")
+            }
+            ## Return bootstrap counts
+            cat(sprintf("Number of bootstraps: %s",
+                        object$bootstraps))
+            if (object$bootstraps.failed > 0) {
+                cat(sprintf(" (%s failed and redrawn)\n",
+                            object$bootstraps.failed))
+            } else {
+                cat("\n")
             }
         }
     }
