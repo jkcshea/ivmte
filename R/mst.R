@@ -1597,14 +1597,15 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 if (origEstimate$audit.count < audit.max) {
                     cat("Audit terminated successfully after",
                         origEstimate$audit.count,
-                        rs)
+                        rs, "\n")
                 }
                 if (origEstimate$audit.count == audit.max) {
                     if (is.null(origEstimate$audit.grid$violations)) {
                         cat("Audit terminated successfully after",
                             origEstimate$audit.count,
-                            rs)
+                            rs, "\n")
                     } else {
+                        cat("\n")
                         warning(gsub("\\s+", " ",
                                      "Audit reached audit.max.
                                       Try increasing audit.max."),
@@ -1617,7 +1618,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             output$call.options <- opList
             output <- output[sort(names(output))]
             class(output) <- "ivmte"
-            return(output)
+            return(invisible(output))
         } else {
             ## Obtain audit grid from original estimate
             audit.grid <- origEstimate$audit.grid$a_mbobj
@@ -1851,7 +1852,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             output$call.options <- opList
             output <- output[sort(names(output))]
             class(output) <- "ivmte"
-            return(output)
+            return(invisible(output))
         }
     }
     ## Point estimate without resampling
@@ -1868,7 +1869,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         output$call.options = opList
         output <- output[sort(names(output))]
         class(output) <- "ivmte"
-        return(output)
+        return(invisible(output))
     }
     ## Point estimate with resampling
     if (point == TRUE & bootstraps > 0) {
@@ -2183,7 +2184,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         output$call.options <- opList
         output <- output[sort(names(output))]
         class(output) <- "ivmte"
-        return(output)
+        return(invisible(output))
     }
 }
 
