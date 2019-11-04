@@ -61,13 +61,11 @@ of the module directly from our GitHub repository via
 devtools::install_github("jkcshea/ivmte")
 ```
 
-Three additional packages are also required for **ivmte**:
+Two additional packages are also required for **ivmte**:
 
-1.  **gmm** for implementing generalized method of moments estimation.
-    This package is available on CRAN.
-2.  **splines2** for specifying models with polynomial splines. This
+1.  **splines2** for specifying models with polynomial splines. This
     package is available on CRAN.
-3.  A package for solving linear programs. There are three options here:
+2.  A package for solving linear programs. There are three options here:
     1.  Gurobi and the Gurobi R package **gurobi**, which can be
         obtained from [Gurobi
         Optimization](http://www.gurobi.com/index). This option requires
@@ -92,6 +90,7 @@ for solving linear programs that can be installed solely through
 However, we _strongly_ recommend using Gurobi or CPLEX, since these are
 actively developed, much more stable, and typically an order of magnitude faster
 than **lpSolveAPI**.
+A very clear installation guide for Gurobi can be found [here](https://cran.r-project.org/web/packages/prioritizr/vignettes/gurobi_installation.html)
 
 ## Usage Demonstration
 
@@ -294,8 +293,8 @@ results <- ivmte(data = AE,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
                  propensity = morekids ~ samesex)
 #> 
-#> LP solver: Gurobi ('gurobi')
-#> 
+#> LP solver: lp_solve ('lpSolveAPI')
+#> Warning: The R package 'lpSolveAPI' interfaces with 'lp_solve', which is outdated and potentially unreliable. It is recommended to use commercial solvers Gurobi (lpsolver = 'gurobi') or CPLEX (lpsolver = 'cplexAPI') instead. Free academic licenses can be obtained for these commercial solvers.
 #> Obtaining propensity scores...
 #> Generating target moments...
 #>     Integrating terms for control group...
@@ -338,6 +337,7 @@ results <- ivmte(data = AE,
 #> 
 #> Bounds on the target parameter: [-0.09835591, -0.08285941]
 #> Audit terminated successfully after 1 round.
+#> 
 ```
 
 ### Specifying the MTR Functions
@@ -363,6 +363,7 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.2987098, 0.1289499]
 #> Audit terminated successfully after 1 round.
+#> 
 ```
 
 A restriction that we make for computational purposes is that `u` can
@@ -389,18 +390,20 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.2987098, 0.1289499]
 #> Audit terminated successfully after 1 round.
+#> 
 ```
 
-Because we need to parse these formulas for the variable indicated by
-`uname`, there are some limitations regarding the use of factor
-variables. For example, this will trigger an error.
+There are some limitations regarding the use of factor variables. For
+example, this will trigger an error.
 
 ``` r
 args[["uname"]] <- ~ "u"
 args[["m0"]] <- ~ u + yob
-args[["m1"]] <- ~ u + factor(yob)-55 + factor(yob)-60
-r <- do.call(ivmte, args)
-#> Error in terms.formula(formula): invalid model formula in ExtractVars
+args[["m1"]] <- ~ u + factor(yob)55 + factor(yob)60
+#> Error: <text>:3:34: unexpected numeric constant
+#> 2: args[["m0"]] <- ~ u + yob
+#> 3: args[["m1"]] <- ~ u + factor(yob)55
+#>                                     ^
 ```
 
 However, one can work around this in a natural way.
@@ -411,6 +414,7 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.09835591, -0.08285941]
 #> Audit terminated successfully after 1 round.
+#> 
 ```
 
 #### Polynomial Splines
@@ -430,6 +434,7 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.4479412, 0.2875447]
 #> Audit terminated successfully after 2 rounds.
+#> 
 ```
 
 The `degree` refers to the polynomial degree, so that `degree = 2` is a
@@ -477,8 +482,9 @@ args <- list(data = AE,
              noisy = FALSE)
 r <- do.call(ivmte, args)
 #> 
-#> Bounds on the target parameter: [-0.08827673, 0.2006589]
+#> Bounds on the target parameter: [-0.08827672, 0.2006589]
 #> Audit terminated successfully after 1 round.
+#> 
 ```
 
 #### The Audit Procedure
@@ -545,11 +551,13 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.2987098, 0.1289499]
 #> Audit terminated successfully after 1 round.
+#> 
 args[["target"]] <- "ate"
 r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.3800976, 0.2003928]
 #> Audit terminated successfully after 1 round.
+#> 
 ```
 
 #### LATEs and Generalized LATEs
@@ -576,6 +584,7 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.6931532, -0.4397993]
 #> Audit terminated successfully after 2 rounds.
+#> 
 ```
 
 We can condition on covariates in the definition of the LATE by adding
@@ -587,11 +596,13 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.8419396, -0.2913049]
 #> Audit terminated successfully after 2 rounds.
+#> 
 args[["late.X"]] = c(x = 8)
 r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.7721625, -0.3209851]
 #> Audit terminated successfully after 2 rounds.
+#> 
 ```
 
 **ivmte** also provides support for generalized LATEs, i.e. LATEs where
@@ -615,16 +626,19 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.7597831, -0.2984248]
 #> Audit terminated successfully after 2 rounds.
+#> 
 args[["genlate.ub"]] <- .41
 r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.7551905, -0.3083199]
 #> Audit terminated successfully after 2 rounds.
+#> 
 args[["genlate.ub"]] <- .42
 r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.7504255, -0.3182317]
 #> Audit terminated successfully after 2 rounds.
+#> 
 ```
 
 Generalized LATEs can also be made conditional-on-covariates by passing
@@ -636,6 +650,7 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.867551, -0.2750135]
 #> Audit terminated successfully after 2 rounds.
+#> 
 ```
 
 #### Custom Target Parameters
@@ -706,6 +721,7 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.8419396, -0.2913049]
 #> Audit terminated successfully after 2 rounds.
+#> 
 ```
 
 The knot specification here is the same for both the treated and
@@ -767,6 +783,7 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.6427017, -0.3727193]
 #> Audit terminated successfully after 1 round.
+#> 
 ```
 
 There are 10 moments being fit in this specification. Five of these
@@ -803,6 +820,7 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.6865291, -0.2573525]
 #> Audit terminated successfully after 1 round.
+#> 
 ```
 
 Note that `intercept` is a reserved word that is used to specify the
@@ -846,6 +864,7 @@ r <- do.call(ivmte, args)
 #> 
 #> Bounds on the target parameter: [-0.6697228, -0.3331582]
 #> Audit terminated successfully after 2 rounds.
+#> 
 ```
 
 ### Specifying the Propensity Score
@@ -871,6 +890,7 @@ results <- ivmte(data = AE,
 #> 
 #> Bounds on the target parameter: [-0.100781, -0.0825274]
 #> Audit terminated successfully after 1 round.
+#> 
 ```
 
 ### Point Identified Models
@@ -883,21 +903,22 @@ they have more (non-redundant) components than there are free parameters
 in `m0` and `m1`. Bounds in this case will typically shrink to a point.
 
 ``` r
-args <- list(data = AE,
-             target = "att",
+args <- list(data = ivmteSimData,
+             ivlike =  y ~ d + factor(z),
+             target = "ate",
              m0 = ~ u,
              m1 = ~ u,
-             ivlike = worked ~ morekids + samesex + morekids*samesex + yob,
-             propensity = morekids ~ samesex + yob + samesex*yob,
+             propensity = d ~ factor(z),
              noisy = FALSE)
 r <- do.call(ivmte, args)
 #> 
-#> Bounds on the target parameter: [-0.00636773, -0.00636773]
+#> Bounds on the target parameter: [-0.5349027, -0.5349027]
 #> Audit terminated successfully after 1 round.
+#> 
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
 #> 
-#> Point estimate of the target parameter: -0.01136731
+#> Point estimate of the target parameter: -0.5325135
 ```
 
 Notice that even though `point = FALSE` and `point = TRUE` provide a
@@ -907,9 +928,9 @@ slightly different. The reason is that, for computational reasons,
 absolute deviations loss. One should use `point = TRUE` if the model is
 point identified, since it computes confidence intervals and
 specification tests (discussed ahead) in a well-understood way. The
-default when `point = TRUE` is to use the identity weighting, however
-the optimal two-step GMM weighting (as computed by the **gmm** package)
-can be computed by passing `point.eyeweight = FALSE`.
+default when `point = TRUE` is to use the optimal two-step GMM
+weighting, however the identity weighting can be computed by passing
+`point.eyeweight = TRUE`.
 
 ### Confidence Intervals
 
@@ -931,15 +952,13 @@ results <- ivmte(data = AE,
 #> Bounds on the target parameter: [-0.09835591, -0.08285941]
 #> Audit terminated successfully after 1 round. 
 #> 
-#> Number of bootstraps: 50
-#> 
 #> Bootstrapped confidence intervals (backward):
 #>     90%: [-0.2013432, -0.01624443]
 #>     95%: [-0.2185989, -0.003729633]
-#>     99%: [-0.2300391, 0.0006812143]
+#>     99%: [-0.2300391, 0.0006812142]
 #> p-value: 0.04
-#> 
 #> Bootstrapped specification test p-value: 1
+#> Number of bootstraps: 50
 ```
 
 Other options relevent to confidence region construction are
@@ -971,19 +990,18 @@ args <- list(data = AE,
              noisy = FALSE)
 r <- do.call(ivmte, args)
 #> 
-#> Point estimate of the target parameter: -0.09162913
-#> 
-#> Number of bootstraps: 50
+#> Point estimate of the target parameter: -0.09160436
 #> 
 #> Bootstrapped confidence intervals (nonparametric):
-#>     90%: [-0.1500529, -0.09069669]
-#>     95%: [-0.1504376, -0.09063922]
-#>     99%: [-0.1506921, -0.08989487]
-#> p-value: 0
+#>     90%: [-0.1869028, -0.02510774]
+#>     95%: [-0.2077314, -0.02507778]
+#>     99%: [-0.227466, 0.0001054838]
+#> p-value: 0.08
+#> Number of bootstraps: 50
 ```
 
 The p-value reported in both cases is for the null hypothesis that the
-target parameter is equal to 0,which we infer here by finding the
+target parameter is equal to 0, which we infer here by finding the
 largest confidence region that does not contain 0. By default, `ivmte`
 returns 99%, 95%, and 90% confidence intervals. This can be changed with
 the `levels` option.
@@ -1019,33 +1037,35 @@ r <- do.call(ivmte, args)
 #> Bounds on the target parameter: [-0.6189484, -0.6189484]
 #> Audit terminated successfully after 1 round. 
 #> 
-#> Number of bootstraps: 50
-#> 
 #> Bootstrapped confidence intervals (backward):
 #>     90%: [-0.6411833, -0.6011875]
 #>     95%: [-0.64164, -0.5966297]
 #>     99%: [-0.6465837, -0.5944238]
 #> p-value: 0
-#> 
-#> Bootstrapped specification test p-value: 0.36
+#> Bootstrapped specification test p-value: 0.52
+#> Number of bootstraps: 50
 
 args[["ivlike"]] <- y ~ d + factor(z) + d*factor(z) # many more moments
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
 #> Warning: If argument 'point' is set to TRUE, then shape restrictions on m0
 #> and m1 are ignored, and the audit procedure is not implemented.
+#> Warning: The following components have been dropped due to collinearity: 
+#>  IV-like Spec.     Component
+#>  ------------------------------------------
+#>  1                 d 
+#>  1                 d 
+#>  1                 d
 #> 
-#> Point estimate of the target parameter: -0.5949017
-#> 
-#> Number of bootstraps: 50
+#> Point estimate of the target parameter: -0.595065
 #> 
 #> Bootstrapped confidence intervals (nonparametric):
-#>     90%: [-0.5949119, -0.5947554]
-#>     95%: [-0.5949119, -0.5947554]
-#>     99%: [-0.5949297, -0.594737]
+#>     90%: [-0.6782683, -0.5262742]
+#>     95%: [-0.6823161, -0.5158032]
+#>     99%: [-0.704449, -0.5122817]
 #> p-value: 0
-#> 
-#> Bootstrapped J-test p-value: 15.4373
+#> Bootstrapped J-test p-value: 0.46
+#> Number of bootstraps: 50
 ```
 
 ## Help, Feature Requests and Bug Reports

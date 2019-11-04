@@ -6,7 +6,7 @@
 \usage{
 genSSet(data, sset, sest, splinesobj, pmodobj, pm0, pm1, ncomponents,
   scount, subset_index, means = TRUE, yvar, dvar, noisy = TRUE,
-  ivn = NULL)
+  ivn = NULL, redundant = NULL)
 }
 \arguments{
 \item{data}{\code{data.frame} used to estimate the treatment
@@ -57,6 +57,9 @@ e.g. when performing the bootstrap.}
 
 \item{ivn}{integer, the number indicating which IV specification
 the component corresponds to.}
+
+\item{redundant}{vector of integers indicating which components in
+the S-set are redundant.}
 }
 \value{
 A list containing the point estimate for the IV regression,

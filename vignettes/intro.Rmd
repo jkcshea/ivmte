@@ -605,12 +605,12 @@ Point identification will typically occur when `ivlike`, `components` and `subse
 Bounds in this case will typically shrink to a point.
 
 ```{r, point.id}
-args <- list(data = AE,
-             target = "att",
+args <- list(data = ivmteSimData,
+             ivlike =  y ~ d + factor(z),
+             target = "ate",
              m0 = ~ u,
              m1 = ~ u,
-             ivlike = worked ~ morekids + samesex + morekids*samesex + yob,
-             propensity = morekids ~ samesex + yob + samesex*yob,
+             propensity = d ~ factor(z),
              noisy = FALSE)
 r <- do.call(ivmte, args)
 args[["point"]] <- TRUE

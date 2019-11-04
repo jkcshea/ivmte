@@ -5,7 +5,7 @@
 \title{Minimizing violation of observational equivalence}
 \usage{
 obsEqMin(sset, orig.sset = NULL, orig.criterion = NULL,
-  criterion.tol = 0, lpobj, lpsolver)
+  criterion.tol = 0, lpobj, lpsolver, debug = FALSE)
 }
 \arguments{
 \item{sset}{A list of IV-like estimates and the corresponding gamma

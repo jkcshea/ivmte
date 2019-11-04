@@ -4,7 +4,7 @@
 \alias{gmmEstimate}
 \title{GMM estimate of TE under point identification}
 \usage{
-gmmEstimate(sset, gstar0, gstar1, orig.solution = NULL,
+gmmEstimate(sset, gstar0, gstar1, center = NULL, redundant = NULL,
   identity = FALSE, noisy = TRUE)
 }
 \arguments{
@@ -20,11 +20,14 @@ is what is used to generate the gamma moments.}
 
 \item{gstar1}{vector, the target gamma moments for d = 1.}
 
-\item{orig.solution}{numeric, a vector of solutions to the GMM
-problem. When bootstrapping, the solution to the point
+\item{center}{numeric, the GMM moment equations from the original
+sample. When bootstrapping, the solution to the point
 identified case obtained from the original sample can be passed
 through this argument to recenter the bootstrap distribution of
 the J-statistic.}
+
+\item{redundant}{vector of integers indicating which components in
+the S-set are redundant.}
 
 \item{identity}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} if GMM point estimate should use the identity
@@ -37,11 +40,10 @@ e.g. when performing the bootstrap.}
 }
 \value{
 a list containing the point estimate of the treatment
-    effects, the standard errors, the 90% and 95% confidence
-    intervals, the convergence code (see
-    \code{\link[stats]{optim}}), the coefficients on the MTR, and
-    the variance/covariance matrix of the MTR coefficient
-    estimates.
+    effects, and the MTR coefficient estimates. The moment
+    conditions evaluated at the solution are also returned, along
+    with the J-test results. However, if the option \code{center}
+    is passed, then the moment conditions and J-test are centered.
 }
 \description{
 If the user sets the argument \code{point = TRUE} in the function

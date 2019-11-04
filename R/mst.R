@@ -187,7 +187,7 @@ utils::globalVariables("u")
 #'     procedure is implemented to estimate the treatment
 #'     effects. Shape constraints on the MTRs will be ignored under
 #'     point identification.
-#' @param point.eyeweight boolean, default set to \code{TRUE}. Set to
+#' @param point.eyeweight boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if the GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
 #' @param bootstraps integer, default set to 0.
@@ -297,7 +297,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   treat, lpsolver = NULL, criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
-                  point = FALSE, point.eyeweight = TRUE,
+                  point = FALSE, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
@@ -369,9 +369,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                        'lpsolver = \"gurobi\"'."))
         }
     }
-    ## EXPERIMENITNG
-    lpsolver <- "lpsolveapi"
-    ## END EXPERIMENTING
 
     ##---------------------------
     ## 2. Check format of non-numeric arguments
@@ -3567,7 +3564,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     the J-statistic.
 #' @param redundant vector of integers indicating which components in
 #'     the S-set are redundant.
-#' @param identity boolean, default set to \code{TRUE}. Set to
+#' @param identity boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
@@ -3652,7 +3649,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'
 #' @export
 gmmEstimate <- function(sset, gstar0, gstar1, center = NULL, redundant = NULL,
-                        identity = TRUE, noisy = TRUE) {
+                        identity = FALSE, noisy = TRUE) {
     gn0 <- ncol(gstar0)
     gn1 <- ncol(gstar1)
     if ((gn0 + gn1) > length(sset)) {

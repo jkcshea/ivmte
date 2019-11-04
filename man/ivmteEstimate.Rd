@@ -14,10 +14,11 @@ ivmteEstimate(data, target, late.Z, late.from, late.to, late.X, eval.X,
   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
   audit.nu = 25, audit.add = 100, audit.max = 25,
   audit.grid = NULL, save.grid = FALSE, point = FALSE,
-  point.eyeweight = FALSE, point.center = NULL, orig.sset = NULL,
-  orig.criterion = NULL, vars_y, vars_mtr, terms_mtr0, terms_mtr1,
-  vars_data, splinesobj, noisy = TRUE, smallreturnlist = FALSE,
-  seed = 12345, environments)
+  point.eyeweight = TRUE, point.center = NULL,
+  point.redundant = NULL, orig.sset = NULL, orig.criterion = NULL,
+  vars_y, vars_mtr, terms_mtr0, terms_mtr1, vars_data, splinesobj,
+  noisy = TRUE, smallreturnlist = FALSE, seed = 12345,
+  debug = FALSE, environments)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -194,8 +195,8 @@ the minimum violation of observational equivalence. This is
 reported in the output under the name 'minimum criterion'. The
 constraints in the LP problem pertaining to observational
 equivalence are then relaxed by the amount \code{minimum
-criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a value
-greater than 0 to allow for more conservative bounds.}
+criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a
+value greater than 0 to allow for more conservative bounds.}
 
 \item{initgrid.nx}{integer determining the number of points of the
 covariates used to form the initial constraint grid for
@@ -244,11 +245,14 @@ point identification.}
 \code{TRUE} if the GMM point estimate should use the identity
 weighting matrix (i.e. one-step GMM).}
 
-\item{point.center}{numeric, a vector of solutions to the GMM
-problem. When bootstrapping, the solution to the point
-identified case obtained from the original sample can be passed
-through this argument to recenter the bootstrap distribution of
-the J-statistic.}
+\item{point.center}{numeric, a vector of GMM moment conditoins
+evaluated at a solution. When bootstrapping, the moment
+conditions from the original sample can be passed through this
+argument to recenter the bootstrap distribution of the
+J-statistic.}
+
+\item{point.redundant}{vector of integers indicating which components in
+the S-set are redundant.}
 
 \item{orig.sset}{list, only used for bootstraps. The list caontains
 the gamma moments for each element in the S-set, as well as the
@@ -292,6 +296,11 @@ from being included in the return list.}
 
 \item{seed}{integer, the seed that determines the random grid in
 the audit procedure.}
+
+\item{debug}{boolean, indicates whether or not the function should
+provide output when obtaining bounds. The option is only
+applied when \code{lpsolver = 'gurobi'}. The output provided is
+the same as what the Gurobi API would send to the console.}
 
 \item{environments}{a list containing the environments of the MTR
 formulas, the IV-like formulas, and the propensity score

@@ -8,12 +8,13 @@ audit(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr0, terms_mtr1,
   vars_data, initgrid.nu = 20, initgrid.nx = 20, audit.nx = 2500,
   audit.nu = 25, audit.add = 100, audit.max = 25,
   audit.grid = NULL, save.grid = FALSE, m1.ub, m0.ub, m1.lb, m0.lb,
-  m1.ub.default = FALSE, m0.ub.default = FALSE,
-  m1.lb.default = FALSE, m0.lb.default = FALSE, mte.ub, mte.lb,
-  m0.dec = FALSE, m0.inc = FALSE, m1.dec = FALSE, m1.inc = FALSE,
-  mte.dec = FALSE, mte.inc = FALSE, sset, gstar0, gstar1,
-  orig.sset = NULL, orig.criterion = NULL, criterion.tol = 0,
-  lpsolver, noisy = TRUE, seed = 12345)
+  mte.ub, mte.lb, m1.ub.default = FALSE, m0.ub.default = FALSE,
+  mte.ub.default = FALSE, m1.lb.default = FALSE,
+  m0.lb.default = FALSE, mte.lb.default = FALSE, m0.dec = FALSE,
+  m0.inc = FALSE, m1.dec = FALSE, m1.inc = FALSE, mte.dec = FALSE,
+  mte.inc = FALSE, sset, gstar0, gstar1, orig.sset = NULL,
+  orig.criterion = NULL, criterion.tol = 0, lpsolver, noisy = TRUE,
+  seed = 12345, debug = FALSE)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -107,23 +108,29 @@ the observed outcome in the estimation sample.}
 group. By default, this will be set to the smallest value of
 the observed outcome in the estimation sample.}
 
-\item{m1.ub.default}{boolean, default set to TRUE. Indicator for
-whether the value assigned was by the user, or set by default.}
-
-\item{m0.ub.default}{boolean, default set to TRUE. Indicator for
-whether the value assigned was by the user, or set by default.}
-
-\item{m1.lb.default}{boolean, default set to TRUE. Indicator for
-whether the value assigned was by the user, or set by default.}
-
-\item{m0.lb.default}{boolean, default set to TRUE. Indicator for
-whether the value assigned was by the user, or set by default.}
-
 \item{mte.ub}{numeric value for upper bound on treatment effect
 parameter of interest.}
 
 \item{mte.lb}{numeric value for lower bound on treatment effect
 parameter of interest.}
+
+\item{m1.ub.default}{boolean, default set to FALSE. Indicator for
+whether the value assigned was by the user, or set by default.}
+
+\item{m0.ub.default}{boolean, default set to FALSE. Indicator for
+whether the value assigned was by the user, or set by default.}
+
+\item{mte.ub.default}{boolean, default set to FALSE. Indicator for
+whether the value assigned was by the user, or set by default.}
+
+\item{m1.lb.default}{boolean, default set to FALSE. Indicator for
+whether the value assigned was by the user, or set by default.}
+
+\item{m0.lb.default}{boolean, default set to FALSE. Indicator for
+whether the value assigned was by the user, or set by default.}
+
+\item{mte.lb.default}{boolean, default set to FALSE. Indicator for
+whether the value assigned was by the user, or set by default.}
 
 \item{m0.dec}{logical, set to \code{FALSE} by default. Set equal to
 \code{TRUE} if the MTR for the control group should be weakly
@@ -173,8 +180,8 @@ the minimum violation of observational equivalence. This is
 reported in the output under the name 'minimum criterion'. The
 constraints in the LP problem pertaining to observational
 equivalence are then relaxed by the amount \code{minimum
-criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a value
-greater than 0 to allow for more conservative bounds.}
+criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a
+value greater than 0 to allow for more conservative bounds.}
 
 \item{lpsolver}{character, name of the linear programming package
 in R used to obtain the bounds on the treatment effect. The
@@ -188,6 +195,11 @@ e.g. when performing the bootstrap.}
 
 \item{seed}{integer, the seed that determines the random grid in
 the audit procedure.}
+
+\item{debug}{boolean, indicates whether or not the function should
+provide output when obtaining bounds. The option is only
+applied when \code{lpsolver = 'gurobi'}. The output provided is
+the same as what the Gurobi API would send to the console.}
 }
 \value{
 a list. Included in the list is the minimum violation of

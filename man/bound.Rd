@@ -4,7 +4,8 @@
 \alias{bound}
 \title{Obtaining TE bounds}
 \usage{
-bound(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE)
+bound(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE,
+  debug = FALSE)
 }
 \arguments{
 \item{g0}{set of expectations for each terms of the MTR for the

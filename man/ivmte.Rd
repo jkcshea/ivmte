@@ -15,7 +15,7 @@ ivmte(data, target, late.from, late.to, late.X, genlate.lb, genlate.ub,
   point.eyeweight = FALSE, bootstraps = 0, bootstraps.m,
   bootstraps.replace = TRUE, levels = c(0.99, 0.95, 0.9),
   ci.type = "backward", specification.test = TRUE, noisy = TRUE,
-  smallreturnlist = FALSE, seed = 12345)
+  smallreturnlist = FALSE, seed = 12345, debug = FALSE)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -192,8 +192,8 @@ the minimum violation of observational equivalence. This is
 reported in the output under the name 'minimum criterion'. The
 constraints in the LP problem pertaining to observational
 equivalence are then relaxed by the amount \code{minimum
-criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a value
-greater than 0 to allow for more conservative bounds.}
+criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a
+value greater than 0 to allow for more conservative bounds.}
 
 \item{initgrid.nx}{integer determining the number of points of the
 covariates used to form the initial constraint grid for
@@ -272,6 +272,11 @@ from being included in the return list.}
 
 \item{seed}{integer, the seed that determines the random grid in
 the audit procedure.}
+
+\item{debug}{boolean, indicates whether or not the function should
+provide output when obtaining bounds. The option is only
+applied when \code{lpsolver = 'gurobi'}. The output provided is
+the same as what the Gurobi API would send to the console.}
 }
 \value{
 Returns a list of results from throughout the estimation
