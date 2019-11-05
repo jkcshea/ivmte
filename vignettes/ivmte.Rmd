@@ -3,12 +3,12 @@ title: "ivmte: An R Package for Marginal Treatment Effect Methods"
 author: "Joshua Shea and Alexander Torgovitsky"
 bibliography: refs.bib
 output:
-  github_document:
-    toc: true
-    keep_html: true
   html_document:
     toc: true
     keep_md: true
+  github_document:
+    toc: true
+    keep_html: true
 vignette: >
   %\VignetteIndexEntry{ivmte}
   %\VignetteEncoding{UTF-8}
@@ -72,7 +72,7 @@ Two additional packages are also required for **ivmte**:
 **ivmte** tries to automatically choose a solver from those available, with preference being given to Gurobi and CPLEX.
 We have provided the option to use **lpSolveAPI** because it appears to be the
 only interface for solving linear programs that can be installed solely through
-```install.packages```.
+`install.packages`.
 However, we _strongly_ recommend using Gurobi or CPLEX, since these are
 actively developed, much more stable, and typically an order of magnitude faster
 than **lpSolveAPI**.
