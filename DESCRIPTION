@@ -48,7 +48,8 @@ Suggests:
     Matrix,
     knitr,
     rmarkdown,
-    pander
+    pander,
+    AER
 License: GPL-2 | GPL-3 + file LICENSE
 Encoding: UTF-8
 LazyData: true
