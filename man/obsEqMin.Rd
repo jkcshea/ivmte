@@ -26,6 +26,11 @@ equivalence, set to 0 by default.}
 
 \item{lpsolver}{string, name of the package used to solve the LP
 problem.}
+
+\item{debug}{boolean, indicates whether or not the function should
+provide output when obtaining bounds. The option is only
+applied when \code{lpsolver = 'gurobi'}. The output provided is
+the same as what the Gurobi API would send to the console.}
 }
 \value{
 A list including the minimum violation of observational

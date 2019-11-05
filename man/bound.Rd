@@ -32,6 +32,11 @@ problem.}
 
 \item{noisy}{boolean, set to \code{TRUE} if optimization results
 should be displayed.}
+
+\item{debug}{boolean, indicates whether or not the function should
+provide output when obtaining bounds. The option is only
+applied when \code{lpsolver = 'gurobi'}. The output provided is
+the same as what the Gurobi API would send to the console.}
 }
 \value{
 a list containing the bounds on the treatment effect; the

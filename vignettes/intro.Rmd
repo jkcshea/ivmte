@@ -304,7 +304,7 @@ One can also require the MTR functions to satisfy the following nonparametric sh
 * Boundedness of the MTR functions, via the parameters `m0.lb`, `m0.ub`, `m1.lb`, and `m1.ub`, which all take scalar values.
 In order to produce non-trivial bounds in cases of partial identification, `m0.lb` and `m1.lb` are by default set to the smallest value of the response variable (which is inferred from `ivlike`) that is observed in the data, while `m0.ub` and `m1.ub` are set to the largest value.
 * Boundedness of the MTE function, that is, `m1 - m0`, by setting `mte.lb` and `mte.ub`.
-By default, these are set to the values logically implied by the default values for `m0.lb`, `m0.ub`, `m1.lb`, and `m1.ub`.
+By default, these are set to the values logically implied by the values for `m0.lb`, `m0.ub`, `m1.lb`, and `m1.ub`.
 * Monotonicity of the MTR functions in `u` for each value of the other observed variables, via the parameters `m0.dec`, `m0.inc`, `m1.dec`, `m1.inc`, which all take boolean values.
 * Monotonicity of the MTE function in `u`, via the parameters `mte.dec` and `mte.inc`.
 

@@ -160,6 +160,10 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 #' @param lpobj A list of matrices and vectors defining an LP problem.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
+#' @param debug boolean, indicates whether or not the function should
+#'     provide output when obtaining bounds. The option is only
+#'     applied when \code{lpsolver = 'gurobi'}. The output provided is
+#'     the same as what the Gurobi API would send to the console.
 #' @return A list including the minimum violation of observational
 #'     equivalence, the solution to the LP problem, and the status of
 #'     the solution.
@@ -354,6 +358,10 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
 #'     should be displayed.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
+#' @param debug boolean, indicates whether or not the function should
+#'     provide output when obtaining bounds. The option is only
+#'     applied when \code{lpsolver = 'gurobi'}. The output provided is
+#'     the same as what the Gurobi API would send to the console.
 #' @return a list containing the bounds on the treatment effect; the
 #'     coefficients on each term in the MTR associated with the upper
 #'     and lower bounds, for both counterfactuals; the optimization

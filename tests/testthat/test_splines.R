@@ -231,62 +231,9 @@ for (i in 1:nrow(A)) {
     Aextra[i, (i * 2)] <- 1
 }
 
-## Construct monotonicity matrix components
 uGrid <- unique(result$audit.grid$initial[, "u"])
-xMat <- cbind(1, result$audit.grid$initial[, "x"])
-u1s1 <- splines2::bSpline(x = uGrid,
-                          degree = 2,
-                          knots = c(0.3, 0.6),
-                          intercept = FALSE)
-u1s1 <- do.call("rbind", rep(list(u1s1), 2))
-u0s1 <- splines2::bSpline(x = uGrid,
-                          degree = 0,
-                          knots = c(0.2, 0.5, 0.8),
-                          intercept = TRUE)
-u0s1 <- do.call("rbind", rep(list(u0s1), 2))
-u0s1 <- sweep(x = u0s1,
-              MARGIN = 1,
-              STATS = xMat[, 2],
-              FUN = "*")
-u0s2 <- splines2::bSpline(x = uGrid,
-                          degree = 1,
-                          knots = c(0.4),
-                          intercept = TRUE)
-u0s2 <- do.call("rbind", rep(list(u0s2), 2))
-u2Mat <- rep(uGrid ^ 2, 2)
-mono0 <- cbind(u2Mat, u0s2, u0s1)
-mono1 <- cbind(xMat, u1s1)
-colnames(mono0) <- c("I(u^2)",
-                     "u0S1.1:1", "u0S1.2:1", "u0S1.3:1",
-                     "u0S2.1:x", "u0S2.2:x", "u0S2.3:x", "u0S2.4:x")
-colnames(mono1) <- c("(Intercept)", "x",
-                     "u1S1.1:1", "u1S1.2:1", "u1S1.3:1", "u1S1.4:1")
-monoA0 <- mono0[seq(1, 2 * length(uGrid))[-seq(1,
-                                               2 * length(uGrid),
-                                               by = length(uGrid))], ] -
-    mono0[seq(1, 2 * length(uGrid))[-seq(length(uGrid),
-                                         2 * length(uGrid),
-                                         by = length(uGrid))], ]
-monoA1 <- mono1[seq(1, 2 * length(uGrid))[-seq(1,
-                                               2 * length(uGrid),
-                                               by = length(uGrid))], ] -
-    mono1[seq(1, 2 * length(uGrid))[-seq(length(uGrid),
-                                         2 * length(uGrid),
-                                         by = length(uGrid))], ]
-Azeroes <- matrix(0, ncol = ncol(Aextra), nrow = nrow(monoA0))
-mtemono <- cbind(Azeroes, -monoA0, monoA1)
-## Construct boundedness matrix components
 maxy <- max(c(dts$ey0, dts$ey1))
 miny <- min(c(dts$ey0, dts$ey1))
-Bzeroes <- matrix(0, ncol = ncol(Aextra), 2 * length(uGrid))
-b0zeroes <- matrix(0, ncol = ncol(mono0), nrow = 2 * length(uGrid))
-b1zeroes <- matrix(0, ncol = ncol(mono1), nrow = 2 * length(uGrid))
-m0bound <- cbind(Bzeroes, mono0, b1zeroes)
-m1bound <- cbind(Bzeroes, b0zeroes, mono1)
-
-##-------------------------
-## Expand constraint grid according to audit
-##-------------------------
 
 ## Construct monotonicity matrix components
 auGrid <- unique(result$audit.grid$audit[, "u"])
@@ -339,62 +286,48 @@ ab0zeroes <- matrix(0, ncol = ncol(amono0), nrow = 3 * length(auGrid))
 ab1zeroes <- matrix(0, ncol = ncol(amono1), nrow = 3 * length(auGrid))
 am0bound <- cbind(aBzeroes, amono0, ab1zeroes)
 am1bound <- cbind(aBzeroes, ab0zeroes, amono1)
+amtebound <- cbind(aBzeroes, -amono0, amono1)
 
 ## Construct the audit matrices
 arhs <- c(replicate(nrow(am0bound), 0),
           replicate(nrow(am1bound), miny),
+          replicate(nrow(amtebound), miny - maxy),
           replicate(nrow(am0bound), maxy),
           replicate(nrow(am1bound), 55),
+          replicate(nrow(amtebound), 55 - 0),
           replicate(nrow(amtemono), 0))
 asense <- c(replicate(nrow(am0bound), ">="),
             replicate(nrow(am1bound), ">="),
+            replicate(nrow(amtebound), ">="),
             replicate(nrow(am0bound), "<="),
             replicate(nrow(am1bound), "<="),
+            replicate(nrow(amtebound), "<="),
             replicate(nrow(amtemono), ">="))
 aA <- rbind(am0bound,
             am1bound,
+            amtebound,
             am0bound,
             am1bound,
+            amtebound,
             amtemono)
-violateVec <- c(1, 2, 3, 23, 30, 37, 58, 68, 69, 70, 85, 86, 87, 88,
-                91, 94, 97, 100, 45, 90)
-addShapeRhs <- arhs[violateVec]
-addShapeSense <- asense[violateVec]
-addShapeA <- aA[violateVec, ]
 
 ##-------------------------
 ## Obtain minimum criterion
 ##-------------------------
 
-## Construct full lpSolveAPI model
 modelO <- list()
 modelO$obj <- c(replicate(ncol(Aextra), 1),
-                replicate(ncol(monoA0) + ncol(monoA1), 0))
+                replicate(ncol(amonoA0) + ncol(amonoA1), 0))
 modelO$rhs <- c(estimates,
-                replicate(nrow(m0bound), 0),
-                replicate(nrow(m1bound), miny),
-                replicate(nrow(m0bound), maxy),
-                replicate(nrow(m1bound), 55),
-                replicate(nrow(mtemono), 0),
-                addShapeRhs)
+                arhs)
 modelO$sense <- c(replicate(length(estimates), "="),
-                  replicate(nrow(m0bound), ">="),
-                  replicate(nrow(m1bound), ">="),
-                  replicate(nrow(m0bound), "<="),
-                  replicate(nrow(m1bound), "<="),
-                  replicate(nrow(mtemono), ">="),
-                  addShapeSense)
+                  asense)
 modelO$A <- rbind(cbind(Aextra, A),
-                  m0bound,
-                  m1bound,
-                  m0bound,
-                  m1bound,
-                  mtemono,
-                  addShapeA)
+                  aA)
 modelO$ub <- c(replicate(ncol(Aextra), Inf),
-               replicate(ncol(monoA0) + ncol(monoA1), Inf))
+               replicate(ncol(amonoA0) + ncol(amonoA1), Inf))
 modelO$lb <- c(replicate(ncol(Aextra), 0),
-               replicate(ncol(monoA0) + ncol(monoA1), -Inf))
+               replicate(ncol(amonoA0) + ncol(amonoA1), -Inf))
 ## Minimize observational equivalence deviation
 minobseq <- runLpSolveAPI(modelO, 'min')$objval
 
@@ -404,7 +337,7 @@ minobseq <- runLpSolveAPI(modelO, 'min')$objval
 
 tolerance <- 1.01
 Atop <- c(replicate(ncol(Aextra), 1),
-          replicate(ncol(monoA0) + ncol(monoA1), 0))
+          replicate(ncol(amonoA0) + ncol(amonoA1), 0))
 modelF <- list()
 modelF$obj <- c(replicate(ncol(Aextra), 0),
                 gstar$g0,
@@ -416,9 +349,9 @@ modelF$sense <- c("<=",
 modelF$A <- rbind(Atop,
                   modelO$A)
 modelF$ub <- c(replicate(ncol(Aextra), Inf),
-               replicate(ncol(mono0) + ncol(mono1), Inf))
+               replicate(ncol(amono0) + ncol(amono1), Inf))
 modelF$lb <- c(replicate(ncol(Aextra), 0),
-               replicate(ncol(mono0) + ncol(mono1), -Inf))
+               replicate(ncol(amono0) + ncol(amono1), -Inf))
 
 ## Find bounds with threshold
 minAtt <- runLpSolveAPI(modelF, 'min')
@@ -483,6 +416,7 @@ resultAlt <- ivmte(ivlike = ivlike,
                    m1.ub = 55,
                    m0.lb = 0,
                    mte.inc = TRUE,
+                   mte.ub = 10,
                    lpsolver = "lpSolveAPI",
                    seed = 10L)
 

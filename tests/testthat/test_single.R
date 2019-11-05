@@ -155,6 +155,7 @@ b0zeroes <- matrix(0, ncol = ncol(mono0), nrow = nrow(grid))
 b1zeroes <- matrix(0, ncol = ncol(mono1), nrow = nrow(grid))
 m0bound <- cbind(Bzeroes, mono0, b1zeroes)
 m1bound <- cbind(Bzeroes, b0zeroes, mono1)
+mtebound <- cbind(Bzeroes, -mono0, mono1)
 
 ## Expand grid to include audit violations
 agrid <- result$audit.grid$audit[, 1:3]
@@ -167,22 +168,32 @@ ab0zeroes <- matrix(0, ncol = ncol(amono0), nrow = nrow(agrid))
 ab1zeroes <- matrix(0, ncol = ncol(amono1), nrow = nrow(agrid))
 am0bound <- cbind(aBzeroes, amono0, ab1zeroes)
 am1bound <- cbind(aBzeroes, ab0zeroes, amono1)
+amtebound <- cbind(aBzeroes, -amono0, amono1)
 
 ## Construct the audit matrices
 arhs <- c(replicate(nrow(am0bound), miny),
           replicate(nrow(am1bound), miny),
+          replicate(nrow(amtebound), miny - maxy),
           replicate(nrow(am0bound), maxy),
-          replicate(nrow(am1bound), maxy))
+          replicate(nrow(am1bound), maxy),
+          replicate(nrow(amtebound), maxy - miny))
 asense <- c(replicate(nrow(am0bound), ">="),
             replicate(nrow(am1bound), ">="),
+            replicate(nrow(amtebound), ">="),
             replicate(nrow(am0bound), "<="),
-            replicate(nrow(am1bound), "<="))
+            replicate(nrow(am1bound), "<="),
+            replicate(nrow(amtebound), "<=")
+            )
 aA <- rbind(am0bound,
             am1bound,
+            amtebound,
             am0bound,
-            am1bound)
-violateVec <- c(35, 38, 39, 40, 41, 42, 43, 44, 45, 69, 70, 109, 110, 111,
-                112, 113, 114, 115, 116, 117, 118, 119, 140)
+            am1bound,
+            amtebound
+            )
+violateVec <- c(35, 38, 39, 40, 41, 42, 43, 44, 45, 69, 70, 73, 74, 75, 78, 79,
+                80, 105, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154,
+                175, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 210)
 addShapeRhs <- arhs[violateVec]
 addShapeSense <- asense[violateVec]
 addShapeA <- aA[violateVec, ]
@@ -194,20 +205,26 @@ modelO$obj <- c(replicate(ncol(Aextra), 1),
 modelO$rhs <- c(estimates,
                 replicate(nrow(m0bound), miny),
                 replicate(nrow(m1bound), miny),
+                replicate(nrow(mtebound), miny - maxy),
                 replicate(nrow(m0bound), maxy),
                 replicate(nrow(m1bound), maxy),
+                replicate(nrow(mtebound), maxy - miny),
                 addShapeRhs)
 modelO$sense <- c(replicate(length(estimates), "="),
                   replicate(nrow(m0bound), ">="),
                   replicate(nrow(m1bound), ">="),
+                  replicate(nrow(mtebound), ">="),
                   replicate(nrow(m0bound), "<="),
                   replicate(nrow(m1bound), "<="),
+                  replicate(nrow(mtebound), "<="),
                   addShapeSense)
 modelO$A <- rbind(cbind(Aextra, A),
                   m0bound,
                   m1bound,
+                  mtebound,
                   m0bound,
                   m1bound,
+                  mtebound,
                   addShapeA)
 modelO$ub <- c(replicate(ncol(Aextra), Inf),
                 replicate(ncol(A), Inf))

@@ -337,6 +337,7 @@ b0zeroes <- matrix(0, ncol = ncol(mono0), nrow = nrow(grid))
 b1zeroes <- matrix(0, ncol = ncol(mono1), nrow = nrow(grid))
 m0bound <- cbind(Bzeroes, mono0, b1zeroes)
 m1bound <- cbind(Bzeroes, b0zeroes, mono1)
+mtebound <- cbind(Bzeroes, -mono0, mono1)
 
 ##-------------------------
 ## Obtain minimum criteiron
@@ -348,24 +349,30 @@ model.o$obj <- c(replicate(14, 1), replicate(10, 0))
 model.o$rhs <- c(estimates,
                  replicate(nrow(m0bound), miny),
                  replicate(nrow(m1bound), miny),
+                 replicate(nrow(mtebound), miny - maxy),
                  replicate(nrow(m0bound), maxy),
                  replicate(nrow(m1bound), maxy),
+                 replicate(nrow(mtebound), maxy - miny),
                  replicate(nrow(m0mono), 0),
                  replicate(nrow(m1mono), 0),
                  replicate(nrow(mtemono), 0))
 model.o$sense <- c(replicate(7, "="),
                    replicate(nrow(m0bound), ">="),
                    replicate(nrow(m1bound), ">="),
+                   replicate(nrow(mtebound), ">="),
                    replicate(nrow(m0bound), "<="),
                    replicate(nrow(m1bound), "<="),
+                   replicate(nrow(mtebound), "<="),
                    replicate(nrow(m0mono), ">="),
                    replicate(nrow(m1mono), ">="),
                    replicate(nrow(mtemono), "<="))
 model.o$A <- rbind(cbind(A.extra, A),
                    m0bound,
                    m1bound,
+                   mtebound,
                    m0bound,
                    m1bound,
+                   mtebound,
                    m0mono,
                    m1mono,
                    mtemono)
