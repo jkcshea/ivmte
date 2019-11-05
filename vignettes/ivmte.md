@@ -825,10 +825,8 @@ r <- do.call(ivmte, args)
 ```
 
 Note that `intercept` is a reserved word that is used to specify the
-coefficient on the constant term.
-
-If the function `list` is used to pass the `components` option, an error
-will follow.
+coefficient on the constant term. If the function `list` is used to pass
+the `components` option, an error will follow.
 
 ``` r
 args[["components"]] <- list(c(intercept, x), c(d), )
@@ -842,13 +840,12 @@ r <- do.call(ivmte, args)
 
 The formulas can be run conditional on certain subgroups by adding the
 `subset` option. This option expects a list of logical statements with
-the same length as `ivlike`. One can use the entire data by leaving the
-statement blank, or inserting a tautology such as `1 == 1`. For example,
-the following would run the first regression only on observations with
-`x` less than or equal to 9, the second regression on the entire sample,
-and the third (TSLS) formula only on those observations that have `z`
-equal to 1 or 3. Similar to the `components` option, the `subset` option
-should be passed using the `l` function.
+the same length as `ivlike` declared using the `l` function. One can use
+the entire data by leaving the statement blank, or inserting a tautology
+such as `1 == 1`. For example, the following would run the first
+regression only on observations with `x` less than or equal to 9, the
+second regression on the entire sample, and the third (TSLS) formula
+only on those observations that have `z` equal to 1 or 3.
 
 ``` r
 args <- list(data = ivmteSimData,
