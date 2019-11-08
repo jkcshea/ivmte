@@ -257,7 +257,7 @@ utils::globalVariables("u")
 #' were satisfied.}
 #' \item{audit.count}{the number of audits required until there were
 #' no more violations.}
-#' \item{audit.minobseq}{the minimum criterion.}
+#' \item{audit.criterion}{the minimum criterion.}
 #' \item{splinesdict}{a list including the specifications of each
 #' spline declared in each MTR.}
 #' }
@@ -1633,11 +1633,15 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             bootFailN <- 0
             bootFailNote <- ""
             bootFailIndex <- NULL
+            ## Turn off specification test if criterion is 0
+            if (origEstimate$audit.criterion == 0) {
+                specification.test <- FALSE
+            }
             if (specification.test) {
                 origSset <- lapply(origEstimate$sset, function(x) {
                     x[c("ivspec", "beta", "g0", "g1")]
                 })
-                origCriterion <- origEstimate$audit.minobseq
+                origCriterion <- origEstimate$audit.criterion
             } else {
                 origSset <- NULL
                 origCriterion <- NULL
@@ -1692,7 +1696,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         cat("    Audit count: ",
                             bootEstimate$audit.count, "\n", sep = "")
                         cat("    Minimum criterion: ",
-                            fmtResult(bootEstimate$audit.minobseq),
+                            fmtResult(bootEstimate$audit.criterion),
                             "\n", sep = "")
                         cat("    Bounds: ",
                             paste0("[",
@@ -1821,7 +1825,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             ## Obtain specification test
             if (specification.test) {
-                criterionPValue <- mean(origEstimate$audit.minobseq <=
+                criterionPValue <- mean(origEstimate$audit.criterion <=
                                         bootCriterion)
                 cat("Bootstrapped specification test p-value: ",
                     criterionPValue, "\n", sep = "")
@@ -1835,6 +1839,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             } else {
                 cat("\n")
             }
+            cat("\n")
             ## Return output
             output <- c(origEstimate,
                         list(bounds.se = bootSE,
@@ -2852,7 +2857,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          audit = audit$gridobj$audit$grid,
                                          violations = audit$gridobj$violations),
                        audit.count = audit$auditcount,
-                       audit.minobseq = audit$minobseq,
+                       audit.criterion = audit$minobseq,
                        splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
                                           m1 = splinesobj[[2]]$splinesdict))
     } else {
@@ -2869,7 +2874,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        bounds = c(audit$min, audit$max),
                        lpsolver = lpsolver,
                        audit.count = audit$auditcount,
-                       audit.minobseq = audit$minobseq,
+                       audit.criterion = audit$minobseq,
                        splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
                                           m1 = splinesobj[[2]]$splinesdict))
         if (all(class(pmodel$model) != "NULL")) {
@@ -3882,7 +3887,7 @@ print.ivmte <- function(x, ...) {
             cat(sprintf("Audit terminated successfully after %s",
                         x$audit.count), rs, "\n")
         }
-        cat(sprintf("Minimum criterion: %s \n", x$audit.minobseq))
+        cat(sprintf("Minimum criterion: %s \n", x$audit.criterion))
         ## Return LP solver used
         cat(sprintf("LP solver: %s\n", x$lpsolver))
         if (x$lpsolver == "lp_solve ('lpSolveAPI')") {
@@ -3933,7 +3938,7 @@ summary.ivmte <- function(object, ...) {
             cat(sprintf("Audit terminated successfully after %s",
                         object$audit.count), rs, "\n")
         }
-        cat(sprintf("Minimum criterion: %s \n", object$audit.minobseq))
+        cat(sprintf("Minimum criterion: %s \n", object$audit.criterion))
         ## Return LP solver used
         cat(sprintf("LP solver: %s\n", object$lpsolver))
         if (object$lpsolver == "lp_solve ('lpSolveAPI')") {

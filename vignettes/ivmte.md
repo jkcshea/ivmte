@@ -521,9 +521,9 @@ defaults for these parameters that should be suitable for most
 applications. However, if `ivmte` takes a very long time to run, one
 might want to try adjusting these parameters. Also, if `audit.max` is
 hit, which should be unlikely given the default settings, one should
-either adjust the settings or examine the `violations` field of the
-returned results to see the extent to which the shape restrictions are
-not satisfied.
+either adjust the settings or examine the `audit.grid$violations` field
+of the returned results to see the extent to which the shape
+restrictions are not satisfied.
 
 ### Specifying the Target Parameter
 
@@ -811,9 +811,10 @@ itself a list that contains the variable names for the coefficients to
 be included from that formula. The list should be declared using the `l`
 function, which is a generalization of the `list` function. The `l`
 function allows the user to list variables and expressions without
-quotations. For example, the following includes the coefficients on the
-intercept and `x` from the first formula, the coefficient on `d` from
-the second formula, and all coefficients in the third formula.
+having to enclose them by quotation marks. For example, the following
+includes the coefficients on the intercept and `x` from the first
+formula, the coefficient on `d` from the second formula, and all
+coefficients in the third formula.
 
 ``` r
 args[["components"]] <- l(c(intercept, x), c(d), )

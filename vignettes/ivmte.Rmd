@@ -339,7 +339,7 @@ The procedure ends (the audit is passed), when the solution MTRs satisfy the con
 There are certain parameters that can be used to tune the audit procedure: The number of initial points in the constraint grid (`initgrid.nu` and `initgrid.nx`), the number of points in the audit grid (`audit.nu` and `audit.nx`), the maximum number of points that are added from the audit grid to the constraint grid (`audit.add`) for each constraint, and the maximum number of times the audit procedure is repeated before giving up (`audit.max`).
 We have tried to choose defaults for these parameters that should be suitable for most applications.
 However, if `ivmte` takes a very long time to run, one might want to try adjusting these parameters.
-Also, if `audit.max` is hit, which should be unlikely given the default settings, one should either adjust the settings or examine the `violations` field of the returned results to see the extent to which the shape restrictions are not satisfied.
+Also, if `audit.max` is hit, which should be unlikely given the default settings, one should either adjust the settings or examine the `audit.grid$violations` field of the returned results to see the extent to which the shape restrictions are not satisfied.
 
 ### Specifying the Target Parameter
 
@@ -541,7 +541,7 @@ One can tell `ivmte` to only include certain moments and not others by passing t
 This option expects a list of the same length as the list passed to `ivlike`.
 Each component of the list is itself a list that contains the variable names for the coefficients to be included from that formula.
 The list should be declared using the `l` function, which is a generalization of the `list` function. 
-The `l` function allows the user to list variables and expressions without quotations.
+The `l` function allows the user to list variables and expressions without having to enclose them by quotation marks.
 For example, the following includes the coefficients on the intercept and `x` from the first formula, the coefficient on `d` from the second formula, and all coefficients in the third formula.
 
 ```{r, ivlike.components}
