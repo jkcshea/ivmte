@@ -327,7 +327,7 @@ from solving the LP problem.}
 were satisfied.}
 \item{audit.count}{the number of audits required until there were
 no more violations.}
-\item{audit.minobseq}{the minimum criterion.}
+\item{audit.criterion}{the minimum criterion.}
 \item{splinesdict}{a list including the specifications of each
 spline declared in each MTR.}
 }
