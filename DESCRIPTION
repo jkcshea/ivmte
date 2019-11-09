@@ -30,7 +30,7 @@ Description: The marginal treatment effect was introduced by Heckman and
     available from <http://lpsolve.sourceforge.net/5.5/>, and is included when
     installing its API 'lpSolveAPI', which is
     available from CRAN.
-Depends: R (>= 3.5.0)
+Depends: R (>= 3.6.0)
 Imports:
 	Formula,
 	methods,
