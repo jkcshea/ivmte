@@ -395,16 +395,12 @@ r <- do.call(ivmte, args)
 ```
 
 There are some limitations regarding the use of factor variables. For
-example, this will trigger an error.
+example, the following formula for `m1` will trigger an error.
 
 ``` r
 args[["uname"]] <- ~ "u"
 args[["m0"]] <- ~ u + yob
 args[["m1"]] <- ~ u + factor(yob)55 + factor(yob)60
-#> Error: <text>:3:34: unexpected numeric constant
-#> 2: args[["m0"]] <- ~ u + yob
-#> 3: args[["m1"]] <- ~ u + factor(yob)55
-#>                                     ^
 ```
 
 However, one can work around this in a natural way.
