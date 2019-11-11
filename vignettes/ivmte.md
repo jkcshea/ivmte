@@ -1136,7 +1136,7 @@ Estimation of Local Average Treatment Effects.” *Econometrica* 62 (2):
 Mogstad, Magne, Andres Santos, and Alexander Torgovitsky. 2018. “Using
 Instrumental Variables for Inference About Policy Relevant Treatment
 Parameters.” *Econometrica* 86 (5): 1589–1619.
-<https://doi.org/10.3982/ecta15463>.
+<https://dx.doi.org/10.3982/ecta15463>.
 
 </div>
 
@@ -1145,7 +1145,7 @@ Parameters.” *Econometrica* 86 (5): 1589–1619.
 Mogstad, Magne, and Alexander Torgovitsky. 2018. “Identification and
 Extrapolation of Causal Effects with Instrumental Variables.” *Annual
 Review of Economics* 10 (1).
-<https://doi.org/10.1146/annurev-economics-101617-041813>.
+<https://dx.doi.org/10.1146/annurev-economics-101617-041813>.
 
 </div>
 
