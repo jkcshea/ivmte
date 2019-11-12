@@ -1433,6 +1433,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     origCall <- splinesobj[[d + 1]]$splinescall[[i]][j]
                     origCall <- gsub("\\)", "\\\\)",
                                      gsub("\\(", "\\\\(", origCall))
+                    origCall <- gsub("\\$", "\\\\$", origCall)
+                    origCall <- gsub("\\.", "\\\\.", origCall)
+                    origCall <- gsub("\\+", "\\\\+", origCall)
+                    origCall <- gsub("\\*", "\\\\*", origCall)
                     md <- gsub(origCall, tmpName, md)
                 }
             }
