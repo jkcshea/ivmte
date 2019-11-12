@@ -275,7 +275,7 @@ polyProduct <- function(poly1, poly2) {
 #' @export
 genGamma <- function(monomials, lb, ub, multiplier = 1,
                      subset = NULL, means = TRUE, late.rows = NULL) {
-    if (is.null(late.rows)) late.rows <- rep(TRUE, nrow(monomials$polymat))    
+    if (is.null(late.rows)) late.rows <- rep(TRUE, nrow(monomials$polymat))
     exporder <- monomials$exporder
     polymat <- monomials$polymat
     if (!is.null(subset)) {
@@ -434,6 +434,11 @@ removeSplines <- function(formula, env = parent.frame()) {
             ## interacting with the spline
             splinecmdstr <- gsub("\\)", "\\\\)",
                                  gsub("\\(", "\\\\(", splinecmd))
+            splinecmdstr <- gsub("\\$", "\\\\$", splinecmdstr)
+            splinecmdstr <- gsub("\\.", "\\\\.", splinecmdstr)
+            splinecmdstr <- gsub("\\+", "\\\\+", splinecmdstr)
+            splinecmdstr <- gsub("\\*", "\\\\*", splinecmdstr)
+            splinecmdstr <- gsub("\\^", "\\\\^", splinecmdstr)
             interobj <- gsub(paste0(":", splinecmdstr), "", splineobj)
             interobj <- gsub(paste0(splinecmdstr, ":"), "", interobj)
             interobj <- gsub("::", ":", interobj)
