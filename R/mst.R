@@ -1437,6 +1437,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     origCall <- gsub("\\.", "\\\\.", origCall)
                     origCall <- gsub("\\+", "\\\\+", origCall)
                     origCall <- gsub("\\*", "\\\\*", origCall)
+                    origCall <- gsub("\\^", "\\\\^", origCall)
                     md <- gsub(origCall, tmpName, md)
                 }
             }
