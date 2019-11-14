@@ -895,7 +895,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             (hasArg(mte.inc) && !is.logical(mte.inc))) {
             stop(gsub("\\s+", " ",
                       "Monotonicity constraints 'm0.dec', 'm1.dec', 'mte.dec',
-                       etc. must be either TRUE or FALSE."))
+                       etc. must be either TRUE or FALSE."),
+                 call. = FALSE)
         }
         if ((hasArg(m0.lb) && !is.numeric(m0.lb)) |
             (hasArg(m1.lb) && !is.numeric(m1.lb)) |
@@ -905,7 +906,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             (hasArg(mte.ub) && !is.numeric(mte.ub))) {
             stop(gsub("\\s+", " ",
                       "Boundedness constraints 'm0.lb', 'm1.lb', 'mte.lb',
-                       etc. must be numeric."))
+                       etc. must be numeric."),
+                 call. = FALSE)
         }
     } else {
         noshape = TRUE
