@@ -887,6 +887,26 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                        (end points 0 and 1 are always included)."),
                  call. = FALSE)
         }
+        if ((hasArg(m0.dec) && !is.logical(m0.dec)) |
+            (hasArg(m1.dec) && !is.logical(m1.dec)) |
+            (hasArg(mte.dec) && !is.logical(mte.dec)) |
+            (hasArg(m0.inc) && !is.logical(m0.inc)) |
+            (hasArg(m1.inc) && !is.logical(m1.inc)) |
+            (hasArg(mte.inc) && !is.logical(mte.inc))) {
+            stop(gsub("\\s+", " ",
+                      "Monotonicity constraints 'm0.dec', 'm1.dec', 'mte.dec',
+                       etc. must be either TRUE or FALSE."))
+        }
+        if ((hasArg(m0.lb) && !is.numeric(m0.lb)) |
+            (hasArg(m1.lb) && !is.numeric(m1.lb)) |
+            (hasArg(mte.lb) && !is.numeric(mte.lb)) |
+            (hasArg(m0.ub) && !is.numeric(m0.ub)) |
+            (hasArg(m1.ub) && !is.numeric(m1.ub)) |
+            (hasArg(mte.ub) && !is.numeric(mte.ub))) {
+            stop(gsub("\\s+", " ",
+                      "Boundedness constraints 'm0.lb', 'm1.lb', 'mte.lb',
+                       etc. must be numeric."))
+        }
     } else {
         noshape = TRUE
         if (!((audit.nu %% 1 == 0) & audit.nu > 0)) {
@@ -1056,7 +1076,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         message1 <- paste("  m1:",
                           paste(c(m1uCheck, m1uSplineCheck), collapse = ", "),
                           "\n")
-
     } else {
         message1 <- NULL
     }
