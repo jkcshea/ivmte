@@ -190,10 +190,10 @@ ivEstimate <- function(formula, data, subset, components, treat,
                 grepSubcomp <- gsub("\\)", "\\\\\\)", grepSubcomp)
                 grepSubcomp <- gsub("\\.", "\\\\\\.", grepSubcomp)
                 fexpanded <- sapply(xVars, function(x) {
-                    fpos <- grep(grepSubcomp, strsplit(x, ":"))
+                    fpos <- grep(grepSubcomp, unlist(strsplit(x, ":")))
                     unlist(strsplit(x, ":"))[fpos]
                 })
-                fexpanded <- unlist(fexpanded)
+                fexpanded <- sort(unique(unlist(fexpanded)))
                 complist[[length(complist) + 1]] <- fexpanded
                 comptype <- c(comptype, "f")
             }
