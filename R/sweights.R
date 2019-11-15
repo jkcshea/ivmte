@@ -132,6 +132,8 @@ olsj <- function(X, X0, X1, components, treat, order = NULL) {
 #' Function generating the S-weights for TSLS estimand, with controls.
 #' @param X Matrix of covariates, including the treatment indicator.
 #' @param Z Matrix of instruments.
+#' @param Z0 Matrix of instruments, fixing treatment to 0.
+#' @param Z1 Matrix of instruments, fixing treatment to 1.
 #' @param components Vector of variable names of which user wants the
 #'     S-weights for.
 #' @param treat Variable name for the treatment indicator.
@@ -140,7 +142,7 @@ olsj <- function(X, X0, X1, components, treat, order = NULL) {
 #'     to.
 #' @return A list of two vectors: one is the weight for D = 0, the
 #'     other is the weight for D = 1.
-tsls <- function(X, Z, components, treat, order = NULL) {
+tsls <- function(X, Z, Z0, Z1, components, treat, order = NULL) {
     ## replace intercept name (since user cannot input
     ## parentheses---they don't use strings)
     colnames(X)[colnames(X) == "(Intercept)"] <- "intercept"
@@ -212,9 +214,12 @@ tsls <- function(X, Z, components, treat, order = NULL) {
     ezz <- (1 / nrow(Z)) * t(Z) %*% Z
     pi  <- exz %*% solve(ezz)
     ## construct weights
-    wvec <- solve(pi %*% t(exz)) %*% pi %*% t(Z)
-    wvec <- extractcols(t(wvec), cpos)
-    colnames(wvec) <- components
-    return(list(s0 = wvec,
-                s1 = wvec))
+    wvec0 <- solve(pi %*% t(exz)) %*% pi %*% t(Z0)
+    wvec0 <- extractcols(t(wvec0), cpos)
+    wvec1 <- solve(pi %*% t(exz)) %*% pi %*% t(Z1)
+    wvec1 <- extractcols(t(wvec1), cpos)
+    colnames(wvec0) <- components
+    colnames(wvec1) <- components
+    return(list(s0 = wvec0,
+                s1 = wvec1))
 }

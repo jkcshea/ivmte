@@ -60,19 +60,6 @@ piv <- function(Y, X, Z, lmcomponents = NULL, weights = NULL, order = NULL,
                   paste0("More regressors than instruments in the following
                   IV-like specification: ", formula, ".")), call. = FALSE)
     }
-    ## Check that the instruments are different from X. If they are
-    ## the same, and 'excluded = TRUE', then the user is submitting an
-    ## unclear formula.
-    if (length(colnames(X)) == length(colnames(Z)) &&
-        all(sort(colnames(X)) == sort(colnames(Z))) && excluded == TRUE) {
-        stop(gsub("\\s+", " ",
-                  paste0("Please ensure that IV-like specifications are not
-                          defined such that the first stage covariates are
-                          identical to the second stage covariates. In such
-                          specifications, simply provide the second stage
-                          regression formula.")),
-             call. = FALSE)
-    }
     fstage <-
         try(if (is.null(weights)) lm.fit(Z, X) else lm.wfit(Z, X, weights),
             silent = TRUE)
@@ -295,34 +282,36 @@ ivEstimate <- function(formula, data, subset, components, treat,
     lmcomponents[lmcomponents == "intercept"] <- "(Intercept)"
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
-        ## For the OLS case, we need to obtain additional design
-        ## matrices where we fix treatment.
         if (list == TRUE) {
             data[, colnames(data) == treat] <- 0
-            mf0 <- design(formula = formula,
+            mf0X <- design(formula = formula,
                           data = data,
                           treat = treat,
                           orig.names = colnames(mf$X))
+            mf0X <- mf0X$X
             data[, colnames(data) == treat] <- 1
-            mf1 <- design(formula = formula,
+            mf1X <- design(formula = formula,
                           data = data,
                           treat = treat,
                           orig.names = colnames(mf$X))
+            mf1X <- mf1X$X
         } else {
             data[, colnames(data) == treat] <- 0
-            mf0 <- eval(modcall(call,
+            mf0X <- eval(modcall(call,
                                  newcall = design,
                                  keepargs = c("formula", "subset"),
-                                newargs = list(data = quote(data),
-                                               treat = treat,
-                                               orig.names = colnames(mf$X))))
+                                 newargs = list(data = quote(data),
+                                                treat = treat,
+                                                orig.names = colnames(mf$X))))
+            mf0X <- mf0X$X
             data[, colnames(data) == treat] <- 1
-            mf1 <- eval(modcall(call,
+            mf1X <- eval(modcall(call,
                                 newcall = design,
                                 keepargs = c("formula", "subset"),
                                 newargs = list(data = quote(data),
                                                treat = treat,
                                                orig.names = colnames(mf$X))))
+            mf1X <- mf1X$X
         }
         bhat <- piv(mf$Y, mf$X, mf$X, lmcomponents, order = order,
                     excluded = FALSE)$coef
@@ -330,19 +319,50 @@ ivEstimate <- function(formula, data, subset, components, treat,
             collinearPos <- which(is.na(bhat))
             collinearVars <- lmcomponents[collinearPos]
             mfX <- mf$X[, -which(colnames(mf$X) %in% collinearVars)]
-            mf0X <- mf0$X[, -which(colnames(mf0$X) %in% collinearVars)]
-            mf1X <- mf1$X[, -which(colnames(mf0$X) %in% collinearVars)]
+            mf0X <- mf0X[, -which(colnames(mf0X) %in% collinearVars)]
+            mf1X <- mf1X[, -which(colnames(mf0X) %in% collinearVars)]
             collinearCompPos <- which(components %in% names(bhat)[collinearPos])
             if (length(collinearCompPos) > 0) components <-
                                                   components[-collinearCompPos]
             sweight <- olsj(mfX, mf0X, mf1X, components, treat, order)
             bhat <- bhat[-collinearPos]
         } else {
-            sweight <- olsj(mf$X, mf0$X, mf1$X, components, treat, order)
+            sweight <- olsj(mf$X, mf0X, mf1X, components, treat, order)
         }
     } else {
         if (length(formula)[2] == 2 &
             dim(mf$X)[2] <= dim(mf$Z)[2]) {
+            if (list == TRUE) {
+                data[, colnames(data) == treat] <- 0
+                mf0Z <- design(formula = formula,
+                              data = data,
+                              treat = treat,
+                              orig.names = colnames(mf$X))$Z
+                data[, colnames(data) == treat] <- 1
+                mf1Z <- design(formula = formula,
+                              data = data,
+                              treat = treat,
+                              orig.names = colnames(mf$X))$Z
+            } else {
+                data[, colnames(data) == treat] <- 0
+                mf0Z <- eval(modcall(call,
+                                    newcall = design,
+                                    keepargs = c("formula", "subset"),
+                                    newargs = list(data = quote(data),
+                                                   treat = treat,
+                                                   orig.names =
+                                                       colnames(mf$X))))
+                mf0Z <- mf0Z$Z
+                data[, colnames(data) == treat] <- 1
+                mf1Z <- eval(modcall(call,
+                                    newcall = design,
+                                    keepargs = c("formula", "subset"),
+                                    newargs = list(data = quote(data),
+                                                   treat = treat,
+                                                   orig.names =
+                                                       colnames(mf$X))))
+                mf1Z <- mf1Z$Z
+            }
             ivfit <- piv(mf$Y, mf$X, mf$Z, lmcomponents, order = order,
                          excluded = TRUE)
             bhat <- ivfit$coef
@@ -362,13 +382,15 @@ ivEstimate <- function(formula, data, subset, components, treat,
                 }
                 if (sum(collinearInst)) {
                     mfZ <- mf$Z[, !collinearInst]
+                    mf0Z <- mf0Z[, !collinearInst]
+                    mf1Z <- mf1Z[, !collinearInst]
                 } else {
                     mfZ <- mf$Z
                 }
-                sweight <- tsls(mfX, mfZ, components, treat, order)
+                sweight <- tsls(mfX, mfZ, mf0Z, mf1Z, components, treat, order)
                 if (sum(is.na(bhat))) bhat <- bhat[-collinearPos]
             } else {
-                sweight <- tsls(mf$X, mf$Z, components, treat, order)
+                sweight <- tsls(mf$X, mf$Z, mf0Z, mf1Z, components, treat, order)
             }
         } else if (length(formula)[2] == 2 & dim(mf$X)[2] > dim(mf$Z)[2]) {
             stop(gsub("\\s+", " ",

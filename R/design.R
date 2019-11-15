@@ -55,7 +55,6 @@ design <- function(formula, data, subset, treat, orig.names) {
             formulaStr <- gsub(paste0("factor\\(", treat, "\\)"),
                                paste0("(", treat, " == ", degenVal, ")"),
                            formulaStr)
-
             formula <- as.formula(formulaStr)
         }
     }
