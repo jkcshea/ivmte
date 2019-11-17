@@ -2518,7 +2518,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ## 2. Generate target moments/gamma terms
     ##---------------------------
     if (noisy == TRUE) {
-        cat("Generating target moments...\n")
+        cat("\nGenerating target moments...\n")
     }
     ## Parse polynomials
     if (!is.null(m0)) {
@@ -2586,7 +2586,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
     if (noisy == TRUE) {
-        cat("Generating IV-like moments...\n")
+        cat("\nGenerating IV-like moments...\n")
     }
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
@@ -2595,8 +2595,24 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
         ivlikeCounter <- 1
+        ivlikeD <- NULL
         for (i in 1:length(ivlike)) {
             sformula   <- ivlike[[i]]
+            if (all(length(Formula::as.Formula(sformula)) == c(1, 1))) {
+                if (treat %in% all.vars(Formula::as.Formula(sformula)[[3]])) {
+                    ivlikeD <- c(ivlikeD, TRUE)
+                } else {
+                    ivlikeD <- c(ivlikeD, FALSE)
+                }
+            }
+            if (all(length(Formula::as.Formula(sformula)) == c(1, 2))) {
+                if (treat %in%
+                    all.vars(Formula::as.Formula(sformula)[[3]][[2]])) {
+                    ivlikeD <- c(ivlikeD, TRUE)
+                } else {
+                    ivlikeD <- c(ivlikeD, FALSE)
+                }
+            }
             environment(sformula) <- environments$ivlike
             scomponent <- components[[i]]
             if (subset[[i]] == "") {
@@ -2716,8 +2732,23 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ##---------------------------
     ## 4. Define constraint matrices using the audit
     ##---------------------------
+
+    ## Check number of linearly independent moments
+    rankA <- qr(Reduce("rbind", lapply(sset, function(x) {
+        c(x$g0, x$g1)
+    })))$rank
+    if (noisy == TRUE) cat("    Independent moments:", rankA, "\n")
+    if (rankA < length(sset) && !all(ivlikeD)) {
+        warning(gsub("\\s+", " ",
+                     paste0("The following IV-like specifications do not
+                            include the treatment variable: ",
+                            paste(which(!ivlikeD), collapse = ", "),
+                            ". This may result in fewer
+                            independent moment conditions than expected.")),
+                call. = FALSE)
+    }
     if (noisy == TRUE) {
-        cat("Performing audit procedure...\n")
+        cat("\nPerforming audit procedure...\n")
     }
     audit.args <- c("uname", "vars_data",
                     "initgrid.nu", "initgrid.nx",
@@ -2879,6 +2910,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        bounds = c(audit$min, audit$max),
                        lpresult =  audit$lpresult,
                        lpsolver = lpsolver,
+                       indep.moments = rankA,
                        audit.grid = list(initial = audit$gridobj$initial$grid,
                                          audit = audit$gridobj$audit$grid,
                                          violations = audit$gridobj$violations),
@@ -2899,6 +2931,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                         maxg1 = audit$maxg1),
                        bounds = c(audit$min, audit$max),
                        lpsolver = lpsolver,
+                       indep.moments = rankA,
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
                        splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
