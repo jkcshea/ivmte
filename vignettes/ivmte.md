@@ -91,7 +91,7 @@ for solving linear programs that can be installed solely through
 CPLEX, since these are actively developed, much more stable, and
 typically an order of magnitude faster than **lpSolveAPI**. A very clear
 installation guide for Gurobi can be found
-[here](https://cran.r-project.org/web/packages/prioritizr/vignettes/gurobi_installation.html)
+[here](https://cran.r-project.org/package=prioritizr/vignettes/gurobi_installation.html)
 
 ## Usage Demonstration
 
