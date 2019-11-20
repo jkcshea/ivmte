@@ -377,6 +377,16 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     uname <- deparse(substitute(uname))
     uname <- gsub("~", "", uname)
     uname <- gsub("\\\"", "", uname)
+    ## Ensure data can be converted to a data.frame
+    if (("data.frame" %in% class(data)) |
+        ("matrix" %in% class(data))) {
+        data <- as.data.frame(data)
+    } else  {
+        stop(gsub("\\s+", " ",
+                  "'data' argument must either be a data.frame,
+                   data.table, tibble, or matrix."),
+             call. = FALSE)
+    }
     ## Ensure MTRs are formulas
     if (classFormula(m0) && classFormula(m1)) {
         if (all(length(Formula::as.Formula(m0)) == c(0, 1)) &&
