@@ -15,10 +15,10 @@ ivmteEstimate(data, target, late.Z, late.from, late.to, late.X, eval.X,
   audit.nu = 25, audit.add = 100, audit.max = 25,
   audit.grid = NULL, save.grid = FALSE, point = FALSE,
   point.eyeweight = TRUE, point.center = NULL,
-  point.redundant = NULL, orig.sset = NULL, orig.criterion = NULL,
-  vars_y, vars_mtr, terms_mtr0, terms_mtr1, vars_data, splinesobj,
-  noisy = TRUE, smallreturnlist = FALSE, seed = 12345,
-  debug = FALSE, environments)
+  point.redundant = NULL, count.moments = TRUE, orig.sset = NULL,
+  orig.criterion = NULL, vars_y, vars_mtr, terms_mtr0, terms_mtr1,
+  vars_data, splinesobj, noisy = TRUE, smallreturnlist = FALSE,
+  seed = 12345, debug = FALSE, environments)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -251,8 +251,11 @@ conditions from the original sample can be passed through this
 argument to recenter the bootstrap distribution of the
 J-statistic.}
 
-\item{point.redundant}{vector of integers indicating which components in
-the S-set are redundant.}
+\item{point.redundant}{vector of integers indicating which
+components in the S-set are redundant.}
+
+\item{count.moments}{boolean, indicate if number of linearly
+independent moments should be counted.}
 
 \item{orig.sset}{list, only used for bootstraps. The list caontains
 the gamma moments for each element in the S-set, as well as the

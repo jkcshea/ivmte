@@ -217,7 +217,7 @@ type of extrapolation question.
 
 For demonstrating some of the features of **ivmte**, it will also be
 useful to use a simulated dataset. The following code, which is
-contained in `./data-raw/ivmteSimData.R`, generates some simulated data
+contained in `./extdata/ivmteSimData.R`, generates some simulated data
 from a simple DGP. The simulated data is also included with the package
 as `./data/ivmteSimData.rda`.
 

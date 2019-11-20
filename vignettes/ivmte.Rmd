@@ -143,7 +143,7 @@ The purpose of **ivmte** is to provide a formal framework for answering this typ
 --------------------------------------
 
 For demonstrating some of the features of **ivmte**, it will also be useful to use a simulated dataset.
-The following code, which is contained in `./data-raw/ivmteSimData.R`, generates some simulated data from a simple DGP.
+The following code, which is contained in `./extdata/ivmteSimData.R`, generates some simulated data from a simple DGP.
 The simulated data is also included with the package as `./data/ivmteSimData.rda`.
 
 ```{r, drawData-sim, results='markdown'}

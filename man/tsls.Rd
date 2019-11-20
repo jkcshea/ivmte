@@ -4,12 +4,16 @@
 \alias{tsls}
 \title{TSLS weights, with controls}
 \usage{
-tsls(X, Z, components, treat, order = NULL)
+tsls(X, Z, Z0, Z1, components, treat, order = NULL)
 }
 \arguments{
 \item{X}{Matrix of covariates, including the treatment indicator.}
 
 \item{Z}{Matrix of instruments.}
+
+\item{Z0}{Matrix of instruments, fixing treatment to 0.}
+
+\item{Z1}{Matrix of instruments, fixing treatment to 1.}
 
 \item{components}{Vector of variable names of which user wants the
 S-weights for.}
