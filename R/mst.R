@@ -2473,7 +2473,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           audit.max = 25, audit.grid = NULL,
                           save.grid = FALSE,
                           point = FALSE,
-                          point.eyeweight = TRUE,
+                          point.eyeweight = FALSE,
                           point.center = NULL, point.redundant = NULL,
                           count.moments = TRUE,
                           orig.sset = NULL,
@@ -2518,7 +2518,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (noisy == TRUE) {
         cat("Obtaining propensity scores...\n")
     }
-
     ## Estimate propensity scores
     pcall <- modcall(call,
                      newcall = propensity,
@@ -2606,6 +2605,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
     scount <- 1     ## counter for S-set constraints
+    subsetIndexList <- list()
     if (classList(ivlike)) {
         ## Construct `sset' object when multiple IV-like
         ## specifications are provided
@@ -2647,6 +2647,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands
             subset_index <- rownames(sdata)
+            if (length(subset_index) == nrow(data)) {
+                subsetIndexList[[ivlikeCounter]] <- NA
+            } else {
+                subsetIndexList[[ivlikeCounter]] <- as.integer(subset_index)
+            }
             ncomponents <- sum(!is.na(sest$betas))
             pmodobj <- pmodel$phat[subset_index]
             setobj <- genSSet(data = data,
@@ -2679,8 +2684,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (count.moments) {
         gn0 <- ncol(sset$s1$g0)
         gn1 <- ncol(sset$s1$g1)
-        ## Perform first step of GMM
-        mm <- momentMatrix(sset, gn0, gn1)
+        mm <- momentMatrix(sset, gn0, gn1, subsetIndexList, nrow(data))
         mlist <- (seq(length(sset)) - 1) * (gn0 + gn1 + 1) + 1
         altmm <- matrix(t(mm[, -mlist]), byrow = TRUE, ncol = (gn0 + gn1))
         altmean <- Matrix::Matrix(t(rep(1, nrow(mm)) %x% diag(length(sset))),
@@ -2732,6 +2736,27 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             sset[[s]]$ys <- NULL
         }
     }
+    ## An alternative way to count moments.
+    ## momentMatrix <- NULL
+    ## for (s in 1:length(sset)) {
+    ##     if (!is.null(subsetIndexList)) {
+    ##         momentMatrixTmp <- rep(0,  times = 2 * nrow(data))
+    ##         if (!is.integer(subsetIndexList[[sset[[s]]$ivspec]])) {
+    ##             momentMatrixTmp <- c(sset[[s]]$w0$multiplier,
+    ##                                  sset[[s]]$w1$multiplier)
+    ##         } else {
+    ##             momentMatrixTmp[c(subsetIndexList[[sset[[s]]$ivspec]],
+    ##                               nrow(data) +
+    ##                               subsetIndexList[[sset[[s]]$ivspec]])] <-
+    ##                 c(sset[[s]]$w0$multiplier, sset[[s]]$w1$multiplier)
+    ##         }
+    ##     } else {
+    ##         momentMatrixTmp <- c(sset[[s]]$w0$multiplier,
+    ##                              sset[[s]]$w1$multiplier)
+    ##     }
+    ##     momentMatrix <- cbind(momentMatrix, momentMatrixTmp)
+    ## }
+    ## nIndepMoments <- qr(momentMtarix)$rank
     if (!is.null(point.redundant)) point.redundant <- 0
     ## If bootstrapping, check that length of sset is equivalent in
     ## length to that of the original sset if bootstrapping
@@ -2741,6 +2766,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         }
     }
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
+    splinesCheck <- !(all(is.null(splinesobj[[1]]$splineslist)) &&
+        all(is.null(splinesobj[[2]]$splineslist)))
     if (point == TRUE) {
         ## Obtain GMM estimate
         gmmResult <- gmmEstimate(sset = sset,
@@ -2749,6 +2776,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                  center = point.center,
                                  identity = point.eyeweight,
                                  redundant = point.redundant,
+                                 subsetList = subsetIndexList,
+                                 n = nrow(data),
+                                 nMoments = nIndepMoments,
+                                 splines = splinesCheck,
                                  noisy = noisy)
         if (!smallreturnlist) {
             return(list(sset  = sset,
@@ -3666,11 +3697,20 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     identified case obtained from the original sample can be passed
 #'     through this argument to recenter the bootstrap distribution of
 #'     the J-statistic.
+#' @param subsetList list of subset indexes, one for each IV-like
+#'     specification.
+#' @param n number of observations in the data. This option is only
+#'     used when subsetting is involved.
 #' @param redundant vector of integers indicating which components in
 #'     the S-set are redundant.
 #' @param identity boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
+#' @param nMoments number of linearly independent moments. This option
+#'     is used to determine the cause of underidentified cases.
+#' @param splines boolean, set to \code{TRUE} if the MTRs involve
+#'     splines. This option is used to determine the cause of
+#'     underidentified cases.
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
 #'     then messages are provided throughout the estimation
 #'     procedure. Set to \code{FALSE} to suppress all messages,
@@ -3752,41 +3792,57 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'             gstar1 = targetGamma$gstar1)
 #'
 #' @export
-gmmEstimate <- function(sset, gstar0, gstar1, center = NULL, redundant = NULL,
-                        identity = FALSE, noisy = TRUE) {
+gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
+                        subsetList = NULL, n = NULL, redundant = NULL,
+                        identity = FALSE, nMoments, splines,
+                        noisy = TRUE) {
     gn0 <- ncol(gstar0)
     gn1 <- ncol(gstar1)
     if ((gn0 + gn1) > length(sset)) {
         stop(gsub("\\s+", " ",
-                  paste0("System is underidentified: there are ",
+                  paste0("GMM system is underidentified: there are ",
                          (gn0 + gn1),
                          " unknown MTR coefficients and ",
                          length(sset),
                          " moment conditions defined by IV-like
                          specifications. Either expand the number of
-                         IV-like specifications, or adjust m0 and m1.")),
-             call. = FALSE)
-    }
-    Amat <- matrix(colMeans(momentMatrix(sset, gn0, gn1)),
-                   ncol = 1 + gn0 + gn1, byrow = TRUE)[, -1]
-    if (qr(Amat)$rank < (gn0 + gn1)) {
-        stop(gsub("\\s+", " ",
-                  paste0("GMM system is underidentified: there are ",
-                  (gn0 + gn1),
-                  " unknown MTR coefficients and ",
-                  qr(Amat)$rank,
-                  " linearly independent moment conditions defined by the
-                    IV-like specifications. Either adjust the
-                    IV-like specifications, or adjust m0 and m1.")),
+                         moments, or adjust m0 and m1.")),
              call. = FALSE)
     }
     ## Perform first step of GMM
-    mm <- momentMatrix(sset, gn0, gn1)
+    mm <- momentMatrix(sset, gn0, gn1, subsetList, n)
     mlist <- (seq(length(sset)) - 1) * (gn0 + gn1 + 1) + 1
     altmm <- matrix(t(mm[, -mlist]), byrow = TRUE, ncol = (gn0 + gn1))
     altmean <- Matrix::Matrix(t(rep(1, nrow(mm)) %x% diag(length(sset))),
                               sparse = TRUE)
     xmat <- matrix(altmean %*% altmm / nrow(mm), ncol = (gn0 + gn1))
+    if (qr(xmat)$rank < (gn0 + gn1)) {
+        if (hasArg(nMoments) && hasArg(splines)) {
+            if (nMoments > qr(xmat)$rank && splines) {
+                stop(gsub("\\s+", " ",
+                          paste0("GMM system is underidentified: there are ",
+                          (gn0 + gn1),
+                          " unknowns, but the Gamma matrix has rank ",
+                          qr(xmat)$rank,
+                          ". The previous count of ",
+                          nMoments,
+                          " independent moments becomes
+                          unreliable when m0 or m1 includes splines.
+                          Either adjust the IV-like specifications,
+                          or adjust m0 and m1.")),
+                     call. = FALSE)
+            }
+        }
+        stop(gsub("\\s+", " ",
+                  paste0("GMM system is underidentified: there are ",
+                  (gn0 + gn1),
+                  " unknown MTR coefficients and ",
+                  qr(xmat)$rank,
+                  " linearly independent moment conditions defined by the
+                    IV-like specifications. Either adjust the
+                    IV-like specifications, or adjust m0 and m1.")),
+             call. = FALSE)
+    }
     ymat <- colMeans(mm[, mlist])
     ## Address collinear moments
     if (is.null(redundant)) {
@@ -3939,14 +3995,31 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL, redundant = NULL,
 #'     is what is used to generate the gamma moments.
 #' @param gn0 integer, number of terms in the MTR for control group.
 #' @param gn1 integer, number of terms in the MTR for treated group.
+#' @param subsetList list of subset indexes, one for each IV-like
+#'     specification.
+#' @param n number of observations in the data. This option is only
+#'     used when subsets are involved.
 #' @return matrix whose column means can be used to carry out the GMM
 #'     estimation.
-momentMatrix <- function(sset, gn0, gn1) {
+momentMatrix <- function(sset, gn0, gn1, subsetList = NULL, n = NULL) {
     momentMatrix <- NULL
     momentNames <- NULL
     for (s in 1:length(sset)) {
+        if (!is.null(subsetList)) {
+            momentMatrixTmp <- matrix(0, nrow = n, ncol = 1 + gn0 + gn1)
+            if (!is.integer(subsetList[[sset[[s]]$ivspec]])) {
+                momentMatrixTmp <- cbind(sset[[s]]$ys,
+                                         sset[[s]]$g0,
+                                         sset[[s]]$g1)
+            } else {
+                momentMatrixTmp[subsetList[[sset[[s]]$ivspec]], ] <-
+                    cbind(sset[[s]]$ys , sset[[s]]$g0, sset[[s]]$g1)
+            }
+        } else {
+            momentMatrixTmp <- cbind(sset[[s]]$ys, sset[[s]]$g0, sset[[s]]$g1)
+        }
         momentMatrix <- cbind(momentMatrix,
-                              sset[[s]]$ys , sset[[s]]$g0,  sset[[s]]$g1)
+                              momentMatrixTmp)
         momentNames <- c(momentNames,
                          paste0("s", s, "y"),
                          paste0("s", s, "g0", seq(1, gn0)),
