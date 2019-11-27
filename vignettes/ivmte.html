@@ -895,25 +895,29 @@ body {
 <a class="sourceLine" id="cb9-8" title="8"><span class="co">#&gt; LP solver: Gurobi (&#39;gurobi&#39;)</span></a>
 <a class="sourceLine" id="cb9-9" title="9"><span class="co">#&gt; </span></a>
 <a class="sourceLine" id="cb9-10" title="10"><span class="co">#&gt; Obtaining propensity scores...</span></a>
-<a class="sourceLine" id="cb9-11" title="11"><span class="co">#&gt; Generating target moments...</span></a>
-<a class="sourceLine" id="cb9-12" title="12"><span class="co">#&gt;     Integrating terms for control group...</span></a>
-<a class="sourceLine" id="cb9-13" title="13"><span class="co">#&gt;     Integrating terms for treated group...</span></a>
-<a class="sourceLine" id="cb9-14" title="14"><span class="co">#&gt; Generating IV-like moments...</span></a>
-<a class="sourceLine" id="cb9-15" title="15"><span class="co">#&gt;     Moment 1...</span></a>
-<a class="sourceLine" id="cb9-16" title="16"><span class="co">#&gt;     Moment 2...</span></a>
-<a class="sourceLine" id="cb9-17" title="17"><span class="co">#&gt;     Moment 3...</span></a>
-<a class="sourceLine" id="cb9-18" title="18"><span class="co">#&gt;     Moment 4...</span></a>
-<a class="sourceLine" id="cb9-19" title="19"><span class="co">#&gt; Performing audit procedure...</span></a>
-<a class="sourceLine" id="cb9-20" title="20"><span class="co">#&gt;     Generating audit grid...</span></a>
-<a class="sourceLine" id="cb9-21" title="21"><span class="co">#&gt;     Generating initial constraint grid...</span></a>
+<a class="sourceLine" id="cb9-11" title="11"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-12" title="12"><span class="co">#&gt; Generating target moments...</span></a>
+<a class="sourceLine" id="cb9-13" title="13"><span class="co">#&gt;     Integrating terms for control group...</span></a>
+<a class="sourceLine" id="cb9-14" title="14"><span class="co">#&gt;     Integrating terms for treated group...</span></a>
+<a class="sourceLine" id="cb9-15" title="15"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-16" title="16"><span class="co">#&gt; Generating IV-like moments...</span></a>
+<a class="sourceLine" id="cb9-17" title="17"><span class="co">#&gt;     Moment 1...</span></a>
+<a class="sourceLine" id="cb9-18" title="18"><span class="co">#&gt;     Moment 2...</span></a>
+<a class="sourceLine" id="cb9-19" title="19"><span class="co">#&gt;     Moment 3...</span></a>
+<a class="sourceLine" id="cb9-20" title="20"><span class="co">#&gt;     Moment 4...</span></a>
+<a class="sourceLine" id="cb9-21" title="21"><span class="co">#&gt;     Independent moments: 4 </span></a>
 <a class="sourceLine" id="cb9-22" title="22"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb9-23" title="23"><span class="co">#&gt;     Audit count: 1</span></a>
-<a class="sourceLine" id="cb9-24" title="24"><span class="co">#&gt;     Minimum criterion: 0</span></a>
-<a class="sourceLine" id="cb9-25" title="25"><span class="co">#&gt;     Obtaining bounds...</span></a>
-<a class="sourceLine" id="cb9-26" title="26"><span class="co">#&gt;     Violations: 0</span></a>
-<a class="sourceLine" id="cb9-27" title="27"><span class="co">#&gt;     Audit finished.</span></a>
-<a class="sourceLine" id="cb9-28" title="28"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb9-29" title="29"><span class="co">#&gt; Bounds on the target parameter: [-0.09835591, -0.08285941]</span></a></code></pre></div>
+<a class="sourceLine" id="cb9-23" title="23"><span class="co">#&gt; Performing audit procedure...</span></a>
+<a class="sourceLine" id="cb9-24" title="24"><span class="co">#&gt;     Generating audit grid...</span></a>
+<a class="sourceLine" id="cb9-25" title="25"><span class="co">#&gt;     Generating initial constraint grid...</span></a>
+<a class="sourceLine" id="cb9-26" title="26"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-27" title="27"><span class="co">#&gt;     Audit count: 1</span></a>
+<a class="sourceLine" id="cb9-28" title="28"><span class="co">#&gt;     Minimum criterion: 0</span></a>
+<a class="sourceLine" id="cb9-29" title="29"><span class="co">#&gt;     Obtaining bounds...</span></a>
+<a class="sourceLine" id="cb9-30" title="30"><span class="co">#&gt;     Violations: 0</span></a>
+<a class="sourceLine" id="cb9-31" title="31"><span class="co">#&gt;     Audit finished.</span></a>
+<a class="sourceLine" id="cb9-32" title="32"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-33" title="33"><span class="co">#&gt; Bounds on the target parameter: [-0.09835591, -0.08285941]</span></a></code></pre></div>
 <p>The <code>ivmte</code> function indicates its progress in performing a sequence of intermediate operations. It then runs through an audit procedure to enforce shape constraints. The audit procedure is described in more detail <a href="#audit">ahead</a>. After the audit procedure terminates, <code>ivmte</code> returns bounds on the target parameter, which in this case is the average treatment on the treated (<code>target = &quot;att&quot;</code>). These bounds are the primary output of interest. The detailed output can be suppressed by passing <code>noisy = FALSE</code> as an additional parameter:</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb10-1" title="1">results &lt;-<span class="st"> </span><span class="kw">ivmte</span>(<span class="dt">data =</span> AE,</a>
 <a class="sourceLine" id="cb10-2" title="2">                 <span class="dt">target =</span> <span class="st">&quot;att&quot;</span>,</a>
@@ -1162,10 +1166,13 @@ body {
 <a class="sourceLine" id="cb24-8" title="8">             <span class="dt">propensity =</span> d <span class="op">~</span><span class="st"> </span>z <span class="op">+</span><span class="st"> </span>x,</a>
 <a class="sourceLine" id="cb24-9" title="9">             <span class="dt">noisy =</span> <span class="ot">FALSE</span>)</a>
 <a class="sourceLine" id="cb24-10" title="10">r &lt;-<span class="st"> </span><span class="kw">do.call</span>(ivmte, args)</a>
-<a class="sourceLine" id="cb24-11" title="11"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb24-12" title="12"><span class="co">#&gt; Bounds on the target parameter: [-0.6427017, -0.3727193]</span></a>
-<a class="sourceLine" id="cb24-13" title="13"><span class="co">#&gt; Audit terminated successfully after 1 round.</span></a>
-<a class="sourceLine" id="cb24-14" title="14"><span class="co">#&gt; </span></a></code></pre></div>
+<a class="sourceLine" id="cb24-11" title="11"><span class="co">#&gt; Warning: The following IV-like specifications do not include the treatment</span></a>
+<a class="sourceLine" id="cb24-12" title="12"><span class="co">#&gt; variable: 1. This may result in fewer independent moment conditions than</span></a>
+<a class="sourceLine" id="cb24-13" title="13"><span class="co">#&gt; expected.</span></a>
+<a class="sourceLine" id="cb24-14" title="14"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb24-15" title="15"><span class="co">#&gt; Bounds on the target parameter: [-0.6427017, -0.3727193]</span></a>
+<a class="sourceLine" id="cb24-16" title="16"><span class="co">#&gt; Audit terminated successfully after 1 round.</span></a>
+<a class="sourceLine" id="cb24-17" title="17"><span class="co">#&gt; </span></a></code></pre></div>
 <p>There are 10 moments being fit in this specification. Five of these moments correspond to the constant term, the coefficients on the three dummies <code>(z == 1)</code>, <code>(z == 2)</code> and <code>(z == 3)</code>, and the coefficient on <code>x</code> from the first linear regression. There are three more coefficients from the second regression of <code>y</code> on <code>d</code>, <code>x</code>, and a constant. Finally, there are two moments from the TSLS (simple IV in this case) regression of <code>y</code> on <code>d</code> and a constant, using <code>z</code> and a constant as instruments.</p>
 <h4 id="using-only-subcomponents">Using Only Subcomponents</h4>
 <p>The default behavior of <code>ivmte</code> is to use all of the moments from each formula included in <code>ivlike</code>. There are reasons one might not want to do this, such as if certain moments are estimated poorly (i.e. with substantial statistical error). For more information, see the discussions in Mogstad, Santos, and Torgovitsky (2018) and Mogstad and Torgovitsky (2018).</p>
@@ -1195,10 +1202,13 @@ body {
 <a class="sourceLine" id="cb27-9" title="9">             <span class="dt">propensity =</span> d <span class="op">~</span><span class="st"> </span>z <span class="op">+</span><span class="st"> </span>x,</a>
 <a class="sourceLine" id="cb27-10" title="10">             <span class="dt">noisy =</span> <span class="ot">FALSE</span>)</a>
 <a class="sourceLine" id="cb27-11" title="11">r &lt;-<span class="st"> </span><span class="kw">do.call</span>(ivmte, args)</a>
-<a class="sourceLine" id="cb27-12" title="12"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb27-13" title="13"><span class="co">#&gt; Bounds on the target parameter: [-0.6697228, -0.3331582]</span></a>
-<a class="sourceLine" id="cb27-14" title="14"><span class="co">#&gt; Audit terminated successfully after 2 rounds.</span></a>
-<a class="sourceLine" id="cb27-15" title="15"><span class="co">#&gt; </span></a></code></pre></div>
+<a class="sourceLine" id="cb27-12" title="12"><span class="co">#&gt; Warning: The following IV-like specifications do not include the treatment</span></a>
+<a class="sourceLine" id="cb27-13" title="13"><span class="co">#&gt; variable: 1. This may result in fewer independent moment conditions than</span></a>
+<a class="sourceLine" id="cb27-14" title="14"><span class="co">#&gt; expected.</span></a>
+<a class="sourceLine" id="cb27-15" title="15"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb27-16" title="16"><span class="co">#&gt; Bounds on the target parameter: [-0.6697228, -0.3331582]</span></a>
+<a class="sourceLine" id="cb27-17" title="17"><span class="co">#&gt; Audit terminated successfully after 2 rounds.</span></a>
+<a class="sourceLine" id="cb27-18" title="18"><span class="co">#&gt; </span></a></code></pre></div>
 <h3 id="specifying-the-propensity-score">Specifying the Propensity Score</h3>
 <p>The procedure implemented by <code>ivmte</code> requires first estimating the propensity score, that is, the probability that the binary treatment variable is 1, conditional on the instrument and other covariates. This must be specified with the <code>propensity</code> option, which expects a formula. The treatment variable is inferred to be the variable on the left-hand side of the <code>propensity</code>. The default is to estimate the formula as a logit model via the <code>glm</code> command, but this can be changed to <code>&quot;linear&quot;</code> or <code>&quot;probit&quot;</code> with the <code>link</code> option.</p>
 <div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb28-1" title="1">results &lt;-<span class="st"> </span><span class="kw">ivmte</span>(<span class="dt">data =</span> AE,</a>
@@ -1230,7 +1240,7 @@ body {
 <a class="sourceLine" id="cb29-13" title="13">args[[<span class="st">&quot;point&quot;</span>]] &lt;-<span class="st"> </span><span class="ot">TRUE</span></a>
 <a class="sourceLine" id="cb29-14" title="14">r &lt;-<span class="st"> </span><span class="kw">do.call</span>(ivmte, args)</a>
 <a class="sourceLine" id="cb29-15" title="15"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb29-16" title="16"><span class="co">#&gt; Point estimate of the target parameter: -0.5325135</span></a></code></pre></div>
+<a class="sourceLine" id="cb29-16" title="16"><span class="co">#&gt; Point estimate of the target parameter: -0.5389508</span></a></code></pre></div>
 <p>Notice that even though <code>point = FALSE</code> and <code>point = TRUE</code> provide a single number for the target parameter in this scenario, that number is slightly different. The reason is that, for computational reasons, <code>point = TRUE</code> uses the usual quadratic loss, while <code>point = FALSE</code> uses absolute deviations loss. One should use <code>point = TRUE</code> if the model is point identified, since it computes confidence intervals and specification tests (discussed ahead) in a well-understood way. The default when <code>point = TRUE</code> is to use the optimal two-step GMM weighting, however the identity weighting can be computed by passing <code>point.eyeweight = TRUE</code>.</p>
 <h3 id="confidence-intervals">Confidence Intervals</h3>
 <p>The <code>ivmte</code> command does provide functionality for constructing confidence regions, although this is turned off by default, since it can be computationally expensive. To turn it on, set <code>bootstraps</code> to be a positive integer.</p>
@@ -1251,8 +1261,7 @@ body {
 <a class="sourceLine" id="cb30-15" title="15"><span class="co">#&gt;     95%: [-0.2185989, -0.003729633]</span></a>
 <a class="sourceLine" id="cb30-16" title="16"><span class="co">#&gt;     99%: [-0.2300391, 0.0006812143]</span></a>
 <a class="sourceLine" id="cb30-17" title="17"><span class="co">#&gt; p-value: 0.04</span></a>
-<a class="sourceLine" id="cb30-18" title="18"><span class="co">#&gt; Bootstrapped specification test p-value: 1</span></a>
-<a class="sourceLine" id="cb30-19" title="19"><span class="co">#&gt; Number of bootstraps: 50</span></a></code></pre></div>
+<a class="sourceLine" id="cb30-18" title="18"><span class="co">#&gt; Number of bootstraps: 50</span></a></code></pre></div>
 <p>Other options relevent to confidence region construction are <code>bootstraps.m</code>, which indicates the number of observations to draw from the sample on each bootstrap replication, and <code>bootstraps.replace</code> to indicate whether these observations should be drawn with or without replacement. The default is to set <code>bootstraps.m</code> to the sample size of the observed data with <code>bootstraps.replace = TRUE</code>. This corresponds to the usual nonparametric bootstrap. Choosing <code>bootstraps.m</code> to be smaller than the sample size and setting <code>bootstraps.replace</code> to be <code>TRUE</code> or <code>FALSE</code> corresponds to the “m out of n” bootstrap or subsampling, respectively. Regardless of these settings, two types of confidence regions are constructed following the terminology of Andrews and Han (2009); see Shea and Torgovitsky (2019) for more detail, references, and important theoretical caveats to the procedures.</p>
 <p>Confidence regions can also be constructed when <code>point == TRUE</code> in a similar way.</p>
 <div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb31-1" title="1">args &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="dt">data =</span> AE,</a>
@@ -1305,22 +1314,16 @@ body {
 <a class="sourceLine" id="cb32-26" title="26">r &lt;-<span class="st"> </span><span class="kw">do.call</span>(ivmte, args)</a>
 <a class="sourceLine" id="cb32-27" title="27"><span class="co">#&gt; Warning: If argument &#39;point&#39; is set to TRUE, then shape restrictions on m0</span></a>
 <a class="sourceLine" id="cb32-28" title="28"><span class="co">#&gt; and m1 are ignored, and the audit procedure is not implemented.</span></a>
-<a class="sourceLine" id="cb32-29" title="29"><span class="co">#&gt; Warning: The following components have been dropped due to collinearity: </span></a>
-<a class="sourceLine" id="cb32-30" title="30"><span class="co">#&gt;  IV-like Spec.     Component</span></a>
-<a class="sourceLine" id="cb32-31" title="31"><span class="co">#&gt;  ------------------------------------------</span></a>
-<a class="sourceLine" id="cb32-32" title="32"><span class="co">#&gt;  1                 d </span></a>
-<a class="sourceLine" id="cb32-33" title="33"><span class="co">#&gt;  1                 d </span></a>
-<a class="sourceLine" id="cb32-34" title="34"><span class="co">#&gt;  1                 d</span></a>
-<a class="sourceLine" id="cb32-35" title="35"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb32-36" title="36"><span class="co">#&gt; Point estimate of the target parameter: -0.595065</span></a>
-<a class="sourceLine" id="cb32-37" title="37"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb32-38" title="38"><span class="co">#&gt; Bootstrapped confidence intervals (nonparametric):</span></a>
-<a class="sourceLine" id="cb32-39" title="39"><span class="co">#&gt;     90%: [-0.6782683, -0.5262742]</span></a>
-<a class="sourceLine" id="cb32-40" title="40"><span class="co">#&gt;     95%: [-0.6823161, -0.5158032]</span></a>
-<a class="sourceLine" id="cb32-41" title="41"><span class="co">#&gt;     99%: [-0.704449, -0.5122817]</span></a>
-<a class="sourceLine" id="cb32-42" title="42"><span class="co">#&gt; p-value: 0</span></a>
-<a class="sourceLine" id="cb32-43" title="43"><span class="co">#&gt; Bootstrapped J-test p-value: 0.46</span></a>
-<a class="sourceLine" id="cb32-44" title="44"><span class="co">#&gt; Number of bootstraps: 50</span></a></code></pre></div>
+<a class="sourceLine" id="cb32-29" title="29"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb32-30" title="30"><span class="co">#&gt; Point estimate of the target parameter: -0.5559325</span></a>
+<a class="sourceLine" id="cb32-31" title="31"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb32-32" title="32"><span class="co">#&gt; Bootstrapped confidence intervals (nonparametric):</span></a>
+<a class="sourceLine" id="cb32-33" title="33"><span class="co">#&gt;     90%: [-0.6066197, -0.5112431]</span></a>
+<a class="sourceLine" id="cb32-34" title="34"><span class="co">#&gt;     95%: [-0.6101133, -0.5086833]</span></a>
+<a class="sourceLine" id="cb32-35" title="35"><span class="co">#&gt;     99%: [-0.6147004, -0.4743232]</span></a>
+<a class="sourceLine" id="cb32-36" title="36"><span class="co">#&gt; p-value: 0</span></a>
+<a class="sourceLine" id="cb32-37" title="37"><span class="co">#&gt; Bootstrapped J-test p-value: 0.44</span></a>
+<a class="sourceLine" id="cb32-38" title="38"><span class="co">#&gt; Number of bootstraps: 50</span></a></code></pre></div>
 <h2 id="help-feature-requests-and-bug-reports">Help, Feature Requests and Bug Reports</h2>
 <p>Please post an issue on the <a href="https://github.com/jkcshea/ivmte/issues">GitHub repository</a>.</p>
 <h2 id="references">References</h2>

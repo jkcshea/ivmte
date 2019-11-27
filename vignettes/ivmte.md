@@ -297,14 +297,18 @@ results <- ivmte(data = AE,
 #> LP solver: Gurobi ('gurobi')
 #> 
 #> Obtaining propensity scores...
+#> 
 #> Generating target moments...
 #>     Integrating terms for control group...
 #>     Integrating terms for treated group...
+#> 
 #> Generating IV-like moments...
 #>     Moment 1...
 #>     Moment 2...
 #>     Moment 3...
 #>     Moment 4...
+#>     Independent moments: 4 
+#> 
 #> Performing audit procedure...
 #>     Generating audit grid...
 #>     Generating initial constraint grid...
@@ -777,6 +781,9 @@ args <- list(data = ivmteSimData,
              propensity = d ~ z + x,
              noisy = FALSE)
 r <- do.call(ivmte, args)
+#> Warning: The following IV-like specifications do not include the treatment
+#> variable: 1. This may result in fewer independent moment conditions than
+#> expected.
 #> 
 #> Bounds on the target parameter: [-0.6427017, -0.3727193]
 #> Audit terminated successfully after 1 round.
@@ -856,6 +863,9 @@ args <- list(data = ivmteSimData,
              propensity = d ~ z + x,
              noisy = FALSE)
 r <- do.call(ivmte, args)
+#> Warning: The following IV-like specifications do not include the treatment
+#> variable: 1. This may result in fewer independent moment conditions than
+#> expected.
 #> 
 #> Bounds on the target parameter: [-0.6697228, -0.3331582]
 #> Audit terminated successfully after 2 rounds.
@@ -913,7 +923,7 @@ r <- do.call(ivmte, args)
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
 #> 
-#> Point estimate of the target parameter: -0.5325135
+#> Point estimate of the target parameter: -0.5389508
 ```
 
 Notice that even though `point = FALSE` and `point = TRUE` provide a
@@ -952,7 +962,6 @@ results <- ivmte(data = AE,
 #>     95%: [-0.2185989, -0.003729633]
 #>     99%: [-0.2300391, 0.0006812143]
 #> p-value: 0.04
-#> Bootstrapped specification test p-value: 1
 #> Number of bootstraps: 50
 ```
 
@@ -1045,21 +1054,15 @@ args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
 #> Warning: If argument 'point' is set to TRUE, then shape restrictions on m0
 #> and m1 are ignored, and the audit procedure is not implemented.
-#> Warning: The following components have been dropped due to collinearity: 
-#>  IV-like Spec.     Component
-#>  ------------------------------------------
-#>  1                 d 
-#>  1                 d 
-#>  1                 d
 #> 
-#> Point estimate of the target parameter: -0.595065
+#> Point estimate of the target parameter: -0.5559325
 #> 
 #> Bootstrapped confidence intervals (nonparametric):
-#>     90%: [-0.6782683, -0.5262742]
-#>     95%: [-0.6823161, -0.5158032]
-#>     99%: [-0.704449, -0.5122817]
+#>     90%: [-0.6066197, -0.5112431]
+#>     95%: [-0.6101133, -0.5086833]
+#>     99%: [-0.6147004, -0.4743232]
 #> p-value: 0
-#> Bootstrapped J-test p-value: 0.46
+#> Bootstrapped J-test p-value: 0.44
 #> Number of bootstraps: 50
 ```
 
