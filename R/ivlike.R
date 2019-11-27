@@ -129,7 +129,16 @@ piv <- function(Y, X, Z, lmcomponents = NULL, weights = NULL, order = NULL,
 #'            list = FALSE)
 #' @export
 ivEstimate <- function(formula, data, subset, components, treat,
-                         list = FALSE, order = NULL) {
+                       list = FALSE, order = NULL) {
+    treatTmp <- try(deparse(treat), silent = TRUE)
+    if (class(treatTmp) == "try-error") {
+        treat <- deparse(substitute(treat))
+    } else {
+        treat <- treatTmp
+        rm(treatTmp)
+    }
+    treat <- gsub("~", "", treat)
+    treat <- gsub("\\\"", "", treat)
     formula <- Formula::as.Formula(formula)
     call <- match.call(expand.dots = FALSE)
     ## Select components
