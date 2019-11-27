@@ -4,8 +4,9 @@
 \alias{gmmEstimate}
 \title{GMM estimate of TE under point identification}
 \usage{
-gmmEstimate(sset, gstar0, gstar1, center = NULL, redundant = NULL,
-  identity = FALSE, noisy = TRUE)
+gmmEstimate(sset, gstar0, gstar1, center = NULL, subsetList = NULL,
+  n = NULL, redundant = NULL, identity = FALSE, nMoments, splines,
+  noisy = TRUE)
 }
 \arguments{
 \item{sset}{a list of lists constructed from the function
@@ -26,12 +27,25 @@ identified case obtained from the original sample can be passed
 through this argument to recenter the bootstrap distribution of
 the J-statistic.}
 
+\item{subsetList}{list of subset indexes, one for each IV-like
+specification.}
+
+\item{n}{number of observations in the data. This option is only
+used when subsetting is involved.}
+
 \item{redundant}{vector of integers indicating which components in
 the S-set are redundant.}
 
 \item{identity}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} if GMM point estimate should use the identity
 weighting matrix (i.e. one-step GMM).}
+
+\item{nMoments}{number of linearly independent moments. This option
+is used to determine the cause of underidentified cases.}
+
+\item{splines}{boolean, set to \code{TRUE} if the MTRs involve
+splines. This option is used to determine the cause of
+underidentified cases.}
 
 \item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
 then messages are provided throughout the estimation

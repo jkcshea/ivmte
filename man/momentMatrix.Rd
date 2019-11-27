@@ -4,7 +4,7 @@
 \alias{momentMatrix}
 \title{Construct pre-meaned moment matrix}
 \usage{
-momentMatrix(sset, gn0, gn1)
+momentMatrix(sset, gn0, gn1, subsetList = NULL, n = NULL)
 }
 \arguments{
 \item{sset}{a list of lists constructed from the function
@@ -18,6 +18,12 @@ is what is used to generate the gamma moments.}
 \item{gn0}{integer, number of terms in the MTR for control group.}
 
 \item{gn1}{integer, number of terms in the MTR for treated group.}
+
+\item{subsetList}{list of subset indexes, one for each IV-like
+specification.}
+
+\item{n}{number of observations in the data. This option is only
+used when subsets are involved.}
 }
 \value{
 matrix whose column means can be used to carry out the GMM

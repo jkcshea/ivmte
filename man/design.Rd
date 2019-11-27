@@ -17,8 +17,8 @@ matrix.}
 \item{treat}{The name of the treatment variable. This should only
 be passed when constructing OLS weights.}
 
-\item{orig.names}{This should only be passed when constructing OLS
-weights. This is required when the user declares an IV-like
+\item{orig.names}{character vector of the terms in the final design
+matrix. This is required when the user declares an IV-like
 formula where the treatment variable is passed into the
 \code{factor} function. Since the treatment variable has to be
 fixed to 0 or 1, the design matrix will be unable to construct
