@@ -283,6 +283,8 @@ ivEstimate <- function(formula, data, subset, components, treat,
     ## Obtain s-weights and the beta-hats
     if (!instrumented) {
         if (list == TRUE) {
+            ## Declaratoin of subsets is unnecessary since data is
+            ## already subsetted.
             data[, colnames(data) == treat] <- 0
             mf0X <- design(formula = formula,
                           data = data,
@@ -320,7 +322,7 @@ ivEstimate <- function(formula, data, subset, components, treat,
             collinearVars <- lmcomponents[collinearPos]
             mfX <- mf$X[, -which(colnames(mf$X) %in% collinearVars)]
             mf0X <- mf0X[, -which(colnames(mf0X) %in% collinearVars)]
-            mf1X <- mf1X[, -which(colnames(mf0X) %in% collinearVars)]
+            mf1X <- mf1X[, -which(colnames(mf1X) %in% collinearVars)]
             collinearCompPos <- which(components %in% names(bhat)[collinearPos])
             if (length(collinearCompPos) > 0) components <-
                                                   components[-collinearCompPos]

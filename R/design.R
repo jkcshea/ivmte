@@ -9,8 +9,8 @@
 #' @param subset Condition to select subset of data.
 #' @param treat The name of the treatment variable. This should only
 #'     be passed when constructing OLS weights.
-#' @param orig.names This should only be passed when constructing OLS
-#'     weights. This is required when the user declares an IV-like
+#' @param orig.names character vector of the terms in the final design
+#'     matrix. This is required when the user declares an IV-like
 #'     formula where the treatment variable is passed into the
 #'     \code{factor} function. Since the treatment variable has to be
 #'     fixed to 0 or 1, the design matrix will be unable to construct
@@ -40,22 +40,24 @@ design <- function(formula, data, subset, treat, orig.names) {
         origPos <- grepl(paste0("factor\\(", treat, "\\)"), orig.names)
         if (any(origPos)) {
             degenVal <- unique(data[, treat])
-            degenAlt <- 1 - degenVal
-            origInter <- orig.names[origPos]
-            origInter <- unlist(strsplit(origInter, ";"))
-            origInter <- sapply(origInter, function(x) {
-                gsub(paste0("factor\\(", treat, "\\)", degenVal),
-                     paste0(treat, " == ", degenVal, "TRUE"), x)
-            })
-            origInter <- sapply(origInter, function(x) {
-                gsub(paste0("factor\\(", treat, "\\)", degenAlt),
-                     paste0(treat, " == ", degenVal, "FALSE"), x)
-            })
-            formulaStr <- deparse(formula)
-            formulaStr <- gsub(paste0("factor\\(", treat, "\\)"),
-                               paste0("(", treat, " == ", degenVal, ")"),
-                           formulaStr)
-            formula <- as.formula(formulaStr)
+            if (length(degenVal) == 1) {
+                degenAlt <- 1 - degenVal
+                origInter <- orig.names[origPos]
+                origInter <- unlist(strsplit(origInter, ";"))
+                origInter <- sapply(origInter, function(x) {
+                    gsub(paste0("factor\\(", treat, "\\)", degenVal),
+                         paste0(treat, " == ", degenVal, "TRUE"), x)
+                })
+                origInter <- sapply(origInter, function(x) {
+                    gsub(paste0("factor\\(", treat, "\\)", degenAlt),
+                         paste0(treat, " == ", degenVal, "FALSE"), x)
+                })
+                formulaStr <- deparse(formula)
+                formulaStr <- gsub(paste0("factor\\(", treat, "\\)"),
+                                   paste0("(", treat, " == ", degenVal, ")"),
+                                   formulaStr)
+                formula <- as.formula(formulaStr)
+            }
         }
     }
     ## Convert formula to Formula
@@ -80,6 +82,13 @@ design <- function(formula, data, subset, treat, orig.names) {
             for (i in 1:length(origInter)) {
                 pos <- which(colnames(X) == origInter[i])
                 colnames(X)[pos] <- names(origInter)[i]
+            }
+            if (any(!orig.names %in% colnames(X))) {
+                for (i in orig.names[! orig.names %in% colnames(X)]) {
+                    tmpXnames <- colnames(X)
+                    X <- cbind(X, 0)
+                    colnames(X) <- c(tmpXnames, i)
+                }
             }
             X <- X[, orig.names]
         }
