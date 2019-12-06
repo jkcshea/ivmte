@@ -17,7 +17,7 @@
 #' entire support of the covariates, or until some a maximum number of
 #' iterations is reached.
 #'
-#' @param audit.grid list, contains the A A matrix used in the audit
+#' @param audit.grid list, contains the A matrix used in the audit
 #'     for the original sample, as well as the RHS vector used in the
 #'     audit from the original sample.
 #' @param save.grid boolean, set to \code{FALSE} by default. Set to
@@ -441,10 +441,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (is.null(lpresult)) {
             if (noisy) {
                 message("    LP solutions are unbounded.")
-                cat("    Expanding constraint grid, restarting audit.\n")
             }
-            return("Failure to maximize/minimize.")
-        }
+            return(list(error = "Failure to maximize/minimize.",
+                        audit.grid = a_mbobj))
+            }
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
         optstatus <- min(c(lpresult$minstatus,

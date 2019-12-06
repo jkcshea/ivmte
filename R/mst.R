@@ -2899,18 +2899,24 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     newGrid.nx <- initgrid.nx
     while(autoExpand <= autoExpandMax) {
         audit <- eval(audit_call)
-        if (is.list(audit)) {
+        if (is.null(audit$error)) {
             autoExpand <- Inf
         }
-        if (!is.list(audit) && audit == "Failure to maximize/minimize.") {
+        if (!is.null(audit$error) &&
+            audit$error == "Failure to maximize/minimize.") {
             autoExpand <- autoExpand + 1
             newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
             newGrid.nx <- min(ceiling(newGrid.nx * 1.5), audit.nx)
+            cat("\n    Restarting audit with expanded initial grid.\n")
+            cat(paste0("    New settings: initgrid.nx = ",  newGrid.nx,
+                       ", initgrid.nu = ", newGrid.nu, "\n"))
             audit_call <-
                 modcall(audit_call,
-                        dropargs = c("initgrid.nu", "initgrid.nx"),
+                        dropargs = c("initgrid.nu", "initgrid.nx",
+                                     "audit.grid"),
                         newargs = list(initgrid.nu = newGrid.nu,
-                                       initgrid.nx = newGrid.nx))
+                                       initgrid.nx = newGrid.nx,
+                                       audit.grid = audit$audit.grid))
             if (newGrid.nu == audit.nu && newGrid.nx == audit.nx) {
                 autoExpand <- autoExpandMax
             }
@@ -2920,7 +2926,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             }
         }
     }
-
     if (!is.list(audit) && autoExpand > autoExpandMax) {
         cat("\n\n")
         stop(paste0(gsub("\\s+", " ",
