@@ -732,8 +732,9 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                           MARGIN = 1,
                                           STATS = bmatTmp[, namesA[r]],
                                           FUN = "*")
-                                namesB <- paste0(colnames(bmatTmp)[4:ncol(bmatTmp)],
-                                                 ":", namesA[r])
+                                namesB <-
+                                    paste0(colnames(bmatTmp)[4:ncol(bmatTmp)],
+                                           ":", namesA[r])
                                 colnames(bmatTmp)[4:ncol(bmatTmp)] <- namesB
                                 newA <- merge(get(paste0("A", d)),
                                               bmatTmp[, c(".grid.order",
@@ -786,10 +787,12 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     ## the grid is not large enough, and so does not contain all
     ## factor variables. Fill these columns with 0
     missingA0 <- !(names(gstar0) %in% colnames(A0))
+    A0 <- as.data.frame(A0)
     for (i in names(gstar0)[missingA0]) {
         A0[, i] <- 0
     }
     missingA1 <- !(names(gstar1) %in% colnames(A1))
+    A1 <- as.data.frame(A1)
     for (i in names(gstar1)[missingA1]) {
         A1[, i] <- 0
     }
