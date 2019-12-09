@@ -505,6 +505,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE,
             message("------------------------------------")
         }
         model$modelsense <- "min"
+        gurobi::gurobi_write(model, "lpMin.mps")
         minresult <- gurobi::gurobi(model, list(outputflag = outputflag,
                                                 dualreductions = 1,
                                                 FeasibilityTol = 1e-6))
@@ -517,6 +518,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE,
             message("------------------------------------")
         }
         model$modelsense <- "max"
+        gurobi::gurobi_write(model, "lpMax.mps")
         maxresult <- gurobi::gurobi(model, list(outputflag = outputflag,
                                                 dualreductions = 1,
                                                 FeasibilityTol = 1e-6))
