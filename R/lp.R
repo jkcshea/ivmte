@@ -306,6 +306,7 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
         model$sense <- lpobj$sense
         model$ub    <- lpobj$ub
         model$lb    <- lpobj$lb
+        if (debug) gurobi::gurobi_write(model, "lpCriterion.mps")
         result   <- gurobi::gurobi(model, list(outputflag = outputflag))
         obseqmin <- result$objval
         optx     <- result$x
