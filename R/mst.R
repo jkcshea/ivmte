@@ -2926,8 +2926,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             }
         }
     }
-    if (!is.list(audit) && autoExpand > autoExpandMax) {
-        cat("\n\n")
+    if (!is.null(audit$error) && autoExpand > autoExpandMax) {
         stop(paste0(gsub("\\s+", " ",
                          "Automatic grid expansion limit reached.
                          The LP problem is still unbounded.
