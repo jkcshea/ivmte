@@ -2904,6 +2904,26 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         }
         if (!is.null(audit$error) &&
             audit$error == "Failure to maximize/minimize.") {
+            if (initgrid.nx == audit.nx && initgrid.nu == audit.nu) {
+                stop(paste0(gsub("\\s+", " ",
+                                 "The LP problem is unbounded,
+                                  and automatic grid expansion is not
+                                  possible.
+                                  Consider imposing additional shape
+                                  constraints, or increasing the size of the
+                                  initial grid  for the audit.
+                                  In order to increase the size of the
+                                  initial grid, it will be
+                                  necessary to increase the size of the audit
+                                  grid.
+                                  This is because the initial grid must be a
+                                  subset of the audit grid, and this constraint
+                                  is currently binding.
+                                  In order to allow for automatic grid
+                                  expansion, make sure audit.nx > initgrid.nx
+                                  or audit.nu > initgrid.nu.")),
+                     call. = FALSE)
+            }
             autoExpand <- autoExpand + 1
             newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
             newGrid.nx <- min(ceiling(newGrid.nx * 1.5), audit.nx)
