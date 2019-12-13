@@ -164,10 +164,11 @@ utils::globalVariables("u")
 #' @param initgrid.nx integer determining the number of points of the
 #'     covariates used to form the initial constraint grid for
 #'     imposing shape restrictions on the MTRs.
-#' @param initgrid.nu integer determining the number of evenly spread
-#'     points in the interval [0, 1] of the unobservable \code{u} used
+#' @param initgrid.nu integer determining the number of points in the
+#'     open interval (0, 1) drawn from a Halton sequence. The end
+#'     points 0 and 1 are additionally included. These points are used
 #'     to form the initial constraint grid for imposing shape
-#'     restrictions on the MTRs.
+#'     restrictions on the \code{u} components of the MTRs.
 #' @param audit.nx integer determining the number of points on the
 #'     covariates space to audit in each iteration of the audit
 #'     procedure.
@@ -2871,22 +2872,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             audit_call <- modcall(audit_call,
                                   newargs = list(m0.lb = miny,
                                                  m0.lb.default = TRUE))
-        }
-    }
-    if (!hasArg(mte.lb) | !hasArg(mte.ub)) {
-        tmp.m0.lb <- as.list(audit_call)$m0.lb
-        tmp.m0.ub <- as.list(audit_call)$m0.ub
-        tmp.m1.lb <- as.list(audit_call)$m1.lb
-        tmp.m1.ub <- as.list(audit_call)$m1.ub
-        if (!hasArg(mte.lb)) {
-            audit_call <- modcall(audit_call,
-                                  newargs = list(mte.lb = tmp.m1.lb - tmp.m0.ub,
-                                                 mte.lb.default = TRUE))
-        }
-        if (!hasArg(mte.ub)) {
-            audit_call <- modcall(audit_call,
-                                  newargs = list(mte.ub = tmp.m1.ub - tmp.m0.lb,
-                                                 mte.ub.default = TRUE))
         }
     }
 
