@@ -306,7 +306,10 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
         model$sense <- lpobj$sense
         model$ub    <- lpobj$ub
         model$lb    <- lpobj$lb
-        if (debug) gurobi::gurobi_write(model, "lpCriterion.mps")
+        if (debug) {
+            gurobi::gurobi_write(model, "lpCriterion.mps")
+            save(model, file = "lpCriterion.Rdata")
+        }
         result   <- gurobi::gurobi(model, list(outputflag = outputflag))
         obseqmin <- result$objval
         optx     <- result$x
@@ -508,8 +511,10 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE,
         if (debug == TRUE){
             model$modelsense <- "max"
             gurobi::gurobi_write(model, "lpMax.mps")
+            save(model, file = "lpMax.Rdata")
             model$modelsense <- "min"
             gurobi::gurobi_write(model, "lpMin.mps")
+            save(model, file = "lpMin.Rdata")
         }
         model$modelsense <- "min"
         minresult <- gurobi::gurobi(model, list(outputflag = outputflag,
