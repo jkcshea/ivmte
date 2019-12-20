@@ -1476,15 +1476,16 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             tmpColNames <- colnames(design(as.formula(md), mdata)$X)
             for (k in 1:length(altNames)) {
                 tmpName <- paste0(tmpInterName, k)
-                inter1 <- grep(paste0(":", altNames[[k]]),
+                inter1 <- grep(paste0(":", altNames[[k]], "$"),
                                tmpColNames)
-                inter2 <- grep(paste0(altNames[[k]], ":"),
+                inter2 <- grep(paste0("^", altNames[[k]], ":"),
                                tmpColNames)
-                interpos <- c(inter1, inter2)
+                inter3 <- grep(paste0(":", altNames[[k]], ":"),
+                               tmpColNames)
+                interpos <- c(inter1, inter2, inter3)
                 if (length(interpos) > 0) {
                     ## The case where there are interactions with splines
-                    altNames[[k]] <- parenthBoolean(tmpColNames[c(inter1,
-                                                                  inter2)])
+                    altNames[[k]] <- parenthBoolean(tmpColNames[interpos])
                     altNames[[k]] <- gsub(paste0(":", tmpName), "",
                                           altNames[[k]])
                     altNames[[k]] <- gsub(paste0(tmpName, ":"), "",

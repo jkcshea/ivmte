@@ -782,10 +782,12 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
             missingVars <- inters[[j]][!inters[[j]] %in%
                                        colnames(nonSplinesDmat)]
             if (length(missingVars) > 0) {
+                nonSplinesDmat <- as.data.table(nonSplinesDmat)
                 for (mv in missingVars) {
                     nonSplinesDmat[, mv] <- 0
                 }
                 nonSplinesDmat <- nonSplinesDmat[, inters[[j]]]
+                nonSplinesDmat <- as.matrix(nonSplinesDmat)
             }
             ## Spline integral matrices
             splinesLB <- eval(parse(text = gsub("uSpline\\(",
@@ -796,7 +798,6 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
                                                 names(splines)[j])))
             splinesInt <- splinesUB - splinesLB
             ## Combine the design and integral matrices
-            ## for (l in 1:length(splines[[j]])) {
             for (l in 1:length(colnames(nonSplinesDmat))) {
                 tmpGamma <- sweep(splinesInt,
                                   MARGIN = 1,
