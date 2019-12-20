@@ -806,7 +806,6 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
                                   MARGIN = 1,
                                   STATS = multiplier,
                                   FUN = "*")
-                ## testing ---------------------------------
                 ## Address the possibility of imprecise zeroes
                 tmpGamma <- tmpGamma * as.integer(splinesInt != 0)
                 tmpGamma <- sweep(splinesInt,
@@ -814,7 +813,6 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
                                   STATS = as.integer(
                                       nonSplinesDmat[subset, l] != 0),
                                   FUN = "*")
-                ## end testing ------------------------------
                 splinesNames <- c(splinesNames,
                                   paste0(paste0("u", d, "S", j, "."),
                                          seq(1, ncol(tmpGamma)),
@@ -835,12 +833,6 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
         } else {
             colnames(splinesGamma) <- splinesNames
         }
-        ## if (!is.null(dim(splinesGamma))) {
-        ##     print("col max")
-        ##     print(apply(splinesGamma, 2, max))
-        ##     print("col mean")
-        ##     print(apply(splinesGamma, 2, mean))
-        ## }
         return(list(gamma = splinesGamma,
                     interactions = splinesInter))
     }
