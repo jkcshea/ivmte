@@ -160,6 +160,9 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 #' @param lpobj A list of matrices and vectors defining an LP problem.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
+#' @param lpsolver.options list, each item of the list should
+#'     correspond to an option specific to the LP solver
+#'     selected. Currently, only support for Gurobi is provided,
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{lpsolver = 'gurobi'}. The output provided is
@@ -258,7 +261,8 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 #'
 #' @export
 obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
-                     criterion.tol = 0, lpobj, lpsolver, debug = FALSE) {
+                     criterion.tol = 0, lpobj, lpsolver, lpsolver.options,
+                     debug = FALSE) {
     if (!is.null(orig.sset)) {
         ## Prepare to obtain 'recentered' bootstrap criterion
         tmpA <- NULL
@@ -292,12 +296,10 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
     }
     lpsolver <- tolower(lpsolver)
     if (lpsolver == "gurobi") {
-        if (debug) {
-            outputflag <- 1
+        if (debug & lpsolver.options$outputflag == 1) {
             message("\nMinimum criterion optimization statistics:")
             message("------------------------------------------")
         }
-        if (!debug) outputflag <- 0
         model <- list()
         model$modelsense <- "min"
         model$obj   <- lpobj$obj
@@ -310,7 +312,7 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
             gurobi::gurobi_write(model, "lpCriterion.mps")
             save(model, file = "lpCriterion.Rdata")
         }
-        result   <- gurobi::gurobi(model, list(outputflag = outputflag))
+        result   <- gurobi::gurobi(model, lpsolver.options)
         obseqmin <- result$objval
         optx     <- result$x
         status   <- result$status
@@ -362,6 +364,9 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
 #'     should be displayed.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
+#' @param lpsolver.options list, each item of the list should
+#'     correspond to an option specific to the LP solver
+#'     selected. Currently, only support for Gurobi is provided,
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{lpsolver = 'gurobi'}. The output provided is
@@ -464,7 +469,8 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
 #'       lpsolver = "lpSolveAPI")
 #'
 #' @export
-bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE,
+bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
+                  lpsolver.options, noisy = FALSE,
                   debug = FALSE) {
     lpsolver <- tolower(lpsolver)
     ## define model
@@ -502,9 +508,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE,
     rm(tmpA)
     ## obtain lower and upper bounds
     if (lpsolver == "gurobi") {
-        if (debug == FALSE) outputflag <- 0
-        if (debug == TRUE) outputflag <- 1
-        if (debug == TRUE) {
+        if (debug & lpsolver.options$outputflag == 1) {
             message("\nLower bound optimization statistics:")
             message("------------------------------------")
         }
@@ -517,21 +521,17 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE,
             save(model, file = "lpMin.Rdata")
         }
         model$modelsense <- "min"
-        minresult <- gurobi::gurobi(model, list(outputflag = outputflag,
-                                                dualreductions = 1,
-                                                FeasibilityTol = 1e-6))
+        minresult <- gurobi::gurobi(model, lpsolver.options)
         min <- minresult$objval
         minstatus <- 0
         if (minresult$status == "OPTIMAL") minstatus <- 1
         minoptx <- minresult$x
-        if (debug == TRUE) {
+        if (debug & lpsolver.options$outputflag == 1) {
             message("\nUpper bound optimization statistics:")
             message("------------------------------------")
         }
         model$modelsense <- "max"
-        maxresult <- gurobi::gurobi(model, list(outputflag = outputflag,
-                                                dualreductions = 1,
-                                                FeasibilityTol = 1e-6))
+        maxresult <- gurobi::gurobi(model, lpsolver.options)
         max <- maxresult$objval
         maxstatus <- 0
         if (maxresult$status == "OPTIMAL") maxstatus <- 1

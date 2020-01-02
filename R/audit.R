@@ -161,11 +161,30 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   mte.dec = FALSE, mte.inc = FALSE,
                   sset, gstar0, gstar1,
                   orig.sset = NULL, orig.criterion = NULL,
-                  criterion.tol = 0, lpsolver,
+                  criterion.tol = 0,
+                  lpsolver, lpsolver.options,
                   noisy = TRUE, seed = 12345, debug = FALSE) {
     set.seed(seed)
     call  <- match.call()
     lpsolver <- tolower(lpsolver)
+    ## Organize LP options
+    if (hasArg(lpsolver.options)) {
+        if (! "outputflag" %in% names(lpsolver.options)) {
+            if (debug)  lpsolver.options$outputflag = 1
+            if (!debug) lpsolver.options$outputflag = 0
+        }
+        if (! "dualreductions" %in% names(lpsolver.options)) {
+            lpsolver.options$dualreductions <- 1
+        }
+        if (! "FeasibilityTol" %in% names(lpsolver.options)) {
+            lpsolver.options$FeasibilityTol <- 1e-06
+        }
+    } else {
+        lpsolver.options <- list(dualreductions = 1,
+                                 FeasibilityTol = 1e-6)
+        if (debug)  lpsolver.options$outputflag <- 1
+        if (!debug) lpsolver.options$outputflag <- 0
+    }
     ## Clean boolean terms
     terms_mtr0 <- parenthBoolean(terms_mtr0)
     terms_mtr1 <- parenthBoolean(terms_mtr1)
@@ -306,7 +325,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
         lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
         minobseq <- obsEqMin(sset, NULL, NULL,
-                             criterion.tol, lpobj, lpsolver, debug)
+                             criterion.tol, lpobj, lpsolver, lpsolver.options,
+                             debug)
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -326,7 +346,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                     orig.criterion = NULL,
                                     criterion.tol = criterion.tol,
                                     lpobj = lpobjAlt,
-                                    lpsolver = lpsolver)
+                                    lpsolver = lpsolver,
+                                    lpsolver.options = lpsolver.options)
             if (lpsolver %in% c("cplexapi", "lpsolveapi")) {
                 solVec <- minobseqAlt$result$optx
             } else {
@@ -424,7 +445,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
             lpobjTest <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
                                  mbobj$mbrhs, lpsolver)
             minobseqTest <- obsEqMin(sset, orig.sset, orig.criterion,
-                                     criterion.tol, lpobjTest, lpsolver)
+                                     criterion.tol, lpobjTest, lpsolver,
+                                     lpsolver.options)
         }
 
         ## Obtain bounds
@@ -437,6 +459,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                            lpobj = lpobj,
                            obseq.factor = minobseq$obj * (1 + criterion.tol),
                            lpsolver = lpsolver,
+                           lpsolver.options = lpsolver.options,
                            debug = debug)
         if (is.null(lpresult)) {
             if (noisy) {

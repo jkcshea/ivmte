@@ -149,6 +149,9 @@ utils::globalVariables("u")
 #'     in R used to obtain the bounds on the treatment effect. The
 #'     function supports \code{'gurobi'}, \code{'cplexapi'},
 #'     \code{'lpsolveapi'}.
+#' @param lpsolver.options list, each item of the list should
+#'     correspond to an option specific to the LP solver
+#'     selected. Currently, only support for Gurobi is provided,
 #' @param criterion.tol tolerance for violation of observational
 #'     equivalence, set to 0 by default. Statistical noise may
 #'     prohibit the theoretical LP problem from being feasible. That
@@ -295,7 +298,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                   m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
                   components, subset, propensity, link = 'logit',
-                  treat, lpsolver = NULL, criterion.tol = 0,
+                  treat, lpsolver = NULL, lpsolver.options,
+                  criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
                   point = FALSE, point.eyeweight = FALSE,
@@ -352,6 +356,25 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              cplexAPI (version 1.3.3 or later);
                              lpSolveAPI (version 5.5.2.0 or later).")),
                  call. = FALSE)
+        }
+    }
+    if (hasArg(lpsolver.options)) {
+        if (!is.list(lpsolver.options)) {
+            stop(gsub("\\s+", " ",
+                      paste0("'lpsolver.options' must be a list.
+                               Each item in the list should correspond to an
+                               option to be passed to the LP solver.
+                               The name of the item should match the name
+                               of the option, and the value of the item
+                               should be the value to set the option to.")),
+                 call. = FALSE)
+        } else {
+            if (lpsolver != "gurobi") {
+                warning(gsub("\\s+", " ",
+                             paste0("'lpsolver.options' is currently only
+                                     implemented if the LP solver is Gurobi.")),
+                        call. = FALSE)
+            }
         }
     }
     if (debug) {
@@ -2469,6 +2492,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
                           components, subset, propensity,
                           link = "logit", treat, lpsolver,
+                          lpsolver.options,
                           criterion.tol = 0, initgrid.nx = 20,
                           initgrid.nu = 20, audit.nx = 2500,
                           audit.nu = 25, audit.add = 100,
@@ -2831,7 +2855,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
-                    "mte.inc", "criterion.tol",
+                    "mte.inc", "lpsolver.options",
+                    "criterion.tol",
                     "orig.sset", "orig.criterion",
                     "noisy", "seed", "debug")
     audit_call <- modcall(call,
