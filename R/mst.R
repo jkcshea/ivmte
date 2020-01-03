@@ -152,6 +152,9 @@ utils::globalVariables("u")
 #' @param lpsolver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver
 #'     selected. Currently, only support for Gurobi is provided,
+#' @param lpsolver.presolve boolean, default set to \code{TRUE}. Set
+#'     this parameter to \code{FALSE} if presolve should be turned off
+#'     for the LP problems.
 #' @param criterion.tol tolerance for violation of observational
 #'     equivalence, set to 0 by default. Statistical noise may
 #'     prohibit the theoretical LP problem from being feasible. That
@@ -299,6 +302,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
                   components, subset, propensity, link = 'logit',
                   treat, lpsolver = NULL, lpsolver.options,
+                  lpsolver.presolve,
                   criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
@@ -374,6 +378,26 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              paste0("'lpsolver.options' is currently only
                                      implemented if the LP solver is Gurobi.")),
                         call. = FALSE)
+            }
+        }
+    }
+    if (hasArg(lpsolver.presolve)) {
+        if (!is.logical(lpsolver.presolve)) {
+            stop(paste0("'lpsolver.presolve' must either be TRUE or FALSE."),
+                 call. = FALSE)
+        }
+        if (hasArg(lpsolver.options)) {
+            if ("presolve" %in% names(lpsolver.options)) {
+                if (as.integer(lpsolver.presolve) !=
+                    lpsolver.options$presolve) {
+                    stop(gsub("\\s+", " ",
+                              paste0("The 'presolve' parameter for the LP solver
+                               is declared differently in 'lpsolver.options' and
+                               'lpsolver.presolve'. Either make sure the
+                               parameter is the same in both options, or declare
+                               it in only one of the options.")),
+                         call. = FALSE)
+                }
             }
         }
     }
@@ -2492,7 +2516,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
                           components, subset, propensity,
                           link = "logit", treat, lpsolver,
-                          lpsolver.options,
+                          lpsolver.options, lpsolver.presolve,
                           criterion.tol = 0, initgrid.nx = 20,
                           initgrid.nu = 20, audit.nx = 2500,
                           audit.nu = 25, audit.add = 100,
@@ -2855,7 +2879,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
-                    "mte.inc", "lpsolver.options",
+                    "mte.inc", "lpsolver.options", "lpsolver.presolve",
                     "criterion.tol",
                     "orig.sset", "orig.criterion",
                     "noisy", "seed", "debug")

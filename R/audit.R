@@ -162,7 +162,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   sset, gstar0, gstar1,
                   orig.sset = NULL, orig.criterion = NULL,
                   criterion.tol = 0,
-                  lpsolver, lpsolver.options,
+                  lpsolver, lpsolver.options, lpsolver.presolve,
                   noisy = TRUE, seed = 12345, debug = FALSE) {
     set.seed(seed)
     call  <- match.call()
@@ -179,11 +179,18 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (! "FeasibilityTol" %in% names(lpsolver.options)) {
             lpsolver.options$FeasibilityTol <- 1e-06
         }
+        if (! "presolve" %in% names(lpsolver.options)) {
+            if (hasArg(lpsolver.presolve)) {
+                lpsolver.options$presolve <- as.integer(lpsolver.presolve)
+            }
+        }
     } else {
         lpsolver.options <- list(dualreductions = 1,
                                  FeasibilityTol = 1e-6)
         if (debug)  lpsolver.options$outputflag <- 1
         if (!debug) lpsolver.options$outputflag <- 0
+        if (hasArg(lpsolver.presolve)) lpsolver.options$presolve <-
+                                           as.integer(lpsolver.presolve)
     }
     ## Clean boolean terms
     terms_mtr0 <- parenthBoolean(terms_mtr0)
