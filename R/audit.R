@@ -163,34 +163,89 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   orig.sset = NULL, orig.criterion = NULL,
                   criterion.tol = 0,
                   lpsolver, lpsolver.options, lpsolver.presolve,
+                  lpsolver.options.criterion, lpsolver.options.bounds,
                   noisy = TRUE, seed = 12345, debug = FALSE) {
     set.seed(seed)
     call  <- match.call()
     lpsolver <- tolower(lpsolver)
     ## Organize LP options
-    if (hasArg(lpsolver.options)) {
-        if (! "outputflag" %in% names(lpsolver.options)) {
-            if (debug)  lpsolver.options$outputflag = 1
-            if (!debug) lpsolver.options$outputflag = 0
-        }
-        if (! "dualreductions" %in% names(lpsolver.options)) {
-            lpsolver.options$dualreductions <- 1
-        }
-        if (! "FeasibilityTol" %in% names(lpsolver.options)) {
-            lpsolver.options$FeasibilityTol <- 1e-06
-        }
-        if (! "presolve" %in% names(lpsolver.options)) {
-            if (hasArg(lpsolver.presolve)) {
-                lpsolver.options$presolve <- as.integer(lpsolver.presolve)
+    if (lpsolver == "gurobi") {
+        ## Construct default options
+        lpsolver.options.default <- list(dualreductions = 1,
+                                         FeasibilityTol = 1e-6)
+        if (debug)  lpsolver.options.default$outputflag <- 1
+        if (!debug) lpsolver.options.default$outputflag <- 0
+        if (hasArg(lpsolver.presolve)) lpsolver.options.default$presolve <-
+                                           as.integer(lpsolver.presolve)
+        ## Prepare user options
+        if (hasArg(lpsolver.options)) {
+            lpsolver.options <- optionsGurobi(lpsolver.options, debug)
+            if (hasArg(lpsolver.presolve)) lpsolver.options$presolve <-
+                                               as.integer(lpsolver.presolve)
+            lpsolver.options.criterion <- lpsolver.options
+            lpsolver.options.bounds <- lpsolver.options
+        } else {
+            if (hasArg(lpsolver.options.criterion)) {
+                lpsolver.options.criterion <-
+                    optionsGurobi(lpsolver.options.criterion, debug)
+                if (hasArg(lpsolver.presolve)) {
+                    lpsolver.options.criterion$presolve <-
+                        as.integer(lpsolver.presolve)
+                }
+            } else {
+                lpsolver.options.criterion <- lpsolver.options.default
+            }
+            if (hasArg(lpsolver.options.bounds)) {
+                lpsolver.options.bounds <-
+                    optionsGurobi(lpsolver.options.bounds, debug)
+                if (hasArg(lpsolver.presolve)) {
+                    lpsolver.options.bounds$presolve <-
+                        as.integer(lpsolver.presolve)
+                }
+            } else {
+                lpsolver.options.bounds <- lpsolver.options.default
             }
         }
     } else {
-        lpsolver.options <- list(dualreductions = 1,
-                                 FeasibilityTol = 1e-6)
-        if (debug)  lpsolver.options$outputflag <- 1
-        if (!debug) lpsolver.options$outputflag <- 0
-        if (hasArg(lpsolver.presolve)) lpsolver.options$presolve <-
-                                           as.integer(lpsolver.presolve)
+        if (lpsolver == "cplexapi") {
+            if (hasArg(lpsolver.options)) {
+                lpsolver.options.criterion <- optionsCplexAPI(lpsolver.options)
+                lpsolver.options.bounds <- optionsCplexAPI(lpsolver.options)
+            } else {
+                if (hasArg(lpsolver.options.criterion)) {
+                    lpsolver.options.criterion <-
+                        optionsCplexAPI(lpsolver.options.criterion)
+                } else {
+                    lpsolver.options.criterion <- NULL
+                }
+                if (hasArg(lpsolver.options.bounds)) {
+                    lpsolver.options.bounds <-
+                        optionsCplexAPI(lpsolver.options.bounds)
+                } else {
+                    lpsolver.options.bounds <- NULL
+                }
+            }
+        }
+        if (lpsolver == "lpsolveapi") {
+            if (hasArg(lpsolver.options)) {
+                lpsolver.options.criterion <-
+                    optionsLpSolveAPI(lpsolver.options)
+                lpsolver.options.bounds <- optionsLpSolveAPI(lpsolver.options)
+            } else {
+                if (hasArg(lpsolver.options.criterion)) {
+                    lpsolver.options.criterion <-
+                        optionsLpSolveAPI(lpsolver.options.criterion)
+                } else {
+                    lpsolver.options.criterion <- NULL
+                }
+                if (hasArg(lpsolver.options.bounds)) {
+                    lpsolver.options.bounds <-
+                        optionsLpSolveAPI(lpsolver.options.bounds)
+                } else {
+                    lpsolver.options.bounds <- NULL
+                }
+            }
+        }
     }
     ## Clean boolean terms
     terms_mtr0 <- parenthBoolean(terms_mtr0)
@@ -332,8 +387,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
         lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
         minobseq <- obsEqMin(sset, NULL, NULL,
-                             criterion.tol, lpobj, lpsolver, lpsolver.options,
-                             debug)
+                             criterion.tol, lpobj, lpsolver,
+                             lpsolver.options.criterion, debug)
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -354,7 +409,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                     criterion.tol = criterion.tol,
                                     lpobj = lpobjAlt,
                                     lpsolver = lpsolver,
-                                    lpsolver.options = lpsolver.options)
+                                    lpsolver.options =
+                                        lpsolver.options.criterion)
             if (lpsolver %in% c("cplexapi", "lpsolveapi")) {
                 solVec <- minobseqAlt$result$optx
             } else {
@@ -453,7 +509,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                  mbobj$mbrhs, lpsolver)
             minobseqTest <- obsEqMin(sset, orig.sset, orig.criterion,
                                      criterion.tol, lpobjTest, lpsolver,
-                                     lpsolver.options)
+                                     lpsolver.options.criterion)
         }
 
         ## Obtain bounds
@@ -466,7 +522,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                            lpobj = lpobj,
                            obseq.factor = minobseq$obj * (1 + criterion.tol),
                            lpsolver = lpsolver,
-                           lpsolver.options = lpsolver.options,
+                           lpsolver.options = lpsolver.options.bounds,
                            debug = debug)
         if (is.null(lpresult)) {
             if (noisy) {

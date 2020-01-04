@@ -150,11 +150,17 @@ utils::globalVariables("u")
 #'     function supports \code{'gurobi'}, \code{'cplexapi'},
 #'     \code{'lpsolveapi'}.
 #' @param lpsolver.options list, each item of the list should
-#'     correspond to an option specific to the LP solver
-#'     selected. Currently, only support for Gurobi is provided,
+#'     correspond to an option specific to the LP solver selected.
 #' @param lpsolver.presolve boolean, default set to \code{TRUE}. Set
 #'     this parameter to \code{FALSE} if presolve should be turned off
 #'     for the LP problems.
+#' @param lpsolver.options.criterion list, each item of the list
+#'     should correspond to an option specific to the LP solver
+#'     selected. These options are specific for finding the minimum
+#'     criterion.
+#' @param lpsolver.options.bounds list, each item of the list
+#'     should correspond to an option specific to the LP solver
+#'     selected. These options are specific for finding the bounds.
 #' @param criterion.tol tolerance for violation of observational
 #'     equivalence, set to 0 by default. Statistical noise may
 #'     prohibit the theoretical LP problem from being feasible. That
@@ -303,6 +309,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   components, subset, propensity, link = 'logit',
                   treat, lpsolver = NULL, lpsolver.options,
                   lpsolver.presolve,
+                  lpsolver.options.criterion, lpsolver.options.bounds,
                   criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
@@ -372,13 +379,42 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                of the option, and the value of the item
                                should be the value to set the option to.")),
                  call. = FALSE)
-        } else {
-            if (lpsolver != "gurobi") {
-                warning(gsub("\\s+", " ",
-                             paste0("'lpsolver.options' is currently only
-                                     implemented if the LP solver is Gurobi.")),
-                        call. = FALSE)
-            }
+        }
+        if (hasArg(lpsolver.options.criterion) |
+            hasArg(lpsolver.options.bounds)) {
+            stop(gsub("\\s+", " ",
+                      paste0("Either declare 'lpsolver.options'; or declare
+                              'lpsolver.options.criterion' and/or
+                              'lpsolver.options.bounds'; but not both.
+                              In the case of
+                              the latter, if only one set of options is
+                              declared, then a set of default options will
+                              be provided for the other.")),
+                 call. = FALSE)
+        }
+    }
+    if (hasArg(lpsolver.options.criterion)) {
+        if (!is.list(lpsolver.options.criterion)) {
+            stop(gsub("\\s+", " ",
+                      paste0("'lpsolver.options.criterion' must be a list.
+                               Each item in the list should correspond to an
+                               option to be passed to the LP solver.
+                               The name of the item should match the name
+                               of the option, and the value of the item
+                               should be the value to set the option to.")),
+                 call. = FALSE)
+        }
+    }
+    if (hasArg(lpsolver.options.bounds)) {
+        if (!is.list(lpsolver.options.bounds)) {
+            stop(gsub("\\s+", " ",
+                      paste0("'lpsolver.options.bounds' must be a list.
+                               Each item in the list should correspond to an
+                               option to be passed to the LP solver.
+                               The name of the item should match the name
+                               of the option, and the value of the item
+                               should be the value to set the option to.")),
+                 call. = FALSE)
         }
     }
     if (hasArg(lpsolver.presolve)) {
@@ -386,19 +422,26 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             stop(paste0("'lpsolver.presolve' must either be TRUE or FALSE."),
                  call. = FALSE)
         }
-        if (hasArg(lpsolver.options)) {
-            if ("presolve" %in% names(lpsolver.options)) {
-                if (as.integer(lpsolver.presolve) !=
-                    lpsolver.options$presolve) {
-                    stop(gsub("\\s+", " ",
-                              paste0("The 'presolve' parameter for the LP solver
-                               is declared differently in 'lpsolver.options' and
-                               'lpsolver.presolve'. Either make sure the
-                               parameter is the same in both options, or declare
-                               it in only one of the options.")),
-                         call. = FALSE)
-                }
-            }
+        if (lpsolver != "gurobi") {
+            warning(gsub("\\s+", " ",
+                         paste0("The 'presolve' option is only implemented if
+                                 the LP solver is Gurobi. For CPLEX and
+                                 lp_solve, set the presolve parameter using
+                                 'lpsolve.options', 'lpsolve.options.criterion',
+                                 and 'lpsolve.options.bounds'.")),
+                    call. = FALSE)
+        }
+        if ((hasArg(lpsolver.options) && !is.null(lpsolver.options$presolve)) |
+            (hasArg(lpsolver.options.criterion) &&
+             !is.null(lpsolver.options.criterion$presolve)) |
+            (hasArg(lpsolver.options.bounds) &&
+             !is.null(lpsolver.options.bounds$presolve))) {
+            warning(gsub("\\s+", " ",
+                         paste0("The 'presolve' option overrides the presolve
+                                 parameters set in 'lpsolve.options',
+                                 'lpsolve.options.criterion', and
+                                 'lpsolve.options.bounds'.")),
+                    call. = FALSE)
         }
     }
     if (debug) {
@@ -2517,6 +2560,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           components, subset, propensity,
                           link = "logit", treat, lpsolver,
                           lpsolver.options, lpsolver.presolve,
+                          lpsolver.options.criterion, lpsolver.options.bounds,
                           criterion.tol = 0, initgrid.nx = 20,
                           initgrid.nu = 20, audit.nx = 2500,
                           audit.nu = 25, audit.add = 100,
@@ -2880,6 +2924,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "mte.ub", "mte.lb", "m0.dec",
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
                     "mte.inc", "lpsolver.options", "lpsolver.presolve",
+                    "lpsolver.options.criterion", "lpsolver.options.bounds",
                     "criterion.tol",
                     "orig.sset", "orig.criterion",
                     "noisy", "seed", "debug")

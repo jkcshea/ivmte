@@ -162,7 +162,7 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
 #'     problem.
 #' @param lpsolver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver
-#'     selected. Currently, only support for Gurobi is provided,
+#'     selected.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{lpsolver = 'gurobi'}. The output provided is
@@ -319,13 +319,13 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
         if (debug) cat("\n")
     }
     if (lpsolver == "cplexapi") {
-        result <- runCplexAPI(lpobj, cplexAPI::CPX_MIN)
+        result <- runCplexAPI(lpobj, cplexAPI::CPX_MIN, lpsolver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
     }
     if (lpsolver == "lpsolveapi") {
-        result <- runLpSolveAPI(lpobj, 'min')
+        result <- runLpSolveAPI(lpobj, 'min', lpsolver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
@@ -366,7 +366,7 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
 #'     problem.
 #' @param lpsolver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver
-#'     selected. Currently, only support for Gurobi is provided,
+#'     selected.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{lpsolver = 'gurobi'}. The output provided is
@@ -471,7 +471,7 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
 #' @export
 bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
                   lpsolver.options, noisy = FALSE,
-                  debug = FALSE) {
+                  debug = FALSE) {)
     lpsolver <- tolower(lpsolver)
     ## define model
     model <- list()
@@ -539,21 +539,21 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
         if (debug) cat("\n")
     }
     if (lpsolver == "cplexapi") {
-        minresult <- runCplexAPI(model, cplexAPI::CPX_MIN)
+        minresult <- runCplexAPI(model, cplexAPI::CPX_MIN, lpsolver.options)
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
-        maxresult <- runCplexAPI(model, cplexAPI::CPX_MAX)
+        maxresult <- runCplexAPI(model, cplexAPI::CPX_MAX, lpsolver.options)
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
     }
     if (lpsolver == "lpsolveapi") {
-        minresult <- runLpSolveAPI(model, 'min')
+        minresult <- runLpSolveAPI(model, 'min', lpsolver.options)
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
-        maxresult <- runLpSolveAPI(model, 'max')
+        maxresult <- runLpSolveAPI(model, 'max', lpsolver.options)
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
@@ -602,14 +602,24 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
 #'     programming problem.
 #' @param lpdir input either CPX_MAX or CPX_MIN, which sets the LP
 #'     problem as a maximization or minimization problem.
+#' @param lpsolver.options list, each item of the list should
+#'     correspond to an option specific to the LP solver
+#'     selected.
 #' @return a list of the output from CPLEX. This includes the
 #'     optimization status, the objective value, the solution vector,
 #'     amongst other things.
-runCplexAPI <- function(lpobj, lpdir) {
+runCplexAPI <- function(lpobj, lpdir, lpsolver.options) {
+    ## Declare environment and set options
     env  <- cplexAPI::openEnvCPLEX()
     cplexAPI::setDblParmCPLEX(env, 1016, 1e-06)
     prob <- cplexAPI::initProbCPLEX(env)
     cplexAPI::chgProbNameCPLEX(env, prob, "sample")
+    if (!is.null(lpsolver.options)) {
+        for(i in seq(length(lpsolver.options))) {
+            eval(parse(text = lpsolver.options[[i]]))
+        }
+    }
+    ## Declare LP prblem
     sense <- lpobj$sense
     sense[sense == "<"]  <- "L"
     sense[sense == "<="] <- "L"
@@ -671,10 +681,13 @@ runCplexAPI <- function(lpobj, lpdir) {
 #'     programming problem.
 #' @param modelsense input either 'max' or 'min' which sets the LP
 #'     problem as a maximization or minimization problem.
+#' @param lpsolver.options list, each item of the list should
+#'     correspond to an option specific to the LP solver
+#'     selected.
 #' @return a list of the output from \code{lpSolveAPI}. This includes
 #'     the optimization status, the objective value, the solution
 #'     vector.
-runLpSolveAPI <- function(lpobj, modelsense) {
+runLpSolveAPI <- function(lpobj, modelsense, lpsolver.options) {
     lpmodel <- lpSolveAPI::make.lp(nrow(lpobj$A), ncol(lpobj$A))
     for (j in 1:ncol(lpobj$A)) {
         lpSolveAPI::set.column(lprec = lpmodel,
@@ -694,6 +707,9 @@ runLpSolveAPI <- function(lpobj, modelsense) {
     lpSolveAPI::lp.control(lprec = lpmodel,
                            sense = modelsense,
                            epslevel = "tight")
+    if (!is.null(lpsolver.options)) {
+        eval(lpsolver.options)
+    }
     lpSolveAPI::set.bounds(lprec = lpmodel,
                            lower = lpobj$lb,
                            upper = lpobj$ub)
@@ -716,4 +732,95 @@ magnitude <- function(x) {
         if (y == 0) return(NA)
         else return(floor(log(abs(y), 10)))
     })
+}
+
+#' Function to parse options for Gurobi
+#'
+#' This function constructs a list of options to be parsed when
+#' \code{lpsolver} is set to \code{Gurobi}. This function really
+#' implements some default values, and accounts for the \code{debug}
+#' option.
+#' @param options list. The list should be structured the same way as
+#'     if one were using the \code{gurobi} library directly. That is,
+#'     the name of each item must be the name of the option, and is
+#'     case sensitive. The value assigned to each item is the value to
+#'     set the option to.
+#' @return list, the set of options declared by the user, including
+#'     some additional default values (if not assigned by the user)
+#'     and accounting for \code{debug}.
+optionsGurobi <- function(options, debug) {
+    if (! "outputflag" %in% names(options)) {
+        if (debug)  options$outputflag = 1
+        if (!debug) options$outputflag = 0
+    }
+    if (! "dualreductions" %in% names(options)) {
+        options$dualreductions <- 1
+    }
+    if (! "FeasibilityTol" %in% names(options)) {
+        options$FeasibilityTol <- 1e-06
+    }
+    if (! "presolve" %in% names(options)) {
+        if (hasArg(lpsolver.presolve)) {
+            options$presolve <- as.integer(lpsolver.presolve)
+        }
+    }
+    return(options)
+}
+
+#' Function to parse options for lp_solve
+#'
+#' This function constructs a list of options to be parsed when
+#' \code{lpsolver} is set to \code{lpsolveapi}. The options permitted
+#' are those that can be set via \code{lpSolveAPI::lp.control}.
+#' @param options list. The name of each item must be the name of the
+#'     option, and is case sensitive. The value assigned to each item
+#'     is the value to set the option to. The \code{lprec} argument
+#'     should always be omitted.
+#' @return string, the command to be evaluated to implement the
+#'     options.
+optionsLpSolveAPI <- function(options) {
+    optionsStr <- gsub("\\s+", " ", Reduce(paste, deparse(options)))
+    optionsStr <- gsub("list\\(", "lpSolveAPI::lp.control(lprec = lpmodel, ", optionsStr)
+    return(optionsStr)
+}
+
+#' Function to parse options for CPLEX
+#'
+#' This function constructs a list of options to be parsed when
+#' \code{lpsolver} is set to \code{cplexapi}.
+#' @param options list. The name of each item must be the name of the
+#'     option, and is case sensitive. The value assigned to each item
+#'     is the value to set the option to. The \code{env} argument
+#'     should always be omitted. If the option accepts a list of
+#'     parameters, then these parameters should be passed as a vector
+#'     in the same order as defined by the corresponding function in
+#'     the \code{cplexAPI} package (e.g. \code{list(setDblParmCPLEX =
+#'     c(1016, 1e-06))}). If the option only requires the \code{env}
+#'     parameter, then an \code{NA} should be passsed as the parameter
+#'     value (e.g. \code{list(stDefaultParm = NA)}).
+#' @return list, each element being the command to evaluate to
+#'      implement an option.
+optionsCplexAPI <- function(options) {
+    optionsStr <- list()
+    for (i in seq(length(options))) {
+        tmp <- options[[i]]
+        for (j in seq(length(tmp))) {
+            if (is.character(tmp[j])) {
+                tmp[j] <- deparse(tmp[j])
+            }
+        }
+        suppressWarnings(
+            if (!is.na(tmp)) {
+                optionsStr[i] <- paste0("cplexAPI::",
+                                        names(options)[i],
+                                        "(env, ",
+                                        paste(tmp, collapse = ", "),
+                                        ")")
+            } else {
+                optionsStr[i] <- paste0("cplexAPI::",
+                                        names(options)[i],
+                                        "(env)")
+            })
+    }
+    return(optionsStr)
 }
