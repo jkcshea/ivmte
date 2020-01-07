@@ -471,7 +471,7 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
 #' @export
 bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
                   lpsolver.options, noisy = FALSE,
-                  debug = FALSE) {)
+                  debug = FALSE) {
     lpsolver <- tolower(lpsolver)
     ## define model
     model <- list()
