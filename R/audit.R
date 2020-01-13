@@ -610,21 +610,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
             ## the magnitude of solver's tolerance.
             audit.tol <- (audit.tol / (10^magnitude(audit.tol))) *
                 (10^(ceiling(magnitude(audit.tol) / 2)))
-            warning(gsub("\\s+", " ",
-                         paste0(origViolations,
-                                " violations found despite the LP constraint
-                                grid and audit grid being identifical.
-                                Audit tolerance will be increased from ",
-                                format(origTol, scientific = TRUE), " to ",
-                                format(audit.tol, scientific = TRUE), ".")),
-                    "\n",
-                    call. = FALSE,
-                    immediate. = TRUE)
             violatevecMin <- violateDiffMin > audit.tol
             violatevecMax <- violateDiffMax > audit.tol
             violatevec <- violatevecMin + violatevecMax
             violate <- as.logical(sum(violatevec))
             violatevec <- as.logical(violatevec)
+        } else {
+            origViolations <- 0
         }
         if (violate) {
             if (noisy) cat("    Violations: ", sum(violatevec), "\n")
@@ -704,6 +696,22 @@ audit <- function(data, uname, m0, m1, splinesobj,
             if (noisy) {
                 cat("    Violations: 0\n")
                 cat("    Audit finished.\n\n")
+            }
+            if (origViolations > 0) {
+                warning(gsub("\\s+", " ",
+                             paste0(origViolations,
+                                    " violations originally found despite the LP
+                                    constraint grid and audit grid being
+                                    identical.
+                                    Audit tolerance was increased from ",
+                                    format(origTol, scientific = TRUE), " to ",
+                                    format(audit.tol, scientific = TRUE),
+                                    ".  This suggests precision of the
+                                 LP solver exceeds that of R,
+                                 and may be due to scaling issues
+                                 in the LP model.")), "\n",
+                        call. = FALSE,
+                        immediate. = TRUE)
             }
             break
         }
