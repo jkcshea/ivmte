@@ -195,11 +195,15 @@ utils::globalVariables("u")
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param audit.tol feasibility tolerance when performing the
-#'     audit. By default to set to \code{1e-06}, which is in alignment
-#'     with the Gurobi and CPLEX LP solvers. This parameter should
-#'     only be changed if the feasibility tolerance of the LP solver
-#'     is changed, or if numerical issues result in discrepancies
-#'     between the LP solver's feasibility check and the audit.
+#'     audit. By default to set to be equal to the Gurobi
+#'     (\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+#'     "cplexapi"}) feasibility toleraence, which is set to
+#'     \code{1e-06} by default.  If the LP solver is lp_solve
+#'     (\code{lpsolver = "lpsolveapi"}), this parameter is set to
+#'     \code{1e-06} by default. This parameter should only be changed
+#'     if the feasibility tolerance of the LP solver is changed, or if
+#'     numerical issues result in discrepancies between the LP
+#'     solver's feasibility check and the audit.
 #' @param point boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if it is believed that the treatment effects are
 #'     point identified. If set to \code{TRUE}, then a two-step GMM
@@ -319,7 +323,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
-                  audit.tol = 1e-06,
+                  audit.tol,
                   point = FALSE, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
@@ -982,11 +986,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         stop("'audit.add' must be an integer greater than or equal to 1.",
              call. = FALSE)
     }
-    if (!is.numeric(audit.tol) |
-        audit.tol < 0 |
-        length(audit.tol) > 1) {
-        stop("'audit.tol' must be a positive scalar.",
-             call. = FALSE)
+    if (hasArg(audit.tol)) {
+        if (!is.numeric(audit.tol) |
+            audit.tol < 0 |
+            length(audit.tol) > 1) {
+            stop("'audit.tol' must be a positive scalar.",
+                 call. = FALSE)
+        }
     }
     if (hasArg(m0.dec) | hasArg(m0.inc) |
         hasArg(m1.dec) | hasArg(m1.inc) |
@@ -2577,7 +2583,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           criterion.tol = 0, initgrid.nx = 20,
                           initgrid.nu = 20, audit.nx = 2500,
                           audit.nu = 25, audit.add = 100,
-                          audit.max = 25, audit.tol = 1e-06, audit.grid = NULL,
+                          audit.max = 25, audit.tol, audit.grid = NULL,
                           save.grid = FALSE,
                           point = FALSE,
                           point.eyeweight = FALSE,

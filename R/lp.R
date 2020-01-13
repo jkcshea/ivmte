@@ -611,7 +611,7 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
 runCplexAPI <- function(lpobj, lpdir, lpsolver.options) {
     ## Declare environment and set options
     env  <- cplexAPI::openEnvCPLEX()
-    cplexAPI::setDblParmCPLEX(env, 1016, 1e-06)
+    ## cplexAPI::setDblParmCPLEX(env, 1016, 1e-06)
     prob <- cplexAPI::initProbCPLEX(env)
     cplexAPI::chgProbNameCPLEX(env, prob, "sample")
     if (!is.null(lpsolver.options)) {
@@ -705,8 +705,7 @@ runLpSolveAPI <- function(lpobj, modelsense, lpsolver.options) {
     lpSolveAPI::set.objfn(lprec = lpmodel,
                           obj = lpobj$obj)
     lpSolveAPI::lp.control(lprec = lpmodel,
-                           sense = modelsense,
-                           epslevel = "tight")
+                           sense = modelsense)
     if (!is.null(lpsolver.options)) {
         eval(lpsolver.options)
     }
@@ -771,7 +770,9 @@ optionsGurobi <- function(options, debug) {
 #'
 #' This function constructs a list of options to be parsed when
 #' \code{lpsolver} is set to \code{lpsolveapi}. The options permitted
-#' are those that can be set via \code{lpSolveAPI::lp.control}.
+#' are those that can be set via \code{lpSolveAPI::lp.control}, and
+#' should be passed as a named list (e.g. \code{list(epslevel =
+#' "tight")}).
 #' @param options list. The name of each item must be the name of the
 #'     option, and is case sensitive. The value assigned to each item
 #'     is the value to set the option to. The \code{lprec} argument
@@ -779,6 +780,10 @@ optionsGurobi <- function(options, debug) {
 #' @return string, the command to be evaluated to implement the
 #'     options.
 optionsLpSolveAPI <- function(options) {
+    ## Implement default tolerance
+    if (!"epslevel" %in% names(options)) {
+        options$epslevel = "tight"
+    }
     optionsStr <- gsub("\\s+", " ", Reduce(paste, deparse(options)))
     optionsStr <- gsub("list\\(", "lpSolveAPI::lp.control(lprec = lpmodel, ",
                        optionsStr)
@@ -790,38 +795,130 @@ optionsLpSolveAPI <- function(options) {
 #' This function constructs a list of options to be parsed when
 #' \code{lpsolver} is set to \code{cplexapi}.
 #' @param options list. The name of each item must be the name of the
-#'     option, and is case sensitive. The value assigned to each item
-#'     is the value to set the option to. The \code{env} argument
-#'     should always be omitted. If the option accepts a list of
-#'     parameters, then these parameters should be passed as a vector
-#'     in the same order as defined by the corresponding function in
-#'     the \code{cplexAPI} package (e.g. \code{list(setDblParmCPLEX =
-#'     c(1016, 1e-06))}). If the option only requires the \code{env}
-#'     parameter, then an \code{NA} should be passsed as the parameter
-#'     value (e.g. \code{list(stDefaultParm = NA)}).
+#'     function to set the option, and is case sensitive. The value
+#'     assigned to each item is the value to set the option to. The
+#'     \code{env} argument should always be omitted. If the option
+#'     accepts a list of parameters, then these parameters should be
+#'     passed as using a named vector (e.g.
+#'     \code{list(setLogFileNameCPLEX = c(filename = "cpx.log", mode =
+#'     "w"))}).  If the function to set the option can be used
+#'     multiple times, then the value submitted should be a a list,
+#'     with each entry being a named vector
+#'     (e.g. \code{list(setDblParmCPLEX = list(c(parm = 1016, value =
+#'     1e-04), c(parm = 1084, value = 2)))}). If the option only
+#'     requires the \code{env} parameter, then an \code{NA} should be
+#'     passsed as the parameter value (e.g. \code{list(setDefaultParm
+#'     = NA)}).
 #' @return list, each element being the command to evaluate to
-#'      implement an option.
+#'     implement an option.
 optionsCplexAPI <- function(options) {
-    optionsStr <- list()
-    for (i in seq(length(options))) {
-        tmp <- options[[i]]
-        for (j in seq(length(tmp))) {
-            if (is.character(tmp[j])) {
-                tmp[j] <- deparse(tmp[j])
+    ## Implement default tolerance
+    if ("setDblParmCPLEX" %in% names(options)) {
+        pos <- which(names(options) == "setDblParmCPLEX")
+        if (!is.list(options[[pos]])) {
+            if (options[[pos]]["parm"] != 1016) {
+                options[[pos]] <- list(options[[pos]],
+                                       c(parm = 1016, value = 1e-06))
+            }
+        } else {
+            parms <- unlist(lapply(options[[pos]], function(x) x["parm"]))
+            if (! 1016 %in% parms) {
+                options[[pos]][length(options[[pos]]) + 1] <-
+                    c(parm = 1016, value = 1e-06)
             }
         }
-        suppressWarnings(
-            if (!is.na(tmp)) {
-                optionsStr[i] <- paste0("cplexAPI::",
-                                        names(options)[i],
-                                        "(env, ",
-                                        paste(tmp, collapse = ", "),
-                                        ")")
-            } else {
-                optionsStr[i] <- paste0("cplexAPI::",
-                                        names(options)[i],
-                                        "(env)")
-            })
+    } else {
+        options$setDblParmCPLEX <- c(parm = 1016, value = 1e-06)
+    }
+    ## Construct commands to implement options
+    optionsStr <- list()
+    counter <- 1
+    for (i in seq(length(options))) {
+        if (!is.list(options[[i]])) {
+            optionsStr[counter] <-
+                optionsCplexAPISingle(names(options)[i],
+                                      options[[i]])
+            counter <- counter + 1
+        }
+        if (is.list(options[[i]])) {
+            for (j in seq(length(options[[i]]))) {
+                optionsStr[counter] <-
+                    optionsCplexAPISingle(names(options)[i],
+                                          options[[i]][[j]])
+                counter <- counter + 1
+            }
+        }
     }
     return(optionsStr)
+}
+
+#' Function to parse a single set of options for CPLEX
+#'
+#' This function constructs a string to be parsed when \code{lpsolver}
+#' is set to \code{cplexapi}.
+#' @param name string, name of the \code{cplexapi} function to call to
+#'     implement the option.
+#' @param vector a named vector, contains the argument names and
+#'     values of the options. The \code{env} argument in the
+#'     \code{cplexapi} documentation should always be omitted.
+#' @return string, the command to be evaluated to implement a single
+#'     option.
+optionsCplexAPISingle <- function(name, vector) {
+    suppressWarnings(
+    if (is.na(vector)) {
+        tmpCommand <- paste0("cplexAPI::",
+                             name,
+                             "(env = env)")
+    } else {
+        tmpCommand <- NULL
+        for (i in seq(length(vector))) {
+            if (!is.character(vector[i])) {
+                tmpAdd <- paste0(names(vector)[i], " = ", vector[[i]])
+            } else {
+                tmpAdd <- paste0(names(vector)[i], " = ", deparse(vector[[i]]))
+            }
+            if (i == 1) tmpCommand <- tmpAdd
+            if (i != 1) tmpCommand <- paste(tmpCommand, tmpAdd, sep = ", ")
+        }
+        tmpCommand <- paste0("cplexAPI::",
+                             name,
+                             "(env = env, ",
+                             tmpCommand,
+                             ")")
+    }
+    )
+    return(tmpCommand)
+}
+
+#' Function to extract feasibility tolerance from CPLEX options
+#'
+#' This function parses through the user-submitted CPLEX options to
+#' determine what the feasibility tolerance is. This tolerance can
+#' then be used for the audit.  If the user does not set the CPLEX
+#' feasibility tolerance, then a default value of \code{1e-06} is
+#' returned.
+#' @param options list, the set of options submitted by the user.
+#' @return scalar, the level to set the audit tolerance at.
+optionsCplexAPITol <- function(options) {
+    if (! "setDblParmCPLEX" %in% names(options)) {
+        audit.tol <- 1e-06
+    } else {
+        if (is.list(options$setDblParmCPLEX)) {
+            parms <- unlist(lapply(options$setDblParmCPLEX,
+                                   function(x) x["parm"]))
+            if (1016 %in% parms) {
+                pos <- which(parms == 1016)
+                audit.tol <- options$setDblParmCPLEX[[pos]]["value"]
+            } else {
+                audit.tol <- 1e-06
+            }
+        } else {
+            if (options$setDblParmCPLEX["parm"] == 1016) {
+                audit.tol <- options$setDblParmCPLEX["value"]
+            } else {
+                audit.tol <- 1e-06
+            }
+        }
+    }
+    return(audit.tol)
 }

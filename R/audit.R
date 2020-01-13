@@ -147,7 +147,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                   initgrid.nu = 20, initgrid.nx = 20,
                   audit.nx = 2500, audit.nu = 25, audit.add = 100,
-                  audit.max = 25, audit.tol = 1e-06,
+                  audit.max = 25, audit.tol,
                   audit.grid = NULL,
                   save.grid = FALSE,
                   m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
@@ -169,6 +169,32 @@ audit <- function(data, uname, m0, m1, splinesobj,
     set.seed(seed)
     call  <- match.call()
     lpsolver <- tolower(lpsolver)
+    ## Set the audit tolerance
+    if (!hasArg(audit.tol)) {
+        if (lpsolver == "gurobi") {
+            if (hasArg(lpsolver.options) &&
+                !is.null(lpsolver.options$FeasibilityTol)) {
+                audit.tol <- lpsolver.options$FeasibilityTol
+            } else if (hasArg(lpsolver.options.bounds) &&
+                       !is.null(lpsolver.options.bounds$FeasibilityTol)) {
+                audit.tol <- lpsolver.options.bounds$FeasibilityTol
+            } else {
+                audit.tol <- 1e-06
+            }
+        }
+        if (lpsolver == "cplexapi") {
+            if (hasArg(lpsolver.options)) {
+                audit.tol <- optionsCplexAPITol(lpsolver.options)
+            } else if (hasArg(lpsolver.options.bounds)){
+                audit.tol <- optionsCplexAPITol(lpsolver.options.bounds)
+            } else {
+                audit.tol <- 1e-06
+            }
+        }
+        if (lpsolver == "lpsolveapi") {
+            audit.tol <- 1e-06
+        }
+    }
     ## Organize LP options
     if (lpsolver == "gurobi") {
         ## Construct default options
@@ -217,13 +243,19 @@ audit <- function(data, uname, m0, m1, splinesobj,
                     lpsolver.options.criterion <-
                         optionsCplexAPI(lpsolver.options.criterion)
                 } else {
-                    lpsolver.options.criterion <- NULL
+                    lpsolver.options.criterion <-
+                        optionsCplexAPI(list(setDblParmCPLEX =
+                                                 c(parm = 1016,
+                                                   value = 1e-06)))
                 }
                 if (hasArg(lpsolver.options.bounds)) {
                     lpsolver.options.bounds <-
                         optionsCplexAPI(lpsolver.options.bounds)
                 } else {
-                    lpsolver.options.bounds <- NULL
+                    lpsolver.options.bounds <-
+                        optionsCplexAPI(list(setDblParmCPLEX =
+                                                 c(parm = 1016,
+                                                   value = 1e-06)))
                 }
             }
         }
@@ -237,13 +269,15 @@ audit <- function(data, uname, m0, m1, splinesobj,
                     lpsolver.options.criterion <-
                         optionsLpSolveAPI(lpsolver.options.criterion)
                 } else {
-                    lpsolver.options.criterion <- NULL
+                    lpsolver.options.criterion <-
+                        optionsLpSolveAPI(list(epslevel = "tight"))
                 }
                 if (hasArg(lpsolver.options.bounds)) {
                     lpsolver.options.bounds <-
                         optionsLpSolveAPI(lpsolver.options.bounds)
                 } else {
-                    lpsolver.options.bounds <- NULL
+                    lpsolver.options.bounds <-
+                        optionsLpSolveAPI(list(epslevel = "tight"))
                 }
             }
         }
