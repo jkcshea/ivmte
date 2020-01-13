@@ -158,8 +158,8 @@ utils::globalVariables("u")
 #'     should correspond to an option specific to the LP solver
 #'     selected. These options are specific for finding the minimum
 #'     criterion.
-#' @param lpsolver.options.bounds list, each item of the list
-#'     should correspond to an option specific to the LP solver
+#' @param lpsolver.options.bounds list, each item of the list should
+#'     correspond to an option specific to the LP solver
 #'     selected. These options are specific for finding the bounds.
 #' @param criterion.tol tolerance for violation of observational
 #'     equivalence, set to 0 by default. Statistical noise may
@@ -194,6 +194,12 @@ utils::globalVariables("u")
 #'     added to the constraint grid.
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
+#' @param audit.tol feasibility tolerance when performing the
+#'     audit. By default to set to \code{1e-06}, which is in alignment
+#'     with the Gurobi and CPLEX LP solvers. This parameter should
+#'     only be changed if the feasibility tolerance of the LP solver
+#'     is changed, or if numerical issues result in discrepancies
+#'     between the LP solver's feasibility check and the audit.
 #' @param point boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if it is believed that the treatment effects are
 #'     point identified. If set to \code{TRUE}, then a two-step GMM
@@ -313,6 +319,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
+                  audit.tol = 1e-06,
                   point = FALSE, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
@@ -934,7 +941,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 hasArg(mte.dec) | hasArg(mte.inc) |
                 hasArg(audit.nu) | hasArg(audit.nx) | hasArg(audit.add) |
                 hasArg(initgrid.nu) | hasArg(initgrid.nx)|
-                hasArg(audit.max)) {
+                hasArg(audit.max) | hasArg(audit.tol)) {
                 warning(gsub("\\s+", " ",
                              "If argument 'point' is set to TRUE, then shape
                              restrictions on m0 and m1 are ignored, and the
@@ -973,6 +980,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     }
     if (!((audit.add %% 1 == 0) & audit.add > 0)) {
         stop("'audit.add' must be an integer greater than or equal to 1.",
+             call. = FALSE)
+    }
+    if (!is.numeric(audit.tol) |
+        audit.tol < 0 |
+        length(audit.tol) > 1) {
+        stop("'audit.tol' must be a positive scalar.",
              call. = FALSE)
     }
     if (hasArg(m0.dec) | hasArg(m0.inc) |
@@ -2564,7 +2577,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           criterion.tol = 0, initgrid.nx = 20,
                           initgrid.nu = 20, audit.nx = 2500,
                           audit.nu = 25, audit.add = 100,
-                          audit.max = 25, audit.grid = NULL,
+                          audit.max = 25, audit.tol = 1e-06, audit.grid = NULL,
                           save.grid = FALSE,
                           point = FALSE,
                           point.eyeweight = FALSE,
@@ -2918,7 +2931,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     audit.args <- c("uname", "vars_data",
                     "initgrid.nu", "initgrid.nx",
                     "audit.nx", "audit.nu", "audit.add",
-                    "audit.max", "audit.grid", "save.grid",
+                    "audit.max", "audit.tol",
+                    "audit.grid", "save.grid",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",

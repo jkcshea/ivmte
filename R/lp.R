@@ -471,7 +471,7 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
 #' @export
 bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
                   lpsolver.options, noisy = FALSE,
-                  debug = FALSE) {)
+                  debug = FALSE) {
     lpsolver <- tolower(lpsolver)
     ## define model
     model <- list()
@@ -780,7 +780,8 @@ optionsGurobi <- function(options, debug) {
 #'     options.
 optionsLpSolveAPI <- function(options) {
     optionsStr <- gsub("\\s+", " ", Reduce(paste, deparse(options)))
-    optionsStr <- gsub("list\\(", "lpSolveAPI::lp.control(lprec = lpmodel, ", optionsStr)
+    optionsStr <- gsub("list\\(", "lpSolveAPI::lp.control(lprec = lpmodel, ",
+                       optionsStr)
     return(optionsStr)
 }
 

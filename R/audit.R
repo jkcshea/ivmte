@@ -147,7 +147,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                   initgrid.nu = 20, initgrid.nx = 20,
                   audit.nx = 2500, audit.nu = 25, audit.add = 100,
-                  audit.max = 25, audit.grid = NULL,
+                  audit.max = 25, audit.tol = 1e-06,
+                  audit.grid = NULL,
                   save.grid = FALSE,
                   m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                   m1.ub.default = FALSE,
@@ -172,7 +173,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
     if (lpsolver == "gurobi") {
         ## Construct default options
         lpsolver.options.default <- list(dualreductions = 1,
-                                         FeasibilityTol = 1e-6)
+                                         FeasibilityTol = 1e-06)
         if (debug)  lpsolver.options.default$outputflag <- 1
         if (!debug) lpsolver.options.default$outputflag <- 0
         if (hasArg(lpsolver.presolve)) lpsolver.options.default$presolve <-
@@ -422,9 +423,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbA[negatepos, ] <- -mbA[negatepos, ]
             mbrhs <- mbobj$mbrhs
             mbrhs[negatepos] <- -mbrhs[negatepos]
-            violateDiff <- round(mbA %*% solVec - mbrhs,
-                                 digits = 6)
-            violatevec <- violateDiff > 0
+            violateDiff <-mbA %*% solVec - mbrhs
+            violatevec <- violateDiff > audit.tol
             violatepos <- which(violatevec == TRUE)
             violateType <- sapply(violatepos, function(x) {
                 if (x %in% mbobj$lb0seq) {
@@ -554,17 +554,44 @@ audit <- function(data, uname, m0, m1, splinesobj,
             if (existsolution == FALSE) existsolution <- TRUE
             prevbound <- c(lpresult$min, lpresult$max)
         }
-
         ## Test for violations for minimization problem
         violateDiffMin <- a_mbA %*% solVecMin - a_mbrhs
-        violatevecMin <- violateDiffMin > 1e-06
+        violatevecMin <- violateDiffMin > audit.tol
         ## Test for violations for maximization problem
         violateDiffMax <- a_mbA %*% solVecMax - a_mbrhs
-        violatevecMax <- violateDiffMax > 1e-06
+        violatevecMax <- violateDiffMax > audit.tol
         ## Generate violation data set
         violatevec <- violatevecMin + violatevecMax
         violate <- as.logical(sum(violatevec))
         violatevec <- as.logical(violatevec)
+        if (initgrid.nx == audit.nx &&
+            initgrid.nu == audit.nu &&
+            violate) {
+            origTol <- audit.tol
+            origViolations <- sum(violatevec)
+            origViolationsMagnitude <- max(c(violateDiffMin, violateDiffMax))
+            ## If violations occur when initial grid and audit grid
+            ## match, then there is a precision issue. By default, the
+            ## tolerance in the package will be adjusted to be 'twice'
+            ## the magnitude of solver's tolerance.
+            audit.tol <- (audit.tol / (10^magnitude(audit.tol))) *
+                (10^(ceiling(magnitude(audit.tol) / 2)))
+            warning(gsub("\\s+", " ",
+                         paste0(origViolations,
+                                " violations found despite the LP constraint
+                                grid and audit grid being identifical.
+                                Audit tolerance will be increased from ",
+                                format(origTol, scientific = TRUE), " to ",
+                                format(audit.tol, scientific = TRUE), ".")),
+                    "\n",
+                    call. = FALSE,
+                    immediate. = TRUE)
+            violatevecMin <- violateDiffMin > audit.tol
+            violatevecMax <- violateDiffMax > audit.tol
+            violatevec <- violatevecMin + violatevecMax
+            violate <- as.logical(sum(violatevec))
+            violatevec <- as.logical(violatevec)
+        }
         if (violate) {
             if (noisy) cat("    Violations: ", sum(violatevec), "\n")
             ## Store all points that violate the constraints
@@ -589,6 +616,33 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbobj$mbrhs <- c(mbobj$mbrhs, a_mbobj$mbrhs[violateIndexes])
             mbobj$mbs <- c(mbobj$mbs, a_mbobj$mbs[violateIndexes])
             audit_count <- audit_count + 1
+            if (initgrid.nx == audit.nx &&
+                initgrid.nu == audit.nu) {
+                warning(paste0(gsub("\\s+", " ",
+                                    paste0("Audit finished: violations
+                                           continue to occur although
+                                           the LP constraint grid and
+                                           audit grid are identical,
+                                           and the audit tolerance has
+                                           increased from ",
+                                           format(origTol, scientific = TRUE),
+                                           " to ",
+                                           format(audit.tol, scientific = TRUE),
+                                           ". This suggests precision of the
+                                           LP solver exceeds that of R,
+                                           and may be due to scaling issues
+                                           in the LP model.
+                                           Setting 'audit.tol' to be larger
+                                           than the maximum violation of ",
+                                           format(origViolationsMagnitude,
+                                                  scientific = TRUE),
+                                           " will eliminate this message,
+                                           but will not address the nature of
+                                           the problem.")),
+                               "\n"),
+                        call. = FALSE, immediate. = TRUE)
+                break
+            }
             if (audit_count <= audit.max) {
                 if (noisy) {
                     if (length(violateIndexes) > 1) ps <- 'points'
@@ -648,6 +702,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
         typeStr[violateMat$type == 11] <- "mte.inc"
         typeStr[violateMat$type == 12] <- "mte.dec"
         violations$.violation.type <- typeStr
+        violations$.violation.row <- violateIndexes
+        violations$.violation.magnitude <- violateMat$diff
         rownames(violations) <- seq(nrow(violations))
     }
     output <- list(max = lpresult$max,
