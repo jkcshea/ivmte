@@ -609,7 +609,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             ## tolerance in the package will be adjusted to be 'twice'
             ## the magnitude of solver's tolerance.
             audit.tol <- (audit.tol / (10^magnitude(audit.tol))) *
-                (10^(ceiling(magnitude(audit.tol) / 2)))
+                (10^(magnitude(audit.tol) / 2))
             violatevecMin <- violateDiffMin > audit.tol
             violatevecMax <- violateDiffMax > audit.tol
             violatevec <- violatevecMin + violatevecMax
