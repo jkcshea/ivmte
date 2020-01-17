@@ -1591,6 +1591,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                tmpColNames)
                 inter3 <- grep(paste0(":", altNames[[k]], ":"),
                                tmpColNames)
+                inter4 <- altNames[[k]] %in% tmpColNames
                 interpos <- c(inter1, inter2, inter3)
                 if (length(interpos) > 0) {
                     ## The case where there are interactions with splines
@@ -1599,10 +1600,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                           altNames[[k]])
                     altNames[[k]] <- gsub(paste0(tmpName, ":"), "",
                                           altNames[[k]])
-                } else {
-                    ## The case where there are no interactions with
-                    ## splines, i.e spline enters on its own
-                    altNames[[k]] <- "1"
+                }
+                if (inter4) {
+                    if (length(interpos) == 0) {
+                        altNames[[k]] <- "1"
+                    } else {
+                        altNames[[k]] <- c("1", altNames[[k]])
+                    }
                 }
             }
             splinesobj[[d + 1]]$splinesinter <- altNames
