@@ -1729,6 +1729,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     }
     ## Estimate bounds
     if (point == FALSE) {
+        print("remember to delete the line below")
+        ## estimateCall <- modcall(estimateCall,
+        ##                         dropargs = c("count.moments"),
+        ##                         newargs = list(count.moments = FALSE))
         if (bootstraps > 0) {
             estimateCall <- modcall(estimateCall,
                                     newargs = list(save.grid = TRUE))
@@ -2712,7 +2716,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     targetGammas <- eval(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
-
+    
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
@@ -2771,25 +2775,48 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             }
             ncomponents <- sum(!is.na(sest$betas))
             pmodobj <- pmodel$phat[subset_index]
-            setobj <- genSSet(data = data,
-                              sset = sset,
-                              sest = sest,
-                              splinesobj = splinesobj,
-                              pmodobj = pmodobj,
-                              pm0 = pm0,
-                              pm1 = pm1,
-                              ncomponents = ncomponents,
-                              scount = scount,
-                              subset_index = subset_index,
-                              means = FALSE,
-                              yvar = vars_y,
-                              dvar = treat,
-                              noisy = noisy,
-                              ivn = ivlikeCounter,
-                              redundant = point.redundant)
+            if (point) {
+                setobj <- genSSet(data = data,
+                                  sset = sset,
+                                  sest = sest,
+                                  splinesobj = splinesobj,
+                                  pmodobj = pmodobj,
+                                  pm0 = pm0,
+                                  pm1 = pm1,
+                                  ncomponents = ncomponents,
+                                  scount = scount,
+                                  subset_index = subset_index,
+                                  means = FALSE,
+                                  yvar = vars_y,
+                                  dvar = treat,
+                                  noisy = noisy,
+                                  ivn = ivlikeCounter,
+                                  redundant = point.redundant)
+            } else {
+                print("remember to set means = TRUE again")
+                setobj <- genSSet(data = data,
+                                  sset = sset,
+                                  sest = sest,
+                                  splinesobj = splinesobj,
+                                  pmodobj = pmodobj,
+                                  pm0 = pm0,
+                                  pm1 = pm1,
+                                  ncomponents = ncomponents,
+                                  scount = scount,
+                                  subset_index = subset_index,
+                                  means = FALSE,
+                                  yvar = vars_y,
+                                  dvar = treat,
+                                  noisy = noisy,
+                                  ivn = ivlikeCounter,
+                                  redundant = point.redundant)
+            }
             ## Update set of moments (gammas)
             sset <- setobj$sset
+            print("size of sset")
+            print(object.size(sset), units = "MB")
             scount <- setobj$scount
+            rm(setobj)
             ivlikeCounter <- ivlikeCounter + 1
         }
     } else {
@@ -2829,6 +2856,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 rankCheck <- eigen(tmpOmegaMat)
             }
             colDrop <- which(! colDrop %in% colnames(tmpOmegaMat))
+            print("This is the original colDrop")
+            print(colDrop)
         }
         ## Check number of linearly independent moments
         nIndepMoments <- length(sset) - length(colDrop)
@@ -2846,6 +2875,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         nIndepMoments <- NULL
     }
     ## Construct gamma moments
+    print("remember turn this column means things off")
     if (point == FALSE) {
         for (s in 1:length(sset)) {
             sset[[s]]$g0 <- colMeans(sset[[s]]$g0)
@@ -2853,27 +2883,63 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             sset[[s]]$ys <- NULL
         }
     }
+    print("Remember to uncomment this if you want to test htis!")
+    ## TESTING ---------------------------
     ## An alternative way to count moments.
-    ## momentMatrix <- NULL
-    ## for (s in 1:length(sset)) {
-    ##     if (!is.null(subsetIndexList)) {
-    ##         momentMatrixTmp <- rep(0,  times = 2 * nrow(data))
-    ##         if (!is.integer(subsetIndexList[[sset[[s]]$ivspec]])) {
-    ##             momentMatrixTmp <- c(sset[[s]]$w0$multiplier,
-    ##                                  sset[[s]]$w1$multiplier)
-    ##         } else {
-    ##             momentMatrixTmp[c(subsetIndexList[[sset[[s]]$ivspec]],
-    ##                               nrow(data) +
-    ##                               subsetIndexList[[sset[[s]]$ivspec]])] <-
-    ##                 c(sset[[s]]$w0$multiplier, sset[[s]]$w1$multiplier)
-    ##         }
-    ##     } else {
-    ##         momentMatrixTmp <- c(sset[[s]]$w0$multiplier,
-    ##                              sset[[s]]$w1$multiplier)
-    ##     }
-    ##     momentMatrix <- cbind(momentMatrix, momentMatrixTmp)
-    ## }
-    ## nIndepMoments <- qr(momentMtarix)$rank
+    wmat <- NULL
+    for (s in 1:length(sset)) {
+        if (!is.null(subsetIndexList)) {
+            wmatTmp <- rep(0,  times = 2 * nrow(data))
+            if (!is.integer(subsetIndexList[[sset[[s]]$ivspec]])) {
+                wmatTmp <- c(sset[[s]]$w0$multiplier,
+                                     sset[[s]]$w1$multiplier)
+            } else {
+                wmatTmp[c(subsetIndexList[[sset[[s]]$ivspec]],
+                                  nrow(data) +
+                                  subsetIndexList[[sset[[s]]$ivspec]])] <-
+                    c(sset[[s]]$w0$multiplier, sset[[s]]$w1$multiplier)
+            }
+        } else {
+            wmatTmp <- c(sset[[s]]$w0$multiplier,
+                                 sset[[s]]$w1$multiplier)
+        }
+        wmat <- cbind(wmat, wmatTmp)
+        rm(wmatTmp)
+    }
+    ## Check number of linearly independent moments
+    nIndepMoments <- qr(wmat)$rank
+    if (noisy == TRUE) cat("    Independent moments:", nIndepMoments, "\n")
+    if (nIndepMoments < length(sset) && !all(ivlikeD)) {
+        warning(gsub("\\s+", " ",
+                     paste0("The following IV-like specifications do not
+                            include the treatment variable: ",
+                            paste(which(!ivlikeD), collapse = ", "),
+                            ". This may result in fewer
+                            independent moment conditions than expected.")),
+                call. = FALSE)
+    }
+    ## Address any collinear moments
+    if (nIndepMoments < ncol(wmat)) {
+        wmat <- t(wmat) %*% wmat / nrow(wmat)
+        rankCheck <- eigen(wmat)
+        if (any(abs(rankCheck$values) < 1e-08)) {
+            colDict <- list()
+            colDrop <- seq(ncol(wmat))
+            colnames(wmat) <- seq(ncol(wmat))
+            while (any(abs(rankCheck$values) < 1e-08)) {
+                colPos <- which(abs(rankCheck$values) < 1e-08)[1]
+                colVec <- rankCheck$vectors[, colPos]
+                colSeq <- which(abs(colVec) > 1e-08)
+                colDropIndex <- max(colSeq)
+                wmat <- wmat[-colDropIndex, -colDropIndex]
+                rankCheck <- eigen(wmat)
+            }
+            colDrop <- which(! colDrop %in% colnames(wmat))
+            print("This is the new colDrop")
+            print(colDrop)
+        }
+    }
+    ## END TESTING ---------------------------
     if (!is.null(point.redundant)) point.redundant <- 0
     ## If bootstrapping, check that length of sset is equivalent in
     ## length to that of the original sset if bootstrapping
@@ -3793,6 +3859,8 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                     w1 = sweight1,
                                                     n = n)
             }
+            print("Size of sset internal")
+            print(object.size(sset), units = "MB")
         }
         ## update counter (note scount is not referring
         ## to the list of IV regressions, but the components
@@ -4132,6 +4200,10 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
 momentMatrix <- function(sset, gn0, gn1, subsetList = NULL, n = NULL) {
     momentMatrix <- NULL
     momentNames <- NULL
+    print(names(sset))
+    print(names(sset$s1))
+    print(dim(sset$s1$g0))
+    print(dim(sset$s1$g1))
     for (s in 1:length(sset)) {
         if (!is.null(subsetList)) {
             momentMatrixTmp <- matrix(0, nrow = n, ncol = 1 + gn0 + gn1)
