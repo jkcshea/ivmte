@@ -455,7 +455,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             if (lpsolver %in% c("cplexapi", "lpsolveapi")) {
                 solVec <- minobseqAlt$result$optx
             } else {
-                solVec <- minobseqAlt$resultx
+                solVec <- minobseqAlt$result$x
             }
             ## Test for violations
             mbA <- mbobj$mbA
