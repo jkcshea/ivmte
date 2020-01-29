@@ -357,7 +357,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
             }
             ## Generate all monotonicity and boundedness matrices
             ## for the audit
-            if (noisy) cat("    Generating audit grid...\n")
+            if (noisy) {
+                if (audit.nu == initgrid.nu && audit.nx == initgrid.nx) {
+                    cat("    Generating initial constraint/audit grid...\n")
+                } else {
+                    cat("    Generating audit grid...\n")
+                }
+            }
             monoboundAcall <- modcall(call,
                                       newcall = genmonoboundA,
                                       keepargs = monoboundAlist,
@@ -382,41 +388,41 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 noX <- TRUE
             }
         }
-        a_mbA <- a_mbobj$mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)]
+        a_mbA <- a_mbobj$mbA
         negatepos <- which(a_mbobj$mbs == ">=")
-        a_mbA[negatepos, ] <- -a_mbA[negatepos, ]
         a_mbrhs <- a_mbobj$mbrhs
-        a_mbrhs[negatepos] <- -a_mbrhs[negatepos]
-        ## Generate all monotonicity and boundedness matrices for initial grid
-        if (noisy) cat("    Generating initial constraint grid...")
-        if (noX) {
-            grid_index <- NULL
+        if (audit.nx == initgrid.nx && audit.nu == initgrid.nu) {
+            mbobj <- a_mbobj
         } else {
-            grid_index <- sort(
-                sample(a_grid_index,
-                       initgrid.nx,
-                       replace = FALSE,
-                       prob = replicate(length(a_grid_index),
-                       (1/length(a_grid_index)))))
+            if (noisy) cat("    Generating initial constraint grid...\n")
+            if (noX) {
+                grid_index <- NULL
+            } else {
+                grid_index <- sort(
+                    sample(a_grid_index,
+                           initgrid.nx,
+                           replace = FALSE,
+                           prob = replicate(length(a_grid_index),
+                           (1/length(a_grid_index)))))
+            }
+            uvec <- sort(c(0, 1, round(rhalton(initgrid.nu), 8)))
+            monoboundAcall <- modcall(call,
+                                      newcall = genmonoboundA,
+                                      keepargs = monoboundAlist,
+                                      newargs = list(m0 = m0,
+                                                     m1 = m1,
+                                                     uname = uname,
+                                                     support = support,
+                                                     grid_index = grid_index,
+                                                     uvec = uvec,
+                                                     splinesobj = splinesobj,
+                                                     monov = monov))
+            mbobj <- eval(monoboundAcall)
         }
-        uvec <- sort(c(0, 1, round(rhalton(initgrid.nu), 8)))
-        monoboundAcall <- modcall(call,
-                                  newcall = genmonoboundA,
-                                  keepargs = monoboundAlist,
-                                  newargs = list(m0 = m0,
-                                                 m1 = m1,
-                                                 uname = uname,
-                                                 support = support,
-                                                 grid_index = grid_index,
-                                                 uvec = uvec,
-                                                 splinesobj = splinesobj,
-                                                 monov = monov))
-        mbobj <- eval(monoboundAcall)
     }
-
     while (audit_count <= audit.max) {
         if (noisy) {
-            cat("\n\n    Audit count: ", audit_count, "\n", sep = "")
+            cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
         ## Minimize violation of observational equivalence
         lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
@@ -454,10 +460,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
             ## Test for violations
             mbA <- mbobj$mbA
             negatepos <- which(mbobj$mbs == ">=")
-            mbA[negatepos, ] <- -mbA[negatepos, ]
             mbrhs <- mbobj$mbrhs
-            mbrhs[negatepos] <- -mbrhs[negatepos]
-            violateDiff <-mbA %*% solVec - mbrhs
+            violateDiff <- mbA %*% solVec - mbrhs
+            violateDiff[negatepos] <- -violateDiff[negatepos]
             violatevec <- violateDiff > audit.tol
             violatepos <- which(violatevec == TRUE)
             violateType <- sapply(violatepos, function(x) {
@@ -589,10 +594,14 @@ audit <- function(data, uname, m0, m1, splinesobj,
             prevbound <- c(lpresult$min, lpresult$max)
         }
         ## Test for violations for minimization problem
-        violateDiffMin <- a_mbA %*% solVecMin - a_mbrhs
+        violateDiffMin <- a_mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)] %*%
+            solVecMin - a_mbrhs
+        violateDiffMin[negatepos] <- -violateDiffMin[negatepos]
         violatevecMin <- violateDiffMin > audit.tol
         ## Test for violations for maximization problem
-        violateDiffMax <- a_mbA %*% solVecMax - a_mbrhs
+        violateDiffMax <- a_mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)] %*%
+            solVecMax - a_mbrhs
+        violateDiffMax[negatepos] <- -violateDiffMax[negatepos]
         violatevecMax <- violateDiffMax > audit.tol
         ## Generate violation data set
         violatevec <- violatevecMin + violatevecMax
