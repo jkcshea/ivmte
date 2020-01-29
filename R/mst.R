@@ -2691,7 +2691,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                               "point", "noisy"),
                                  dropargs = "data",
                                  newargs = list(data = quote(data),
-                                                pmodobj = pmodel,
+                                                pmodobj = quote(pmodel),
                                                 pm0 = quote(pm0),
                                                 pm1 = quote(pm1)))
     } else {
@@ -2705,11 +2705,12 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                               "point", "noisy"),
                                  dropargs = "data",
                                  newargs = list(data = quote(data),
-                                                pmodobj = pmodel,
+                                                pmodobj = quote(pmodel),
                                                 pm0 = quote(pm0),
                                                 pm1 = quote(pm1)))
     }
     targetGammas <- eval(gentargetcall)
+    rm(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
 
@@ -2754,29 +2755,27 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             }
             ## Obtain coefficient estimates and S-weights
             ## corresponding to the IV-like estimands
-            sdata <- data[eval(substitute(ssubset), data), ]
             sest  <- ivEstimate(formula = sformula,
-                                data = sdata,
+                                data = data[eval(substitute(ssubset), data), ],
                                 components = scomponent,
                                 treat = treat,
                                 list = TRUE,
                                 order = ivlikeCounter)
             ## Generate moments (gammas) corresponding to IV-like
             ## estimands
-            subset_index <- rownames(sdata)
+            subset_index <- rownames(data[eval(substitute(ssubset), data), ])
             if (length(subset_index) == nrow(data)) {
                 subsetIndexList[[ivlikeCounter]] <- NA
             } else {
                 subsetIndexList[[ivlikeCounter]] <- as.integer(subset_index)
             }
             ncomponents <- sum(!is.na(sest$betas))
-            pmodobj <- pmodel$phat[subset_index]
             if (point) {
                 setobj <- genSSet(data = data,
                                   sset = sset,
                                   sest = sest,
                                   splinesobj = splinesobj,
-                                  pmodobj = pmodobj,
+                                  pmodobj = pmodel$phat[subset_index],
                                   pm0 = pm0,
                                   pm1 = pm1,
                                   ncomponents = ncomponents,
@@ -2793,7 +2792,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                   sset = sset,
                                   sest = sest,
                                   splinesobj = splinesobj,
-                                  pmodobj = pmodobj,
+                                  pmodobj = pmodel$phat[subset_index],
                                   pm0 = pm0,
                                   pm1 = pm1,
                                   ncomponents = ncomponents,
@@ -2818,6 +2817,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                   formulas."),
              call. = FALSE)
     }
+    rm(sest, subset_index)
+    if (exists("pm0")) rm(pm0)
+    if (exists("pm1")) rm(pm1)
+    if (smallreturnlist) pmodel <- pmodel$model
     if (count.moments) {
         wmat <- NULL
         for (s in 1:length(sset)) {
@@ -2854,6 +2857,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     } else {
         nIndepMoments <- NULL
     }
+    rm(wmat)
     if (!is.null(point.redundant)) point.redundant <- 0
     ## If bootstrapping, check that length of sset is equivalent in
     ## length to that of the original sset if bootstrapping
@@ -2905,8 +2909,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                            redundant = gmmResult$redundant,
                            jtest = gmmResult$jtest,
                            mtr.coef = gmmResult$coef)
-            if (all(class(pmodel$model) != "NULL")) {
-                output$propensity.coef <- pmodel$model$coef
+            if (all(class(pmodel) != "NULL")) {
+                output$propensity.coef <- pmodel$coef
             }
             return(output)
         }
@@ -3030,6 +3034,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             }
         }
     }
+    rm(audit_call)
     if (!is.null(audit$error) && autoExpand > autoExpandMax) {
         stop(paste0(gsub("\\s+", " ",
                          "Automatic grid expansion limit reached.
