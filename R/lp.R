@@ -124,21 +124,17 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
     lb <- c(replicate(sn * 2, 0), replicate(gn0 + gn1, -Inf))
     ## Add in additional constraints if included
     if (shape == TRUE) {
-        mbA     <- rbind(A, mbA)
-        rm(A)
+        A <- rbind(A, mbA)
         sense <- c(sense, mbs)
         rhs   <- c(rhs, mbrhs)
-    } else {
-        mbA <- A
-        rm(A)
     }
     if (lpsolver %in% c("gurobi", "lpsolveapi")) {
-        mbA <- Matrix::Matrix(mbA, sparse = TRUE)
+        A <- Matrix::Matrix(A, sparse = TRUE)
     }
     return(list(obj = obj,
                 rhs = rhs,
                 sense = sense,
-                A = mbA,
+                A = A,
                 ub = ub,
                 lb = lb,
                 sn = sn,
