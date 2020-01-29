@@ -420,6 +420,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbobj <- eval(monoboundAcall)
         }
     }
+    print("Memory checK")
+    print(gc())
+    
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
@@ -455,7 +458,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             if (lpsolver %in% c("cplexapi", "lpsolveapi")) {
                 solVec <- minobseqAlt$result$optx
             } else {
-                solVec <- minobseqAlt$resultx
+                solVec <- minobseqAlt$result$x
             }
             ## Test for violations
             mbA <- mbobj$mbA
@@ -551,6 +554,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                      lpsolver.options.criterion)
         }
 
+    print("Memory checK")
+    print(gc())
+        
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
