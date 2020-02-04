@@ -121,7 +121,10 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
         map <- c(map, gridmap)
         umap <- c(umap, grid[, uname])
         lbdA0seq <- seq(1, nrow(A0))
+        print("m0.lb gc")
+        print(gc())
     }
+    
     if (hasArg(m1.lb)) {
         bdA1 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
                       matrix(0, nrow = nrow(A0),   ncol = ncol(A0)),
@@ -134,6 +137,8 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
         map <- c(map, gridmap)
         umap <- c(umap, grid[, uname])
         lbdA1seq <- seq(1, nrow(A1))
+        print("m1.lb gc")
+        print(gc())
     }
     if (hasArg(mte.lb)) {
         bdAte <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
@@ -146,6 +151,8 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
         map <- c(map, gridmap)
         umap <- c(umap, grid[, uname])
         lbdAteseq <- seq(1, nrow(A1))
+        print("mte.lb gc")
+        print(gc())
     }
     ## Construct upper bound matrices
     if (hasArg(m0.ub)) {
@@ -160,6 +167,8 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
         map <- c(map, gridmap)
         umap <- c(umap, grid[, uname])
         ubdA0seq <- seq(1, nrow(A0))
+        print("m0.ub gc")
+        print(gc())
     }
     if (hasArg(m1.ub)) {
         bdA1 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
@@ -173,6 +182,8 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
         map <- c(map, gridmap)
         umap <- c(umap, grid[, uname])
         ubdA1seq <- seq(1, nrow(A1))
+        print("m1.ub gc")
+        print(gc())
     }
     if(hasArg(mte.ub)) {
         bdAte <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
@@ -185,6 +196,8 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
         map <- c(map, gridmap)
         umap <- c(umap, grid[, uname])
         ubdAteseq <- seq(1, nrow(A1))
+        print("mte.ub gc")
+        print(gc())
     }
     ## Update indexes for types of boundedness constraints
     countseq <- 0
@@ -406,6 +419,8 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     }
     ## Implement functions---monotonicity matrices formed immediately
     ## in order to save memory
+    print("pre mono memory usage")
+    print(gc())
     monoA <- NULL
     if (try(m0.inc, silent = TRUE) == TRUE) {
         monoList <- genmonoA0(monoList, 1)
@@ -413,16 +428,28 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     if (try(m0.dec, silent = TRUE) == TRUE) {
         monoList <- genmonoA0(monoList, -1)
     }
+    print("m0 mono")
+    print(gc())
+    print("monoA0 size")
+    print(object.size(monoList$monoA0), units = "Mb")
     monoA <- rbind(monoA, monoList$monoA0)
     monoList$monoA0 <- NULL
+    print("m0 mono post delete")
+    print(gc())
     if (try(m1.inc, silent = TRUE) == TRUE) {
         monoList <- genmonoA1(monoList, 1)
     }
     if (try(m1.dec, silent = TRUE) == TRUE) {
         monoList <- genmonoA1(monoList, -1)
     }
+    print("m1 mono")
+    print(gc())
+    print("monoA1 size")
+    print(object.size(monoList$monoA1), units = "Mb")
     monoA <- rbind(monoA, monoList$monoA1)
     monoList$monoA1 <- NULL
+    print("m1 mono post delete")
+    print(gc())
     if (try(mte.inc, silent = TRUE) == TRUE) {
         monoList <- genmonoAte(monoList, 1)
     }
@@ -862,6 +889,8 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                             gstar1 = quote(gstar1)))
         monoA <- eval(monoAcall)
     }
+    print("generated boundA and monoA memory check")
+    print(gc(), units = "Mb")
     ## Update bound sequence counts
     if (!is.null(bdA$lb0seq)) lb0seq <- bdA$lb0seq
     if (!is.null(bdA$lb1seq)) lb1seq <- bdA$lb1seq
@@ -869,7 +898,47 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     if (!is.null(bdA$ub0seq)) ub0seq <- bdA$ub0seq
     if (!is.null(bdA$ub1seq)) ub1seq <- bdA$ub1seq
     if (!is.null(bdA$ubteseq)) ubteseq <- bdA$ubteseq
-    output <- combinemonobound(bdA, monoA)
+    ## Update monotonicity sequence counts
+    boundLength <- length(lb0seq) + length(lb1seq) + length(lbteseq) +
+        length(ub0seq) + length(ub1seq) + length(ubteseq)    
+    if (!is.null(monoA$mono0seq)) {
+        mono0seq <- monoA$mono0seq
+        monoA$mono0seq <- NULL
+        mono0seq[, 1] <- mono0seq[, 1] + boundLength
+    }
+    if (!is.null(monoA$mono1seq)) {
+        mono1seq <- monoA$mono1seq
+        monoA$mono1seq <- NULL
+        mono1seq[, 1] <- mono1seq[, 1] + boundLength
+    }
+    if (!is.null(monoA$monoteseq)) {
+        monoteseq <- monoA$monoteseq
+        monoA$monoteseq <- NULL
+        monoteseq[, 1] <- monoteseq[, 1] + boundLength
+    }
+    mbA <- list(bdA$A, monoA$A)
+    mbs <- list(bdA$sense, monoA$sense)
+    mbrhs <- list(bdA$rhs, monoA$rhs)
+    mbmap <- list(bdA$map, monoA$map)
+    mbumap <- list(bdA$umap, ## This needs to be doubled/cbinded
+                   monoA$umap)
+    rm(bdA, monoA)
+    mbA <- Reduce(rbind, mbA)
+    mbs <- Reduce(c, mbs)
+    mbrhs <- Reduce(c, mbrhs)
+    mbmap <- Reduce(c, mbmap)
+    mbumap <- rbind(cbind(mbumap[[1]], mbumap[[1]]),
+                    mbumap[[2]])
+    output <- list(mbA = mbA,
+                   mbs = mbs,
+                   mbrhs  = mbrhs,
+                   mbmap  = mbmap,
+                   mbumap = mbumap)
+    rm(mbA, mbs, mbrhs, mbmap, mbumap)
+    print("combined objects size")
+    print(object.size(output), units = "Mb")
+    print("combined boundA and monoA memory check")
+    print(gc(), units = "Mb")
     output$gridobj <- gridobj
     output$lb0seq  <- lb0seq
     output$lb1seq  <- lb1seq
@@ -877,23 +946,17 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     output$ub0seq  <- ub0seq
     output$ub1seq  <- ub1seq
     output$ubteseq <- ubteseq
-    boundLength <- length(lb0seq) + length(lb1seq) + length(lbteseq) +
-        length(ub0seq) + length(ub1seq) + length(ubteseq)
-    ## Update monotonicity sequence counts
-    if (!is.null(monoA$mono0seq)) {
-        mono0seq <- monoA$mono0seq
-        mono0seq[, 1] <- mono0seq[, 1] + boundLength
+    if (exists("mono0seq")) {
         output$mono0seq <- mono0seq
+        rm(mono0seq)
     }
-    if (!is.null(monoA$mono1seq)) {
-        mono1seq <- monoA$mono1seq
-        mono1seq[, 1] <- mono1seq[, 1] + boundLength
+    if (exists("mono1seq")) {
         output$mono1seq <- mono1seq
+        rm(mono1seq)
     }
-    if (!is.null(monoA$monoteseq)) {
-        monoteseq <- monoA$monoteseq
-        monoteseq[, 1] <- monoteseq[, 1] + boundLength
+    if (exists("monoteseq")) {
         output$monoteseq <- monoteseq
+        rm(monoteseq)
     }
     return(output)
 }
