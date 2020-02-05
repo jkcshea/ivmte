@@ -379,6 +379,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                      monov = monov))
             a_mbobj <- eval(monoboundAcall)
             a_mbobj$support <- support
+            print("The size of a_mbobj")
+            print(object.size(a_mbobj), units = "Mb")
+            print("IT SEEMS LIKE THE MBOBJ IS DOUBLING MEMORY USAGE AT SOME POINT?")
         } else {
             sn <- length(sset)
             a_mbobj <- audit.grid
@@ -420,7 +423,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbobj <- eval(monoboundAcall)
         }
     }
-    print("Memory checK")
+    print("Memory checK 1")
     print(gc())
     
     while (audit_count <= audit.max) {
@@ -428,8 +431,27 @@ audit <- function(data, uname, m0, m1, splinesobj,
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
         ## Minimize violation of observational equivalence
+        print('pre lpobj memory')
+        print(gc())
+        print("generate LP obj time")
+        t0 <- Sys.time()
         lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
                          mbobj$mbrhs, lpsolver)
+        print(Sys.time() - t0)
+        print('post lpobj memory')
+        print(gc())
+
+
+        print("post lpobj object size check")
+        things <- ls()
+        sizes <- sapply(things, FUN = function(x) {
+            s <- try(object.size(get(x)), silent = TRUE)
+            if (class(s) != "try-error") s
+        })
+        sizes <- unlist(sizes)   
+        print(head(sort(sizes, decreasing = TRUE)) / 1e6)
+
+        
         minobseq <- obsEqMin(sset, NULL, NULL,
                              criterion.tol, lpobj, lpsolver,
                              lpsolver.options.criterion, debug)
@@ -440,6 +462,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## solutions.
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
+            rm(lpobj)
+            rm(minobseq)
             lpobjAlt <- lpSetup(sset = sset,
                                 orig.sset = NULL,
                                 mbA = mbobj$mbA,
@@ -554,7 +578,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                      lpsolver.options.criterion)
         }
 
-    print("Memory checK")
+    print("Memory checK 2")
     print(gc())
         
         ## Obtain bounds

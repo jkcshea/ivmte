@@ -2916,6 +2916,17 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         }
     }
 
+    print("preaudit object size check")
+    things <- ls()
+    sizes <- sapply(things, FUN = function(x) {
+        s <- try(object.size(get(x)), silent = TRUE)
+        if (class(s) != "try-error") s
+    })
+    sizes <- unlist(sizes)   
+    print(head(sort(sizes, decreasing = TRUE)) / 1e6)
+    print("pre audit gc() check")
+    print(gc())
+
     ##---------------------------
     ## 4. Define constraint matrices using the audit
     ##---------------------------
@@ -2980,7 +2991,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
 
     ##---------------------------
     ## 5. Obtain the bounds
-    ##---------------------------
+    ##---------------------------    
     autoExpand <- 0
     autoExpandMax <- 3
     newGrid.nu <- initgrid.nu

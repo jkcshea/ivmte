@@ -267,7 +267,13 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
                      criterion.tol = 0, lpobj, lpsolver, lpsolver.options,
                      debug = FALSE) {
     if (!is.null(orig.sset)) {
-        ## Prepare to obtain 'recentered' bootstrap criterion
+        ## Prepare to obtain 'recentered' bootstrap
+        ## criterion. Specifically, the |S| equality constraints are
+        ## centered. Then, the original |S| equality constraints are
+        ## added. In addition, 2 * |S| residual variables are added to
+        ## the problem. These new residual variables correspond to the
+        ## |S| equality constraints from the original, uncentered
+        ## sample.
         tmpA <- NULL
         tmpRhs <- NULL
         tmpSense <- NULL
@@ -303,10 +309,13 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
             message("\nMinimum criterion optimization statistics:")
             message("------------------------------------------")
         }
+        print("gc before constructing the model list")
+        print(gc())
         model <- list()
         model$modelsense <- "min"
         model$obj   <- lpobj$obj
         model$A     <- lpobj$A
+        lpobj$A <- NULL
         model$rhs   <- lpobj$rhs
         model$sense <- lpobj$sense
         model$ub    <- lpobj$ub
@@ -315,7 +324,13 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
             gurobi::gurobi_write(model, "lpCriterion.mps")
             save(model, file = "lpCriterion.Rdata")
         }
+        print("gc after constructing the model list")
+        print(gc())
         result   <- gurobi::gurobi(model, lpsolver.options)
+        print("post result memrory")
+        print(gc())
+
+        stop('end of test')
         obseqmin <- result$objval
         optx     <- result$x
         status   <- result$status
@@ -342,8 +357,9 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
     return(list(obj = obseqmin,
                 g0 = g0sol,
                 g1 = g1sol,
-                status = status,
-                result = result))
+                status = status))
+    ## object 'result' will not be returned---unnecessary, and very
+    ## memory intensive.
 }
 
 #' Obtaining TE bounds
@@ -614,7 +630,6 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
 runCplexAPI <- function(lpobj, lpdir, lpsolver.options) {
     ## Declare environment and set options
     env  <- cplexAPI::openEnvCPLEX()
-    ## cplexAPI::setDblParmCPLEX(env, 1016, 1e-06)
     prob <- cplexAPI::initProbCPLEX(env)
     cplexAPI::chgProbNameCPLEX(env, prob, "sample")
     if (!is.null(lpsolver.options)) {
