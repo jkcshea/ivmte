@@ -456,13 +456,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
         lpEnv <- new.env()
         lpSetupAlt(lpEnv, sset, NULL, mbobj$mbA, mbobj$mbs,
                    mbobj$mbrhs, lpsolver)
+        lpSetupSolver(env = lpEnv, lpsolver = lpsolver)
         print("head of the thing")
         print(head(lpEnv$lpobj$A))
         minobseq <- obsEqMinAlt(lpEnv, sset, lpsolver,
                                 lpsolver.options.criterion, debug)
         print("min obseq")
         print(minobseq)
-        stop('end of environment test')
         ## End experimenting --------------------------------
         
         ## Try to diagnose cases where the solution is
@@ -490,6 +490,11 @@ audit <- function(data, uname, m0, m1, splinesobj,
             ##                         lpsolver = lpsolver,
             ##                         lpsolver.options =
             ##                             lpsolver.options.criterion)
+            ## if (lpsolver %in% c("cplexapi", "lpsolveapi")) {
+            ##     solVec <- minobseqAlt$result$optx
+            ## } else {
+            ##     solVec <- minobseqAlt$result$x
+            ## }
             ## Experimenting ------------------------------
             rm(lpEnv)
             rm(minobseq)
@@ -498,22 +503,16 @@ audit <- function(data, uname, m0, m1, splinesobj,
                        mbA = mbobj$mbA, mbs = mbobj$mbs,
                        mbrhs = mbobj$mbrhs, lpsolver = lpsolver,
                        shape = FALSE)
+            lpSetupSolver(env = lpEnvAlt, lpsolver = lpsolver)
             minobseqAlt <- obsEqMinAlt(env = lpEnvAlt,
                                        sset = sset,
-                                       orig.sset = NULL,
-                                       orig.criterion = NULL,
                                        lpsolver = lpsolver,
                                        lpsolver.options =
                                            lpsolver.options.criterion)
             print("min obseq")
-            print(minobseq)
-            stop('end of environment test')
+            print(minobseqAlt)
+            solVec <- minobseqAlt$x
             ## End experimenting --------------------------
-            if (lpsolver %in% c("cplexapi", "lpsolveapi")) {
-                solVec <- minobseqAlt$result$optx
-            } else {
-                solVec <- minobseqAlt$result$x
-            }
             ## Test for violations
             mbA <- mbobj$mbA
             negatepos <- which(mbobj$mbs == ">=")
@@ -617,22 +616,37 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                  orig.criterion, criterion.tol, setup = FALSE)
             ## End experimenting ----------------------------------
         }
-
-    print("Memory checK 2")
-    print(gc())
+        
+        print("Memory checK 2")
+        print(gc())
         
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
         }
-        lpresult  <- bound(g0 = gstar0,
-                           g1 = gstar1,
-                           sset = sset,
-                           lpobj = lpobj,
-                           obseq.factor = minobseq$obj * (1 + criterion.tol),
-                           lpsolver = lpsolver,
-                           lpsolver.options = lpsolver.options.bounds,
-                           debug = debug)
+        ## Original ---------------------------------------
+        ## lpresult  <- bound(g0 = gstar0,
+        ##                    g1 = gstar1,
+        ##                    sset = sset,
+        ##                    lpobj = lpobj,
+        ##                    obseq.factor = minobseq$obj * (1 + criterion.tol),
+        ##                    lpsolver = lpsolver,
+        ##                    lpsolver.options = lpsolver.options.bounds,
+        ##                    debug = debug)
+        ## Experimenting  ---------------------------------------
+        lpresult <- boundAlt(env = lpEnv,
+                             g0 = gstar0,
+                             g1 = gstar1,
+                             sset = sset,
+                             obseq.factor = minobseq$obj * (1 + criterion.tol),
+                             lpsolver = lpsolver,
+                             lpsolver.options = lpsolver.options.bounds,
+                             noisy = noisy,
+                             debug = debug)
+
+        print(lpresult)
+        stop('end of test')
+        ## End experimenting ------------------------------------
         if (is.null(lpresult)) {
             if (noisy) {
                 message("    LP solutions are unbounded.")

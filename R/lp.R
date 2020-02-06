@@ -325,12 +325,150 @@ obsEqMinAlt <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
     names(g0sol) <- names(sset$gstar$g0)
     names(g1sol) <- names(sset$gstar$g1)
     return(list(obj = obseqmin,
+                x = optx,
                 g0 = g0sol,
                 g1 = g1sol,
                 status = status))
     ## object 'result' will not be returned---unnecessary, and very
     ## memory intensive.
 }
+
+
+lpSetupBound <- function(env, g0, g1, sset, obseq.factor, lpsolver) {
+    lpsolver <- tolower(lpsolver)
+    ## define model
+    env$lpobj$obj <- c(replicate(2 * env$lpobj$sn, 0), g0, g1)
+    env$lpobj$rhs <- c(obseq.factor, env$lpobj$rhs)
+    avec <- c(replicate(2 * env$lpobj$sn, 1),
+              replicate(env$lpobj$gn0 + env$lpobj$gn1, 0))
+    env$lpobj$A <- rbind(avec, env$lpobj$A)
+    if (lpsolver %in% c("gurobi", "lpsolveapi")) {
+        env$lpobj$sense <- c("<=", env$lpobj$sense)
+    }
+    if (lpsolver == "cplexapi") {
+        env$lpobj$sense <- c("L", env$lpobj$sense)
+    }
+    ## ## check scaling of model
+    ## tmpA <- c(matrix(env$lpobj$A, ncol = 1))
+    ## tmpA <- tmpA[tmpA != 0]
+    ## magDiffA <- max(magnitude(tmpA), na.rm = TRUE) -
+    ##     min(magnitude(tmpA), na.rm = TRUE)
+    ## magDiffObj <- max(magnitude(env$lpobj$obj), na.rm = TRUE) -
+    ##     min(magnitude(env$lpobj$obj), na.rm = TRUE)
+    ## magDiffRhs <- max(magnitude(env$lpobj$rhs), na.rm = TRUE) -
+    ##     min(magnitude(env$lpobj$rhs), na.rm = TRUE)
+    ## modelStats  <-
+    ##     data.frame(matrix(c(min(abs(tmpA)),
+    ##                         min(abs(env$lpobj$rhs[env$lpobj$rhs != 0])),
+    ##                         min(abs(env$lpobj$obj[env$lpobj$obj != 0])),
+    ##                         max(abs(tmpA)),
+    ##                         max(abs(env$lpobj$rhs[env$lpobj$rhs != 0])),
+    ##                         max(abs(env$lpobj$obj[env$lpobj$obj != 0])),
+    ##                         magDiffA, magDiffRhs, magDiffObj),
+    ##                       ncol = 3))
+    ## colnames(modelStats) <- c("Min abs.", "Max abs.", "Magnitude diff.")
+    ## rownames(modelStats) <- c("Constraint matrix",
+    ##                           "RHS",
+    ##                           "Objective")
+    ## rm(tmpA)
+}
+
+boundAlt <- function(env, g0, g1, sset, obseq.factor, lpsolver,
+                     lpsolver.options, noisy = FALSE,
+                     debug = FALSE) {
+    lpsolver <- tolower(lpsolver)
+    ## obtain lower and upper bounds
+    if (lpsolver == "gurobi") {        
+        if (debug & lpsolver.options$outputflag == 1) {
+            message("\nLower bound optimization statistics:")
+            message("------------------------------------")
+        }
+        if (debug == TRUE){
+            env$lpobj$modelsense <- "max"
+            gurobi::gurobi_write(env$lpobj, "lpMax.mps")
+            save(env$lpobj, file = "lpMax.Rdata")
+            env$lpobj$modelsense <- "min"
+            gurobi::gurobi_write(env$lpobj, "lpMin.mps")
+            save(env$lpobj, file = "lpMin.Rdata")
+        }
+        env$lpobj$modelsense <- "min"
+        minresult <- gurobi::gurobi(env$lpobj, lpsolver.options)
+        min <- minresult$objval
+        minstatus <- 0
+        if (minresult$status == "OPTIMAL") minstatus <- 1
+        minoptx <- minresult$x
+        if (debug & lpsolver.options$outputflag == 1) {
+            message("\nUpper bound optimization statistics:")
+            message("------------------------------------")
+        }
+        env$lpobj$modelsense <- "max"
+        maxresult <- gurobi::gurobi(env$lpobj, lpsolver.options)
+        max <- maxresult$objval
+        maxstatus <- 0
+        if (maxresult$status == "OPTIMAL") maxstatus <- 1
+        maxoptx <- maxresult$x
+        if (debug) cat("\n")
+    }
+    if (lpsolver == "cplexapi") {
+        minresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, lpsolver.options)
+        min       <- minresult$objval
+        minoptx   <- minresult$optx
+        minstatus <- minresult$status
+        maxresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MAX, lpsolver.options)
+        max       <- maxresult$objval
+        maxoptx   <- maxresult$optx
+        maxstatus <- maxresult$status
+    }
+    if (lpsolver == "lpsolveapi") {
+        minresult <- runLpSolveAPI(env$lpobj, 'min', lpsolver.options)
+        min       <- minresult$objval
+        minoptx   <- minresult$optx
+        minstatus <- minresult$status
+        maxresult <- runLpSolveAPI(env$lpobj, 'max', lpsolver.options)
+        max       <- maxresult$objval
+        maxoptx   <- maxresult$optx
+        maxstatus <- maxresult$status
+    }
+    env$lpobj$modelsense <- NULL
+    print("max status")
+    print(maxstatus)
+    print("min status")
+    print(minstatus)
+    if (maxstatus == 0 || minstatus == 0) {
+        return(NULL)
+    }
+    ming0 <- minoptx[(2 * env$lpobj$sn + 1) :
+                     (2 * env$lpobj$sn + env$lpobj$gn0)]
+    ming1 <- minoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
+                     (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+    maxg0 <- maxoptx[(2 * env$lpobj$sn + 1) :
+                     (2 * env$lpobj$sn + env$lpobj$gn0)]
+    maxg1 <- maxoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
+                     (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+    if (hasArg(sset)) {
+        names(ming0) <- names(sset$s1$g0)
+        names(ming1) <- names(sset$s1$g1)
+        names(maxg0) <- names(sset$s1$g0)
+        names(maxg1) <- names(sset$s1$g1)
+    }
+    if (noisy) {
+        cat("Min status: ", minstatus, "\n", sep = "")
+        cat("Max status: ", maxstatus, "\n", sep = "")
+        cat("Bound: (", min, ", ", max, ")\n", sep = "")
+    }
+    return(list(max = max,
+                maxg0 = maxg0,
+                maxg1 = maxg1,
+                maxresult = maxresult,
+                maxstatus = maxstatus,
+                min = min,
+                ming0 = ming0,
+                ming1 = ming1,
+                minresult = minresult,
+                minstatus = minstatus))
+}
+
+
 
 #' Minimizing violation of observational equivalence
 #'
@@ -870,20 +1008,24 @@ runCplexAPI <- function(lpobj, lpdir, lpsolver.options) {
     }
     ## Declare LP prblem
     sense <- lpobj$sense
-    sense[sense == "<"]  <- "L"
-    sense[sense == "<="] <- "L"
-    sense[sense == ">"]  <- "G"
-    sense[sense == ">="] <- "G"
-    sense[sense == "="]  <- "E"
-    sense[sense == "=="] <- "E"
-    ub <- lpobj$ub
-    ub[ub == Inf] <- cplexAPI::CPX_INFBOUND
-    lb <- lpobj$lb
-    lb[lb == -Inf] <- - cplexAPI::CPX_INFBOUND
+    ## Original ------------------------
+    ## Should no longer be needed since we now have the lpSetupSolver
+    ## sense[sense == "<"]  <- "L"
+    ## sense[sense == "<="] <- "L"
+    ## sense[sense == ">"]  <- "G"
+    ## sense[sense == ">="] <- "G"
+    ## sense[sense == "="]  <- "E"
+    ## sense[sense == "=="] <- "E"
+    ## ub <- lpobj$ub
+    ## ub[ub == Inf] <- cplexAPI::CPX_INFBOUND
+    ## lb <- lpobj$lb
+    ## lb[lb == -Inf] <- - cplexAPI::CPX_INFBOUND
+    ## End original ---------------------------
     cnt <- apply(lpobj$A, MARGIN = 2, function(x) length(which(x != 0)))
     beg <- rep(0, ncol(lpobj$A))
     beg[-1] <- cumsum(cnt[-length(cnt)])
     ind <- unlist(apply(lpobj$A, MARGIN = 2, function(x) which(x != 0) - 1))
+    print("Super inconvneinent input approahc for cplexapi")
     val <- c(lpobj$A)
     val <- val[val != 0]
     cplexAPI::copyLpwNamesCPLEX(env = env,
