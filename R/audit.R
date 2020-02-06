@@ -431,30 +431,40 @@ audit <- function(data, uname, m0, m1, splinesobj,
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
         ## Minimize violation of observational equivalence
-        print('pre lpobj memory')
-        print(gc())
-        print("generate LP obj time")
-        t0 <- Sys.time()
-        lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
-                         mbobj$mbrhs, lpsolver)
-        print(Sys.time() - t0)
-        print('post lpobj memory')
-        print(gc())
-
-
-        print("post lpobj object size check")
-        things <- ls()
-        sizes <- sapply(things, FUN = function(x) {
-            s <- try(object.size(get(x)), silent = TRUE)
-            if (class(s) != "try-error") s
-        })
-        sizes <- unlist(sizes)   
-        print(head(sort(sizes, decreasing = TRUE)) / 1e6)
-
+        ## Original ---------------------------------------
+        ## print('pre lpobj memory')
+        ## print(gc())
+        ## print("generate LP obj time")
+        ## t0 <- Sys.time()
+        ## lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
+        ##                  mbobj$mbrhs, lpsolver)
+        ## print(Sys.time() - t0)
+        ## print('post lpobj memory')
+        ## print(gc())
+        ## print("post lpobj object size check")
+        ## things <- ls()
+        ## sizes <- sapply(things, FUN = function(x) {
+        ##     s <- try(object.size(get(x)), silent = TRUE)
+        ##     if (class(s) != "try-error") s
+        ## })
+        ## sizes <- unlist(sizes)   
+        ## print(head(sort(sizes, decreasing = TRUE)) / 1e6)
+        ## minobseq <- obsEqMin(sset, NULL, NULL,
+        ##                      criterion.tol, lpobj, lpsolver,
+        ##                      lpsolver.options.criterion, debug)
+        ## Experimenting -------------------------------------
+        lpEnv <- new.env()
+        lpSetupAlt(lpEnv, sset, NULL, mbobj$mbA, mbobj$mbs,
+                   mbobj$mbrhs, lpsolver)
+        print("head of the thing")
+        print(head(lpEnv$lpobj$A))
+        minobseq <- obsEqMinAlt(lpEnv, sset, lpsolver,
+                                lpsolver.options.criterion, debug)
+        print("min obseq")
+        print(minobseq)
+        stop('end of environment test')
+        ## End experimenting --------------------------------
         
-        minobseq <- obsEqMin(sset, NULL, NULL,
-                             criterion.tol, lpobj, lpsolver,
-                             lpsolver.options.criterion, debug)
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -462,23 +472,43 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## solutions.
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
-            rm(lpobj)
+            ## Original -------------------------------
+            ## rm(lpobj)
+            ## rm(minobseq)
+            ## lpobjAlt <- lpSetup(sset = sset,
+            ##                     orig.sset = NULL,
+            ##                     mbA = mbobj$mbA,
+            ##                     mbs = mbobj$mbs,
+            ##                     mbrhs = mbobj$mbrhs,
+            ##                     lpsolver = lpsolver,
+            ##                     shape = FALSE)
+            ## minobseqAlt <- obsEqMin(sset = sset,
+            ##                         orig.sset = NULL,
+            ##                         orig.criterion = NULL,
+            ##                         criterion.tol = criterion.tol,
+            ##                         lpobj = lpobjAlt,
+            ##                         lpsolver = lpsolver,
+            ##                         lpsolver.options =
+            ##                             lpsolver.options.criterion)
+            ## Experimenting ------------------------------
+            rm(lpEnv)
             rm(minobseq)
-            lpobjAlt <- lpSetup(sset = sset,
-                                orig.sset = NULL,
-                                mbA = mbobj$mbA,
-                                mbs = mbobj$mbs,
-                                mbrhs = mbobj$mbrhs,
-                                lpsolver = lpsolver,
-                                shape = FALSE)
-            minobseqAlt <- obsEqMin(sset = sset,
-                                    orig.sset = NULL,
-                                    orig.criterion = NULL,
-                                    criterion.tol = criterion.tol,
-                                    lpobj = lpobjAlt,
-                                    lpsolver = lpsolver,
-                                    lpsolver.options =
-                                        lpsolver.options.criterion)
+            lpEnvAlt <- new.env()
+            lpSetupAlt(env = lpEnvAlt, sset = sset, orig.sset = NULL,
+                       mbA = mbobj$mbA, mbs = mbobj$mbs,
+                       mbrhs = mbobj$mbrhs, lpsolver = lpsolver,
+                       shape = FALSE)
+            minobseqAlt <- obsEqMinAlt(env = lpEnvAlt,
+                                       sset = sset,
+                                       orig.sset = NULL,
+                                       orig.criterion = NULL,
+                                       lpsolver = lpsolver,
+                                       lpsolver.options =
+                                           lpsolver.options.criterion)
+            print("min obseq")
+            print(minobseq)
+            stop('end of environment test')
+            ## End experimenting --------------------------
             if (lpsolver %in% c("cplexapi", "lpsolveapi")) {
                 solVec <- minobseqAlt$result$optx
             } else {
@@ -571,11 +601,21 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
         ## Perform specification test
         if (!is.null(orig.sset) & !is.null(orig.criterion)) {
-            lpobjTest <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
-                                 mbobj$mbrhs, lpsolver)
-            minobseqTest <- obsEqMin(sset, orig.sset, orig.criterion,
-                                     criterion.tol, lpobjTest, lpsolver,
+            ## Original ------------------------------------------
+            ## lpobjTest <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
+            ##                      mbobj$mbrhs, lpsolver)
+            ## minobseqTest <- obsEqMin(sset, orig.sset, orig.criterion,
+            ##                          criterion.tol, lpobjTest, lpsolver,
+            ##                          lpsolver.options.criterion)
+            ## Experimenting -------------------------------------
+            ## YOU NEED CODE TO REVERSE THE BOTSTRAPPIGN
+            lpSetupCriterionBoot(lpEnv, sset, orig.sset,
+                                 orig.criterion, criterion.tol, setup = TRUE)
+            minobseqTest <- obsEqMin(lpEnv, sset, lpsolver,
                                      lpsolver.options.criterion)
+            lpSetupCriterionBoot(lpEnv, sset, orig.sset,
+                                 orig.criterion, criterion.tol, setup = FALSE)
+            ## End experimenting ----------------------------------
         }
 
     print("Memory checK 2")

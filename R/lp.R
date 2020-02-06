@@ -145,6 +145,193 @@ lpSetup <- function(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
                 gn1 = gn1))
 }
 
+
+lpSetupAlt <- function(env, sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
+                    mbrhs = NULL, lpsolver, shape = TRUE) {
+    lpsolver <- tolower(lpsolver)
+    ## determine lengths
+    sn  <- length(sset)
+    gn0 <- length(sset$s1$g0)
+    gn1 <- length(sset$s1$g1)
+    ## generate all vectors/matrices for LP optimization to minimize
+    ## observational equivalence
+    obj <- c(replicate(sn * 2, 1),
+             replicate(gn0 + gn1, 0))
+    rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
+    if (!is.null(orig.sset)) {
+        ## Recenter RHS when bootstrapping
+        rhs <- rhs - unlist(lapply(orig.sset, function(x) x[["beta"]]))
+    }
+    sense <- replicate(sn, "=")
+    A <- NULL
+    scount <- 0
+    for (s in names(sset)) {
+        avec <- replicate(2 * sn, 0)
+        avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
+        ## Regarding c(-1, 1), the -1 is for w+, 1 is for w-
+        g0fill <- sset[[s]]$g0
+        g1fill <- sset[[s]]$g1
+        if (!is.null(orig.sset)) {
+            ## Recenter gamma vectors when bootstrapping
+            g0fill <- g0fill - orig.sset[[s]]$g0
+            g1fill <- g1fill - orig.sset[[s]]$g1
+        }
+        avec <- c(avec, g0fill, g1fill)
+        A <- rbind(A, avec)
+        scount <- scount + 1
+    }
+    colnames(A) <- c(seq(1, 2 * sn),
+                     colnames(A)[(2 * sn + 1) : ncol(A)])
+    ## Define bounds on parameters
+    ub <- replicate(ncol(A), Inf)
+    lb <- c(replicate(sn * 2, 0), replicate(gn0 + gn1, -Inf))
+    ## Add in additional constraints if included
+    if (shape == TRUE) {
+        mbA     <- rbind(A, mbA)
+        sense <- c(sense, mbs)
+        rhs   <- c(rhs, mbrhs)
+    } else {
+        mbA <- A
+    }
+    rm(A)
+    if (lpsolver %in% c("gurobi", "lpsolveapi")) {
+        mbA <- Matrix::Matrix(mbA, sparse = TRUE)
+    }
+    env$lpobj <- list(obj = obj,
+                      rhs = rhs,
+                      sense = sense,
+                      A = mbA,
+                      ub = ub,
+                      lb = lb,
+                      sn = sn,
+                      gn0 = gn0,
+                      gn1 = gn1)
+}
+
+## This function simply adjust the lpObj so that it is compatible with
+## the solver selected.
+lpSetupSolver <- function(env, lpsolver) {
+    if (lpsolver == "cplexapi") {
+        env$lpobj$sense[env$lpobj$sense == "<"]  <- "L"
+        env$lpobj$sense[env$lpobj$sense == "<="] <- "L"
+        env$lpobj$sense[env$lpobj$sense == ">"]  <- "G"
+        env$lpobj$sense[env$lpobj$sense == ">="] <- "G"
+        env$lpobj$sense[env$lpobj$sense == "="]  <- "E"
+        env$lpobj$sense[env$lpobj$sense == "=="] <- "E"
+        env$lpobj$ub[env$lpobj$ub == Inf] <- cplexAPI::CPX_INFBOUND
+        env$lpobj$lb[env$lpobj$lb == -Inf] <- -cplexAPI::CPX_INFBOUND
+    }
+    if (lpsolver == "lpsolveapi") {
+        env$lpobj$sense[env$lpobj$sense == "<"]  <- "<="
+        env$lpobj$sense[env$lpobj$sense == ">"]  <- ">="
+        env$lpobj$sense[env$lpobj$sense == "=="] <- "="
+    }
+}
+
+lpSetupCriterionBoot <- function(env, sset, orig.sset,
+                                 orig.criterion,
+                                 criterion.tol = 0, setup = TRUE) {
+    if (setup) {
+        ## Prepare to obtain 'recentered' bootstrap
+        ## criterion. Specifically, the |S| equality constraints are
+        ## centered. Then, the original |S| equality constraints are
+        ## added. In addition, 2 * |S| residual variables are added to
+        ## the problem. These new residual variables correspond to the
+        ## |S| equality constraints from the original, uncentered
+        ## sample.
+        tmpA <- NULL
+        tmpRhs <- NULL
+        tmpSense <- NULL
+        scount <- 0
+        for (s in names(orig.sset)) {
+            avec <- replicate(2 * 2 * length(orig.sset), 0)
+            avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
+            avec <- c(avec, orig.sset[[s]]$g0, orig.sset[[s]]$g1)
+            tmpA <- rbind(tmpA, avec)
+            tmpRhs <- c(tmpRhs, orig.sset[[s]]$beta)
+            tmpSense <- c(tmpSense, "=")
+            scount <- scount + 1
+        }
+        avec <- c(rep(1, 2 * length(orig.sset)),
+                  rep(0, 2 * length(orig.sset)),
+                  rep(0, length(sset$s1$g0) + length(sset$s1$g1)))
+        ## Update lpobj
+        env$lpobj$ub <- c(rep(Inf, 2 * length(orig.sset)), env$lpobj$ub)
+        env$lpobj$lb <- c(rep(0, 2 * length(orig.sset)), env$lpobj$lb)
+        env$lpobj$A <- list(a = avec,
+                            b = tmpA,
+                            c = cbind(matrix(0,
+                                             nrow = nrow(env$lpobj$A),
+                                             ncol = length(orig.sset) * 2),
+                                      env$lpobj$A))
+        rm(avec, tmpA)
+        env$lpobj$A <- Reduce(rbind, env$lpobj$A)
+        ## env$lpobj$A <- rbind(avec, tmpA,
+        ##                      cbind(matrix(0,
+        ##                                   nrow = nrow(env$lpobj$A),
+        ##                                   ncol = length(orig.sset) * 2),
+        ##                            env$lpobj$A))
+        env$lpobj$rhs <- c(orig.criterion * (1 + criterion.tol),
+                           tmpRhs, env$lpobj$rhs)
+        env$lpobj$sense <- c("<=", tmpSense, env$lpobj$sense)
+        env$lpobj$obj <- c(rep(0, 2 * length(orig.sset)), env$lpobj$obj)
+    } else {
+        ## Simply undo the procedure done above.
+        removeCol <- 2 * length(orig.sset)
+        removeRow <- length(orig.sset) + 1
+        env$lpobj$ub <- env$lpobj$ub[-(1:removeCol)]
+        env$lpobj$lb <- env$lpobj$lb[-(1:removeCol)]
+        env$lpobj$A <- env$lpobj$A[-(1:removeRow), -(1:removeCol)]
+        env$lpobj$rhs <- env$lpobj$rhs[-(1:removeCol)]
+        env$lpobj$sense <- env$lpobj$sense[-(1:removeCol)]
+        env$lpobj$obj <- env$lpobj$obj[-(1:removeCol)]
+    }
+}
+
+obsEqMinAlt <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
+    lpsolver <- tolower(lpsolver)
+    if (lpsolver == "gurobi") {
+        if (debug & lpsolver.options$outputflag == 1) {
+            message("\nMinimum criterion optimization statistics:")
+            message("------------------------------------------")
+        }
+        env$lpobj$modelsense <- "min"
+        if (debug) {
+            gurobi::gurobi_write(env$lpobj, "lpCriterion.mps")
+            save(model, file = "lpCriterion.Rdata")
+        }
+        result <- gurobi::gurobi(env$lpobj, lpsolver.options)
+        obseqmin <- result$objval
+        optx     <- result$x
+        status   <- result$status
+        if (debug) cat("\n")
+    }
+    if (lpsolver == "cplexapi") {
+        result <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, lpsolver.options)
+        obseqmin <- result$objval
+        optx     <- result$optx
+        status   <- result$status
+    }
+    if (lpsolver == "lpsolveapi") {
+        result <- runLpSolveAPI(env$lpobj, 'min', lpsolver.options)
+        obseqmin <- result$objval
+        optx     <- result$optx
+        status   <- result$status
+    }
+    ## provide nicer output
+    g0sol <- optx[(2 * env$lpobj$sn + 1) : (2 * env$lpobj$sn + env$lpobj$gn0)]
+    g1sol <- optx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
+                  (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+    names(g0sol) <- names(sset$gstar$g0)
+    names(g1sol) <- names(sset$gstar$g1)
+    return(list(obj = obseqmin,
+                g0 = g0sol,
+                g1 = g1sol,
+                status = status))
+    ## object 'result' will not be returned---unnecessary, and very
+    ## memory intensive.
+}
+
 #' Minimizing violation of observational equivalence
 #'
 #' Given a set of IV-like estimates and the set of matrices/vectors
@@ -610,6 +797,50 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
                 model = model,
                 modelstats = modelStats))
 }
+
+
+#' Running Gurobi LP solver
+#'
+#' This function solves the LP problem using the Gurobi package. The
+#' object generated by \code{\link{lpSetup}} is compatible with the
+#' \code{gurobi} function.
+#' @param lpobj list of matrices and vectors defining the linear
+#'     programming problem.
+#' @param modelsense input eithe 'max' or 'min', which sets the LP
+#'     problem as a maximization or minimization problem.
+#' @param lpsolver.options list, each item of the list should
+#'     correspond to an option specific to the LP solver selected.
+#' @param debug boolean. Set to \code{TRUE} if Gurobi output should be
+#'     provided when solving the LP problem, a \code{.mps} file should
+#'     be saved, and a \code{.Rdata} model should be saved.
+#' @return a list of the output from Gurobi. This includes the
+#'     optimization status, the objective value, the solution vector,
+#'     amongst other things.
+runGurobi <- function(lpobj, modelsense, lpsolver.options, debug = FALSE) {
+    if (debug & lpsolver.options$outputflag == 1) {
+        if (modelsense == "min") {
+            message("\nLower bound optimization statistics:")
+        }
+        if (modelsense == "max") {
+            message("\nUpper bound optimization statistics:")
+        }
+        message("------------------------------------")
+    }
+    print("FOR GUROBI, THE LP MODEL SHOULD NOT INCLUDE MODEL SENSE.")
+    lpobj$modelsense <- modelsense
+    if (debug == TRUE){
+        gurobi::gurobi_write(lpobj, paste0("lp", modelsense, ".mps"))
+        save(lpobj, file = paste0("lp", modelsense, ".Rdata"))
+    }
+    result <- gurobi::gurobi(lpobj, lpsolver.options)
+    status <- 0
+    if (result$status == "OPTIMAL") status <- 1
+    optx <- result$x
+    return(list(objval = result$objval,
+                optx = result$x,
+                status = status))
+}
+
 
 #' Running cplexAPI LP solver
 #'
