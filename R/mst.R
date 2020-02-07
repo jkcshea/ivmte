@@ -2610,7 +2610,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     uname <- deparse(substitute(uname))
     uname <- gsub("~", "", uname)
     uname <- gsub("\\\"", "", uname)
-
     if (noisy == TRUE && hasArg(lpsolver)) {
         if (lpsolver == "gurobi") cat("\nLP solver: Gurobi ('gurobi')\n\n")
         if (lpsolver == "cplexapi") cat("\nLP solver: CPLEX ('cplexAPI')\n\n")

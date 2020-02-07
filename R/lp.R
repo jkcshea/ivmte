@@ -266,11 +266,6 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
                                       env$lpobj$A))
         rm(avec, tmpA)
         env$lpobj$A <- Reduce(rbind, env$lpobj$A)
-        ## env$lpobj$A <- rbind(avec, tmpA,
-        ##                      cbind(matrix(0,
-        ##                                   nrow = nrow(env$lpobj$A),
-        ##                                   ncol = length(orig.sset) * 2),
-        ##                            env$lpobj$A))
         env$lpobj$rhs <- c(orig.criterion * (1 + criterion.tol),
                            tmpRhs, env$lpobj$rhs)
         env$lpobj$sense <- c("<=", tmpSense, env$lpobj$sense)
@@ -282,8 +277,8 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
         env$lpobj$ub <- env$lpobj$ub[-(1:removeCol)]
         env$lpobj$lb <- env$lpobj$lb[-(1:removeCol)]
         env$lpobj$A <- env$lpobj$A[-(1:removeRow), -(1:removeCol)]
-        env$lpobj$rhs <- env$lpobj$rhs[-(1:removeCol)]
-        env$lpobj$sense <- env$lpobj$sense[-(1:removeCol)]
+        env$lpobj$rhs <- env$lpobj$rhs[-(1:removeRow)]
+        env$lpobj$sense <- env$lpobj$sense[-(1:removeRow)]
         env$lpobj$obj <- env$lpobj$obj[-(1:removeCol)]
     }
 }
@@ -298,22 +293,24 @@ obsEqMinAlt <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
         env$lpobj$modelsense <- "min"
         if (debug) {
             gurobi::gurobi_write(env$lpobj, "lpCriterion.mps")
+            model <- env$lpobj
             save(model, file = "lpCriterion.Rdata")
+            rm(model)
         }
-        result <- gurobi::gurobi(env$lpobj, lpsolver.options)
+        result   <- runGurobi(env$lpobj, lpsolver.options)
         obseqmin <- result$objval
-        optx     <- result$x
+        optx     <- result$optx
         status   <- result$status
         if (debug) cat("\n")
     }
     if (lpsolver == "cplexapi") {
-        result <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, lpsolver.options)
+        result   <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, lpsolver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
     }
     if (lpsolver == "lpsolveapi") {
-        result <- runLpSolveAPI(env$lpobj, 'min', lpsolver.options)
+        result   <- runLpSolveAPI(env$lpobj, 'min', lpsolver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
@@ -329,7 +326,7 @@ obsEqMinAlt <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
                 g0 = g0sol,
                 g1 = g1sol,
                 status = status))
-    ## object 'result' will not be returned---unnecessary, and very
+    ## Object 'result' will not be returned---unnecessary, and very
     ## memory intensive.
 }
 
@@ -373,40 +370,37 @@ lpSetupBound <- function(env, g0, g1, sset, obseq.factor, lpsolver) {
     ## rm(tmpA)
 }
 
-boundAlt <- function(env, g0, g1, sset, obseq.factor, lpsolver,
+boundAlt <- function(env, sset, obseq.factor, lpsolver,
                      lpsolver.options, noisy = FALSE,
                      debug = FALSE) {
     lpsolver <- tolower(lpsolver)
-    ## obtain lower and upper bounds
-    if (lpsolver == "gurobi") {        
+    ## Obtain lower and upper bounds
+    if (lpsolver == "gurobi") {
         if (debug & lpsolver.options$outputflag == 1) {
             message("\nLower bound optimization statistics:")
             message("------------------------------------")
         }
         if (debug == TRUE){
-            env$lpobj$modelsense <- "max"
-            gurobi::gurobi_write(env$lpobj, "lpMax.mps")
-            save(env$lpobj, file = "lpMax.Rdata")
-            env$lpobj$modelsense <- "min"
-            gurobi::gurobi_write(env$lpobj, "lpMin.mps")
-            save(env$lpobj, file = "lpMin.Rdata")
+            env$lpobj$modelsense <- NULL
+            gurobi::gurobi_write(env$lpobj, "lpBound.mps")
+            model <- env$lpobj
+            save(model, file = "lpBound.Rdata")
+            rm(model)
         }
         env$lpobj$modelsense <- "min"
-        minresult <- gurobi::gurobi(env$lpobj, lpsolver.options)
+        minresult <- runGurobi(env$lpobj, lpsolver.options)
         min <- minresult$objval
-        minstatus <- 0
-        if (minresult$status == "OPTIMAL") minstatus <- 1
-        minoptx <- minresult$x
+        minstatus <- minresult$status
+        minoptx <- minresult$optx
         if (debug & lpsolver.options$outputflag == 1) {
             message("\nUpper bound optimization statistics:")
             message("------------------------------------")
         }
         env$lpobj$modelsense <- "max"
-        maxresult <- gurobi::gurobi(env$lpobj, lpsolver.options)
+        maxresult <- runGurobi(env$lpobj, lpsolver.options)
         max <- maxresult$objval
-        maxstatus <- 0
-        if (maxresult$status == "OPTIMAL") maxstatus <- 1
-        maxoptx <- maxresult$x
+        maxstatus <- maxresult$status
+        maxoptx <- maxresult$optx
         if (debug) cat("\n")
     }
     if (lpsolver == "cplexapi") {
@@ -430,10 +424,6 @@ boundAlt <- function(env, g0, g1, sset, obseq.factor, lpsolver,
         maxstatus <- maxresult$status
     }
     env$lpobj$modelsense <- NULL
-    print("max status")
-    print(maxstatus)
-    print("min status")
-    print(minstatus)
     if (maxstatus == 0 || minstatus == 0) {
         return(NULL)
     }
@@ -467,8 +457,6 @@ boundAlt <- function(env, g0, g1, sset, obseq.factor, lpsolver,
                 minresult = minresult,
                 minstatus = minstatus))
 }
-
-
 
 #' Minimizing violation of observational equivalence
 #'
@@ -634,8 +622,6 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
             message("\nMinimum criterion optimization statistics:")
             message("------------------------------------------")
         }
-        print("gc before constructing the model list")
-        print(gc())
         model <- list()
         model$modelsense <- "min"
         model$obj   <- lpobj$obj
@@ -944,32 +930,12 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
 #' \code{gurobi} function.
 #' @param lpobj list of matrices and vectors defining the linear
 #'     programming problem.
-#' @param modelsense input eithe 'max' or 'min', which sets the LP
-#'     problem as a maximization or minimization problem.
 #' @param lpsolver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver selected.
-#' @param debug boolean. Set to \code{TRUE} if Gurobi output should be
-#'     provided when solving the LP problem, a \code{.mps} file should
-#'     be saved, and a \code{.Rdata} model should be saved.
 #' @return a list of the output from Gurobi. This includes the
 #'     optimization status, the objective value, the solution vector,
 #'     amongst other things.
-runGurobi <- function(lpobj, modelsense, lpsolver.options, debug = FALSE) {
-    if (debug & lpsolver.options$outputflag == 1) {
-        if (modelsense == "min") {
-            message("\nLower bound optimization statistics:")
-        }
-        if (modelsense == "max") {
-            message("\nUpper bound optimization statistics:")
-        }
-        message("------------------------------------")
-    }
-    print("FOR GUROBI, THE LP MODEL SHOULD NOT INCLUDE MODEL SENSE.")
-    lpobj$modelsense <- modelsense
-    if (debug == TRUE){
-        gurobi::gurobi_write(lpobj, paste0("lp", modelsense, ".mps"))
-        save(lpobj, file = paste0("lp", modelsense, ".Rdata"))
-    }
+runGurobi <- function(lpobj, lpsolver.options) {
     result <- gurobi::gurobi(lpobj, lpsolver.options)
     status <- 0
     if (result$status == "OPTIMAL") status <- 1

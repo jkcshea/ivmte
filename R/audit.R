@@ -457,12 +457,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
         lpSetupAlt(lpEnv, sset, NULL, mbobj$mbA, mbobj$mbs,
                    mbobj$mbrhs, lpsolver)
         lpSetupSolver(env = lpEnv, lpsolver = lpsolver)
-        print("head of the thing")
-        print(head(lpEnv$lpobj$A))
         minobseq <- obsEqMinAlt(lpEnv, sset, lpsolver,
                                 lpsolver.options.criterion, debug)
-        print("min obseq")
-        print(minobseq)
         ## End experimenting --------------------------------
         
         ## Try to diagnose cases where the solution is
@@ -509,8 +505,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                        lpsolver = lpsolver,
                                        lpsolver.options =
                                            lpsolver.options.criterion)
-            print("min obseq")
-            print(minobseqAlt)
             solVec <- minobseqAlt$x
             ## End experimenting --------------------------
             ## Test for violations
@@ -607,10 +601,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
             ##                          criterion.tol, lpobjTest, lpsolver,
             ##                          lpsolver.options.criterion)
             ## Experimenting -------------------------------------
-            ## YOU NEED CODE TO REVERSE THE BOTSTRAPPIGN
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol, setup = TRUE)
-            minobseqTest <- obsEqMin(lpEnv, sset, lpsolver,
+            minobseqTest <- obsEqMinAlt(lpEnv, sset, lpsolver,
                                      lpsolver.options.criterion)
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol, setup = FALSE)
@@ -634,18 +627,19 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ##                    lpsolver.options = lpsolver.options.bounds,
         ##                    debug = debug)
         ## Experimenting  ---------------------------------------
+        lpSetupBound(env = lpEnv,
+                     g0 = gstar0,
+                     g1 = gstar1,
+                     sset = sset,
+                     obseq.factor = minobseq$obj * (1 + criterion.tol),
+                     lpsolver = lpsolver)
         lpresult <- boundAlt(env = lpEnv,
-                             g0 = gstar0,
-                             g1 = gstar1,
                              sset = sset,
                              obseq.factor = minobseq$obj * (1 + criterion.tol),
                              lpsolver = lpsolver,
                              lpsolver.options = lpsolver.options.bounds,
                              noisy = noisy,
                              debug = debug)
-
-        print(lpresult)
-        stop('end of test')
         ## End experimenting ------------------------------------
         if (is.null(lpresult)) {
             if (noisy) {

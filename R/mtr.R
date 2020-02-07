@@ -788,6 +788,7 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
                 }
                 nonSplinesDmat <- nonSplinesDmat[, inters[[j]]]
                 nonSplinesDmat <- as.matrix(nonSplinesDmat)
+                rownames(nonSplinesDmat) <- rownames(data)
             }
             ## Spline integral matrices
             splinesLB <- eval(parse(text = gsub("uSpline\\(",
