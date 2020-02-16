@@ -496,7 +496,6 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                              monoAte0,
                              monoAte1)
             colnames(monoAte) <- namesA
-            print("did i do this?")
         } else {
             monoAte <- cbind(monoAte0, monoAte1)
         }
@@ -529,9 +528,17 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     m0.type <- 0
     m1.type <- 0
     mte.type <- 0
-    diff <- NULL
-    map <- NULL
-    umap <- NULL
+    if (!is.null(solution.m0) | !is.null(solution.m1)) {
+        monoA0IncSeq <- NULL
+        monoA0DecSeq <- NULL
+        monoA1IncSeq <- NULL
+        monoA1DecSeq <- NULL
+        monoAteIncSeq <- NULL
+        monoAteDecSeq <- NULL
+        diff <- NULL
+        map <- NULL
+        umap <- NULL
+    }
     if (try(m0.inc, silent = TRUE) == TRUE) {
         monoList <- genmonoA0(monoList, 1, solution.m0)
         m0.type <- m0.type + 1
@@ -558,7 +565,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                                  matrix(0, nrow = sum(violatePos),
                                         ncol = ncol(A1))))
             map <- c(map, monoList$monomap[violatePos])
-            umap <- c(umap, monoList$monoumap[violatePos, 2])
+            umap <- c(umap, monoList$umap[violatePos, 2])
             if (m0.type == 1) {
                 monoA0IncSeq <- seq(1, nrow(monoList$monoA0))[violatePos]
                 monoA0DecSeq <- NULL
@@ -602,7 +609,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                                         ncol = ncol(A0)),
                                  monoList$monoA1[violatePos, ]))
             map <- c(map, monoList$monomap[violatePos])
-            umap <- c(umap, monoList$monoumap[violatePos, 2])
+            umap <- c(umap, monoList$umap[violatePos, 2])
             if (m1.type == 1) {
                 monoA1IncSeq <- seq(1, nrow(monoList$monoA1))[violatePos]
                 monoA1DecSeq <- NULL
@@ -644,7 +651,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                                         ncol = 2 * sn),
                                  monoList$monoAte[violatePos, ]))
             map <- c(map, monoList$monomap[violatePos])
-            umap <- c(umap, monoList$monoumap[violatePos, 2])
+            umap <- c(umap, monoList$umap[violatePos, 2])
             if (mte.type == 1) {
                 monoAteIncSeq <- seq(1, nrow(monoList$monoAte))[violatePos]
                 monoAteDecSeq <- NULL
@@ -712,19 +719,6 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                     mono1seq = mono1seq,
                     monoteseq = monoteseq))
     } else {
-        print(head(monoA))
-        print(dim(monoA))
-        print(diff)
-        print(solution.m0)
-        print(solution.m1)
-        ## print(monoA0IncSeq)
-        ## print(monoA0DecSeq)
-        ## print(monoA1IncSeq)
-        ## print(monoA1DecSeq)
-        ## print(monoAteIncSeq)
-        ## print(monoAteDecSeq)
-        ## print(map)
-        ## print(umap)
         ## Construct violation matrix
         if (nrow(monoA) > 0) {
             violateMat <- data.frame(row = seq(nrow(monoA)),
@@ -739,11 +733,9 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                                      diff = diff)
             violateMat$group.name <- paste0(violateMat$type, ".",
                                             violateMat$grid.x)
-            print(head(violateMat))
             return(list(monoA = monoA,
                         violateMat = violateMat))
         }
-        stop('end of test')
     }
 }
 
