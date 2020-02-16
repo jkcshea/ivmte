@@ -327,6 +327,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
     existsolution <- FALSE
     audit_count <- 1
     ## Generate a new grid for the audit
+    print("Remember that his audit code may have to be relocated below, or maintained here since you do need to construct the initial grid.")
     monoboundAlist <- c('sset', 'gstar0', 'gstar1',
                         'm1.ub', 'm0.ub',
                         'm1.lb', 'm0.lb',
@@ -379,9 +380,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                      monov = monov))
             a_mbobj <- eval(monoboundAcall)
             a_mbobj$support <- support
-            print("The size of a_mbobj")
-            print(object.size(a_mbobj), units = "Mb")
-            print("IT SEEMS LIKE THE MBOBJ IS DOUBLING MEMORY USAGE AT SOME POINT?")
         } else {
             sn <- length(sset)
             a_mbobj <- audit.grid
@@ -423,9 +421,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             mbobj <- eval(monoboundAcall)
         }
     }
-    print("Memory checK 1")
-    print(gc())
-    
+
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
@@ -609,10 +605,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                  orig.criterion, criterion.tol, setup = FALSE)
             ## End experimenting ----------------------------------
         }
-        
-        print("Memory checK 2")
-        print(gc())
-        
+               
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
@@ -671,6 +664,27 @@ audit <- function(data, uname, m0, m1, splinesobj,
             if (existsolution == FALSE) existsolution <- TRUE
             prevbound <- c(lpresult$min, lpresult$max)
         }
+        ## EXPRIMENTING ----------------------------------------
+        ## Test for violations for minimization problem
+        monoboundAcall <- modcall(call,
+                                  newcall = genmonoboundA,
+                                  keepargs = monoboundAlist,
+                                  newargs = list(m0 = m0,
+                                                 m1 = m1,
+                                                 uname = uname,
+                                                 support = support,
+                                                 grid_index =
+                                                     a_grid_index,
+                                                 uvec = a_uvec,
+                                                 splinesobj =
+                                                     splinesobj,
+                                                 monov = monov,
+                                                 solution.m0 = lpresult$ming0,
+                                                 solution.m1 = lpresult$ming1,
+                                                 audit.tol = audit.tol))
+        auditObjMin<- eval(monoboundAcall)
+        ## stop('end of test')
+        ## END EXPERIMENTING -----------------------------------
         ## Test for violations for minimization problem
         violateDiffMin <- a_mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)] %*%
             solVecMin - a_mbrhs
@@ -723,6 +737,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                            mono1seq = a_mbobj$mono1seq,
                                            monoteseq = a_mbobj$monoteseq,
                                            mbmap = a_mbobj$mbmap)
+            print(head(violateMat))
             violateIndexes <- violateMat$row
             ## Expand constraint grid
             mbobj$mbA <- rbind(mbobj$mbA, a_mbobj$mbA[violateIndexes, ])
@@ -764,7 +779,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         gsub("\\s+", " ",
                              paste0("Expanding constraint grid to
                                         include ", length(violateIndexes),
-                                    " additional ", ps, "...")), sep = "")
+                                    " additional ", ps, "...")), "\n", sep = "")
                 }
             } else {
                 if (noisy) {

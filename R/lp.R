@@ -441,11 +441,11 @@ boundAlt <- function(env, sset, obseq.factor, lpsolver,
         names(maxg0) <- names(sset$s1$g0)
         names(maxg1) <- names(sset$s1$g1)
     }
-    if (noisy) {
-        cat("Min status: ", minstatus, "\n", sep = "")
-        cat("Max status: ", maxstatus, "\n", sep = "")
-        cat("Bound: (", min, ", ", max, ")\n", sep = "")
-    }
+    ## if (noisy) {
+    ##     cat("Min status: ", minstatus, "\n", sep = "")
+    ##     cat("Max status: ", maxstatus, "\n", sep = "")
+    ##     cat("Bound: (", min, ", ", max, ")\n", sep = "")
+    ## }
     return(list(max = max,
                 maxg0 = maxg0,
                 maxg1 = maxg1,
@@ -635,13 +635,7 @@ obsEqMin <- function(sset, orig.sset = NULL, orig.criterion = NULL,
             gurobi::gurobi_write(model, "lpCriterion.mps")
             save(model, file = "lpCriterion.Rdata")
         }
-        print("gc after constructing the model list")
-        print(gc())
         result   <- gurobi::gurobi(model, lpsolver.options)
-        print("post result memrory")
-        print(gc())
-
-        stop('end of test')
         obseqmin <- result$objval
         optx     <- result$x
         status   <- result$status
