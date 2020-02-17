@@ -666,6 +666,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
         ## EXPRIMENTING ----------------------------------------
         ## Test for violations for minimization problem
+        print("Remember to pass both the max and min solutions in, and then take the max violation>")
         monoboundAcall <- modcall(call,
                                   newcall = genmonoboundA,
                                   keepargs = monoboundAlist,
@@ -682,8 +683,192 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                  solution.m0 = lpresult$ming0,
                                                  solution.m1 = lpresult$ming1,
                                                  audit.tol = audit.tol))
-        auditObjMin<- eval(monoboundAcall)
-        ## stop('end of test')
+        auditObj<- eval(monoboundAcall)
+        ## Combine the violation matrices
+        violateMat <- NULL
+        if (!is.null(auditObj$bounds)) {
+            violateMat <- rbind(violateMat, auditObj$bounds$violateMat)
+            auditObj$bounds$violateMat <- NULL
+            print('vmatdim')
+            print(dim(violateMat))
+        }
+        if (!is.null(auditObj$mono)) {
+            violateMat <- rbind(violateMat, auditObj$mono$violateMat)
+            auditObj$mono$violateMat <- NULL
+            print('vmatdim')
+            print(dim(violateMat))
+        }
+        if (nrow(violateMat) > 0) {
+            if (noisy) cat("    Violations: ", nrow(violateMat), "\n")
+            print("This section needs to be updated to account for the audit loop---i.e. this needs a stopping point.")    
+            if (audit_count > audit.max) {
+                ## End audit and return violation matrix if max audit is achieved.
+                audit_count <- audit.count - 1
+                break
+            } else {
+                ## Expand the initial grid if audits are still possible.
+                ## If number of violations is fewer than audit.add, simply
+                ## include all points
+                if (nrow(violateMat) < audit.add) {
+                    ## Simply attach all the audit submatrices together.
+                    print("ADD EVERYTHING")
+                } else {
+                    ## If number of violations exceeds audit.add, then a
+                    ## selection rule is applied. Sort the violations by
+                    ## type and size.
+                    violateMat <- violateMat[order(violateMat$type,
+                                                   violateMat$grid.x,
+                                                   -violateMat$diff), ]
+                    violateMat$group.count <-
+                        unlist(lapply(table(violateMat$group.name),
+                                      function(x) seq(x)))
+                    if (nrow(violateMat[violateMat$group.count <= 1, ]) >=
+                        audit.add) {
+                        violateMat <- violateMat[violateMat$group.count <= 1, ]
+                    } else {
+                        k <- 2
+                        for (i in 2:max(violateMat$group.count)) {
+                            if (nrow(violateMat[violateMat$group.count <= k, ])
+                                >= audit.add) {
+                                break
+                            } else {
+                                k <- k + 1
+                            }
+                        }
+                        vmatTmp <- violateMat[violateMat$group.count <= (k - 1), ]
+                        vmatAdd <- violateMat[violateMat$group.count == k, ]
+                        vmatAdd <- vmatAdd[order(-vmatAdd$diff), ]
+                        vmatAdd <- vmatAdd[1:(audit.add - nrow(vmatTmp)), ]
+                        violateMat <- rbind(vmatTmp, vmatAdd)
+                        violateMat <- violateMat[order(violateMat$type,
+                                                       violateMat$grid.x,
+                                                       -violateMat$diff), ]
+                        print("Sorted violateMat")
+                        print(violateMat)
+                        print(table(violateMat$type))
+                        print(dim(violateMat))
+                        ## Now expand the initial grid
+                        types <- unique(violateMat$type)
+                        addm0 <- NULL
+                        addm1 <- NULL
+                        addmte <- NULL
+                        for (i in types) {
+                            ## Expand constraints for m0
+                            if (i == 1) {
+                                print("a")
+                                addIndex <- violateMat[violateMat$type == i,
+                                                       "pos"]
+                                print(addIndex)
+                                tmpGrid <- auditObj$bounds$bdA$m0.lb
+                                print(dim(tmpGrid))
+                                addm0 <- rbind(addm0, tmpGrid[addIndex, ])
+                                rm(tmpGrid)
+                                auditObj$bounds$bdA$m0.lb <- NULL
+                            }
+                            if (i == 4) {
+                                print("b")
+                                addIndex <- violateMat[violateMat$type == i,
+                                                       "pos"]
+                                tmpGrid <- auditObj$bounds$bdA$m0.ub
+                                addm0 <- rbind(addm0, tmpGrid[addIndex, ])
+                                rm(tmpGrid)
+                                auditObj$bounds$bdA$m1.lb <- NULL
+                            }
+                            if (i %in% c(7, 8)) {
+                                print("c") 
+                                addIndex <- violateMat[violateMat$type == i,
+                                                       "pos"]
+                                tmpGrid <- auditObj$mono$monoA$m0
+                                addm0 <- rbind(addm0, tmpGrid[addIndex, ])
+                                rm(tmpGrid)
+                                if (i == 8) auditObj$mono$monoA$m0 <- NULL
+                            }
+                        }                        
+                        print("dim of lpEnv pre append")
+                        print(dim(lpEnv$lpobj$A))
+                        lpEnv$lpobj$A <-
+                            rbind(lpEnv$lpobj$A,
+                                  cbind(matrix(0, nrow = nrow(addm0),
+                                               ncol = 2 * sn),
+                                        addm0,
+                                        matrix(0, nrow = nrow(addm0),
+                                               ncol = length(sset$s1$g1))))
+                        print("dim of lpEnv post append")
+                        print(dim(lpEnv$lpobj$A))
+                        stop('end of append test')
+                        ## Expand constraints for m1
+                        for (i in c(2, 5, 9, 10)) {
+                            if (i == 2) {
+                                addIndex <- violateMat[violateMat$type == i,
+                                                       "pos"]
+                                tmpGrid <- auditObj$bounds$bdA$m1.lb
+                                addm0 <- rbind(addm0, tmpGrid[addIndex, ])
+                                rm(tmpGrid)
+                                auditObj$bounds$bdA$m0.lb <- NULL
+                            }
+                            if (i == 5) {
+                                addIndex <- violateMat[violateMat$type == i,
+                                                       "pos"]
+                                tmpGrid <- auditObj$bounds$bdA$m1.ub
+                                addm0 <- rbind(addm0, tmpGrid[addIndex, ])
+                                rm(tmpGrid)
+                                auditObj$bounds$bdA$m1.lb <- NULL
+                            }
+                            if (i %in% c(9, 10)) {
+                                addIndex <- violateMat[violateMat$type == i,
+                                                       "pos"]
+                                tmpGrid <- auditObj$mono$monoA$m1
+                                addm0 <- rbind(addm0, tmpGrid[addIndex, ])
+                                rm(tmpGrid)
+                                if (i == 10) auditObj$mono$monoA$m0 <- NULL
+                            }
+                        }
+                        ## addBounds <- NULL
+                        ## addMono <- NULL
+                        ## if (i == 1) {
+                        ##     addIndex <- violateMat[violateMat$type == i,
+                        ##                            "pos"]
+                        ##     tmpGrid <- auditObj$bounds$bdA$m0.lb
+                        ##     addBounds <-
+                        ##         rbind(addBounds,
+                        ##               cbind(matrix(0,
+                        ##                            nrow = nrow(tmpGrid),
+                        ##                            ncol = 2 * sn),
+                        ##                     tmpGrid,
+                        ##                     matrix(0,
+                        ##                            nrow = nrow(tmpGrid),
+                        ##                            ncol =
+                        ##                                length(sset$s1$g1))))
+                        ##     auditObj$bounds$bdA$m0.lb <- NULL
+                        ## }
+                        ## if (i == 2) {
+                        ##     addIndex <- violateMat[violateMat$type == i,
+                        ##                            "pos"]
+                        ##     tmpGrid <- auditObj$bounds$bdA$m0.lb
+                        ##     addBounds <-
+                        ##         rbind(addBounds,
+                        ##               cbind(matrix(0,
+                        ##                            nrow = nrow(tmpGrid),
+                        ##                            ncol = 2 * sn),
+                        ##                     tmpGrid,
+                        ##                     matrix(0,
+                        ##                            nrow = nrow(tmpGrid),
+                        ##                            ncol =
+                        ##                                length(sset$s1$g1))))
+                        ##     auditObj$bounds$bdA$m0.lb <- NULL
+                        ## }
+                        ## print('the names')
+                        ## print(sset$s1$g1)
+                    }
+                }
+            }
+        } else {
+            ## If no violations, then...
+            break
+        }
+        stop('end of audit test')
+
+        print("You still need to develop a way to pass to the audit grid for botstraps.")
         ## END EXPERIMENTING -----------------------------------
         ## Test for violations for minimization problem
         violateDiffMin <- a_mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)] %*%
