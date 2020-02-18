@@ -680,8 +680,14 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                  splinesobj =
                                                      splinesobj,
                                                  monov = monov,
-                                                 solution.m0 = lpresult$ming0,
-                                                 solution.m1 = lpresult$ming1,
+                                                 solution.m0.min =
+                                                     lpresult$ming0,
+                                                 solution.m1.min =
+                                                     lpresult$ming1,
+                                                 solution.m0.max =
+                                                     lpresult$maxg0,
+                                                 solution.m1.max =
+                                                     lpresult$maxg1,
                                                  audit.tol = audit.tol))
         auditObj<- eval(monoboundAcall)
         ## Combine the violation matrices
@@ -772,7 +778,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                 tmpGrid <- auditObj$bounds$bdA$m0.ub
                                 addm0 <- rbind(addm0, tmpGrid[addIndex, ])
                                 rm(tmpGrid)
-                                auditObj$bounds$bdA$m1.lb <- NULL
+                                auditObj$bounds$bdA$m0.ub <- NULL
                             }
                             if (i %in% c(7, 8)) {
                                 print("c") 
@@ -793,72 +799,104 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                         addm0,
                                         matrix(0, nrow = nrow(addm0),
                                                ncol = length(sset$s1$g1))))
+                        print('dimm0')
+                        print(dim(addm0))
+                        rm(addm0)
                         print("dim of lpEnv post append")
                         print(dim(lpEnv$lpobj$A))
-                        stop('end of append test')
                         ## Expand constraints for m1
-                        for (i in c(2, 5, 9, 10)) {
+                        for (i in types) {
                             if (i == 2) {
                                 addIndex <- violateMat[violateMat$type == i,
                                                        "pos"]
+                                print('this is i = 2')
+                                print(addIndex)
                                 tmpGrid <- auditObj$bounds$bdA$m1.lb
-                                addm0 <- rbind(addm0, tmpGrid[addIndex, ])
+                                print(dim(tmpGrid))
+                                addm1 <- rbind(addm1, tmpGrid[addIndex, ])
                                 rm(tmpGrid)
-                                auditObj$bounds$bdA$m0.lb <- NULL
+                                auditObj$bounds$bdA$m1.lb <- NULL
                             }
                             if (i == 5) {
                                 addIndex <- violateMat[violateMat$type == i,
                                                        "pos"]
+                                print('this is i = 5')
+                                print(addIndex)
                                 tmpGrid <- auditObj$bounds$bdA$m1.ub
-                                addm0 <- rbind(addm0, tmpGrid[addIndex, ])
+                                print(dim(tmpGrid))
+                                addm1 <- rbind(addm1, tmpGrid[addIndex, ])
                                 rm(tmpGrid)
-                                auditObj$bounds$bdA$m1.lb <- NULL
+                                auditObj$bounds$bdA$m1.ub <- NULL
                             }
                             if (i %in% c(9, 10)) {
                                 addIndex <- violateMat[violateMat$type == i,
                                                        "pos"]
+                                print('this is i = 9, 10')
+                                print(addIndex)
                                 tmpGrid <- auditObj$mono$monoA$m1
-                                addm0 <- rbind(addm0, tmpGrid[addIndex, ])
+                                print(dim(tmpGrid))
+                                addm1 <- rbind(addm1, tmpGrid[addIndex, ])
                                 rm(tmpGrid)
-                                if (i == 10) auditObj$mono$monoA$m0 <- NULL
+                                if (i == 10) auditObj$mono$monoA$m1 <- NULL
                             }
                         }
-                        ## addBounds <- NULL
-                        ## addMono <- NULL
-                        ## if (i == 1) {
-                        ##     addIndex <- violateMat[violateMat$type == i,
-                        ##                            "pos"]
-                        ##     tmpGrid <- auditObj$bounds$bdA$m0.lb
-                        ##     addBounds <-
-                        ##         rbind(addBounds,
-                        ##               cbind(matrix(0,
-                        ##                            nrow = nrow(tmpGrid),
-                        ##                            ncol = 2 * sn),
-                        ##                     tmpGrid,
-                        ##                     matrix(0,
-                        ##                            nrow = nrow(tmpGrid),
-                        ##                            ncol =
-                        ##                                length(sset$s1$g1))))
-                        ##     auditObj$bounds$bdA$m0.lb <- NULL
-                        ## }
-                        ## if (i == 2) {
-                        ##     addIndex <- violateMat[violateMat$type == i,
-                        ##                            "pos"]
-                        ##     tmpGrid <- auditObj$bounds$bdA$m0.lb
-                        ##     addBounds <-
-                        ##         rbind(addBounds,
-                        ##               cbind(matrix(0,
-                        ##                            nrow = nrow(tmpGrid),
-                        ##                            ncol = 2 * sn),
-                        ##                     tmpGrid,
-                        ##                     matrix(0,
-                        ##                            nrow = nrow(tmpGrid),
-                        ##                            ncol =
-                        ##                                length(sset$s1$g1))))
-                        ##     auditObj$bounds$bdA$m0.lb <- NULL
-                        ## }
-                        ## print('the names')
-                        ## print(sset$s1$g1)
+                        print("dim of lpEnv pre append")
+                        print(dim(lpEnv$lpobj$A))
+                        lpEnv$lpobj$A <-
+                            rbind(lpEnv$lpobj$A,
+                                  cbind(matrix(0, nrow = nrow(addm1),
+                                               ncol = 2 * sn),
+                                        matrix(0, nrow = nrow(addm1),
+                                               ncol = length(sset$s1$g0)),
+                                        addm1))
+                        print('dimm1')
+                        print(dim(addm1))
+                        rm(addm1)
+                        print("dim of lpEnv post append")
+                        print(dim(lpEnv$lpobj$A))
+                        ## Expand constraints for mte
+                        for (i in types) {
+                            if (i == 3) {
+                                addIndex <- violateMat[violateMat$type == i,
+                                                       "pos"]
+                                tmpGrid <- auditObj$bounds$bdA$mte.lb
+                                addmte <- rbind(addmte, tmpGrid[addIndex, ])
+                                rm(tmpGrid)
+                                auditObj$bounds$bdA$mte.lb <- NULL
+                            }
+                            if (i == 6) {
+                                addIndex <- violateMat[violateMat$type == i,
+                                                       "pos"]
+                                tmpGrid <- auditObj$bounds$bdA$mte.ub
+                                addmte <- rbind(addmte, tmpGrid[addIndex, ])
+                                rm(tmpGrid)
+                                auditObj$bounds$bdA$mte.lb <- NULL
+                            }
+                            if (i %in% c(11, 12)) {
+                                addIndex <- violateMat[violateMat$type == i,
+                                                       "pos"]
+                                tmpGrid <- auditObj$mono$monoA$mte
+                                addmte <- rbind(addmte, tmpGrid[addIndex, ])
+                                rm(tmpGrid)
+                                if (i == 12) auditObj$mono$monoA$mte <- NULL
+                            }
+                        }
+                        print("dim of lpEnv pre append")
+                        print(dim(lpEnv$lpobj$A))
+                        lpEnv$lpobj$A <-
+                            rbind(lpEnv$lpobj$A,
+                                  cbind(matrix(0, nrow = nrow(addmte),
+                                               ncol = 2 * sn),
+                                        addmte))
+                        print('dimmte')
+                        print(dim(addmte))
+                        rm(addmte)
+                        print("dim of lpEnv post append")
+                        print(dim(lpEnv$lpobj$A))
+                        stop('end of append test')
+
+
+                       
                     }
                 }
             }
