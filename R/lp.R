@@ -484,28 +484,28 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
     model$A <- rbind(avec, lpobj$A)
     model$sense <- c("<=", lpobj$sense)
     ## check scaling of model
-    tmpA <- c(matrix(model$A, ncol = 1))
-    tmpA <- tmpA[tmpA != 0]
-    magDiffA <- max(magnitude(tmpA), na.rm = TRUE) -
-        min(magnitude(tmpA), na.rm = TRUE)
-    magDiffObj <- max(magnitude(model$obj), na.rm = TRUE) -
-        min(magnitude(model$obj), na.rm = TRUE)
-    magDiffRhs <- max(magnitude(model$rhs), na.rm = TRUE) -
-        min(magnitude(model$rhs), na.rm = TRUE)
-    modelStats  <-
-        data.frame(matrix(c(min(abs(tmpA)),
-                            min(abs(model$rhs[model$rhs != 0])),
-                            min(abs(model$obj[model$obj != 0])),
-                            max(abs(tmpA)),
-                            max(abs(model$rhs[model$rhs != 0])),
-                            max(abs(model$obj[model$obj != 0])),
-                            magDiffA, magDiffRhs, magDiffObj),
-                          ncol = 3))
-    colnames(modelStats) <- c("Min abs.", "Max abs.", "Magnitude diff.")
-    rownames(modelStats) <- c("Constraint matrix",
-                              "RHS",
-                              "Objective")
-    rm(tmpA)
+    ## tmpA <- c(matrix(model$A, ncol = 1))
+    ## tmpA <- tmpA[tmpA != 0]
+    ## magDiffA <- max(magnitude(tmpA), na.rm = TRUE) -
+    ##     min(magnitude(tmpA), na.rm = TRUE)
+    ## magDiffObj <- max(magnitude(model$obj), na.rm = TRUE) -
+    ##     min(magnitude(model$obj), na.rm = TRUE)
+    ## magDiffRhs <- max(magnitude(model$rhs), na.rm = TRUE) -
+    ##     min(magnitude(model$rhs), na.rm = TRUE)
+    ## modelStats  <-
+    ##     data.frame(matrix(c(min(abs(tmpA)),
+    ##                         min(abs(model$rhs[model$rhs != 0])),
+    ##                         min(abs(model$obj[model$obj != 0])),
+    ##                         max(abs(tmpA)),
+    ##                         max(abs(model$rhs[model$rhs != 0])),
+    ##                         max(abs(model$obj[model$obj != 0])),
+    ##                         magDiffA, magDiffRhs, magDiffObj),
+    ##                       ncol = 3))
+    ## colnames(modelStats) <- c("Min abs.", "Max abs.", "Magnitude diff.")
+    ## rownames(modelStats) <- c("Constraint matrix",
+    ##                           "RHS",
+    ##                           "Objective")
+    ## rm(tmpA)
     ## obtain lower and upper bounds
     if (lpsolver == "gurobi") {
         if (debug & lpsolver.options$outputflag == 1) {
@@ -588,8 +588,8 @@ bound <- function(g0, g1, sset, lpobj, obseq.factor, lpsolver,
                 ming1 = ming1,
                 minresult = minresult,
                 minstatus = minstatus,
-                model = model,
-                modelstats = modelStats))
+                model = model))
+                ## modelstats = modelStats)
 }
 
 #' Running cplexAPI LP solver
