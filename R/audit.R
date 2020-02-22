@@ -296,38 +296,19 @@ audit <- function(data, uname, m0, m1, splinesobj,
     }
     ## Organize variables
     monov <- uname ## `monov' is a placeholder name for the monotone
-                     ## variable. I use this in case I want to
-                     ## generalize the monotonciity restrictions to
-                     ## other covariates
+                   ## variable. I use this in case I want to
+                   ## generalize the monotonciity restrictions to
+                   ## other covariates
     xvars <- unique(vars_mtr)
     xvars <- xvars[xvars != uname]
     xvars <- xvars[xvars %in% vars_data]
     otherx  <- xvars[xvars != monov]
-    if (!is.null(audit.grid)) support <- audit.grid$support
-    if (is.null(audit.grid))  support <- unique(data[, xvars])
-    ## check if support is vector or matrix; it can be a vector if
-    ## there is only one X term
-    if (is.null(dim(support))) {
-        support <- data.frame(support)
-        colnames(support) <- xvars
-    }
-    ## deal with case in which there are no covariates.
-    if (length(xvars) == 0) {
-        noX <- TRUE
-    } else {
-        noX <- FALSE
-        rownames(support) <- seq(1, nrow(support))
-        ## Select first iteration of the grid
-        full_index <- seq(1, nrow(support))
-        initgrid.nx <- min(initgrid.nx, nrow(support))
-        audit.nx <- min(audit.nx, nrow(support))
-    }
     ## Begin performing the audit
     prevbound <- c(-Inf, Inf)
     existsolution <- FALSE
     audit_count <- 1
-    ## Generate a new grid for the audit
-    print("Remember that his audit code may have to be relocated below, or maintained here since you do need to construct the initial grid.")
+    ## Generate the components for the audit grid, and generate the
+    ## initial grid
     monoboundAlist <- c('sset', 'gstar0', 'gstar1',
                         'm1.ub', 'm0.ub',
                         'm1.lb', 'm0.lb',
@@ -336,131 +317,90 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         'm1.dec', 'm1.inc',
                         'mte.dec', 'mte.inc')
     if (audit_count == 1) {
+        sn <- length(sset)
         if (is.null(audit.grid)) {
-            sn <- length(sset)
-            a_uvec <- sort(c(0, 1, round(rhalton(audit.nu), 8)))
-            if (noX) {
-                a_grid <- data.frame(a_uvec)
-                colnames(a_grid) <- uname
-                a_grid_index <- NULL
-            } else {
-                ## Generate alternate grid from residual indexes
-                if (audit.nx == length(full_index)) {
-                    a_grid_index <- full_index
-                } else {
-                    a_grid_index <- sort(
-                        sample(full_index,
-                               audit.nx,
-                               replace = FALSE,
-                               prob = replicate(length(full_index),
-                               (1 / length(full_index)))))
-                }
-            }
-            ## Generate all monotonicity and boundedness matrices
-            ## for the audit
-            if (noisy) {
-                if (audit.nu == initgrid.nu && audit.nx == initgrid.nx) {
-                    cat("    Generating initial constraint/audit grid...\n")
-                } else {
-                    cat("    Generating audit grid...\n")
-                }
-            }
-            monoboundAcall <- modcall(call,
-                                      newcall = genmonoboundA,
-                                      keepargs = monoboundAlist,
-                                      newargs = list(m0 = m0,
-                                                     m1 = m1,
-                                                     uname = uname,
-                                                     support = support,
-                                                     grid_index =
-                                                         a_grid_index,
-                                                     uvec = a_uvec,
-                                                     splinesobj =
-                                                         splinesobj,
-                                                     monov = monov))
-            a_mbobj <- eval(monoboundAcall)
-            a_mbobj$support <- support
-        } else {
-            sn <- length(sset)
-            a_mbobj <- audit.grid
-            a_grid_index <- unique(audit.grid$gridobj$map)
-            if (length(a_grid_index) == 1 && a_grid_index == 0) {
-                a_grid_index <- NULL
+            ## Generate the underlying X grid for the audit
+            if (length(xvars) == 0) {
                 noX <- TRUE
-            }
-        }
-        a_mbA <- a_mbobj$mbA
-        negatepos <- which(a_mbobj$mbs == ">=")
-        a_mbrhs <- a_mbobj$mbrhs
-        if (audit.nx == initgrid.nx && audit.nu == initgrid.nu) {
-            mbobj <- a_mbobj
-        } else {
-            if (noisy) cat("    Generating initial constraint grid...\n")
-            if (noX) {
-                grid_index <- NULL
+                support <- NULL
             } else {
-                grid_index <- sort(
-                    sample(a_grid_index,
-                           initgrid.nx,
-                           replace = FALSE,
-                           prob = replicate(length(a_grid_index),
-                           (1/length(a_grid_index)))))
+                noX <- FALSE
+                support <- unique(data[, xvars])
+                ## Check if support is vector or matrix; it can be a vector if
+                ## there is only one X term
+                if (is.null(dim(support))) {
+                    support <- data.frame(support)
+                    colnames(support) <- xvars
+                }
+                rownames(support) <- seq(1, nrow(support))
+                ## Select first iteration of the grid
+                full_index <- seq(1, nrow(support))
+                initgrid.nx <- min(initgrid.nx, nrow(support))
+                audit.nx <- min(audit.nx, nrow(support))
+                a_grid_index <- sort(sample(full_index,
+                                            audit.nx,
+                                            replace = FALSE,
+                                            prob = replicate(length(full_index),
+                                            (1 / length(full_index)))))
+                ## Restrict support the audit points
+                support <- support[a_grid_index, ]
+                if (is.null(dim(support))) {
+                    support <- data.frame(support)
+                    colnames(support) <- xvars
+                }
+                rownames(support) <- seq(nrow(support))
+                rm(a_grid_index)
             }
-            uvec <- sort(c(0, 1, round(rhalton(initgrid.nu), 8)))
-            monoboundAcall <- modcall(call,
-                                      newcall = genmonoboundA,
-                                      keepargs = monoboundAlist,
-                                      newargs = list(m0 = m0,
-                                                     m1 = m1,
-                                                     uname = uname,
-                                                     support = support,
-                                                     grid_index = grid_index,
-                                                     uvec = uvec,
-                                                     splinesobj = splinesobj,
-                                                     monov = monov))
-            mbobj <- eval(monoboundAcall)
+            ## Generate the underlying U grid for the audit
+            a_uvec <- sort(c(0, 1, round(rhalton(audit.nu), 8)))
+            audit.grid <- list(support = support,
+                               uvec = a_uvec,
+                               noX = noX)
+        } else {
+            support <- audit.grid$support
+            uvec <- audit.grid$uvec
+            noX <- audit.grid$noX
         }
+        warning("You need to check that you can run this without any covariates.")
+        ## Generate the initial constraint grid
+        if (noisy) cat("    Generating initial constraint grid...\n")
+        if (noX) {
+            grid_index <- NULL
+        } else {
+            grid_index <- sort(
+                sample(seq(nrow(support)),
+                       initgrid.nx,
+                       replace = FALSE,
+                       prob = replicate(nrow(support),
+                       (1/nrow(support)))))
+        }
+        uvec <- sort(c(0, 1, round(rhalton(initgrid.nu), 8)))
+        monoboundAcall <- modcall(call,
+                                  newcall = genmonoboundA,
+                                  keepargs = monoboundAlist,
+                                  newargs = list(m0 = m0,
+                                                 m1 = m1,
+                                                 uname = uname,
+                                                 support = support,
+                                                 grid_index = grid_index,
+                                                 uvec = uvec,
+                                                 splinesobj = splinesobj,
+                                                 monov = monov))
+        mbobj <- eval(monoboundAcall)
     }
 
-    ## Experimenting -------------------------------------
     ## Generate LP environment that is to be updated
     lpEnv <- new.env()
     lpSetupAlt(lpEnv, sset, NULL, mbobj$mbA, mbobj$mbs,
                mbobj$mbrhs, lpsolver)
-    lpSetupSolver(env = lpEnv, lpsolver = lpsolver)
-    ## End experiment -----------------------------------
-    
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
-        ## Minimize violation of observational equivalence
-        ## Original ---------------------------------------
-        ## print('pre lpobj memory')
-        ## print(gc())
-        ## print("generate LP obj time")
-        ## t0 <- Sys.time()
-        ## lpobj <- lpSetup(sset, NULL, mbobj$mbA, mbobj$mbs,
-        ##                  mbobj$mbrhs, lpsolver)
-        ## print(Sys.time() - t0)
-        ## print('post lpobj memory')
-        ## print(gc())
-        ## print("post lpobj object size check")
-        ## things <- ls()
-        ## sizes <- sapply(things, FUN = function(x) {
-        ##     s <- try(object.size(get(x)), silent = TRUE)
-        ##     if (class(s) != "try-error") s
-        ## })
-        ## sizes <- unlist(sizes)
-        ## print(head(sort(sizes, decreasing = TRUE)) / 1e6)
-        ## minobseq <- obsEqMin(sset, NULL, NULL,
-        ##                      criterion.tol, lpobj, lpsolver,
-        ##                      lpsolver.options.criterion, debug)
-        ## Experimenting -------------------------------------
+        lpSetupSolver(env = lpEnv, lpsolver = lpsolver)
+        lpSetupCriterion(env = lpEnv, sset = sset)
         minobseq <- obsEqMinAlt(lpEnv, sset, lpsolver,
                                 lpsolver.options.criterion, debug)
-        ## End experimenting --------------------------------
-
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -468,30 +408,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## solutions.
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
-            ## Original -------------------------------
-            ## rm(lpobj)
-            ## rm(minobseq)
-            ## lpobjAlt <- lpSetup(sset = sset,
-            ##                     orig.sset = NULL,
-            ##                     mbA = mbobj$mbA,
-            ##                     mbs = mbobj$mbs,
-            ##                     mbrhs = mbobj$mbrhs,
-            ##                     lpsolver = lpsolver,
-            ##                     shape = FALSE)
-            ## minobseqAlt <- obsEqMin(sset = sset,
-            ##                         orig.sset = NULL,
-            ##                         orig.criterion = NULL,
-            ##                         criterion.tol = criterion.tol,
-            ##                         lpobj = lpobjAlt,
-            ##                         lpsolver = lpsolver,
-            ##                         lpsolver.options =
-            ##                             lpsolver.options.criterion)
-            ## if (lpsolver %in% c("cplexapi", "lpsolveapi")) {
-            ##     solVec <- minobseqAlt$result$optx
-            ## } else {
-            ##     solVec <- minobseqAlt$result$x
-            ## }
-            ## Experimenting ------------------------------
             rm(lpEnv)
             rm(minobseq)
             lpEnvAlt <- new.env()
@@ -506,7 +422,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                        lpsolver.options =
                                            lpsolver.options.criterion)
             solVec <- minobseqAlt$x
-            ## End experimenting --------------------------
             ## Test for violations
             print("Shouldn't this part of the code be updated? Do you want to use the mbobj or the lpEnv?")
             mbA <- mbobj$mbA
@@ -610,7 +525,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                  orig.criterion, criterion.tol, setup = FALSE)
             ## End experimenting ----------------------------------
         }
-        
+
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
@@ -630,7 +545,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                      g1 = gstar1,
                      sset = sset,
                      obseq.factor = minobseq$obj * (1 + criterion.tol),
-                     lpsolver = lpsolver)
+                     lpsolver = lpsolver,
+                     setup = TRUE)
         lpresult <- boundAlt(env = lpEnv,
                              sset = sset,
                              obseq.factor = minobseq$obj * (1 + criterion.tol),
@@ -679,7 +595,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                  uname = uname,
                                                  support = support,
                                                  grid_index =
-                                                     a_grid_index,
+                                                     seq(nrow(support)),
                                                  uvec = a_uvec,
                                                  splinesobj =
                                                      splinesobj,
@@ -771,7 +687,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             }
         }
         ## Address violations by expanding initial grid
-        if (nrow(violateMat) > 0) {
+        if (!is.null(violateMat)) {
             if (noisy) cat("    Violations: ", nrow(violateMat), "\n")
             print("This section needs to be updated to account for the audit loop---i.e. this needs a stopping point.")
             if (audit_count > audit.max) {
@@ -785,7 +701,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                ") reached. Try increasing
                                                 audit.max.")), "\n"),
                             call. = FALSE, immediate. = TRUE)
-                }               
+                }
                 break
             } else {
                 ## Expand the initial grid if audits are still possible.
@@ -841,14 +757,18 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 addm0 <- NULL
                 addm1 <- NULL
                 addmte <- NULL
+                print("dim of lpEnv post append")
+                print(dim(lpEnv$lpobj$A))
                 for (i in types) {
-                    print("dim of lpEnv post append")
-                    print(dim(lpEnv$lpobj$A))
                     ## Expand constraints for m0
                     if (i == 1) {
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
                         tmpGrid <- auditObj$bounds$bdA$m0.lb
+                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                               rep(">=", length(addIndex)))
+                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                                             rep(m0.lb, length(addIndex)))
                         addm0 <- rbind(addm0, tmpGrid[addIndex, ])
                         rm(tmpGrid)
                         auditObj$bounds$bdA$m0.lb <- NULL
@@ -857,6 +777,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
                         tmpGrid <- auditObj$bounds$bdA$m0.ub
+                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                               rep("<=", length(addIndex)))
+                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                                             rep(m0.ub, length(addIndex)))
                         addm0 <- rbind(addm0, tmpGrid[addIndex, ])
                         rm(tmpGrid)
                         auditObj$bounds$bdA$m0.ub <- NULL
@@ -865,18 +789,29 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
                         tmpGrid <- auditObj$mono$monoA$m0
+                        if (i == 7) {
+                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                                   rep(">=", length(addIndex)))
+                        } else {
+                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                                   rep("<=", length(addIndex)))
+                        }
+                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                                             rep(0, length(addIndex)))
                         addm0 <- rbind(addm0, tmpGrid[addIndex, ])
                         rm(tmpGrid)
                         if (i == 8) auditObj$mono$monoA$m0 <- NULL
                     }
                 }
-                lpEnv$lpobj$A <-
-                    rbind(lpEnv$lpobj$A,
-                          cbind(matrix(0, nrow = nrow(addm0),
-                                       ncol = 2 * sn),
-                                addm0,
-                                matrix(0, nrow = nrow(addm0),
-                                       ncol = length(sset$s1$g1))))
+                if (!is.null(addm0)) {
+                    lpEnv$lpobj$A <-
+                        rbind(lpEnv$lpobj$A,
+                              cbind(matrix(0, nrow = nrow(addm0),
+                                           ncol = 2 * sn),
+                                    addm0,
+                                    matrix(0, nrow = nrow(addm0),
+                                           ncol = length(sset$s1$g1))))
+                }
                 rm(addm0)
                 ## Expand constraints for m1
                 for (i in types) {
@@ -884,6 +819,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
                         tmpGrid <- auditObj$bounds$bdA$m1.lb
+                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                               rep(">=", length(addIndex)))
+                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                                             rep(m1.lb, length(addIndex)))
                         addm1 <- rbind(addm1, tmpGrid[addIndex, ])
                         rm(tmpGrid)
                         auditObj$bounds$bdA$m1.lb <- NULL
@@ -892,6 +831,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
                         tmpGrid <- auditObj$bounds$bdA$m1.ub
+                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                               rep("<=", length(addIndex)))
+                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                                             rep(m1.ub, length(addIndex)))
                         addm1 <- rbind(addm1, tmpGrid[addIndex, ])
                         rm(tmpGrid)
                         auditObj$bounds$bdA$m1.ub <- NULL
@@ -900,18 +843,29 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
                         tmpGrid <- auditObj$mono$monoA$m1
+                        if (i == 9) {
+                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                                   rep(">=", length(addIndex)))
+                        } else {
+                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                                   rep("<=", length(addIndex)))
+                        }
+                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                                             rep(0, length(addIndex)))
                         addm1 <- rbind(addm1, tmpGrid[addIndex, ])
                         rm(tmpGrid)
                         if (i == 10) auditObj$mono$monoA$m1 <- NULL
                     }
                 }
-                lpEnv$lpobj$A <-
-                    rbind(lpEnv$lpobj$A,
-                          cbind(matrix(0, nrow = nrow(addm1),
-                                       ncol = 2 * sn),
-                                matrix(0, nrow = nrow(addm1),
-                                       ncol = length(sset$s1$g0)),
-                                addm1))
+                if (!is.null(addm1)) {
+                    lpEnv$lpobj$A <-
+                        rbind(lpEnv$lpobj$A,
+                              cbind(matrix(0, nrow = nrow(addm1),
+                                           ncol = 2 * sn),
+                                    matrix(0, nrow = nrow(addm1),
+                                           ncol = length(sset$s1$g0)),
+                                    addm1))
+                }
                 rm(addm1)
                 ## Expand constraints for mte
                 for (i in types) {
@@ -919,6 +873,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
                         tmpGrid <- auditObj$bounds$bdA$mte.lb
+                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                               rep(">=", length(addIndex)))
+                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                                             rep(mte.lb, length(addIndex)))
                         addmte <- rbind(addmte, tmpGrid[addIndex, ])
                         rm(tmpGrid)
                         auditObj$bounds$bdA$mte.lb <- NULL
@@ -927,6 +885,10 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
                         tmpGrid <- auditObj$bounds$bdA$mte.ub
+                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                               rep("<=", length(addIndex)))
+                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                                             rep(mte.ub, length(addIndex)))
                         addmte <- rbind(addmte, tmpGrid[addIndex, ])
                         rm(tmpGrid)
                         auditObj$bounds$bdA$mte.lb <- NULL
@@ -935,24 +897,38 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
                         tmpGrid <- auditObj$mono$monoA$mte
+                        if (i == 11) {
+                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                                                   rep(">=", length(addIndex)))
+                        } else {
+                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$rhs,
+                                                   rep("<=", length(addIndex)))
+                        }
+                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                                             rep(0, length(addIndex)))
                         addmte <- rbind(addmte, tmpGrid[addIndex, ])
                         rm(tmpGrid)
                         if (i == 12) auditObj$mono$monoA$mte <- NULL
                     }
                 }
-                lpEnv$lpobj$A <-
-                    rbind(lpEnv$lpobj$A,
-                          cbind(matrix(0, nrow = nrow(addmte),
-                                       ncol = 2 * sn),
-                                addmte))
+                if (!is.null(addmte)) {
+                    lpEnv$lpobj$A <-
+                        rbind(lpEnv$lpobj$A,
+                              cbind(matrix(0, nrow = nrow(addmte),
+                                           ncol = 2 * sn),
+                                    addmte))
+                }
                 rm(addmte)
-                audit_count <- audit_count + 1
                 print("this is audit__count")
                 print(audit_count)
                 print("audit_ma")
                 print(audit.max)
                 print("dim of lpEnv post append")
                 print(dim(lpEnv$lpobj$A))
+                print(length(lpEnv$lpobj$rhs))
+                print(length(lpEnv$lpobj$sense))
+                audit_count <- audit_count + 1
+                lpSetupBound(env = lpEnv, setup = FALSE)
             }
         } else {
             ## If no violations, then end the audit
@@ -962,17 +938,18 @@ audit <- function(data, uname, m0, m1, splinesobj,
             }
             break
         }
-    }   
-    stop('end of audit test')
-
+    }
     output <- list(max = lpresult$max,
                    min = lpresult$min,
                    lpresult = lpresult,
                    minobseq = minobseq$obj,
                    gridobj = list(initial = mbobj$gridobj,
                                   audit = a_mbobj$gridobj,
-                                  violations = violations),
+                                  violations = violateMat),
                    auditcount = audit_count)
+
+    stop('end of audit test')
+
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
         output$spectest = minobseqTest$obj
     }
@@ -1168,7 +1145,6 @@ altFunc <- function(){
     }
     return(output)
 }
-
 
 #' Select points from audit grid to add to the constraint grid
 #'

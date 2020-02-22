@@ -155,8 +155,6 @@ lpSetupAlt <- function(env, sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
     gn1 <- length(sset$s1$g1)
     ## generate all vectors/matrices for LP optimization to minimize
     ## observational equivalence
-    obj <- c(replicate(sn * 2, 1),
-             replicate(gn0 + gn1, 0))
     rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
     if (!is.null(orig.sset)) {
         ## Recenter RHS when bootstrapping
@@ -197,8 +195,7 @@ lpSetupAlt <- function(env, sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
     if (lpsolver %in% c("gurobi", "lpsolveapi")) {
         mbA <- Matrix::Matrix(mbA, sparse = TRUE)
     }
-    env$lpobj <- list(obj = obj,
-                      rhs = rhs,
+    env$lpobj <- list(rhs = rhs,
                       sense = sense,
                       A = mbA,
                       ub = ub,
@@ -206,6 +203,17 @@ lpSetupAlt <- function(env, sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
                       sn = sn,
                       gn0 = gn0,
                       gn1 = gn1)
+}
+
+lpSetupCriterion <- function(env, sset) {
+    ## determine lengths
+    sn  <- length(sset)
+    gn0 <- length(sset$s1$g0)
+    gn1 <- length(sset$s1$g1)
+    ## generate all vectors/matrices for LP optimization to minimize
+    ## observational equivalence
+    env$lpobj$obj <- c(replicate(sn * 2, 1),
+                       replicate(gn0 + gn1, 0))
 }
 
 ## This function simply adjust the lpObj so that it is compatible with
@@ -232,6 +240,11 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
                                  orig.criterion,
                                  criterion.tol = 0, setup = TRUE) {
     if (setup) {
+        sn  <- length(sset)
+        gn0 <- length(sset$s1$g0)
+        gn1 <- length(sset$s1$g1)
+        env$lpobj$obj <- c(replicate(sn * 2, 1),
+                           replicate(gn0 + gn1, 0))
         ## Prepare to obtain 'recentered' bootstrap
         ## criterion. Specifically, the |S| equality constraints are
         ## centered. Then, the original |S| equality constraints are
@@ -331,43 +344,26 @@ obsEqMinAlt <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 }
 
 
-lpSetupBound <- function(env, g0, g1, sset, obseq.factor, lpsolver) {
-    lpsolver <- tolower(lpsolver)
-    ## define model
-    env$lpobj$obj <- c(replicate(2 * env$lpobj$sn, 0), g0, g1)
-    env$lpobj$rhs <- c(obseq.factor, env$lpobj$rhs)
-    avec <- c(replicate(2 * env$lpobj$sn, 1),
-              replicate(env$lpobj$gn0 + env$lpobj$gn1, 0))
-    env$lpobj$A <- rbind(avec, env$lpobj$A)
-    if (lpsolver %in% c("gurobi", "lpsolveapi")) {
-        env$lpobj$sense <- c("<=", env$lpobj$sense)
+lpSetupBound <- function(env, g0, g1, sset, obseq.factor, lpsolver,
+                         setup = TRUE) {
+    if (setup) {
+        lpsolver <- tolower(lpsolver)
+        env$lpobj$obj <- c(replicate(2 * env$lpobj$sn, 0), g0, g1)
+        env$lpobj$rhs <- c(obseq.factor, env$lpobj$rhs)
+        avec <- c(replicate(2 * env$lpobj$sn, 1),
+                  replicate(env$lpobj$gn0 + env$lpobj$gn1, 0))
+        env$lpobj$A <- rbind(avec, env$lpobj$A)
+        if (lpsolver %in% c("gurobi", "lpsolveapi")) {
+            env$lpobj$sense <- c("<=", env$lpobj$sense)
+        }
+        if (lpsolver == "cplexapi") {
+            env$lpobj$sense <- c("L", env$lpobj$sense)
+        }
+    } else {
+        env$lpobj$rhs <- env$lpobj$rhs[-1]
+        env$lpobj$sense <- env$lpobj$sense[-1]
+        env$lpobj$A <- env$lpobj$A[-1, ]
     }
-    if (lpsolver == "cplexapi") {
-        env$lpobj$sense <- c("L", env$lpobj$sense)
-    }
-    ## ## check scaling of model
-    ## tmpA <- c(matrix(env$lpobj$A, ncol = 1))
-    ## tmpA <- tmpA[tmpA != 0]
-    ## magDiffA <- max(magnitude(tmpA), na.rm = TRUE) -
-    ##     min(magnitude(tmpA), na.rm = TRUE)
-    ## magDiffObj <- max(magnitude(env$lpobj$obj), na.rm = TRUE) -
-    ##     min(magnitude(env$lpobj$obj), na.rm = TRUE)
-    ## magDiffRhs <- max(magnitude(env$lpobj$rhs), na.rm = TRUE) -
-    ##     min(magnitude(env$lpobj$rhs), na.rm = TRUE)
-    ## modelStats  <-
-    ##     data.frame(matrix(c(min(abs(tmpA)),
-    ##                         min(abs(env$lpobj$rhs[env$lpobj$rhs != 0])),
-    ##                         min(abs(env$lpobj$obj[env$lpobj$obj != 0])),
-    ##                         max(abs(tmpA)),
-    ##                         max(abs(env$lpobj$rhs[env$lpobj$rhs != 0])),
-    ##                         max(abs(env$lpobj$obj[env$lpobj$obj != 0])),
-    ##                         magDiffA, magDiffRhs, magDiffObj),
-    ##                       ncol = 3))
-    ## colnames(modelStats) <- c("Min abs.", "Max abs.", "Magnitude diff.")
-    ## rownames(modelStats) <- c("Constraint matrix",
-    ##                           "RHS",
-    ##                           "Objective")
-    ## rm(tmpA)
 }
 
 boundAlt <- function(env, sset, obseq.factor, lpsolver,
