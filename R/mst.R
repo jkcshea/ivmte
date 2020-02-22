@@ -1772,7 +1772,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             return(invisible(output))
         } else {
             ## Obtain audit grid from original estimate
-            audit.grid <- origEstimate$audit.grid$a_mbobj
+            audit.grid <- list(support = origEstimate$audit.grid$audit.x,
+                               uvec = origEstimate$audit.grid$audit.u)
+            if (is.null(audit.grid$support)) audit.grid$noX <- TRUE
+            if (is.null(audit.grid$support)) audit.grid$noX <- FALSE
             origEstimate$audit.grid$a_mbobj <- NULL
             ## Estimate bounds with resampling
             set.seed(seed)
@@ -3105,8 +3108,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        lpresult =  audit$lpresult,
                        lpsolver = lpsolver,
                        indep.moments = nIndepMoments,
-                       audit.grid = list(initial = audit$gridobj$initial$grid,
-                                         audit = audit$gridobj$audit$grid,
+                       audit.grid = list(audit.x =
+                                             audit$gridobj$audit.grid$support,
+                                         audit.u =
+                                             audit$gridobj$audit.grid$uvec,
                                          violations = audit$gridobj$violations),
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
@@ -3134,6 +3139,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             output$propensity.coef <- pmodel$model$coef
         }
     }
+    print('do you need this save.grid here?')
     if (save.grid) output$audit.grid$a_mbobj <- audit$gridobj$a_mbobj
     if (!is.null(audit$spectest)) output$specification.test <- audit$spectest
     return(output)

@@ -510,36 +510,18 @@ audit <- function(data, uname, m0, m1, splinesobj,
         }
         ## Perform specification test
         if (!is.null(orig.sset) & !is.null(orig.criterion)) {
-            ## Original ------------------------------------------
-            ## lpobjTest <- lpSetup(sset, orig.sset, mbobj$mbA, mbobj$mbs,
-            ##                      mbobj$mbrhs, lpsolver)
-            ## minobseqTest <- obsEqMin(sset, orig.sset, orig.criterion,
-            ##                          criterion.tol, lpobjTest, lpsolver,
-            ##                          lpsolver.options.criterion)
-            ## Experimenting -------------------------------------
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol, setup = TRUE)
             minobseqTest <- obsEqMinAlt(lpEnv, sset, lpsolver,
                                         lpsolver.options.criterion)
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol, setup = FALSE)
-            ## End experimenting ----------------------------------
         }
 
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
         }
-        ## Original ---------------------------------------
-        ## lpresult  <- bound(g0 = gstar0,
-        ##                    g1 = gstar1,
-        ##                    sset = sset,
-        ##                    lpobj = lpobj,
-        ##                    obseq.factor = minobseq$obj * (1 + criterion.tol),
-        ##                    lpsolver = lpsolver,
-        ##                    lpsolver.options = lpsolver.options.bounds,
-        ##                    debug = debug)
-        ## Experimenting  ---------------------------------------
         lpSetupBound(env = lpEnv,
                      g0 = gstar0,
                      g1 = gstar1,
@@ -554,13 +536,12 @@ audit <- function(data, uname, m0, m1, splinesobj,
                              lpsolver.options = lpsolver.options.bounds,
                              noisy = noisy,
                              debug = debug)
-        ## End experimenting ------------------------------------
         if (is.null(lpresult)) {
             if (noisy) {
                 message("    LP solutions are unbounded.")
             }
             return(list(error = "Failure to maximize/minimize.",
-                        audit.grid = a_mbobj))
+                        audit.grid = audit.grid))
         }
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
@@ -585,7 +566,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
             if (existsolution == FALSE) existsolution <- TRUE
             prevbound <- c(lpresult$min, lpresult$max)
         }
-        ## EXPRIMENTING ----------------------------------------
         ## Test for violations for minimization problem
         monoboundAcall <- modcall(call,
                                   newcall = genmonoboundA,
@@ -943,16 +923,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
                    min = lpresult$min,
                    lpresult = lpresult,
                    minobseq = minobseq$obj,
-                   gridobj = list(initial = mbobj$gridobj,
-                                  audit = a_mbobj$gridobj,
+                   gridobj = list(audit.grid = audit.grid,
                                   violations = violateMat),
                    auditcount = audit_count)
-
-    stop('end of audit test')
-
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
         output$spectest = minobseqTest$obj
     }
+    print("Check whether you should delete this save.grid option")
     if (save.grid) {
         output$gridobj$a_mbobj <- a_mbobj
     }
