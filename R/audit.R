@@ -365,6 +365,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (noX) {
             grid_index <- NULL
         } else {
+            initgrid.nx <- min(initgrid.nx, nrow(support))
             grid_index <- sort(
                 sample(seq(nrow(support)),
                        initgrid.nx,
