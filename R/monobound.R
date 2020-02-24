@@ -239,11 +239,11 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
                                  A0 %*% solution.m0.max - m0.ub)
             violateDiff <- apply(violateDiff, 1, max)
             violatePos <- violateDiff > audit.tol
-            diff <- c(diff, violateDiff[violatePos])
-            bdA$m0.ub <- A0[violatePos, ]
-            map <- c(map, gridmap[violatePos])
-            umap <- c(umap, grid[violatePos, uname])
             if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                bdA$m0.ub <- A0[violatePos, ]
+                map <- c(map, gridmap[violatePos])
+                umap <- c(umap, grid[violatePos, uname])
                 ubdA0seq <- seq(sum(violatePos))
             } else {
                 ubdA0seq <- NULL
@@ -266,11 +266,11 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
                                  A1 %*% solution.m1.max - m0.ub)
             violateDiff <- apply(violateDiff, 1, max)
             violatePos <- violateDiff > audit.tol
-            diff <- c(diff, violateDiff[violatePos])
-            bdA$m1.ub <- A1[violatePos, ]
-            map <- c(map, gridmap[violatePos])
-            umap <- c(umap, grid[violatePos, uname])
             if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                bdA$m1.ub <- A1[violatePos, ]
+                map <- c(map, gridmap[violatePos])
+                umap <- c(umap, grid[violatePos, uname])
                 ubdA1seq <- seq(sum(violatePos))
             } else {
                 ubdA1seq <- NULL
@@ -293,12 +293,12 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
                       -A0 %*% solution.m0.max + A1 %*% solution.m1.max - mte.ub)
             violateDiff <- apply(violateDiff, 1, max)
             violatePos <- violateDiff > audit.tol
-            diff <- c(diff, violateDiff[violatePos])
-            bdA$mte.ub <- cbind(A0[violatePos, ],
-                                A1[violatePos, ])
-            map <- c(map, gridmap[violatePos])
-            umap <- c(umap, grid[violatePos, uname])
             if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                bdA$mte.ub <- cbind(A0[violatePos, ],
+                                    A1[violatePos, ])
+                map <- c(map, gridmap[violatePos])
+                umap <- c(umap, grid[violatePos, uname])
                 ubdAteseq <- seq(sum(violatePos))
             } else {
                 ubdAteseq <- NULL
@@ -641,21 +641,23 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
             negatepos <- which(monoList$mono0s == ">=")
             violateDiff[negatepos] <- -violateDiff[negatepos]
             violatePos <- violateDiff > audit.tol
-            diff <- c(diff, violateDiff[violatePos])
-            monoA$m0 <- monoList$monoA0[violatePos, ]
-            map <- c(map, monoList$monomap[violatePos])
-            umap <- c(umap, monoList$umap[violatePos, 2])
-            if (m0.type == 1) {
-                monoA0IncSeq <- seq(sum(violatePos))
-                monoA0DecSeq <- NULL
-            } else if (m0.type == 2) {
-                monoA0IncSeq <- NULL
-                monoA0DecSeq <- seq(sum(violatePos))
-            } else if (m0.type == 3) {
-                monoA0IncSeq <- seq(sum(violatePos[violatePos <= (
-                    nrow(monoList$monoA0) / 2)]))
-                monoA0DecSeq <- seq(sum(violatePos[violatePos > (
-                    nrow(monoList$monoA0) / 2)]))
+            if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                monoA$m0 <- monoList$monoA0[violatePos, ]
+                map <- c(map, monoList$monomap[violatePos])
+                umap <- c(umap, monoList$umap[violatePos, 2])
+                if (m0.type == 1) {
+                    monoA0IncSeq <- seq(sum(violatePos))
+                    monoA0DecSeq <- NULL
+                } else if (m0.type == 2) {
+                    monoA0IncSeq <- NULL
+                    monoA0DecSeq <- seq(sum(violatePos))
+                } else if (m0.type == 3) {
+                    monoA0IncSeq <- seq(sum(violatePos[violatePos <= (
+                        nrow(monoList$monoA0) / 2)]))
+                    monoA0DecSeq <- seq(sum(violatePos[violatePos > (
+                        nrow(monoList$monoA0) / 2)]))
+                }
             }
             rm(m0.type)
             monoList$monoA0 <- NULL
@@ -682,21 +684,23 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
             negatepos <- which(monoList$mono1s == ">=")
             violateDiff[negatepos] <- -violateDiff[negatepos]
             violatePos <- violateDiff > audit.tol
-            diff <- c(diff, violateDiff[violatePos])
-            monoA$m1 <- monoList$monoA1[violatePos, ]
-            map <- c(map, monoList$monomap[violatePos])
-            umap <- c(umap, monoList$umap[violatePos, 2])
-            if (m1.type == 1) {
-                monoA1IncSeq <- seq(sum(violatePos))
-                monoA1DecSeq <- NULL
-            } else if (m1.type == 2) {
-                monoA1IncSeq <- NULL
-                monoA1DecSeq <- seq(sum(violatePos))
-            } else if (m1.type == 3) {
-                monoA1IncSeq <- seq(sum(violatePos[violatePos <= (
-                    nrow(monoList$monoA1) / 2)]))
-                monoA1DecSeq <- seq(sum(violatePos[violatePos > (
-                    nrow(monoList$monoA1) / 2)]))
+            if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                monoA$m1 <- monoList$monoA1[violatePos, ]
+                map <- c(map, monoList$monomap[violatePos])
+                umap <- c(umap, monoList$umap[violatePos, 2])
+                if (m1.type == 1) {
+                    monoA1IncSeq <- seq(sum(violatePos))
+                    monoA1DecSeq <- NULL
+                } else if (m1.type == 2) {
+                    monoA1IncSeq <- NULL
+                    monoA1DecSeq <- seq(sum(violatePos))
+                } else if (m1.type == 3) {
+                    monoA1IncSeq <- seq(sum(violatePos[violatePos <= (
+                        nrow(monoList$monoA1) / 2)]))
+                    monoA1DecSeq <- seq(sum(violatePos[violatePos > (
+                        nrow(monoList$monoA1) / 2)]))
+                }
             }
             rm(m1.type)
             monoList$monoA0 <- NULL
@@ -725,21 +729,23 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
             negatepos <- which(monoList$monotes == ">=")
             violateDiff[negatepos] <- -violateDiff[negatepos]
             violatePos <- violateDiff > audit.tol
-            diff <- c(diff, violateDiff[violatePos])
-            monoA$mte <- monoList$monoAte[violatePos, ]
-            map <- c(map, monoList$monomap[violatePos])
-            umap <- c(umap, monoList$umap[violatePos, 2])
-            if (mte.type == 1) {
-                monoAteIncSeq <- seq(sum(violatePos))
-                monoAteDecSeq <- NULL
-            } else if (mte.type == 2) {
-                monoAteIncSeq <- NULL
-                monoAteDecSeq <- seq(sum(violatePos))
-            } else if (mte.type == 3) {
-                monoAteIncSeq <- seq(sum(violatePos[violatePos <= (
-                    nrow(monoList$monoAte) / 2)]))
-                monoAteDecSeq <- seq(sum(violatePos[violatePos > (
-                    nrow(monoList$monoAte) / 2)]))
+            if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                monoA$mte <- monoList$monoAte[violatePos, ]
+                map <- c(map, monoList$monomap[violatePos])
+                umap <- c(umap, monoList$umap[violatePos, 2])
+                if (mte.type == 1) {
+                    monoAteIncSeq <- seq(sum(violatePos))
+                    monoAteDecSeq <- NULL
+                } else if (mte.type == 2) {
+                    monoAteIncSeq <- NULL
+                    monoAteDecSeq <- seq(sum(violatePos))
+                } else if (mte.type == 3) {
+                    monoAteIncSeq <- seq(sum(violatePos[violatePos <= (
+                        nrow(monoList$monoAte) / 2)]))
+                    monoAteDecSeq <- seq(sum(violatePos[violatePos > (
+                        nrow(monoList$monoAte) / 2)]))
+                }
             }
             rm(mte.type)
             monoList$monoAte <- NULL
@@ -782,7 +788,8 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
         if ((hasArg(mte.inc) && mte.inc == TRUE) |
             (hasArg(mte.dec) && mte.dec == TRUE)) {
             monoteseq <- monoList$monoAteseq
-            if (is.null(dim(monoteseq))) monoteseq <- matrix(monoteseq, nrow = 1)
+            if (is.null(dim(monoteseq))) monoteseq <- matrix(monoteseq,
+                                                             nrow = 1)
             colnames(monoteseq) <- c("row", "type (inc+/dec-)")
         } else {
             monoteseq <- NULL
@@ -799,6 +806,12 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
         ## Construct violation matrix
         if (sum(unlist(lapply(monoA, function(x) nrow(x)))) > 0) {
             ## print("length of the thing")
+            ## print(c(monoA0IncSeq,
+            ##         monoA0DecSeq,
+            ##         monoA1IncSeq,
+            ##         monoA1DecSeq,
+            ##         monoAteIncSeq,
+            ##         monoAteDecSeq))
             ## print(length(c(monoA0IncSeq,
             ##                monoA0DecSeq,
             ##                monoA1IncSeq,
@@ -808,7 +821,6 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
             ## print(length(map))
             ## print(length(umap))
             ## print(length(diff))
-
             violateMat <- data.frame(pos = c(monoA0IncSeq,
                                              monoA0DecSeq,
                                              monoA1IncSeq,
@@ -972,7 +984,7 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                     splinesobj[[2]]$splineslist)
     splinesinter <- list(splinesobj[[1]]$splinesinter,
                          splinesobj[[2]]$splinesinter)
-    if (is.null(grid_index)) {
+    if (length(grid_index) == 0) {
         noX <- TRUE
     } else {
         noX <- FALSE

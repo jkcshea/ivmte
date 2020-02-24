@@ -1729,10 +1729,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     }
     ## Estimate bounds
     if (point == FALSE) {
-        if (bootstraps > 0) {
-            estimateCall <- modcall(estimateCall,
-                                    newargs = list(save.grid = TRUE))
-        }
         origEstimate <- eval(estimateCall)
         ## Estimate bounds without resampling
         if (bootstraps == 0) {
@@ -1819,13 +1815,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 bootCall <-
                     modcall(estimateCall,
                             dropargs = c("data", "noisy", "seed",
-                                         "audit.grid", "save.grid",
+                                         "audit.grid",
                                          "count.moments"),
                             newargs = list(data = quote(bdata),
                                            noisy = FALSE,
                                            seed = bseeds[b],
                                            audit.grid = audit.grid,
-                                           save.grid = FALSE,
                                            orig.sset = origSset,
                                            orig.criterion = origCriterion,
                                            count.moments = FALSE))
@@ -2526,11 +2521,6 @@ checkU <- function(formula, uname) {
 #' @param audit.grid list, contains the A A matrix used in the audit
 #'     for the original sample, as well as the RHS vector used in the
 #'     audit from the original sample.
-#' @param save.grid boolean, set to \code{FALSE} by default. Set to
-#'     true if the fine grid from the audit should be saved. This
-#'     option is used for inference procedure under partial
-#'     identification, which uses the fine grid from the original
-#'     sample in all bootstrap resamples.
 #' @param point.center numeric, a vector of GMM moment conditoins
 #'     evaluated at a solution. When bootstrapping, the moment
 #'     conditions from the original sample can be passed through this
@@ -2591,7 +2581,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           initgrid.nu = 20, audit.nx = 2500,
                           audit.nu = 25, audit.add = 100,
                           audit.max = 25, audit.tol, audit.grid = NULL,
-                          save.grid = FALSE,
                           point = FALSE,
                           point.eyeweight = FALSE,
                           point.center = NULL, point.redundant = NULL,
@@ -2939,7 +2928,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "initgrid.nu", "initgrid.nx",
                     "audit.nx", "audit.nu", "audit.add",
                     "audit.max", "audit.tol",
-                    "audit.grid", "save.grid",
+                    "audit.grid",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
@@ -3139,8 +3128,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             output$propensity.coef <- pmodel$model$coef
         }
     }
-    print('do you need this save.grid here?')
-    if (save.grid) output$audit.grid$a_mbobj <- audit$gridobj$a_mbobj
     if (!is.null(audit$spectest)) output$specification.test <- audit$spectest
     return(output)
 }

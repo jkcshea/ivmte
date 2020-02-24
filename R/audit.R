@@ -149,7 +149,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   audit.nx = 2500, audit.nu = 25, audit.add = 100,
                   audit.max = 25, audit.tol,
                   audit.grid = NULL,
-                  save.grid = FALSE,
                   m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
                   m1.ub.default = FALSE,
                   m0.ub.default = FALSE,
@@ -358,7 +357,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                noX = noX)
         } else {
             support <- audit.grid$support
-            uvec <- audit.grid$uvec
+            a_uvec <- audit.grid$uvec
             noX <- audit.grid$noX
         }
         warning("You need to check that you can run this without any covariates.")
@@ -389,10 +388,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
         mbobj <- eval(monoboundAcall)
     }
 
+    print("did I successfully make the mbobj?")
+    
     ## Generate LP environment that is to be updated
     lpEnv <- new.env()
     lpSetupAlt(lpEnv, sset, NULL, mbobj$mbA, mbobj$mbs,
                mbobj$mbrhs, lpsolver)
+    rm(mbobj)
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
@@ -408,13 +410,16 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## solutions.
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
-            rm(lpEnv)
+            print("THIS PART NEEDS WORK!")
+            ## USE YOUR NEW APPROACH:
+            lpSetupUnbounded(lpenv, sset)           
+            ## rm(lpEnv)
             rm(minobseq)
-            lpEnvAlt <- new.env()
-            lpSetupAlt(env = lpEnvAlt, sset = sset, orig.sset = NULL,
-                       mbA = mbobj$mbA, mbs = mbobj$mbs,
-                       mbrhs = mbobj$mbrhs, lpsolver = lpsolver,
-                       shape = FALSE)
+            ## lpEnvAlt <- new.env()
+            ## lpSetupAlt(env = lpEnvAlt, sset = sset, orig.sset = NULL,
+            ##            mbA = mbobj$mbA, mbs = mbobj$mbs,
+            ##            mbrhs = mbobj$mbrhs, lpsolver = lpsolver,
+            ##            shape = FALSE)
             lpSetupSolver(env = lpEnvAlt, lpsolver = lpsolver)
             minobseqAlt <- obsEqMinAlt(env = lpEnvAlt,
                                        sset = sset,
@@ -604,7 +609,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         warning("This audit grid matching init grid needs to be checked.")
         if (initgrid.nx == audit.nx &&
             initgrid.nu == audit.nu) {
-            if (nrow(violateMat) > 0) {
+            if (!is.null(violateMat) && nrow(violateMat) > 0) {
                 origTol <- audit.tol
                 origViolations <- nrow(violateMat)
                 origViolationsMagnitude <- max(violateMat$diff)
@@ -621,7 +626,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             ## If the audit grid and initial grid are identical, then
             ## the audit must end after the first iteration---there
             ## are no points to add.
-            if (nrow(violateMat) > 0) {
+            if (!is.null(violateMat) && nrow(violateMat) > 0) {
                 warning(paste0(gsub("\\s+", " ",
                                     paste0("Audit finished: violations
                                            continue to occur although
@@ -669,10 +674,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## Address violations by expanding initial grid
         if (!is.null(violateMat)) {
             if (noisy) cat("    Violations: ", nrow(violateMat), "\n")
-            print("This section needs to be updated to account for the audit loop---i.e. this needs a stopping point.")
-            if (audit_count > audit.max) {
+            if (audit_count == audit.max) {
                 ## End audit and return violation matrix if max audit is achieved.
-                audit_count <- audit.count - 1
                 if (noisy) {
                     warning(paste0(gsub("\\s+", " ",
                                         paste0("Audit finished: maximum number
@@ -719,10 +722,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                        violateMat$grid.x,
                                                        -violateMat$diff), ]
                         print("violateMat count and dimension")
-                        print(table(violateMat$type))
-                        print(dim(violateMat))
                     }
                 }
+                print(table(violateMat$type))
                 ## Now expand the initial grid
                 if (noisy) {
                     if (nrow(violateMat) > 1) ps <- 'points'
@@ -792,6 +794,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                     matrix(0, nrow = nrow(addm0),
                                            ncol = length(sset$s1$g1))))
                 }
+                print("dim of addm0")
+                print(dim(addm0))
                 rm(addm0)
                 ## Expand constraints for m1
                 for (i in types) {
@@ -846,6 +850,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                            ncol = length(sset$s1$g0)),
                                     addm1))
                 }
+                print("dim of addm1")
+                print(dim(addm1))
                 rm(addm1)
                 ## Expand constraints for mte
                 for (i in types) {
@@ -881,7 +887,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                             lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                    rep(">=", length(addIndex)))
                         } else {
-                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$rhs,
+                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                    rep("<=", length(addIndex)))
                         }
                         lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
@@ -898,15 +904,9 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                            ncol = 2 * sn),
                                     addmte))
                 }
+                print("dim of addmte")
+                print(dim(addmte))
                 rm(addmte)
-                print("this is audit__count")
-                print(audit_count)
-                print("audit_ma")
-                print(audit.max)
-                print("dim of lpEnv post append")
-                print(dim(lpEnv$lpobj$A))
-                print(length(lpEnv$lpobj$rhs))
-                print(length(lpEnv$lpobj$sense))
                 audit_count <- audit_count + 1
                 lpSetupBound(env = lpEnv, setup = FALSE)
             }
@@ -928,10 +928,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                    auditcount = audit_count)
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
         output$spectest = minobseqTest$obj
-    }
-    print("Check whether you should delete this save.grid option")
-    if (save.grid) {
-        output$gridobj$a_mbobj <- a_mbobj
     }
     return(output)
 }
@@ -1027,7 +1023,7 @@ altFunc <- function(){
                         call. = FALSE, immediate. = TRUE)
                 break
             }
-            if (audit_count <= audit.max) {
+            if (audit_count < audit.max) {
                 if (noisy) {
                     if (length(violateIndexes) > 1) ps <- 'points'
                     if (length(violateIndexes) == 1) ps <- 'point'

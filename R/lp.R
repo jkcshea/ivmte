@@ -205,6 +205,13 @@ lpSetupAlt <- function(env, sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
                       gn1 = gn1)
 }
 
+lpSetupUnbounded <- function(env, sset) {
+    sn <- length(sset)
+    env$lpobj$A[1:(2 * sn), ]
+    env$lpobj$rhs[1:(2 * sn)]
+    env$lpobj$sense[1:(2 * sn)]
+}
+
 lpSetupCriterion <- function(env, sset) {
     ## determine lengths
     sn  <- length(sset)
