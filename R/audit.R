@@ -360,8 +360,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
             a_uvec <- audit.grid$uvec
             noX <- audit.grid$noX
         }
-        warning("You need to check that you can run this without any covariates.")
-        ## Generate the initial constraint grid
+      ## Generate the initial constraint grid
         if (noisy) cat("    Generating initial constraint grid...\n")
         if (noX) {
             grid_index <- NULL
@@ -385,24 +384,23 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                                  uvec = uvec,
                                                  splinesobj = splinesobj,
                                                  monov = monov))
-        mbobj <- eval(monoboundAcall)
+        lpEnv <- new.env()
+        lpEnv$mbobj <- eval(monoboundAcall)
     }
-
-    print("did I successfully make the mbobj?")
+    print('gc after constructing lpobject')
+    print(gc())
     
     ## Generate LP environment that is to be updated
-    lpEnv <- new.env()
-    lpSetupAlt(lpEnv, sset, NULL, mbobj$mbA, mbobj$mbs,
-               mbobj$mbrhs, lpsolver)
-    rm(mbobj)
+    lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
+            lpsolver = lpsolver)
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
         lpSetupSolver(env = lpEnv, lpsolver = lpsolver)
         lpSetupCriterion(env = lpEnv, sset = sset)
-        minobseq <- obsEqMinAlt(lpEnv, sset, lpsolver,
-                                lpsolver.options.criterion, debug)
+        minobseq <- obsEqMin(lpEnv, sset, lpsolver,
+                             lpsolver.options.criterion, debug)
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -410,90 +408,79 @@ audit <- function(data, uname, m0, m1, splinesobj,
         ## solutions.
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
-            print("THIS PART NEEDS WORK!")
-            ## USE YOUR NEW APPROACH:
-            lpSetupUnbounded(lpenv, sset)           
-            ## rm(lpEnv)
             rm(minobseq)
-            ## lpEnvAlt <- new.env()
-            ## lpSetupAlt(env = lpEnvAlt, sset = sset, orig.sset = NULL,
-            ##            mbA = mbobj$mbA, mbs = mbobj$mbs,
-            ##            mbrhs = mbobj$mbrhs, lpsolver = lpsolver,
-            ##            shape = FALSE)
-            lpSetupSolver(env = lpEnvAlt, lpsolver = lpsolver)
-            minobseqAlt <- obsEqMinAlt(env = lpEnvAlt,
-                                       sset = sset,
-                                       lpsolver = lpsolver,
-                                       lpsolver.options =
-                                           lpsolver.options.criterion)
+            lpSetupInfeasible(lpEnv, sset)
+            
+            minobseqAlt <- obsEqMin(env = lpEnv,
+                                    sset = sset,
+                                    lpsolver = lpsolver,
+                                    lpsolver.options =
+                                        lpsolver.options.criterion)
             solVec <- minobseqAlt$x
-            ## Test for violations
-            print("Shouldn't this part of the code be updated? Do you want to use the mbobj or the lpEnv?")
-            mbA <- mbobj$mbA
-            negatepos <- which(mbobj$mbs == ">=")
-            mbrhs <- mbobj$mbrhs
-            violateDiff <- mbA %*% solVec - mbrhs
+            ## Test for violation
+            negatepos <- which(lpEnv$mbobj$mbs == ">=")
+            violateDiff <- lpEnv$mbobj$mbA %*% solVec - lpEnv$mbobj$mbrhs
             violateDiff[negatepos] <- -violateDiff[negatepos]
-            violatevec <- violateDiff > audit.tol
+            violatevec <- as.vector(violateDiff > audit.tol)
             violatepos <- which(violatevec == TRUE)
             violateType <- sapply(violatepos, function(x) {
-                if (x %in% mbobj$lb0seq) {
+                if (x %in% lpEnv$mbobj$lb0seq) {
                     if (m0.lb.default == TRUE) {
-                        return(paste0("m0.lb = ", m0.lb,
+                        return(paste0("m0.lb = ", round(m0.lb, 6),
                                       " (min. observed outcome by default)"))
                     } else {
-                        return(paste0("m0.lb = ", m0.lb))
+                        return(paste0("m0.lb = ", round(m0.lb, 6)))
                     }
                 }
-                if (x %in% mbobj$lb1seq) {
+                if (x %in% lpEnv$mbobj$lb1seq) {
                     if (m1.lb.default == TRUE) {
-                        return(paste0("m1.lb = ", m1.lb,
+                        return(paste0("m1.lb = ", round(m1.lb, 6),
                                       " (min. observed outcome by default)"))
                     } else {
-                        return(paste0("m1.lb = ", m1.lb))
+                        return(paste0("m1.lb = ", round(m1.lb, 6)))
                     }
                 }
-                if (x %in% mbobj$lbteseq) {
+                if (x %in% lpEnv$mbobj$lbteseq) {
                     if (mte.lb.default == TRUE) {
-                        return(paste0("mte.lb = ", mte.lb,
-                                      " (min. treatment effect by default)"))
+                        return(paste0("mte.lb = ", round(mte.lb, 6),
+                                      " (min. treatment effect 6by default)"))
                     } else {
-                        return(paste0("mte.lb = ", mte.lb))
+                        return(paste0("mte.lb = ", round(mte.lb, 6)))
                     }
                 }
-                if (x %in% mbobj$ub0seq) {
+                if (x %in% lpEnv$mbobj$ub0seq) {
                     if (m0.ub.default == TRUE) {
-                        return(paste0("m0.ub = ", m0.ub,
+                        return(paste0("m0.ub = ", round(m0.ub, 6),
                                       " (max. observed outcome by default)"))
                     } else {
-                        return(paste0("m0.ub = ", m0.ub))
+                        return(paste0("m0.ub = ", round(m0.ub, 6)))
                     }
                 }
-                if (x %in% mbobj$ub1seq) {
+                if (x %in% lpEnv$mbobj$ub1seq) {
                     if (m1.ub.default == TRUE) {
-                        return(paste0("m1.ub = ", m1.ub,
+                        return(paste0("m1.ub = ", round(m1.ub, 6),
                                       " (max. observed outcome by default)"))
                     } else {
-                        return(paste0("m1.ub = ", m1.ub))
+                        return(paste0("m1.ub = ", round(m1.ub, 6)))
                     }
                 }
-                if (x %in% mbobj$ubteseq) {
+                if (x %in% lpEnv$mbobj$ubteseq) {
                     if (mte.ub.default == TRUE) {
-                        return(paste0("mte.ub = ", mte.ub,
+                        return(paste0("mte.ub = ", round(mte.ub, 6),
                                       " (max. treatment effect by default)"))
                     } else {
-                        return(paste0("mte.ub = ", mte.ub))
+                        return(paste0("mte.ub = ", round(mte.ub, 6)))
                     }
                 }
-                if (x %in% mbobj$mono0seq) {
+                if (x %in% lpEnv$mbobj$mono0seq) {
                     if (m0.inc == TRUE) return("m0.inc = TRUE")
                     if (m0.dec == TRUE) return("m0.dec = TRUE")
                 }
-                if (x %in% mbobj$mono1seq) {
+                if (x %in% lpEnv$mbobj$mono1seq) {
                     if (m1.inc == TRUE) return("m1.inc = TRUE")
                     if (m1.dec == TRUE) return("m1.dec = TRUE")
                 }
-                if (x %in% mbobj$monomteseq) {
+                if (x %in% lpEnv$mbobj$monomteseq) {
                     if (mte.inc == TRUE) return("mte.inc = TRUE")
                     if (mte.dec == TRUE) return("mte.dec = TRUE")
                 }
@@ -517,8 +504,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
         if (!is.null(orig.sset) & !is.null(orig.criterion)) {
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol, setup = TRUE)
-            minobseqTest <- obsEqMinAlt(lpEnv, sset, lpsolver,
-                                        lpsolver.options.criterion)
+            minobseqTest <- obsEqMin(lpEnv, sset, lpsolver,
+                                     lpsolver.options.criterion)
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol, setup = FALSE)
         }
@@ -534,13 +521,13 @@ audit <- function(data, uname, m0, m1, splinesobj,
                      obseq.factor = minobseq$obj * (1 + criterion.tol),
                      lpsolver = lpsolver,
                      setup = TRUE)
-        lpresult <- boundAlt(env = lpEnv,
-                             sset = sset,
-                             obseq.factor = minobseq$obj * (1 + criterion.tol),
-                             lpsolver = lpsolver,
-                             lpsolver.options = lpsolver.options.bounds,
-                             noisy = noisy,
-                             debug = debug)
+        lpresult <- bound(env = lpEnv,
+                          sset = sset,
+                          obseq.factor = minobseq$obj * (1 + criterion.tol),
+                          lpsolver = lpsolver,
+                          lpsolver.options = lpsolver.options.bounds,
+                          noisy = noisy,
+                          debug = debug)
         if (is.null(lpresult)) {
             if (noisy) {
                 message("    LP solutions are unbounded.")
@@ -606,7 +593,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
             auditObj$mono$violateMat <- NULL
         }
         ## Deal with possible violations when audit and initial grid match
-        warning("This audit grid matching init grid needs to be checked.")
         if (initgrid.nx == audit.nx &&
             initgrid.nu == audit.nu) {
             if (!is.null(violateMat) && nrow(violateMat) > 0) {

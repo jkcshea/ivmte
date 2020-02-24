@@ -458,7 +458,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
         audit <- TRUE
     } else {
         audit <- FALSE
-    }    
+    }
     un <- length(unique(gridobj$grid[, uname]))
     ## Construct index for calculating first differences
     uMaxIndex <- seq(1, nrow(A0))[-seq(from = 1, to = nrow(A0), by = un)]
@@ -1308,11 +1308,11 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                     mbumap[[2]])
     output <- list(mbA = mbA,
                    mbs = mbs,
-                   mbrhs  = mbrhs,
-                   mbmap  = mbmap,
-                   mbumap = mbumap)
+                   mbrhs  = mbrhs)
+                   ## mbmap  = mbmap,
+                   ## mbumap = mbumap)
     rm(mbA, mbs, mbrhs, mbmap, mbumap)
-    output$gridobj <- gridobj
+    ## output$gridobj <- gridobj
     output$lb0seq  <- lb0seq
     output$lb1seq  <- lb1seq
     output$lbteseq <- lbteseq
