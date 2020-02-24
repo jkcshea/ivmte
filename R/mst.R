@@ -1771,8 +1771,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             audit.grid <- list(support = origEstimate$audit.grid$audit.x,
                                uvec = origEstimate$audit.grid$audit.u)
             if (is.null(audit.grid$support)) audit.grid$noX <- TRUE
-            if (is.null(audit.grid$support)) audit.grid$noX <- FALSE
-            origEstimate$audit.grid$a_mbobj <- NULL
+            if (!is.null(audit.grid$support)) audit.grid$noX <- FALSE
             ## Estimate bounds with resampling
             set.seed(seed)
             bseeds <- round(runif(bootstraps) * 1000000)
@@ -2845,10 +2844,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                             independent moment conditions than expected.")),
                     call. = FALSE)
         }
+        rm(wmat)
     } else {
         nIndepMoments <- NULL
     }
-    rm(wmat)
     if (!is.null(point.redundant)) point.redundant <- 0
     ## If bootstrapping, check that length of sset is equivalent in
     ## length to that of the original sset if bootstrapping
