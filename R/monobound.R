@@ -155,7 +155,8 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
             violateDiff <- apply(violateDiff, 1, max)
             violatePos <- violateDiff > audit.tol
             diff <- c(diff, violateDiff[violatePos])
-            bdA$m0.lb <- A0[violatePos, ]
+            bdA$m0.lb <- matrix(A0[violatePos, ],
+                                   nrow = sum(violatePos))
             map <- c(map, gridmap[violatePos])
             umap <- c(umap, grid[violatePos, uname])
             if (sum(violatePos) > 0) {
@@ -182,7 +183,8 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
             violateDiff <- apply(violateDiff, 1, max)
             violatePos <- violateDiff > audit.tol
             diff <- c(diff, violateDiff[violatePos])
-            bdA$m1.lb <- A1[violatePos, ]
+            bdA$m1.lb <- matrix(A1[violatePos, ],
+                                   nrow = sum(violatePos))
             map <- c(map, gridmap[violatePos])
             umap <- c(umap, grid[violatePos, uname])
             if (sum(violatePos) > 0) {
@@ -211,8 +213,9 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
             violateDiff <- apply(violateDiff, 1, max)
             violatePos <- violateDiff > audit.tol
             diff <- c(diff, violateDiff[violatePos])
-            bdA$mte.lb <- cbind(A0[violatePos, ],
-                                A1[violatePos, ])
+            bdA$mte.lb <- matrix(cbind(A0[violatePos, ],
+                                          A1[violatePos, ]),
+                                    nrow = sum(violatePos))
             map <- c(map, gridmap[violatePos])
             umap <- c(umap, grid[violatePos, uname])
             if (sum(violatePos) > 0) {
@@ -241,7 +244,8 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
             violatePos <- violateDiff > audit.tol
             if (sum(violatePos) > 0) {
                 diff <- c(diff, violateDiff[violatePos])
-                bdA$m0.ub <- A0[violatePos, ]
+                bdA$m0.ub <- matrix(A0[violatePos, ],
+                                       nrow = sum(violatePos))
                 map <- c(map, gridmap[violatePos])
                 umap <- c(umap, grid[violatePos, uname])
                 ubdA0seq <- seq(sum(violatePos))
@@ -268,7 +272,8 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
             violatePos <- violateDiff > audit.tol
             if (sum(violatePos) > 0) {
                 diff <- c(diff, violateDiff[violatePos])
-                bdA$m1.ub <- A1[violatePos, ]
+                bdA$m1.ub <- matrix(A1[violatePos, ],
+                                       nrow = sum(violatePos))
                 map <- c(map, gridmap[violatePos])
                 umap <- c(umap, grid[violatePos, uname])
                 ubdA1seq <- seq(sum(violatePos))
@@ -295,8 +300,9 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
             violatePos <- violateDiff > audit.tol
             if (sum(violatePos) > 0) {
                 diff <- c(diff, violateDiff[violatePos])
-                bdA$mte.ub <- cbind(A0[violatePos, ],
-                                    A1[violatePos, ])
+                bdA$mte.ub <- matrix(cbind(A0[violatePos, ],
+                                              A1[violatePos, ]),
+                                        nrow = sum(violatePos))
                 map <- c(map, gridmap[violatePos])
                 umap <- c(umap, grid[violatePos, uname])
                 ubdAteseq <- seq(sum(violatePos))
@@ -631,7 +637,8 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
             violatePos <- violateDiff > audit.tol
             if (sum(violatePos) > 0) {
                 diff <- c(diff, violateDiff[violatePos])
-                monoA$m0 <- monoList$monoA0[violatePos, ]
+                monoA$m0 <- matrix(monoList$monoA0[violatePos, ],
+                                      nrow = sum(violatePos))
                 map <- c(map, monoList$monomap[violatePos])
                 umap <- c(umap, monoList$umap[violatePos, 2])
                 if (m0.type == 1) {
@@ -674,7 +681,8 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
             violatePos <- violateDiff > audit.tol
             if (sum(violatePos) > 0) {
                 diff <- c(diff, violateDiff[violatePos])
-                monoA$m1 <- monoList$monoA1[violatePos, ]
+                monoA$m1 <- matrix(monoList$monoA1[violatePos, ],
+                                      nrow = sum(violatePos))
                 map <- c(map, monoList$monomap[violatePos])
                 umap <- c(umap, monoList$umap[violatePos, 2])
                 if (m1.type == 1) {
@@ -719,7 +727,8 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
             violatePos <- violateDiff > audit.tol
             if (sum(violatePos) > 0) {
                 diff <- c(diff, violateDiff[violatePos])
-                monoA$mte <- monoList$monoAte[violatePos, ]
+                monoA$mte <- matrix(monoList$monoAte[violatePos, ],
+                                       nrow = sum(violatePos))
                 map <- c(map, monoList$monomap[violatePos])
                 umap <- c(umap, monoList$umap[violatePos, 2])
                 if (mte.type == 1) {
