@@ -66,12 +66,37 @@ gengrid <- function(index, xsupport, usupport, uname) {
 #' @param m1.ub scalar, upper bound on MTR for treated group.
 #' @param mte.lb scalar, lower bound on MTE.
 #' @param mte.ub scalar, upper bound on MTE.
+#' @param solution.m0.min vector, the coefficients for the MTR for
+#'     \code{D = 0} corresponding to the lower bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
+#' @param solution.m1.min vector, the coefficients for the MTR for
+#'     \code{D = 1} corresponding to the lower bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
+#' @param solution.m0.max vector, the coefficients for the MTR for
+#'     \code{D = 0} corresponding to the upper bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
+#' @param solution.m1.max vector, the coefficients for the MTR for
+#'     \code{D = 1} corresponding to the upper bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
 #' @return a constraint matrix for the LP problem, the associated
 #'     vector of inequalities, and the RHS vector in the inequality
 #'     constraint. The objects pertain only to the boundedness
 #'     constraints declared by the user.
-genboundA <- function(A0, A1, sset, gridobj, uname,
-                          m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub) {
+genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
+                      m1.lb, m1.ub, mte.lb, mte.ub,
+                      solution.m0.min = NULL, solution.m1.min = NULL,
+                      solution.m0.max = NULL, solution.m1.max = NULL,
+                      audit.tol) {
+    if (!is.null(solution.m0.min) && !is.null(solution.m1.min) &&
+        !is.null(solution.m0.max) && !is.null(solution.m1.max)) {
+        audit <- TRUE
+    } else {
+        audit <- FALSE
+    }
     sn <- length(sset)
     grid <- gridobj$grid
     gridmap <- gridobj$map
@@ -107,119 +132,249 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
     ubdAteseq <- NULL
     map  <- NULL
     umap <- NULL
-    ## Generate matrices for imposing bounds on m0
-    if (hasArg(m0.ub) | hasArg(m0.lb)) {
-        bdA0 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
-                      A0,
-                      matrix(0, nrow = nrow(A1), ncol = ncol(A1)))
-        colnames(bdA0) <- namesA
-        if (is.numeric(try(m0.ub, silent = TRUE))) {
-            ubdA0 <- bdA0
-            m0ub  <- replicate(nrow(A0), m0.ub)
-            m0ubs <- replicate(nrow(A0), "<=")
-            map <- c(map, gridmap)
-            umap <- c(umap, grid[, uname])
-            ubdA0seq <- seq(1, nrow(A0))
-        }
-        if (is.numeric(try(m0.lb, silent = TRUE))) {
-            lbdA0 <- bdA0
+    bdA <- NULL
+    if (audit) {
+        bdA <- list()
+        diff <- NULL
+    }
+    ## Construct lower bound matrices
+    if (hasArg(m0.lb)) {
+        if (!audit) {
+            bdA <- rbind(bdA,
+                         cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
+                               A0,
+                               matrix(0, nrow = nrow(A1), ncol = ncol(A1))))
             m0lb  <- replicate(nrow(A0), m0.lb)
             m0lbs <- replicate(nrow(A0), ">=")
             map <- c(map, gridmap)
             umap <- c(umap, grid[, uname])
             lbdA0seq <- seq(1, nrow(A0))
+        } else {
+            violateDiff <- cbind(-(A0 %*% solution.m0.min - m0.lb),
+                                 -(A0 %*% solution.m0.max - m0.lb))
+            violateDiff <- apply(violateDiff, 1, max)
+            violatePos <- violateDiff > audit.tol
+            diff <- c(diff, violateDiff[violatePos])
+            bdA$m0.lb <- A0[violatePos, ]
+            map <- c(map, gridmap[violatePos])
+            umap <- c(umap, grid[violatePos, uname])
+            if (sum(violatePos) > 0) {
+                lbdA0seq <- seq(sum(violatePos))
+            } else {
+                lbdA0seq <- NULL
+            }
         }
     }
-    ## Generate matrices for imposing bounds on m1
-    if (hasArg(m1.ub) | hasArg(m1.lb)) {
-        bdA1 <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
-                      matrix(0, nrow = nrow(A0),   ncol = ncol(A0)),
-                      A1)
-        colnames(bdA1) <- namesA
-        if (is.numeric(try(m1.ub, silent = TRUE))) {
-            ubdA1 <- bdA1
-            m1ub  <- replicate(nrow(A1), m1.ub)
-            m1ubs <- replicate(nrow(A1), "<=")
-            map <- c(map, gridmap)
-            umap <- c(umap, grid[, uname])
-            ubdA1seq <- seq(1, nrow(A1))
-        }
-        if (is.numeric(try(m1.lb, silent = TRUE))) {
-            lbdA1 <- bdA1
+    if (hasArg(m1.lb)) {
+        if (!audit) {
+            bdA <- rbind(bdA,
+                         cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
+                               matrix(0, nrow = nrow(A0),   ncol = ncol(A0)),
+                               A1))
             m1lb  <- replicate(nrow(A1), m1.lb)
             m1lbs <- replicate(nrow(A1), ">=")
             map <- c(map, gridmap)
             umap <- c(umap, grid[, uname])
             lbdA1seq <- seq(1, nrow(A1))
+        } else {
+            violateDiff <- cbind(-(A1 %*% solution.m1.min - m1.lb),
+                                 -(A1 %*% solution.m1.max - m1.lb))
+            violateDiff <- apply(violateDiff, 1, max)
+            violatePos <- violateDiff > audit.tol
+            diff <- c(diff, violateDiff[violatePos])
+            bdA$m1.lb <- A1[violatePos, ]
+            map <- c(map, gridmap[violatePos])
+            umap <- c(umap, grid[violatePos, uname])
+            if (sum(violatePos) > 0) {
+                lbdA1seq <- seq(sum(violatePos))
+            } else {
+                lbdA1seq <- NULL
+            }
         }
     }
-    ## Generate matrices for imposing bounds on m1 - m0
-    if(hasArg(mte.lb) | hasArg(mte.ub)) {
-        bdAte <- cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
-                       -A0, A1)
-        colnames(bdAte) <- namesA
-        if (is.numeric(try(mte.ub, silent = TRUE))) {
-            ubdAte <- bdAte
-            teub  <- replicate(nrow(A1), mte.ub)
-            teubs <- replicate(nrow(A1), "<=")
-            map <- c(map, gridmap)
-            umap <- c(umap, grid[, uname])
-            ubdAteseq <- seq(1, nrow(A1))
-        }
-        if (is.numeric(try(mte.lb, silent = TRUE))) {
-            lbdAte <- bdAte
+    if (hasArg(mte.lb)) {
+        if (!audit) {
+            bdA <- rbind(bdA,
+                         cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
+                               -A0, A1))
             telb  <- replicate(nrow(A1), mte.lb)
             telbs <- replicate(nrow(A1), ">=")
             map <- c(map, gridmap)
             umap <- c(umap, grid[, uname])
             lbdAteseq <- seq(1, nrow(A1))
+        } else {
+            violateDiff <-
+                cbind(-(-A0 %*% solution.m0.min +
+                        A1 %*% solution.m1.min - mte.lb),
+                      -(-A0 %*% solution.m0.max +
+                        A1 %*% solution.m1.max - mte.lb))
+            violateDiff <- apply(violateDiff, 1, max)
+            violatePos <- violateDiff > audit.tol
+            diff <- c(diff, violateDiff[violatePos])
+            bdA$mte.lb <- cbind(A0[violatePos, ],
+                                A1[violatePos, ])
+            map <- c(map, gridmap[violatePos])
+            umap <- c(umap, grid[violatePos, uname])
+            if (sum(violatePos) > 0) {
+                lbdAteseq <- seq(sum(violatePos))
+            } else {
+                lbdAteseq <- NULL
+            }
         }
     }
-    ## Update indexes for types of boundedness constraints
-    countseq <- 0
-    if (!is.null(lbdA0seq)) {
-        countseq <- countseq + length(lbdA0seq)
+    ## Construct upper bound matrices
+    if (hasArg(m0.ub)) {
+        if (!audit) {
+            bdA <- rbind(bdA,
+                         cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
+                               A0,
+                               matrix(0, nrow = nrow(A1), ncol = ncol(A1))))
+            m0ub  <- replicate(nrow(A0), m0.ub)
+            m0ubs <- replicate(nrow(A0), "<=")
+            map <- c(map, gridmap)
+            umap <- c(umap, grid[, uname])
+            ubdA0seq <- seq(1, nrow(A0))
+        } else {
+            violateDiff <- cbind(A0 %*% solution.m0.min - m0.ub,
+                                 A0 %*% solution.m0.max - m0.ub)
+            violateDiff <- apply(violateDiff, 1, max)
+            violatePos <- violateDiff > audit.tol
+            if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                bdA$m0.ub <- A0[violatePos, ]
+                map <- c(map, gridmap[violatePos])
+                umap <- c(umap, grid[violatePos, uname])
+                ubdA0seq <- seq(sum(violatePos))
+            } else {
+                ubdA0seq <- NULL
+            }
+        }
     }
-    if (!is.null(lbdA1seq)) {
-        lbdA1seq <- lbdA1seq + countseq
-        countseq <- countseq + length(lbdA1seq)
+    if (hasArg(m1.ub)) {
+        if (!audit) {
+            bdA <- rbind(bdA,
+                         cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
+                               matrix(0, nrow = nrow(A0),   ncol = ncol(A0)),
+                               A1))
+            m1ub  <- replicate(nrow(A1), m1.ub)
+            m1ubs <- replicate(nrow(A1), "<=")
+            map <- c(map, gridmap)
+            umap <- c(umap, grid[, uname])
+            ubdA1seq <- seq(1, nrow(A1))
+        } else {
+            violateDiff <- cbind(A1 %*% solution.m1.min - m0.ub,
+                                 A1 %*% solution.m1.max - m0.ub)
+            violateDiff <- apply(violateDiff, 1, max)
+            violatePos <- violateDiff > audit.tol
+            if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                bdA$m1.ub <- A1[violatePos, ]
+                map <- c(map, gridmap[violatePos])
+                umap <- c(umap, grid[violatePos, uname])
+                ubdA1seq <- seq(sum(violatePos))
+            } else {
+                ubdA1seq <- NULL
+            }
+        }
     }
-    if (!is.null(lbdAteseq)) {
-        lbdAteseq <- lbdAteseq + countseq
-        countseq <- countseq + length(lbdAteseq)
+    if(hasArg(mte.ub)) {
+        if (!audit) {
+            bdA <- rbind(bdA,
+                         cbind(matrix(0, nrow = nrow(grid), ncol = 2 * sn),
+                               -A0, A1))
+            teub  <- replicate(nrow(A1), mte.ub)
+            teubs <- replicate(nrow(A1), "<=")
+            map <- c(map, gridmap)
+            umap <- c(umap, grid[, uname])
+            ubdAteseq <- seq(1, nrow(A1))
+        } else {
+            violateDiff <-
+                cbind(-A0 %*% solution.m0.min + A1 %*% solution.m1.min - mte.ub,
+                      -A0 %*% solution.m0.max + A1 %*% solution.m1.max - mte.ub)
+            violateDiff <- apply(violateDiff, 1, max)
+            violatePos <- violateDiff > audit.tol
+            if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                bdA$mte.ub <- cbind(A0[violatePos, ],
+                                    A1[violatePos, ])
+                map <- c(map, gridmap[violatePos])
+                umap <- c(umap, grid[violatePos, uname])
+                ubdAteseq <- seq(sum(violatePos))
+            } else {
+                ubdAteseq <- NULL
+            }
+        }
     }
-    if (!is.null(ubdA0seq)) {
-        ubdA0seq <- ubdA0seq + countseq
-        countseq <- countseq + length(ubdA0seq)
+    if (!audit) {
+        ## Update indexes for types of boundedness constraints
+        countseq <- 0
+        if (!is.null(lbdA0seq)) {
+            countseq <- countseq + length(lbdA0seq)
+        }
+        if (!is.null(lbdA1seq)) {
+            lbdA1seq <- lbdA1seq + countseq
+            countseq <- countseq + length(lbdA1seq)
+        }
+        if (!is.null(lbdAteseq)) {
+            lbdAteseq <- lbdAteseq + countseq
+            countseq <- countseq + length(lbdAteseq)
+        }
+        if (!is.null(ubdA0seq)) {
+            ubdA0seq <- ubdA0seq + countseq
+            countseq <- countseq + length(ubdA0seq)
+        }
+        if (!is.null(ubdA1seq)) {
+            ubdA1seq <- ubdA1seq + countseq
+            countseq <- countseq + length(ubdA1seq)
+        }
+        if (!is.null(ubdAteseq)) {
+            ubdAteseq <- ubdAteseq + countseq
+            countseq <- countseq + length(ubdAteseq)
+        }
+        ## Combine remaining vectors and return
+        bds   <- c(m0lbs, m1lbs, telbs,
+                   m0ubs, m1ubs, teubs)
+        bdrhs <- c(m0lb,  m1lb,  telb,
+                   m0ub,  m1ub,  teub)
+        map <- matrix(map, ncol = 1)
+        colnames(map) <- "grid.X.index"
+        return(list(A = bdA,
+                    sense = bds,
+                    rhs = bdrhs,
+                    map = map,
+                    umap = umap,
+                    lb0seq  = lbdA0seq,
+                    lb1seq  = lbdA1seq,
+                    lbteseq = lbdAteseq,
+                    ub0seq  = ubdA0seq,
+                    ub1seq  = ubdA1seq,
+                    ubteseq = ubdAteseq))
+    } else {
+        ## Construct violation matrix
+        if (sum(unlist(lapply(bdA, function(x) nrow(x)))) > 0) {
+            violateMat <- data.frame(pos = c(lbdA0seq,
+                                             lbdA1seq,
+                                             lbdAteseq,
+                                             ubdA0seq,
+                                             ubdA1seq,
+                                             ubdAteseq),
+                                     type = c(rep(1, length(lbdA0seq)),
+                                              rep(2, length(lbdA1seq)),
+                                              rep(3, length(lbdAteseq)),
+                                              rep(4, length(ubdA0seq)),
+                                              rep(5, length(ubdA1seq)),
+                                              rep(6, length(ubdAteseq))),
+                                     grid.x = map,
+                                     grid.u = umap,
+                                     diff = diff)
+            violateMat$group.name <- paste0(violateMat$type, ".",
+                                            violateMat$grid.x)
+            return(list(bdA = bdA,
+                        violateMat = violateMat))
+        } else {
+            return(NULL)
+        }
     }
-    if (!is.null(ubdA1seq)) {
-        ubdA1seq <- ubdA1seq + countseq
-        countseq <- countseq + length(ubdA1seq)
-    }
-    if (!is.null(ubdAteseq)) {
-        ubdAteseq <- ubdAteseq + countseq
-        countseq <- countseq + length(ubdAteseq)
-    }
-    ## Combine matrices and return
-    bdA <- rbind(lbdA0,  lbdA1,  lbdAte,
-                 ubdA0,  ubdA1,  ubdAte)
-    bds   <- c(m0lbs, m1lbs, telbs,
-               m0ubs, m1ubs, teubs)
-    bdrhs <- c(m0lb,  m1lb,  telb,
-               m0ub,  m1ub,  teub)
-    map <- matrix(map, ncol = 1)
-    colnames(map) <- "grid.X.index"
-    return(list(A = bdA,
-                sense = bds,
-                rhs = bdrhs,
-                map = map,
-                umap = umap,
-                lb0seq  = lbdA0seq,
-                lb1seq  = lbdA1seq,
-                lbteseq = lbdAteseq,
-                ub0seq  = ubdA0seq,
-                ub1seq  = ubdA1seq,
-                ubteseq = ubdAteseq))
 }
 
 #' Generate LP components of the monotonicity constraints
@@ -261,12 +416,37 @@ genboundA <- function(A0, A1, sset, gridobj, uname,
 #'     decreasing.
 #' @param mte.inc boolean, indicating whether the MTE is monotone
 #'     increasing.
+#' @param solution.m0.min vector, the coefficients for the MTR for
+#'     \code{D = 0} corresponding to the lower bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
+#' @param solution.m1.min vector, the coefficients for the MTR for
+#'     \code{D = 1} corresponding to the lower bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
+#' @param solution.m0.max vector, the coefficients for the MTR for
+#'     \code{D = 0} corresponding to the upper bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
+#' @param solution.m1.max vector, the coefficients for the MTR for
+#'     \code{D = 1} corresponding to the upper bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
 #' @return constraint matrix for the LP problem. The matrix pertains
 #'     only to the monotonicity conditions on the MTR and MTE declared
 #'     by the user.
 genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                      m0.dec, m0.inc, m1.dec, m1.inc, mte.dec,
-                     mte.inc) {
+                     mte.inc,
+                     solution.m0.min = NULL, solution.m1.min = NULL,
+                     solution.m0.max = NULL, solution.m1.max = NULL,
+                     audit.tol) {
+    if (!is.null(solution.m0.min) && !is.null(solution.m1.min) &&
+        !is.null(solution.m0.max) && !is.null(solution.m1.max)) {
+        audit <- TRUE
+    } else {
+        audit <- FALSE
+    }
     un <- length(unique(gridobj$grid[, uname]))
     ## Construct index for calculating first differences
     uMaxIndex <- seq(1, nrow(A0))[-seq(from = 1, to = nrow(A0), by = un)]
@@ -290,6 +470,8 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
         monomap = NULL,
         umap = NULL
     )
+    map <- NULL
+    umap <- NULL
     ## This matrix should include all the additions 0s on the left
     ## columns
     sn <- length(sset)
@@ -298,7 +480,6 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     namesA  <- c(seq(1, 2 * sn),
                  namesA0,
                  namesA1)
-
     ## The functions below generate the constraint matrix, the sense
     ## vector, and the RHS vector associated with the monotonicity
     ## constraints for m0, m1, and the mte. In addition, mappings to
@@ -307,13 +488,15 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     ## allow m0, m1, and mte to face both increasing and decreasing
     ## monotonicity constraints simultaneously---forcing them to be
     ## constants).
-    genmonoA0 <- function(monoObjects, type) {
+    genmonoA0 <- function(monoObjects, type, audit = FALSE) {
         monoA0 <- A0[uMaxIndex, ] - A0[uMinIndex, ]
         if (is.null(dim(monoA0))) monoA0 <- matrix(monoA0, nrow = 1)
-        monoA0 <- cbind(matrix(0, nrow = nrow(monoA0), ncol = 2 * sn),
-                        monoA0,
-                        matrix(0, nrow = nrow(monoA0), ncol = ncol(A1)))
-        colnames(monoA0) <- namesA
+        if (!audit) {
+            monoA0 <- cbind(matrix(0, nrow = nrow(monoA0), ncol = 2 * sn),
+                            monoA0,
+                            matrix(0, nrow = nrow(monoA0), ncol = ncol(A1)))
+            colnames(monoA0) <- namesA
+        }
         monoObjects$monoA0 <- rbind(monoObjects$monoA0, monoA0)
         monoObjects$mono0z <- c(monoObjects$mono0z, replicate(nrow(monoA0), 0))
         if (type == 1) {
@@ -336,14 +519,15 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                                         gridobj$grid[uMaxIndex, uname]))
         return(monoObjects)
     }
-
-    genmonoA1 <- function(monoObjects, type) {
+    genmonoA1 <- function(monoObjects, type, audit = FALSE) {
         monoA1 <- A1[uMaxIndex, ] - A1[uMinIndex, ]
         if (is.null(dim(monoA1))) monoA1 <- matrix(monoA1, nrow = 1)
-        monoA1 <- cbind(matrix(0, nrow = nrow(monoA1), ncol = 2 * sn),
-                        matrix(0, nrow = nrow(monoA1), ncol = ncol(A0)),
-                        monoA1)
-        colnames(monoA1) <- namesA
+        if (!audit) {
+            monoA1 <- cbind(matrix(0, nrow = nrow(monoA1), ncol = 2 * sn),
+                            matrix(0, nrow = nrow(monoA1), ncol = ncol(A0)),
+                            monoA1)
+            colnames(monoA1) <- namesA
+        }
         monoObjects$monoA1 <- rbind(monoObjects$monoA1, monoA1)
         monoObjects$mono1z <- c(monoObjects$mono1z, replicate(nrow(monoA1), 0))
         if (type == 1) {
@@ -366,18 +550,22 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                                         gridobj$grid[uMaxIndex, uname]))
         return(monoObjects)
     }
-
-    genmonoAte <- function(monoObjects, type) {
+    genmonoAte <- function(monoObjects, type, audit = FALSE) {
         monoAte0 <- -A0[uMaxIndex, ] + A0[uMinIndex, ]
         monoAte1 <- A1[uMaxIndex, ] - A1[uMinIndex, ]
         if (is.null(dim(monoAte0))) monoAte0 <- matrix(monoAte0, nrow = 1)
         if (is.null(dim(monoAte1))) monoAte1 <- matrix(monoAte1, nrow = 1)
-        monoAte <- cbind(matrix(0, nrow = nrow(monoAte0), ncol = 2 * sn),
-                         monoAte0,
-                         monoAte1)
-        colnames(monoAte) <- namesA
+        if (!audit) {
+            monoAte <- cbind(matrix(0, nrow = nrow(monoAte0), ncol = 2 * sn),
+                             monoAte0,
+                             monoAte1)
+            colnames(monoAte) <- namesA
+        } else {
+            monoAte <- cbind(monoAte0, monoAte1)
+        }
         monoObjects$monoAte <- rbind(monoObjects$monoAte, monoAte)
-        monoObjects$monotez <- c(monoObjects$monotez, replicate(nrow(monoAte), 0))
+        monoObjects$monotez <- c(monoObjects$monotez,
+                                 replicate(nrow(monoAte), 0))
         if (type == 1) {
             monoObjects$monotes <- c(monoObjects$monotes,
                                     replicate(nrow(monoAte), ">="))
@@ -398,74 +586,236 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                                         gridobj$grid[uMaxIndex, uname]))
         return(monoObjects)
     }
-
-    ## Implement functions
-    if (try(m0.inc, silent = TRUE) == TRUE) {
-        monoList <- genmonoA0(monoList, 1)
-    }
-    if (try(m0.dec, silent = TRUE) == TRUE) {
-        monoList <- genmonoA0(monoList, -1)
-    }
-    if (try(m1.inc, silent = TRUE) == TRUE) {
-        monoList <- genmonoA1(monoList, 1)
-    }
-    if (try(m1.dec, silent = TRUE) == TRUE) {
-        monoList <- genmonoA1(monoList, -1)
-    }
-    if (try(mte.inc, silent = TRUE) == TRUE) {
-        monoList <- genmonoAte(monoList, 1)
-    }
-    if (try(mte.dec, silent = TRUE) == TRUE) {
-        monoList <- genmonoAte(monoList, -1)
-    }
-    ## Combine matrices and return
-    monoA <- rbind(monoList$monoA0, monoList$monoA1, monoList$monoAte)
-    monos   <- c(monoList$mono0s, monoList$mono1s, monoList$monotes)
-    monorhs <- c(monoList$mono0z, monoList$mono1z, monoList$monotez)
-    if (!is.null(monoList$monomap)) {
-        monomap <- matrix(monoList$monomap, ncol = 1)
-        colnames(monomap) <- c("grid.X.index")
+    ## Implement functions---monotonicity matrices formed immediately
+    ## in order to save memory. If solutions are passed, the audit is
+    ## also performed, i.e. the function checks whether or not the
+    ## monotonicity constraints are satisfied.
+    if (!audit) {
+        monoA <- NULL
     } else {
-        monomap <- NULL
+        monoA <- list()
     }
-    if (!is.null(monoList$umap)) {
-        umap <- monoList$umap
-        colnames(umap) <- c("u1", "u2")
-    } else {
+    m0.type <- 0
+    m1.type <- 0
+    mte.type <- 0
+    if (audit) {
+        monoA0IncSeq <- NULL
+        monoA0DecSeq <- NULL
+        monoA1IncSeq <- NULL
+        monoA1DecSeq <- NULL
+        monoAteIncSeq <- NULL
+        monoAteDecSeq <- NULL
+        diff <- NULL
+        map <- NULL
         umap <- NULL
     }
-    if ((hasArg(m0.inc) && m0.inc == TRUE) |
-        (hasArg(m0.dec) && m0.dec == TRUE)) {
-        mono0seq = monoList$monoA0seq
-        if (is.null(dim(mono0seq))) mono0seq <- matrix(mono0seq, nrow = 1)
-        colnames(mono0seq) <- c("row", "type (inc+/dec-)")
-    } else {
-        mono0seq <- NULL
+    if (try(m0.inc, silent = TRUE) == TRUE) {
+        monoList <- genmonoA0(monoList, 1, audit)
+        m0.type <- m0.type + 1
     }
-    if ((hasArg(m1.inc) && m1.inc == TRUE) |
-        (hasArg(m1.dec) && m1.dec == TRUE)) {
-        mono1seq = monoList$monoA1seq
-        if (is.null(dim(mono1seq))) mono1seq <- matrix(mono1seq, nrow = 1)
-        colnames(mono1seq) <- c("row", "type (inc+/dec-)")
-    } else {
-        mono1seq <- NULL
+    if (try(m0.dec, silent = TRUE) == TRUE) {
+        monoList <- genmonoA0(monoList, -1, audit)
+        m0.type <- m0.type + 2
     }
-    if ((hasArg(mte.inc) && mte.inc == TRUE) |
-        (hasArg(mte.dec) && mte.dec == TRUE)) {
-        monoteseq = monoList$monoAteseq
-        if (is.null(dim(monoteseq))) monoteseq <- matrix(monoteseq, nrow = 1)
-        colnames(monoteseq) <- c("row", "type (inc+/dec-)")
-    } else {
-        monoteseq <- NULL
+    if (!is.null(monoList$monoA0)) {
+        if (!audit) {
+            monoA <- rbind(monoA, monoList$monoA0)
+            rm(m0.type)
+            monoList$monoA0 <- NULL
+        } else {
+            violateDiff <- cbind(monoList$monoA0 %*% solution.m0.min,
+                                 monoList$monoA0 %*% solution.m0.max)
+            violateDiff <- apply(violateDiff, 1, max)
+            negatepos <- which(monoList$mono0s == ">=")
+            violateDiff[negatepos] <- -violateDiff[negatepos]
+            violatePos <- violateDiff > audit.tol
+            if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                monoA$m0 <- monoList$monoA0[violatePos, ]
+                map <- c(map, monoList$monomap[violatePos])
+                umap <- c(umap, monoList$umap[violatePos, 2])
+                if (m0.type == 1) {
+                    monoA0IncSeq <- seq(sum(violatePos))
+                    monoA0DecSeq <- NULL
+                } else if (m0.type == 2) {
+                    monoA0IncSeq <- NULL
+                    monoA0DecSeq <- seq(sum(violatePos))
+                } else if (m0.type == 3) {
+                    monoA0IncSeq <- seq(sum(violatePos[violatePos <= (
+                        nrow(monoList$monoA0) / 2)]))
+                    monoA0DecSeq <- seq(sum(violatePos[violatePos > (
+                        nrow(monoList$monoA0) / 2)]))
+                }
+            }
+            rm(m0.type)
+            monoList$monoA0 <- NULL
+            monoList$monomap <- NULL
+            monoList$umap <- NULL
+        }
     }
-    return(list(A = monoA,
-                sense = monos,
-                rhs = monorhs,
-                map = monomap,
-                umap = umap,
-                mono0seq = mono0seq,
-                mono1seq = mono1seq,
-                monoteseq = monoteseq))
+    if (try(m1.inc, silent = TRUE) == TRUE) {
+        monoList <- genmonoA1(monoList, 1, audit)
+        m1.type <- m1.type + 1
+    }
+    if (try(m1.dec, silent = TRUE) == TRUE) {
+        monoList <- genmonoA1(monoList, -1, audit)
+        m1.type <- m1.type + 2
+    }
+    if (!is.null(monoList$monoA1)) {
+        if (!audit) {
+            monoA <- rbind(monoA, monoList$monoA1)
+            monoList$monoA1 <- NULL
+        } else {
+            violateDiff <- cbind(monoList$monoA1 %*% solution.m1.min,
+                                 monoList$monoA1 %*% solution.m1.max)
+            violateDiff <- apply(violateDiff, 1, max)
+            negatepos <- which(monoList$mono1s == ">=")
+            violateDiff[negatepos] <- -violateDiff[negatepos]
+            violatePos <- violateDiff > audit.tol
+            if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                monoA$m1 <- monoList$monoA1[violatePos, ]
+                map <- c(map, monoList$monomap[violatePos])
+                umap <- c(umap, monoList$umap[violatePos, 2])
+                if (m1.type == 1) {
+                    monoA1IncSeq <- seq(sum(violatePos))
+                    monoA1DecSeq <- NULL
+                } else if (m1.type == 2) {
+                    monoA1IncSeq <- NULL
+                    monoA1DecSeq <- seq(sum(violatePos))
+                } else if (m1.type == 3) {
+                    monoA1IncSeq <- seq(sum(violatePos[violatePos <= (
+                        nrow(monoList$monoA1) / 2)]))
+                    monoA1DecSeq <- seq(sum(violatePos[violatePos > (
+                        nrow(monoList$monoA1) / 2)]))
+                }
+            }
+            rm(m1.type)
+            monoList$monoA0 <- NULL
+            monoList$monomap <- NULL
+            monoList$umap <- NULL
+        }
+    }
+    if (try(mte.inc, silent = TRUE) == TRUE) {
+        monoList <- genmonoAte(monoList, 1, audit)
+        mte.type <- mte.type + 1
+    }
+    if (try(mte.dec, silent = TRUE) == TRUE) {
+        monoList <- genmonoAte(monoList, -1, audit)
+        mte.type <- mte.type + 2
+    }
+    if (!is.null(monoList$monoAte)) {
+        if (!audit) {
+            monoA <- rbind(monoA, monoList$monoAte)
+            monoList$monoAte <- NULL
+        } else {
+            violateDiff <- cbind(monoList$monoAte %*%
+                                 c(solution.m0.min, solution.m1.min),
+                                 monoList$monoAte %*%
+                                 c(solution.m0.max, solution.m1.max))
+            violateDiff <- apply(violateDiff, 1, max)
+            negatepos <- which(monoList$monotes == ">=")
+            violateDiff[negatepos] <- -violateDiff[negatepos]
+            violatePos <- violateDiff > audit.tol
+            if (sum(violatePos) > 0) {
+                diff <- c(diff, violateDiff[violatePos])
+                monoA$mte <- monoList$monoAte[violatePos, ]
+                map <- c(map, monoList$monomap[violatePos])
+                umap <- c(umap, monoList$umap[violatePos, 2])
+                if (mte.type == 1) {
+                    monoAteIncSeq <- seq(sum(violatePos))
+                    monoAteDecSeq <- NULL
+                } else if (mte.type == 2) {
+                    monoAteIncSeq <- NULL
+                    monoAteDecSeq <- seq(sum(violatePos))
+                } else if (mte.type == 3) {
+                    monoAteIncSeq <- seq(sum(violatePos[violatePos <= (
+                        nrow(monoList$monoAte) / 2)]))
+                    monoAteDecSeq <- seq(sum(violatePos[violatePos > (
+                        nrow(monoList$monoAte) / 2)]))
+                }
+            }
+            rm(mte.type)
+            monoList$monoAte <- NULL
+            monoList$monomap <- NULL
+            monoList$umap <- NULL
+        }
+    }
+    if (!audit) {
+        ## Combine remaining vectors and return
+        monos   <- c(monoList$mono0s, monoList$mono1s, monoList$monotes)
+        monorhs <- c(monoList$mono0z, monoList$mono1z, monoList$monotez)
+        if (!is.null(monoList$monomap)) {
+            monomap <- matrix(monoList$monomap, ncol = 1)
+            colnames(monomap) <- c("grid.X.index")
+        } else {
+            monomap <- NULL
+        }
+        if (!is.null(monoList$umap)) {
+            umap <- monoList$umap
+            colnames(umap) <- c("u1", "u2")
+        } else {
+            umap <- NULL
+        }
+        if ((hasArg(m0.inc) && m0.inc == TRUE) |
+            (hasArg(m0.dec) && m0.dec == TRUE)) {
+            mono0seq <- monoList$monoA0seq
+            if (is.null(dim(mono0seq))) mono0seq <- matrix(mono0seq, nrow = 1)
+            colnames(mono0seq) <- c("row", "type (inc+/dec-)")
+        } else {
+            mono0seq <- NULL
+        }
+        if ((hasArg(m1.inc) && m1.inc == TRUE) |
+            (hasArg(m1.dec) && m1.dec == TRUE)) {
+            mono1seq <- monoList$monoA1seq
+            if (is.null(dim(mono1seq))) mono1seq <- matrix(mono1seq, nrow = 1)
+            colnames(mono1seq) <- c("row", "type (inc+/dec-)")
+        } else {
+            mono1seq <- NULL
+        }
+        if ((hasArg(mte.inc) && mte.inc == TRUE) |
+            (hasArg(mte.dec) && mte.dec == TRUE)) {
+            monoteseq <- monoList$monoAteseq
+            if (is.null(dim(monoteseq))) monoteseq <- matrix(monoteseq,
+                                                             nrow = 1)
+            colnames(monoteseq) <- c("row", "type (inc+/dec-)")
+        } else {
+            monoteseq <- NULL
+        }
+        return(list(A = monoA,
+                    sense = monos,
+                    rhs = monorhs,
+                    map = monomap,
+                    umap = umap,
+                    mono0seq = mono0seq,
+                    mono1seq = mono1seq,
+                    monoteseq = monoteseq))
+    } else {
+        ## Construct violation matrix
+        if (sum(unlist(lapply(monoA, function(x) nrow(x)))) > 0) {
+            violateMat <- data.frame(pos = c(monoA0IncSeq,
+                                             monoA0DecSeq,
+                                             monoA1IncSeq,
+                                             monoA1DecSeq,
+                                             monoAteIncSeq,
+                                             monoAteDecSeq),
+                                     type = c(rep(7, length(monoA0IncSeq)),
+                                              rep(8, length(monoA0DecSeq)),
+                                              rep(9, length(monoA1IncSeq)),
+                                              rep(10, length(monoA1DecSeq)),
+                                              rep(11, length(monoAteIncSeq)),
+                                              rep(12, length(monoAteDecSeq))),
+                                     grid.x = map,
+                                     grid.u = umap,
+                                     diff = diff)
+            violateMat$group.name <- paste0(violateMat$type, ".",
+                                            violateMat$grid.x)
+            return(list(monoA = monoA,
+                        violateMat = violateMat))
+        } else {
+            return(NULL)
+        }
+    }
 }
 
 
@@ -566,19 +916,44 @@ combinemonobound <- function(bdA, monoA) {
 #'     decreasing.
 #' @param mte.inc boolean, indicating whether the MTE is monotone
 #'     increasing.
+#' @param solution.m0.min vector, the coefficients for the MTR for
+#'     \code{D = 0} corresponding to the lower bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
+#' @param solution.m1.min vector, the coefficients for the MTR for
+#'     \code{D = 1} corresponding to the lower bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
+#' @param solution.m0.max vector, the coefficients for the MTR for
+#'     \code{D = 0} corresponding to the upper bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
+#' @param solution.m1.max vector, the coefficients for the MTR for
+#'     \code{D = 1} corresponding to the upper bound of the target
+#'     parameter. If passed, this will initiate checks of shape
+#'     constraints.
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
 #'     boundedness and monotonicity constraints of an LP problem.
 genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                           uname, m0, m1, sset, gstar0, gstar1,
                           m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub,
-                          m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc) {
+                          m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
+                          solution.m0.min = NULL, solution.m1.min = NULL,
+                          solution.m0.max = NULL, solution.m1.max = NULL,
+                          audit.tol) {
+    if (!is.null(solution.m0.min) && !is.null(solution.m1.min) &&
+        !is.null(solution.m0.max) && !is.null(solution.m1.max)) {
+        audit <- TRUE
+    } else {
+        audit <- FALSE
+    }
     call <- match.call()
     splines <- list(splinesobj[[1]]$splineslist,
                     splinesobj[[2]]$splineslist)
     splinesinter <- list(splinesobj[[1]]$splinesinter,
                          splinesobj[[2]]$splinesinter)
-    if (is.null(grid_index)) {
+    if (length(grid_index) == 0) {
         noX <- TRUE
     } else {
         noX <- FALSE
@@ -821,7 +1196,10 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
         boundlist  <- c("uname",
                         "m0.lb", "m0.ub",
                         "m1.lb", "m1.ub",
-                        "mte.lb", "mte.ub")
+                        "mte.lb", "mte.ub",
+                        "solution.m0.min", "solution.m1.min",
+                        "solution.m0.max", "solution.m1.max",
+                        "audit.tol")
         boundAcall <- modcall(call,
                               newcall = genboundA,
                               keepargs = boundlist,
@@ -837,7 +1215,10 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
         hasArg(mte.inc) | hasArg(mte.dec)) {
         monolist  <- c("m0.dec", "m0.inc",
                        "m1.dec", "m1.inc",
-                       "mte.dec", "mte.inc")
+                       "mte.dec", "mte.inc",
+                       "solution.m0.min", "solution.m1.min",
+                       "solution.m0.max", "solution.m1.max",
+                       "audit.tol")
         monoAcall <- modcall(call,
                              newcall = genmonoA,
                              keepargs = monolist,
@@ -850,6 +1231,12 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                             gstar1 = quote(gstar1)))
         monoA <- eval(monoAcall)
     }
+    if (audit) {
+        ## Return violation matrices, if the function is used to
+        ## perform the audit
+        return(list(bounds = bdA,
+                    mono = monoA))
+    }
     ## Update bound sequence counts
     if (!is.null(bdA$lb0seq)) lb0seq <- bdA$lb0seq
     if (!is.null(bdA$lb1seq)) lb1seq <- bdA$lb1seq
@@ -857,31 +1244,61 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     if (!is.null(bdA$ub0seq)) ub0seq <- bdA$ub0seq
     if (!is.null(bdA$ub1seq)) ub1seq <- bdA$ub1seq
     if (!is.null(bdA$ubteseq)) ubteseq <- bdA$ubteseq
-    output <- combinemonobound(bdA, monoA)
-    output$gridobj <- gridobj
+    ## Update monotonicity sequence counts
+    boundLength <- length(lb0seq) + length(lb1seq) + length(lbteseq) +
+        length(ub0seq) + length(ub1seq) + length(ubteseq)
+    if (!is.null(monoA$mono0seq)) {
+        mono0seq <- monoA$mono0seq
+        monoA$mono0seq <- NULL
+        mono0seq[, 1] <- mono0seq[, 1] + boundLength
+    }
+    if (!is.null(monoA$mono1seq)) {
+        mono1seq <- monoA$mono1seq
+        monoA$mono1seq <- NULL
+        mono1seq[, 1] <- mono1seq[, 1] + boundLength
+    }
+    if (!is.null(monoA$monoteseq)) {
+        monoteseq <- monoA$monoteseq
+        monoA$monoteseq <- NULL
+        monoteseq[, 1] <- monoteseq[, 1] + boundLength
+    }
+    mbA <- list(bdA$A, monoA$A)
+    mbs <- list(bdA$sense, monoA$sense)
+    mbrhs <- list(bdA$rhs, monoA$rhs)
+    mbmap <- list(bdA$map, monoA$map)
+    mbumap <- list(bdA$umap, ## This needs to be doubled/cbinded
+                   monoA$umap)
+    rm(bdA, monoA)
+    mbA <- Reduce(rbind, mbA)
+    mbs <- Reduce(c, mbs)
+    mbrhs <- Reduce(c, mbrhs)
+    mbmap <- Reduce(c, mbmap)
+    mbumap <- rbind(cbind(mbumap[[1]], mbumap[[1]]),
+                    mbumap[[2]])
+    output <- list(mbA = mbA,
+                   mbs = mbs,
+                   mbrhs  = mbrhs)
+                   ## mbmap  = mbmap,
+                   ## mbumap = mbumap)
+    rm(mbA, mbs, mbrhs, mbmap, mbumap)
+    ## output$gridobj <- gridobj
     output$lb0seq  <- lb0seq
     output$lb1seq  <- lb1seq
     output$lbteseq <- lbteseq
     output$ub0seq  <- ub0seq
     output$ub1seq  <- ub1seq
     output$ubteseq <- ubteseq
-    boundLength <- length(lb0seq) + length(lb1seq) + length(lbteseq) +
-        length(ub0seq) + length(ub1seq) + length(ubteseq)
-    ## Update monotonicity sequence counts
-    if (!is.null(monoA$mono0seq)) {
-        mono0seq <- monoA$mono0seq
-        mono0seq[, 1] <- mono0seq[, 1] + boundLength
+    if (exists("mono0seq")) {
         output$mono0seq <- mono0seq
+        rm(mono0seq)
     }
-    if (!is.null(monoA$mono1seq)) {
-        mono1seq <- monoA$mono1seq
-        mono1seq[, 1] <- mono1seq[, 1] + boundLength
+    if (exists("mono1seq")) {
         output$mono1seq <- mono1seq
+        rm(mono1seq)
     }
-    if (!is.null(monoA$monoteseq)) {
-        monoteseq <- monoA$monoteseq
-        monoteseq[, 1] <- monoteseq[, 1] + boundLength
+    if (exists("monoteseq")) {
         output$monoteseq <- monoteseq
+        rm(monoteseq)
     }
     return(output)
 }

@@ -1729,10 +1729,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     }
     ## Estimate bounds
     if (point == FALSE) {
-        if (bootstraps > 0) {
-            estimateCall <- modcall(estimateCall,
-                                    newargs = list(save.grid = TRUE))
-        }
         origEstimate <- eval(estimateCall)
         ## Estimate bounds without resampling
         if (bootstraps == 0) {
@@ -1772,8 +1768,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             return(invisible(output))
         } else {
             ## Obtain audit grid from original estimate
-            audit.grid <- origEstimate$audit.grid$a_mbobj
-            origEstimate$audit.grid$a_mbobj <- NULL
+            audit.grid <- list(support = origEstimate$audit.grid$audit.x,
+                               uvec = origEstimate$audit.grid$audit.u)
+            if (is.null(audit.grid$support)) audit.grid$noX <- TRUE
+            if (!is.null(audit.grid$support)) audit.grid$noX <- FALSE
             ## Estimate bounds with resampling
             set.seed(seed)
             bseeds <- round(runif(bootstraps) * 1000000)
@@ -1816,13 +1814,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 bootCall <-
                     modcall(estimateCall,
                             dropargs = c("data", "noisy", "seed",
-                                         "audit.grid", "save.grid",
+                                         "audit.grid",
                                          "count.moments"),
                             newargs = list(data = quote(bdata),
                                            noisy = FALSE,
                                            seed = bseeds[b],
                                            audit.grid = audit.grid,
-                                           save.grid = FALSE,
                                            orig.sset = origSset,
                                            orig.criterion = origCriterion,
                                            count.moments = FALSE))
@@ -2523,11 +2520,6 @@ checkU <- function(formula, uname) {
 #' @param audit.grid list, contains the A A matrix used in the audit
 #'     for the original sample, as well as the RHS vector used in the
 #'     audit from the original sample.
-#' @param save.grid boolean, set to \code{FALSE} by default. Set to
-#'     true if the fine grid from the audit should be saved. This
-#'     option is used for inference procedure under partial
-#'     identification, which uses the fine grid from the original
-#'     sample in all bootstrap resamples.
 #' @param point.center numeric, a vector of GMM moment conditoins
 #'     evaluated at a solution. When bootstrapping, the moment
 #'     conditions from the original sample can be passed through this
@@ -2588,7 +2580,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           initgrid.nu = 20, audit.nx = 2500,
                           audit.nu = 25, audit.add = 100,
                           audit.max = 25, audit.tol, audit.grid = NULL,
-                          save.grid = FALSE,
                           point = FALSE,
                           point.eyeweight = FALSE,
                           point.center = NULL, point.redundant = NULL,
@@ -2610,7 +2601,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     uname <- deparse(substitute(uname))
     uname <- gsub("~", "", uname)
     uname <- gsub("\\\"", "", uname)
-
     if (noisy == TRUE && hasArg(lpsolver)) {
         if (lpsolver == "gurobi") cat("\nLP solver: Gurobi ('gurobi')\n\n")
         if (lpsolver == "cplexapi") cat("\nLP solver: CPLEX ('cplexAPI')\n\n")
@@ -2626,7 +2616,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                       commercial solvers."),
                 "\n", call. = FALSE, immediate. = TRUE)
         }
-
     }
 
     ##---------------------------
@@ -2854,10 +2843,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                             independent moment conditions than expected.")),
                     call. = FALSE)
         }
+        rm(wmat)
     } else {
         nIndepMoments <- NULL
     }
-    rm(wmat)
     if (!is.null(point.redundant)) point.redundant <- 0
     ## If bootstrapping, check that length of sset is equivalent in
     ## length to that of the original sset if bootstrapping
@@ -2926,7 +2915,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "initgrid.nu", "initgrid.nx",
                     "audit.nx", "audit.nu", "audit.add",
                     "audit.max", "audit.tol",
-                    "audit.grid", "save.grid",
+                    "audit.grid",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
@@ -3095,8 +3084,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        lpresult =  audit$lpresult,
                        lpsolver = lpsolver,
                        indep.moments = nIndepMoments,
-                       audit.grid = list(initial = audit$gridobj$initial$grid,
-                                         audit = audit$gridobj$audit$grid,
+                       audit.grid = list(audit.x =
+                                             audit$gridobj$audit.grid$support,
+                                         audit.u =
+                                             audit$gridobj$audit.grid$uvec,
                                          violations = audit$gridobj$violations),
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
@@ -3124,7 +3115,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             output$propensity.coef <- pmodel$model$coef
         }
     }
-    if (save.grid) output$audit.grid$a_mbobj <- audit$gridobj$a_mbobj
     if (!is.null(audit$spectest)) output$specification.test <- audit$spectest
     return(output)
 }
