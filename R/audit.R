@@ -387,9 +387,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
         lpEnv <- new.env()
         lpEnv$mbobj <- eval(monoboundAcall)
     }
-    print('gc after constructing lpobject')
-    print(gc())
-    
+
     ## Generate LP environment that is to be updated
     lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
             lpsolver = lpsolver)
@@ -410,7 +408,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
             rm(minobseq)
             lpSetupInfeasible(lpEnv, sset)
-            
             minobseqAlt <- obsEqMin(env = lpEnv,
                                     sset = sset,
                                     lpsolver = lpsolver,
@@ -699,7 +696,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                 k <- k + 1
                             }
                         }
-                        vmatTmp <- violateMat[violateMat$group.count <= (k - 1), ]
+                        vmatTmp <- violateMat[violateMat$group.count <=
+                                              (k - 1), ]
                         vmatAdd <- violateMat[violateMat$group.count == k, ]
                         vmatAdd <- vmatAdd[order(-vmatAdd$diff), ]
                         vmatAdd <- vmatAdd[1:(audit.add - nrow(vmatTmp)), ]
@@ -707,10 +705,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         violateMat <- violateMat[order(violateMat$type,
                                                        violateMat$grid.x,
                                                        -violateMat$diff), ]
-                        print("violateMat count and dimension")
                     }
                 }
-                print(table(violateMat$type))
                 ## Now expand the initial grid
                 if (noisy) {
                     if (nrow(violateMat) > 1) ps <- 'points'
@@ -725,8 +721,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                 addm0 <- NULL
                 addm1 <- NULL
                 addmte <- NULL
-                print("dim of lpEnv post append")
-                print(dim(lpEnv$lpobj$A))
                 for (i in types) {
                     ## Expand constraints for m0
                     if (i == 1) {
@@ -780,8 +774,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                     matrix(0, nrow = nrow(addm0),
                                            ncol = length(sset$s1$g1))))
                 }
-                print("dim of addm0")
-                print(dim(addm0))
                 rm(addm0)
                 ## Expand constraints for m1
                 for (i in types) {
@@ -836,8 +828,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                            ncol = length(sset$s1$g0)),
                                     addm1))
                 }
-                print("dim of addm1")
-                print(dim(addm1))
                 rm(addm1)
                 ## Expand constraints for mte
                 for (i in types) {
@@ -890,8 +880,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                                            ncol = 2 * sn),
                                     addmte))
                 }
-                print("dim of addmte")
-                print(dim(addmte))
                 rm(addmte)
                 audit_count <- audit_count + 1
                 lpSetupBound(env = lpEnv, setup = FALSE)
@@ -914,193 +902,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
                    auditcount = audit_count)
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
         output$spectest = minobseqTest$obj
-    }
-    return(output)
-}
-
-altFunc <- function(){
-    if (TRUE) {
-        print("You still need to develop a way to pass to the audit grid for botstraps.")
-        ## Most of the code below is for when you violate a constraint
-        ## END EXPERIMENTING -----------------------------------
-        ## Test for violations for minimization problem
-        violateDiffMin <- a_mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)] %*%
-            solVecMin - a_mbrhs
-        violateDiffMin[negatepos] <- -violateDiffMin[negatepos]
-        violatevecMin <- violateDiffMin > audit.tol
-        ## Test for violations for maximization problem
-        violateDiffMax <- a_mbA[, (2 * sn + 1):ncol(a_mbobj$mbA)] %*%
-            solVecMax - a_mbrhs
-        violateDiffMax[negatepos] <- -violateDiffMax[negatepos]
-        violatevecMax <- violateDiffMax > audit.tol
-        ## Generate violation data set
-        violatevec <- violatevecMin + violatevecMax
-        violate <- as.logical(sum(violatevec))
-        violatevec <- as.logical(violatevec)
-        if (initgrid.nx == audit.nx &&
-            initgrid.nu == audit.nu &&
-            violate) {
-            origTol <- audit.tol
-            origViolations <- sum(violatevec)
-            origViolationsMagnitude <- max(c(violateDiffMin, violateDiffMax))
-            ## If violations occur when initial grid and audit grid
-            ## match, then there is a precision issue. By default, the
-            ## tolerance in the package will be adjusted to be 'twice'
-            ## the magnitude of solver's tolerance.
-            audit.tol <- (audit.tol / (10^magnitude(audit.tol))) *
-                (10^(magnitude(audit.tol) / 2))
-            violatevecMin <- violateDiffMin > audit.tol
-            violatevecMax <- violateDiffMax > audit.tol
-            violatevec <- violatevecMin + violatevecMax
-            violate <- as.logical(sum(violatevec))
-            violatevec <- as.logical(violatevec)
-        } else {
-            origViolations <- 0
-        }
-        if (violate) {
-            if (noisy) cat("    Violations: ", sum(violatevec), "\n")
-            ## Store all points that violate the constraints
-            diffVec <- mapply(max,
-                              violateDiffMin * violatevecMin,
-                              violateDiffMax * violatevecMax)
-            violateMat <- selectViolations(diffVec = diffVec,
-                                           audit.add = audit.add,
-                                           lb0seq = a_mbobj$lb0seq,
-                                           ub0seq = a_mbobj$ub0seq,
-                                           lb1seq = a_mbobj$lb1seq,
-                                           ub1seq = a_mbobj$ub1seq,
-                                           lbteseq = a_mbobj$lbteseq,
-                                           ubteseq = a_mbobj$ubteseq,
-                                           mono0seq = a_mbobj$mono0seq,
-                                           mono1seq = a_mbobj$mono1seq,
-                                           monoteseq = a_mbobj$monoteseq,
-                                           mbmap = a_mbobj$mbmap)
-            print(head(violateMat))
-            violateIndexes <- violateMat$row
-            ## Expand constraint grid
-            mbobj$mbA <- rbind(mbobj$mbA, a_mbobj$mbA[violateIndexes, ])
-            mbobj$mbrhs <- c(mbobj$mbrhs, a_mbobj$mbrhs[violateIndexes])
-            mbobj$mbs <- c(mbobj$mbs, a_mbobj$mbs[violateIndexes])
-            audit_count <- audit_count + 1
-            if (initgrid.nx == audit.nx &&
-                initgrid.nu == audit.nu) {
-                warning(paste0(gsub("\\s+", " ",
-                                    paste0("Audit finished: violations
-                                           continue to occur although
-                                           the LP constraint grid and
-                                           audit grid are identical,
-                                           and the audit tolerance has
-                                           increased from ",
-                                           format(origTol, scientific = TRUE),
-                                           " to ",
-                                           format(audit.tol, scientific = TRUE),
-                                           ". This suggests precision of the
-                                           LP solver exceeds that of R,
-                                           and may be due to scaling issues
-                                           in the LP model.
-                                           Setting 'audit.tol' to be larger
-                                           than the maximum violation of ",
-                                           format(origViolationsMagnitude,
-                                                  scientific = TRUE),
-                                           " will eliminate this message,
-                                           but will not address the nature of
-                                           the problem.")),
-                               "\n"),
-                        call. = FALSE, immediate. = TRUE)
-                break
-            }
-            if (audit_count < audit.max) {
-                if (noisy) {
-                    if (length(violateIndexes) > 1) ps <- 'points'
-                    if (length(violateIndexes) == 1) ps <- 'point'
-                    cat("    ",
-                        gsub("\\s+", " ",
-                             paste0("Expanding constraint grid to
-                                        include ", length(violateIndexes),
-                                    " additional ", ps, "...")), "\n", sep = "")
-                }
-            } else {
-                if (noisy) {
-                    warning(paste0(gsub("\\s+", " ",
-                                        paste0("Audit finished: maximum number
-                                                of audits (audit.max = ",
-                                               audit.max,
-                                               ") reached. Try increasing
-                                                audit.max.")), "\n"),
-                            call. = FALSE, immediate. = TRUE)
-                    }
-                break
-            }
-        } else {
-            violateIndexes <- NULL
-            if (noisy) {
-                cat("    Violations: 0\n")
-                cat("    Audit finished.\n\n")
-            }
-            if (origViolations > 0) {
-                warning(gsub("\\s+", " ",
-                             paste0(origViolations,
-                                    " violations originally found despite the LP
-                                    constraint grid and audit grid being
-                                    identical.
-                                    Audit tolerance was increased from ",
-                                    format(origTol, scientific = TRUE), " to ",
-                                    format(audit.tol, scientific = TRUE),
-                                    ".  This suggests precision of the
-                                 LP solver exceeds that of R,
-                                 and may be due to scaling issues
-                                 in the LP model.")), "\n",
-                        call. = FALSE,
-                        immediate. = TRUE)
-            }
-            break
-        }
-    }
-    if (audit_count > audit.max) audit_count <- audit_count - 1
-    if (length(violateIndexes) == 0) {
-        violations <- NULL
-    } else {
-        if (noX) {
-            violations <- NULL
-        } else {
-            violations <- support[a_mbobj$mbmap[violateIndexes], ]
-        }
-        violations <- data.frame(cbind(violations,
-                                       matrix(a_mbobj$mbumap[violateIndexes, ],
-                                              ncol = 2)[, 2]))
-        colnames(violations)[ncol(violations)] <- uname
-        violations$.violation.type <- ""
-        typeStr <- rep("", nrow(violateMat))
-        typeStr[violateMat$type == 1] <- "m0.lb"
-        typeStr[violateMat$type == 2] <- "m1.lb"
-        typeStr[violateMat$type == 3] <- "mte.lb"
-        typeStr[violateMat$type == 4] <- "m0.ub"
-        typeStr[violateMat$type == 5] <- "m1.ub"
-        typeStr[violateMat$type == 6] <- "mte.ub"
-        typeStr[violateMat$type == 7] <- "m0.inc"
-        typeStr[violateMat$type == 8] <- "m0.dec"
-        typeStr[violateMat$type == 9] <- "m1.inc"
-        typeStr[violateMat$type == 10] <- "m1.dec"
-        typeStr[violateMat$type == 11] <- "mte.inc"
-        typeStr[violateMat$type == 12] <- "mte.dec"
-        violations$.violation.type <- typeStr
-        violations$.violation.row <- violateIndexes
-        violations$.violation.magnitude <- violateMat$diff
-        rownames(violations) <- seq(nrow(violations))
-    }
-    output <- list(max = lpresult$max,
-                   min = lpresult$min,
-                   lpresult = lpresult,
-                   minobseq = minobseq$obj,
-                   gridobj = list(initial = mbobj$gridobj,
-                                  audit = a_mbobj$gridobj,
-                                  violations = violations),
-                   auditcount = audit_count)
-    if (!is.null(orig.sset) && !is.null(orig.criterion)) {
-        output$spectest = minobseqTest$obj
-    }
-    if (save.grid) {
-        output$gridobj$a_mbobj <- a_mbobj
     }
     return(output)
 }

@@ -351,15 +351,6 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
                     ubteseq = ubdAteseq))
     } else {
         ## Construct violation matrix
-        ## print(length(c(lbdA0seq,
-        ##                lbdA1seq,
-        ##                lbdAteseq,
-        ##                ubdA0seq,
-        ##                ubdA1seq,
-        ##                ubdAteseq)))
-        ## print(length(map))
-        ## print(length(umap))
-        ## print(length(diff))
         if (sum(unlist(lapply(bdA, function(x) nrow(x)))) > 0) {
             violateMat <- data.frame(pos = c(lbdA0seq,
                                              lbdA1seq,
@@ -367,7 +358,6 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
                                              ubdA0seq,
                                              ubdA1seq,
                                              ubdAteseq),
-                                     ## row = seq(length(map)),
                                      type = c(rep(1, length(lbdA0seq)),
                                               rep(2, length(lbdA1seq)),
                                               rep(3, length(lbdAteseq)),
@@ -379,8 +369,6 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
                                      diff = diff)
             violateMat$group.name <- paste0(violateMat$type, ".",
                                             violateMat$grid.x)
-            ## print("head of violate mat from bounds")
-            ## print(head(violateMat))
             return(list(bdA = bdA,
                         violateMat = violateMat))
         } else {
@@ -805,29 +793,12 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     } else {
         ## Construct violation matrix
         if (sum(unlist(lapply(monoA, function(x) nrow(x)))) > 0) {
-            ## print("length of the thing")
-            ## print(c(monoA0IncSeq,
-            ##         monoA0DecSeq,
-            ##         monoA1IncSeq,
-            ##         monoA1DecSeq,
-            ##         monoAteIncSeq,
-            ##         monoAteDecSeq))
-            ## print(length(c(monoA0IncSeq,
-            ##                monoA0DecSeq,
-            ##                monoA1IncSeq,
-            ##                monoA1DecSeq,
-            ##                monoAteIncSeq,
-            ##                monoAteDecSeq)))
-            ## print(length(map))
-            ## print(length(umap))
-            ## print(length(diff))
             violateMat <- data.frame(pos = c(monoA0IncSeq,
                                              monoA0DecSeq,
                                              monoA1IncSeq,
                                              monoA1DecSeq,
                                              monoAteIncSeq,
                                              monoAteDecSeq),
-                                     ## row = seq(length(map)),
                                      type = c(rep(7, length(monoA0IncSeq)),
                                               rep(8, length(monoA0DecSeq)),
                                               rep(9, length(monoA1IncSeq)),
@@ -839,8 +810,6 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                                      diff = diff)
             violateMat$group.name <- paste0(violateMat$type, ".",
                                             violateMat$grid.x)
-            ## print("Head of violateMat of mono")
-            ## print(head(violateMat))
             return(list(monoA = monoA,
                         violateMat = violateMat))
         } else {
