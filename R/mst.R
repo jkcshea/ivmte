@@ -3088,6 +3088,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                              audit$gridobj$audit.grid$support,
                                          audit.u =
                                              audit$gridobj$audit.grid$uvec,
+                                         audit.noX =
+                                             audit$gridobj$audit.grid$noX,
                                          violations = audit$gridobj$violations),
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
