@@ -2924,7 +2924,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "lpsolver.options.criterion", "lpsolver.options.bounds",
                     "criterion.tol",
                     "orig.sset", "orig.criterion",
-                    "noisy", "seed", "debug")
+                    "smallreturnlist", "noisy", "seed", "debug")
     audit_call <- modcall(call,
                           newcall = audit,
                           keepargs = audit.args,

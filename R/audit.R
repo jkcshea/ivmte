@@ -164,6 +164,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                   criterion.tol = 0,
                   lpsolver, lpsolver.options, lpsolver.presolve,
                   lpsolver.options.criterion, lpsolver.options.bounds,
+                  smallreturnlist = FALSE,
                   noisy = TRUE, seed = 12345, debug = FALSE) {
     set.seed(seed)
     call  <- match.call()
@@ -525,6 +526,7 @@ audit <- function(data, uname, m0, m1, splinesobj,
                           lpsolver = lpsolver,
                           lpsolver.options = lpsolver.options.bounds,
                           noisy = noisy,
+                          smallreturnlist = smallreturnlist,
                           debug = debug)
         if (is.null(lpresult)) {
             if (noisy) {

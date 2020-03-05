@@ -537,8 +537,9 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
 #' @param lpsolver.options list, each item of the list should
-#'     correspond to an option specific to the LP solver
-#'     selected.
+#'     correspond to an option specific to the LP solver selected.
+#' @param smallreturnlist boolean, set to \code{TRUE} if the LP model
+#'     should not be returned.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{lpsolver = 'gurobi'}. The output provided is
@@ -642,8 +643,9 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'
 #' @export
 bound <- function(env, sset, obseq.factor, lpsolver,
-                     lpsolver.options, noisy = FALSE,
-                     debug = FALSE) {
+                  lpsolver.options, noisy = FALSE,
+                  smallreturnlist = FALSE,
+                  debug = FALSE) {
     lpsolver <- tolower(lpsolver)
     ## Obtain lower and upper bounds
     if (lpsolver == "gurobi") {
@@ -717,17 +719,18 @@ bound <- function(env, sset, obseq.factor, lpsolver,
     ##     cat("Max status: ", maxstatus, "\n", sep = "")
     ##     cat("Bound: (", min, ", ", max, ")\n", sep = "")
     ## }
-    return(list(max = max,
-                maxg0 = maxg0,
-                maxg1 = maxg1,
-                maxresult = maxresult,
-                maxstatus = maxstatus,
-                min = min,
-                ming0 = ming0,
-                ming1 = ming1,
-                minresult = minresult,
-                minstatus = minstatus,
-                model = env$lpobj))
+    output <- list(max = max,
+                   maxg0 = maxg0,
+                   maxg1 = maxg1,
+                   maxresult = maxresult,
+                   maxstatus = maxstatus,
+                   min = min,
+                   ming0 = ming0,
+                   ming1 = ming1,
+                   minresult = minresult,
+                   minstatus = minstatus)
+    if (!smallreturnlist) output$model = env$lpobj
+    return(output)
 }
 
 
