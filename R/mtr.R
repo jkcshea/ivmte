@@ -972,7 +972,7 @@ parenthBoolean <- function(termsList) {
 #' @param data data.frame, restricted to complete observations.
 #' @param uname string, name of the unobserved variable.
 #' @return An updated version of \code{splinesobj}.
-genSplinesInter <- function(splinesobj, m0, m1, data, uname) {
+interactSplines <- function(splinesobj, m0, m1, data, uname) {
     tmpInterName <- "..t.i.n"
     for (d in 0:1) {
         if (!is.null(splinesobj[[d + 1]]$splineslist)) {

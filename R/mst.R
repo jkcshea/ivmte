@@ -1553,7 +1553,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     rownames(data) <- as.character(seq(1, nrow(data)))
     ## Construct a list of what variables interact with the
     ## spline.
-    splinesobj <- genSplinesInter(splinesobj, origm0, origm1, data, uname)
+    splinesobj <- interactSplines(splinesobj, origm0, origm1, data, uname)
     ## Check that all boolean variables have non-zero variance, and
     ## that all factor variables are complete.
     allterms <- unlist(c(terms_formulas_x, terms_formulas_z, terms_mtr0,
