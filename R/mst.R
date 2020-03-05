@@ -1159,6 +1159,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     parentFrame <- parent.frame()
     origm0 <- m0
     origm1 <- m1
+    print("need to complete the cases before passing the data throguh!")
     splinesobj <- list(removeSplines(m0, env = parentFrame),
                        removeSplines(m1, env = parentFrame))
     if (is.null(splinesobj[[1]]$formula)) {
@@ -1551,6 +1552,15 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     data  <- data[complete.cases(data[, vars_data]), ]
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
+    ## Experimenting --------------------------------------------
+    print("the old splines obj")
+    print(splinesobj)
+    print("testing the new splines function")
+    splinesobj <- genSplinesDict(splinesobj, origm0, origm1, data, uname)
+    print("the new splines obj")
+    print(splinesobj)
+    stop('end of test')
+    ## End experimenting ----------------------------------------
     ## Construct a list of what variables interact with the
     ## spline. The reason for this is that certain interactions with
     ## factor variables should be dropped to avoid collinearity. Note
@@ -1580,6 +1590,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     origCall <- gsub("\\*", "\\\\*", origCall)
                     origCall <- gsub("\\^", "\\\\^", origCall)
                     md <- gsub(origCall, tmpName, md)
+                    print("this is md")
+                    print(md)
                 }
             }
             tmpColNames <- colnames(design(as.formula(md), mdata)$X)
@@ -1614,6 +1626,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             splinesobj[[d + 1]]$splinesinter <- NULL
         }
     }
+    stop('end of test')
     ## Check that all boolean variables have non-zero variance, and
     ## that all factor variables are complete.
     allterms <- unlist(c(terms_formulas_x, terms_formulas_z, terms_mtr0,
