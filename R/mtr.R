@@ -945,13 +945,34 @@ parenthBoolean <- function(termsList) {
     return(termsList)
 }
 
-genSplinesDict <- function(splinesobj, m0, m1, data, uname) {
-    ## Construct a list of what variables interact with the
-    ## spline. The reason for this is that certain interactions with
-    ## factor variables should be dropped to avoid collinearity. Note
-    ## that only interaction terms need to be omitted, so you do not
-    ## need to worry about the formula contained in
-    ## removeSplines$formula.
+#' Update splines object with list of interactions
+#'
+#' Certain interactions between factor variables and splines should be
+#' dropped to avoid collinearity. Albeit collinearity in the MTR
+#' specification will not impact the bounds, it can substantially
+#' impact how costly it is to carry out the estimation. What this
+#' function does is map each spline to a temporary variable. A design
+#' matrix is then constructed using these temporary variables in place
+#' the splines. If an interaction involving one of the temporary
+#' variables is dropped, then one knows to also drop the corresponding
+#' interaction with the spline. Note that only interaction terms need
+#' to be omitted, so one does not need to worry about the formula
+#' contained in removeSplines$formula.
+#' @param splinesobj list, consists of two elelments. The first is
+#'     \code{removeSplines(m0)}, the second is
+#'     \code{removeSplines(m1)}.
+#' @param m0 one-sided formula for the marginal treatment response
+#'     function for the control group. This should be the full MTR
+#'     specificaiton (i.e. not the specification after removing the
+#'     splines).
+#' @param m1 one-sided formula for the marginal treatment response
+#'     function for the treated group. This should be the full MTR
+#'     specificaiton (i.e. not the specification after removing the
+#'     splines).
+#' @param data data.frame, restricted to complete observations.
+#' @param uname string, name of the unobserved variable.
+#' @return An updated version of \code{splinesobj}.
+genSplinesInter <- function(splinesobj, m0, m1, data, uname) {
     tmpInterName <- "..t.i.n"
     for (d in 0:1) {
         if (!is.null(splinesobj[[d + 1]]$splineslist)) {
@@ -1004,8 +1025,6 @@ genSplinesDict <- function(splinesobj, m0, m1, data, uname) {
                         altNames[[k]] <- c("1", altNames[[k]])
                     }
                 }
-                print("This is altnames")
-                print(altNames)
             }
             splinesobj[[d + 1]]$splinesinter <- altNames
         } else {

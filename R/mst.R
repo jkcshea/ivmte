@@ -1159,7 +1159,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     parentFrame <- parent.frame()
     origm0 <- m0
     origm1 <- m1
-    print("need to complete the cases before passing the data throguh!")
     splinesobj <- list(removeSplines(m0, env = parentFrame),
                        removeSplines(m1, env = parentFrame))
     if (is.null(splinesobj[[1]]$formula)) {
@@ -1552,81 +1551,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     data  <- data[complete.cases(data[, vars_data]), ]
     ## Adjust row names to handle bootstrapping
     rownames(data) <- as.character(seq(1, nrow(data)))
-    ## Experimenting --------------------------------------------
-    print("the old splines obj")
-    print(splinesobj)
-    print("testing the new splines function")
-    splinesobj <- genSplinesDict(splinesobj, origm0, origm1, data, uname)
-    print("the new splines obj")
-    print(splinesobj)
-    stop('end of test')
-    ## End experimenting ----------------------------------------
     ## Construct a list of what variables interact with the
-    ## spline. The reason for this is that certain interactions with
-    ## factor variables should be dropped to avoid collinearity. Note
-    ## that only interaction terms need to be omitted, so you do not
-    ## need to worry about the formula contained in
-    ## removeSplines$formula.
-    tmpInterName <- "..t.i.n"
-    for (d in 0:1) {
-        if (!is.null(splinesobj[[d + 1]]$splineslist)) {
-            mdata <- unique(data)
-            mdata[, uname] <- 1
-            md <- get(paste0("origm", d))
-            md <- gsub("\\s+", " ", Reduce(paste, deparse(md)))
-            altNames <- list()
-            splineKeys <- names(splinesobj[[d + 1]]$splinescall)
-            for (i in 1:length(splinesobj[[d + 1]]$splinescall)) {
-                tmpName <- paste0(tmpInterName, i)
-                mdata[, tmpName] <- 1
-                altNames[splineKeys[i]] <- tmpName
-                for (j in 1:length(splinesobj[[d + 1]]$splinescall[[i]])) {
-                    origCall <- splinesobj[[d + 1]]$splinescall[[i]][j]
-                    origCall <- gsub("\\)", "\\\\)",
-                                     gsub("\\(", "\\\\(", origCall))
-                    origCall <- gsub("\\$", "\\\\$", origCall)
-                    origCall <- gsub("\\.", "\\\\.", origCall)
-                    origCall <- gsub("\\+", "\\\\+", origCall)
-                    origCall <- gsub("\\*", "\\\\*", origCall)
-                    origCall <- gsub("\\^", "\\\\^", origCall)
-                    md <- gsub(origCall, tmpName, md)
-                    print("this is md")
-                    print(md)
-                }
-            }
-            tmpColNames <- colnames(design(as.formula(md), mdata)$X)
-            for (k in 1:length(altNames)) {
-                tmpName <- paste0(tmpInterName, k)
-                inter1 <- grep(paste0(":", altNames[[k]], "$"),
-                               tmpColNames)
-                inter2 <- grep(paste0("^", altNames[[k]], ":"),
-                               tmpColNames)
-                inter3 <- grep(paste0(":", altNames[[k]], ":"),
-                               tmpColNames)
-                inter4 <- altNames[[k]] %in% tmpColNames
-                interpos <- c(inter1, inter2, inter3)
-                if (length(interpos) > 0) {
-                    ## The case where there are interactions with splines
-                    altNames[[k]] <- parenthBoolean(tmpColNames[interpos])
-                    altNames[[k]] <- gsub(paste0(":", tmpName), "",
-                                          altNames[[k]])
-                    altNames[[k]] <- gsub(paste0(tmpName, ":"), "",
-                                          altNames[[k]])
-                }
-                if (inter4) {
-                    if (length(interpos) == 0) {
-                        altNames[[k]] <- "1"
-                    } else {
-                        altNames[[k]] <- c("1", altNames[[k]])
-                    }
-                }
-            }
-            splinesobj[[d + 1]]$splinesinter <- altNames
-        } else {
-            splinesobj[[d + 1]]$splinesinter <- NULL
-        }
-    }
-    stop('end of test')
+    ## spline.
+    splinesobj <- genSplinesInter(splinesobj, origm0, origm1, data, uname)
     ## Check that all boolean variables have non-zero variance, and
     ## that all factor variables are complete.
     allterms <- unlist(c(terms_formulas_x, terms_formulas_z, terms_mtr0,
