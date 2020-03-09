@@ -477,8 +477,14 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     grid <- gridobj$grid
     gridmap <- gridobj$map
     ## Construct index for calculating first differences
-    uMaxIndex <- seq(1, nrow(A0))[-seq(from = 1, to = nrow(A0), by = un)]
-    uMinIndex <- seq(1, nrow(A0))[-seq(from = un, to = nrow(A0), by = un)]
+    uMaxIndex <- unlist(sapply(X = unique(gridmap), FUN = function(x) {
+        pos <- sort(which(gridmap == x))
+        pos[-1]
+    }))
+    uMinIndex <- unlist(sapply(X = unique(gridmap), FUN = function(x) {
+        pos <- sort(which(gridmap == x))
+        pos[-length(pos)]
+    }))
     ## Generate list of all relevant matrices. All of these matrices
     ## will be updated along the way.
     monoList <- list(

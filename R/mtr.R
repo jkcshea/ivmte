@@ -911,7 +911,6 @@ constructConstant <- function(x) {
     return(fun)
 }
 
-
 #' Correct boolean expressions in terms lists
 #'
 #' This function takes a vector of terms and places parentheses around
