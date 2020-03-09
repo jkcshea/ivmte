@@ -638,11 +638,10 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'       g1 = targetGamma$gstar1,
 #'       sset = sSet$sset,
 #'       lpobj = lpObject,
-#'       obseq.factor = 1,
 #'       lpsolver = "lpSolveAPI")
 #'
 #' @export
-bound <- function(env, sset, obseq.factor, lpsolver,
+bound <- function(env, sset, lpsolver,
                   lpsolver.options, noisy = FALSE,
                   smallreturnlist = FALSE,
                   debug = FALSE) {

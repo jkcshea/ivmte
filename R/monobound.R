@@ -285,8 +285,8 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
             umap <- c(umap, grid[!duplicatePos, uname])
             ubdA1seq <- seq(1, nrow(uniqueA1))
         } else {
-            violateDiff <- cbind(uniqueA1 %*% solution.m1.min - m0.ub,
-                                 uniqueA1 %*% solution.m1.max - m0.ub)
+            violateDiff <- cbind(uniqueA1 %*% solution.m1.min - m1.ub,
+                                 uniqueA1 %*% solution.m1.max - m1.ub)
             violateDiff <- apply(violateDiff, 1, max)
             violatePos <- violateDiff > audit.tol
             if (sum(violatePos) > 0) {
@@ -1124,10 +1124,9 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                             grepl(paste0(q, "[[:alnum:]]*"),
                                                   namesA))
                                 } else {
-                                    namesApos <-
-                                        as.integer(
-                                            grepl(q, namesA))
+                                    namesApos <- as.integer(namesA == q)
                                 }
+
                                 namesAscore <- namesAscore + namesApos
                             }
                             iNamePos <- (namesAscore == length(iNameList)) *
