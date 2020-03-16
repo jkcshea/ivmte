@@ -212,7 +212,7 @@ polyparse <- function(formula, data, uname = "u", env = parent.frame(),
                                    paste0("I(", uname, "^",
                                           exporder[x], ")"))
                     splitTerms <- splitTerms[-rmPos]
-                    paste(splitTerms, collapse = ":")                
+                    paste(splitTerms, collapse = ":")
                 }
             }
         }
@@ -657,7 +657,7 @@ uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
                   knots = knots,
                   degree = degree,
                   intercept = intercept,
-                  Boundary.knots = c(0, 1))
+                  Boundary.knots = c(0, 1+1e-15))
 }
 
 #' Spline basis function
@@ -720,7 +720,7 @@ uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
                       knots = knots,
                       degree = degree,
                       intercept = intercept,
-                      Boundary.knots = c(0, 1))
+                      Boundary.knots = c(0, 1+1e-15))
 }
 
 
