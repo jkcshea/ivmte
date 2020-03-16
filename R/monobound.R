@@ -979,13 +979,15 @@ combinemonobound <- function(bdA, monoA) {
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
 #'     boundedness and monotonicity constraints of an LP problem.
-genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
-                          uname, m0, m1, sset, gstar0, gstar1,
-                          m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub,
-                          m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
-                          solution.m0.min = NULL, solution.m1.min = NULL,
-                          solution.m0.max = NULL, solution.m1.max = NULL,
-                          audit.tol) {
+genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
+                          splinesobj, monov, uname, m0, m1, sset,
+                          gstar0, gstar1, m0.lb, m0.ub, m1.lb, m1.ub,
+                          mte.lb, mte.ub, m0.dec, m0.inc, m1.dec,
+                          m1.inc, mte.dec, mte.inc,
+                          solution.m0.min = NULL,
+                          solution.m1.min = NULL,
+                          solution.m0.max = NULL,
+                          solution.m1.max = NULL, audit.tol) {
     if (!is.null(solution.m0.min) && !is.null(solution.m1.min) &&
         !is.null(solution.m0.max) && !is.null(solution.m1.max)) {
         audit <- TRUE
@@ -1002,7 +1004,51 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     } else {
         noX <- FALSE
     }
-    ## generate the first iteration of the grid
+    ## First construct the non-spline U terms (to check for redundant
+    ## points in the U grid)
+    u0mat <- NULL
+    if (!is.null(pm0)) {
+        uExp <- unique(sort(pm0$exporder))
+        uExp <- uExp[uExp > 0]
+        if (length(uExp) > 0) {
+            for (i in uExp) {
+                u0mat <- cbind(u0mat, uvec ^ i)
+            }
+            colnames(u0mat) <- paste0("u0.", uExp)
+        }
+    }
+    u1mat <- NULL
+    if (!is.null(pm1)) {
+        uExp <- unique(sort(pm1$exporder))
+        uExp <- uExp[uExp > 0]
+        if (length(uExp) > 0) {
+            for (i in uExp) {
+                u1mat <- cbind(u1mat, uvec ^ i)
+            }
+            colnames(u1mat) <- paste0("u1.", uExp)
+        }
+    }
+    ## Now construct the splines U terms (to check for redundant
+    ## points in the U grid)
+    us0mat <- Reduce(cbind,
+                     genBasisSplines(splines = splines[[1]],
+                                     x = uvec,
+                                     d = 0))
+    us1mat <- Reduce(cbind,
+                     genBasisSplines(splines = splines[[2]],
+                                     x = uvec,
+                                     d = 1))
+    fullU0mat <- cbind(u0mat, us0mat)
+    fullU1mat <- cbind(u1mat, us1mat)
+    u0unique <- uvec[!duplicated(fullU0mat)]
+    u1unique <- uvec[!duplicated(fullU1mat)]
+    ## Now update U grid to only include non-redundant values
+    uvec <- sort(unique(c(u0unique, u1unique)))
+    rm(u0mat, u1mat,
+       us0mat, us1mat,
+       fullU0mat, fullU1mat,
+       u0unique, u1unique)
+    ## Generate the first iteration of the grid
     if (noX) {
         grid <- data.frame(uvec)
         grid$.grid.order <- seq(1, length(uvec))
@@ -1132,7 +1178,6 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                 } else {
                                     namesApos <- as.integer(namesA == q)
                                 }
-
                                 namesAscore <- namesAscore + namesApos
                             }
                             iNamePos <- (namesAscore == length(iNameList)) *
@@ -1159,6 +1204,7 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                                           namesB)],
                                               by = ".grid.order")
                                 assign(paste0("A", d), newA)
+                                rm(bmatTmp, newA)
                             }
                         } else {
                             namesA <- colnames(get(paste0("A", d)))
@@ -1169,7 +1215,9 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
                                           bmat,
                                           by = uname)
                             assign(paste0("A", d), newA)
+                            rm(newA)
                         }
+                        rm(bmat)
                     }
                 }
             }
@@ -1184,6 +1232,8 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
     ## of variables in interaction terms).
     for (d in c(0, 1)) {
         Amat <- get(paste0("A", d))
+        if (d == 0) rm(A0)
+        if (d == 1) rm(A1)
         gvec <- get(paste0("gstar", d))
         Apos <- NULL
         failTerms <- which(!names(gvec) %in% colnames(Amat))
@@ -1200,6 +1250,7 @@ genmonoboundA <- function(support, grid_index, uvec, splinesobj, monov,
         }
         colnames(Amat)[Apos] <- names(gvec)[failTerms]
         assign(paste0("A", d), Amat)
+        rm(Amat)
     }
     ## Some columns maybe missing relative to gstar0/gstar1 becuase
     ## the grid is not large enough, and so does not contain all

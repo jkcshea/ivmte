@@ -2747,8 +2747,16 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
              call. = FALSE)
     }
     rm(sest, subset_index)
-    if (exists("pm0")) rm(pm0)
-    if (exists("pm1")) rm(pm1)
+    if (!is.null(pm0)) {
+        pm0 <- list(exporder = pm0$exporder,
+                    terms = pm0$terms,
+                    xterms = pm0$xterms)
+    }
+    if (!is.null(pm1)) {
+        pm1 <- list(exporder = pm1$exporder,
+                    terms = pm1$terms,
+                    xterms = pm1$xterms)
+    }
     if (smallreturnlist) pmodel <- pmodel$model
     if (count.moments) {
         wmat <- NULL
@@ -2871,6 +2879,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           newargs = list(data = quote(data),
                                          m0 = quote(m0),
                                          m1 = quote(m1),
+                                         pm0 = quote(pm0),
+                                         pm1 = quote(pm1),
                                          splinesobj = quote(splinesobj),
                                          vars_mtr = quote(vars_mtr),
                                          terms_mtr0 = quote(terms_mtr0),

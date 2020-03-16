@@ -143,7 +143,7 @@
 #'       lpsolver = "lpSolveAPI")
 #'
 #' @export
-audit <- function(data, uname, m0, m1, splinesobj,
+audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                   initgrid.nu = 20, initgrid.nx = 20,
                   audit.nx = 2500, audit.nu = 25, audit.add = 100,
@@ -315,7 +315,8 @@ audit <- function(data, uname, m0, m1, splinesobj,
                         'mte.ub', 'mte.lb',
                         'm0.dec', 'm0.inc',
                         'm1.dec', 'm1.inc',
-                        'mte.dec', 'mte.inc')
+                        'mte.dec', 'mte.inc',
+                        'pm0', 'pm1')
     if (audit_count == 1) {
         sn <- length(sset)
         if (is.null(audit.grid)) {
@@ -389,7 +390,6 @@ audit <- function(data, uname, m0, m1, splinesobj,
         lpEnv <- new.env()
         lpEnv$mbobj <- eval(monoboundAcall)
     }
-
     ## Generate LP environment that is to be updated
     lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
             lpsolver = lpsolver)

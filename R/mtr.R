@@ -79,7 +79,7 @@ polyparse <- function(formula, data, uname = "u", env = parent.frame(),
     uname <- gsub("~", "", uname)
     uname <- gsub("\\\"", "", uname)
     ## Include redundant variable u, so monomials in m0, m1
-    ## specifications correspond polynomial coefficients on u
+    ## specifications correspond to polynomial coefficients on u
     ## monomials
     data[[uname]] <- 1
     dmat <- design(formula, data)$X
@@ -191,9 +191,37 @@ polyparse <- function(formula, data, uname = "u", env = parent.frame(),
         polymat <- matrix(polymat, ncol = 1)
         rownames(polymat) <- rownames(data)
     }
+    ## Construct a dictionary of non-u terms
+    xterms <- lapply(seq(length(exporder)), function(x) {
+        if (exporder[x] == 0) {
+            NULL
+        } else {
+            splitTerms <- unlist(strsplit(oterms[x], split = ":"))
+            if (length(splitTerms) == 1) {
+                NULL
+            } else {
+                if (exporder[x] == 1) {
+                    rmPos <- which(splitTerms == uname)
+                    if (length(rmPos) == 0) {
+                        rmPos <- which(splitTerms == paste0("I(", uname, "^1)"))
+                    }
+                    splitTerms <- splitTerms[-rmPos]
+                    paste(splitTerms, collapse = ":")
+                } else {
+                    rmPos <- which(splitTerms ==
+                                   paste0("I(", uname, "^",
+                                          exporder[x], ")"))
+                    splitTerms <- splitTerms[-rmPos]
+                    paste(splitTerms, collapse = ":")                
+                }
+            }
+        }
+    })
+    names(xterms) <- oterms
     return(list(polymat = polymat,
                 exporder = exporder,
-                terms = oterms))
+                terms = oterms,
+                xterms = xterms))
 }
 
 #' Function to multiply polynomials
