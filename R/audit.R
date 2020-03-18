@@ -1030,6 +1030,7 @@ selectViolations <- function(diffVec, audit.add,
 #' @param n Number of draws.
 #' @param base Base used for the Halton sequence, set to 2 by default.
 #' @return A sequence of randomly drawn numbers.
+#' @export
 rhalton <- function(n, base = 2) {
     output <- NULL
     for (j in 1:n) {
