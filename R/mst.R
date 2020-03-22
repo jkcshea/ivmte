@@ -1727,7 +1727,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 specification.test <- FALSE
             }
             if (specification.test) {
-                origSset <- lapply(origEstimate$sset, function(x) {
+                origSset <- lapply(origEstimate$s.set, function(x) {
                     x[c("ivspec", "beta", "g0", "g1")]
                 })
                 origCriterion <- origEstimate$audit.criterion
@@ -1958,7 +1958,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             ## Some output must be returned, even if noisy = FALSE
             cat("\n")
             cat("Point estimate of the target parameter: ",
-                fmtResult(origEstimate$pointestimate), "\n\n",
+                fmtResult(origEstimate$point.estimate), "\n\n",
                 sep = "")
         }
         output <- origEstimate
@@ -2059,7 +2059,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                            origEstimate$redundant))
             bootEstimate <- try(eval(bootCall), silent = TRUE)
             if (is.list(bootEstimate)) {
-                teEstimates  <- c(teEstimates, bootEstimate$pointestimate)
+                teEstimates  <- c(teEstimates, bootEstimate$point.estimate)
                 mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
                 if (!"propensity.coef" %in% names(bootEstimate)) {
                     propEstimates <- cbind(propEstimates,
@@ -2068,13 +2068,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     propEstimates <- cbind(propEstimates,
                                            bootEstimate$propensity.coef)
                 }
-                if (!is.null(bootEstimate$jtest)) {
-                    jstats <- c(jstats, bootEstimate$jtest[1])
+                if (!is.null(bootEstimate$j.test)) {
+                    jstats <- c(jstats, bootEstimate$j.test[1])
                 }
                 b <- b + 1
                 if (noisy == TRUE) {
                     cat("    Point estimate:",
-                        fmtResult(bootEstimate$pointestimate), "\n\n", sep = "")
+                        fmtResult(bootEstimate$point.estimate),
+                        "\n\n", sep = "")
                 }
             } else {
                 if (noisy == TRUE) {
@@ -2099,17 +2100,17 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Construct p-values (point estimate and J-test)
         pvalue <- c(nonparametric =
-                        (sum(teEstimates - origEstimate$pointestimate >=
-                             abs(origEstimate$pointestimate)) +
-                         sum(teEstimates - origEstimate$pointestimate <=
-                             -abs(origEstimate$pointestimate))) / bootstraps,
+                        (sum(teEstimates - origEstimate$point.estimate >=
+                             abs(origEstimate$point.estimate)) +
+                         sum(teEstimates - origEstimate$point.estimate <=
+                             -abs(origEstimate$point.estimate))) / bootstraps,
                     parametric =
-                        pnorm(-abs(origEstimate$pointestimate -
+                        pnorm(-abs(origEstimate$point.estimate -
                                    mean(teEstimates)) / bootSE) * 2)
         if (!is.null(jstats)) {
-            jtest <- c(mean(jstats >= origEstimate$jtest[1]),
-                       origEstimate$jtest)
-            names(jtest) <- c("Bootstrapped p-value", names(origEstimate$jtest))
+            jtest <- c(mean(jstats >= origEstimate$j.test[1]),
+                       origEstimate$j.test)
+            names(jtest) <- c("Bootstrapped p-value", names(origEstimate$j.test))
             jtest <- jtest[c(2, 1, 3, 4)]
         } else {
             jtest <- NULL
@@ -2135,7 +2136,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              type = 1))
             }
             ## Conf. int. 2: percentile method using Z statistics
-            tmpCi2 <- origEstimate$pointestimate +
+            tmpCi2 <- origEstimate$point.estimate +
                 c(qnorm(pLower), qnorm(pUpper)) * bootSE
             names(tmpCi2) <- paste0(probVec * 100, "%")
             tmpMtrCi2 <- sweep(x = tcrossprod(c(qnorm(pLower),
@@ -2168,23 +2169,23 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Prepare output
         output1 <- c(origEstimate,
-                     list(pointestimate.se = bootSE,
+                     list(point.estimate.se = bootSE,
                           mtr.se = mtrSE))
         if (!is.null(propEstimates)) output1$propensity.se <- propSE
         output1 <- c(output1,
-                     list(pointestimate.bootstraps = teEstimates,
+                     list(point.estimate.bootstraps = teEstimates,
                           mtr.bootstraps = t(mtrEstimates)))
-        pointestimate.ci <- list()
+        point.estimate.ci <- list()
         mtr.ci <- list()
         if (!is.null(propEstimates)) {
             propensity.ci <- list()
         }
         for (level in levels) {
-            pointestimate.ci$nonparametric <-
-                rbind(pointestimate.ci$nonparametric,
+            point.estimate.ci$nonparametric <-
+                rbind(point.estimate.ci$nonparametric,
                       get(paste0("ci1", level * 100)))
-            pointestimate.ci$normal <-
-                rbind(pointestimate.ci$normal,
+            point.estimate.ci$normal <-
+                rbind(point.estimate.ci$normal,
                       get(paste0("ci2", level * 100)))
             mtr.ci$nonparametric[[paste0("level", level * 100)]] <-
                 t(get(paste0("mtrci1", level * 100)))
@@ -2197,11 +2198,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     t(get(paste0("propci2", level * 100)))
             }
         }
-        rownames(pointestimate.ci$nonparametric) <- levels
-        rownames(pointestimate.ci$normal) <- levels
-        colnames(pointestimate.ci$nonparametric) <- c("lb", "ub")
-        colnames(pointestimate.ci$normal) <- c("lb", "ub")
-        output2 <- list(pointestimate.ci = pointestimate.ci,
+        rownames(point.estimate.ci$nonparametric) <- levels
+        rownames(point.estimate.ci$normal) <- levels
+        colnames(point.estimate.ci$nonparametric) <- c("lb", "ub")
+        colnames(point.estimate.ci$normal) <- c("lb", "ub")
+        output2 <- list(point.estimate.ci = point.estimate.ci,
                         mtr.ci = mtr.ci)
         if (!is.null(propEstimates)) {
             output2$propensity.ci = propensity.ci
@@ -2209,11 +2210,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         output3 <- list(pvalue = pvalue,
                         bootstraps = bootstraps,
                         bootstraps.failed = bootFailN,
-                        jtest = jtest,
-                        jtest.bootstraps = jstats)
-        if ("jtest" %in% names(output1) &&
-            "jtest" %in% names(output3)) {
-            output1$jtest <- NULL
+                        j.test = jtest,
+                        j.test.bootstraps = jstats)
+        if ("j.test" %in% names(output1) &&
+            "j.test" %in% names(output3)) {
+            output1$j.test <- NULL
         }
         output <- c(output1, output2, output3)
         if (noisy) {
@@ -2222,7 +2223,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             cat("--------------------------------------------------\n")
         }
         cat("\nPoint estimate of the target parameter: ",
-            fmtResult(origEstimate$pointestimate), "\n",
+            fmtResult(origEstimate$point.estimate), "\n",
             sep = "")
         cat("\nBootstrapped confidence intervals (nonparametric):\n")
         for (level in levels) {
@@ -2820,14 +2821,14 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                  splines = splinesCheck,
                                  noisy = noisy)
         if (!smallreturnlist) {
-            return(list(sset  = sset,
+            return(list(s.set  = sset,
                         gstar = list(g0 = colMeans(gstar0),
                                      g1 = colMeans(gstar1)),
                         propensity = pmodel,
-                        pointestimate = gmmResult$pointestimate,
+                        point.estimate = gmmResult$point.estimate,
                         moments = gmmResult$moments,
                         redundant = gmmResult$redundant,
-                        jtest = gmmResult$jtest,
+                        j.test = gmmResult$j.test,
                         mtr.coef = gmmResult$coef))
         } else {
             sset <- lapply(sset, function(x) {
@@ -2838,13 +2839,13 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 output$g1 <- colMeans(x$g1)
                 return(output)
             })
-            output <- list(sset = sset,
+            output <- list(s.set = sset,
                            gstar = list(g0 = colMeans(gstar0),
                                         g1 = colMeans(gstar1)),
-                           pointestimate = gmmResult$pointestimate,
+                           point.estimate = gmmResult$point.estimate,
                            moments = gmmResult$moments,
                            redundant = gmmResult$redundant,
-                           jtest = gmmResult$jtest,
+                           j.test = gmmResult$j.test,
                            mtr.coef = gmmResult$coef)
             if (all(class(pmodel) != "NULL")) {
                 output$propensity.coef <- pmodel$coef
@@ -3019,20 +3020,20 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (lpsolver == "lpsolveapi") lpsolver <- "lp_solve ('lpSolveAPI')"
     if (lpsolver == "cplexapi") lpsolver <- "CPLEX ('cplexAPI')"
     if (!smallreturnlist) {
-        output <- list(sset  = sset,
+        output <- list(s.set  = sset,
                        gstar = list(g0 = gstar0,
                                     g1 = gstar1,
                                  n = targetGammas$n),
                        gstar.weights = list(w0 = targetGammas$w0,
-                                         w1 = targetGammas$w1),
+                                            w1 = targetGammas$w1),
                        gstar.coef = list(min.g0 = audit$lpresult$ming0,
                                          max.g0 = audit$lpresult$maxg0,
                                          min.g1 = audit$lpresult$ming1,
                                          max.g1 = audit$lpresult$maxg1),
                        propensity = pmodel,
                        bounds = c(audit$min, audit$max),
-                       lpresult =  audit$lpresult,
-                       lpsolver = lpsolver,
+                       lp.result =  audit$lpresult,
+                       lp.solver = lpsolver,
                        indep.moments = nIndepMoments,
                        audit.grid = list(audit.x =
                                              audit$gridobj$audit.grid$support,
@@ -3043,25 +3044,25 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          violations = audit$gridobj$violations),
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
-                       splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
+                       splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
                                           m1 = splinesobj[[2]]$splinesdict))
     } else {
         sset <- lapply(sset, function(x) {
             x[c("ivspec", "beta", "g0", "g1")]
         })
-        output <- list(sset  = sset,
+        output <- list(s.set  = sset,
                        gstar = list(g0 = gstar0,
                                     g1 = gstar1),
-                       gstarcoef = list(ming0 = audit$ming0,
-                                        maxg0 = audit$maxg0,
-                                        ming1 = audit$ming1,
-                                        maxg1 = audit$maxg1),
+                       gstar.coef = list(ming0 = audit$ming0,
+                                         maxg0 = audit$maxg0,
+                                         ming1 = audit$ming1,
+                                         maxg1 = audit$maxg1),
                        bounds = c(audit$min, audit$max),
-                       lpsolver = lpsolver,
+                       lp.solver = lpsolver,
                        indep.moments = nIndepMoments,
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
-                       splinesdict = list(m0 = splinesobj[[1]]$splinesdict,
+                       splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
                                           m1 = splinesobj[[2]]$splinesdict))
         if (all(class(pmodel$model) != "NULL")) {
             output$propensity.coef <- pmodel$model$coef
@@ -3494,6 +3495,8 @@ genTarget <- function(treat, m0, m1, target,
     output <- list(gstar0 = gstar0,
                    gstar1 = gstar1)
     if (hasArg(target)) {
+        names(w1)[which(names(w1) == "mp")] <- "multiplier"
+        names(w0)[which(names(w0) == "mp")] <- "multiplier"
         output$w1 <- w1
         output$w0 <- w0
     }
@@ -4023,16 +4026,16 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
     }
     names(theta) <- c(paste0("m0.", colnames(gstar0)),
                       paste0("m1.", colnames(gstar1)))
-    pointestimate <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
+    point.estimate <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
     if (noisy == TRUE) {
         cat("\nPoint estimate of the target parameter: ",
-            pointestimate, "\n\n", sep = "")
+            point.estimate, "\n\n", sep = "")
     }
     if (is.null(colDrop)) colDrop <- 0
-    return(list(pointestimate = as.numeric(pointestimate),
+    return(list(point.estimate = as.numeric(point.estimate),
                 coef = theta,
                 moments = moments,
-                jtest = jtest,
+                j.test = jtest,
                 redundant = colDrop))
 }
 
@@ -4131,8 +4134,8 @@ print.ivmte <- function(x, ...) {
         }
         cat(sprintf("Minimum criterion: %s \n", x$audit.criterion))
         ## Return LP solver used
-        cat(sprintf("LP solver: %s\n", x$lpsolver))
-        if (x$lpsolver == "lp_solve ('lpSolveAPI')") {
+        cat(sprintf("LP solver: %s\n", x$lp.solver))
+        if (x$lp.solver == "lp_solve ('lpSolveAPI')") {
             warning(
                 gsub("\\s+", " ",
                      "The R package 'lpSolveAPI' interfaces with 'lp_solve',
@@ -4145,11 +4148,11 @@ print.ivmte <- function(x, ...) {
                 "\n", call. = FALSE)
         }
     }
-    if (!is.null(x$pointestimate)) {
+    if (!is.null(x$point.estimate)) {
         cat("\n")
         ## Return point estimate
         cat(sprintf("Point estimate of the target parameter: %s\n",
-                    fmtResult(x$pointestimate)))
+                    fmtResult(x$point.estimate)))
     }
     cat("\n")
 }
@@ -4182,8 +4185,8 @@ summary.ivmte <- function(object, ...) {
         }
         cat(sprintf("Minimum criterion: %s \n", object$audit.criterion))
         ## Return LP solver used
-        cat(sprintf("LP solver: %s\n", object$lpsolver))
-        if (object$lpsolver == "lp_solve ('lpSolveAPI')") {
+        cat(sprintf("LP solver: %s\n", object$lp.solver))
+        if (object$lp.solver == "lp_solve ('lpSolveAPI')") {
             warning(
                 gsub("\\s+", " ",
                      "The R package 'lpSolveAPI' interfaces with 'lp_solve',
@@ -4238,14 +4241,14 @@ summary.ivmte <- function(object, ...) {
         }
     }
     ## Summary for the point identified case
-    if (!is.null(object$pointestimate)) {
+    if (!is.null(object$point.estimate)) {
         cat("\n")
         ## Return bounds, audit cout, and minumum criterion
         cat(sprintf("Point estimate of the target parameter: %s\n",
-                    fmtResult(object$pointestimate)))
+                    fmtResult(object$point.estimate)))
         if (!is.null(object$bootstraps)) {
             ## Return confidence intervals and p-values
-            levels <- as.numeric(rownames(object$pointestimate.ci[[1]]))
+            levels <- as.numeric(rownames(object$point.estimate.ci[[1]]))
             ciTypes <- c("nonparametric", "parametric")
             for (i in 1:1) { ## Note: 1:1 is deliberate, only want to
                              ## present nonparametric CI
@@ -4257,9 +4260,9 @@ summary.ivmte <- function(object, ...) {
                 for (j in 1:length(levels)) {
                     cistr <-
                         paste0("[",
-                               fmtResult(object$pointestimate.ci[[i]][j, 1]),
+                               fmtResult(object$point.estimate.ci[[i]][j, 1]),
                                ", ",
-                               fmtResult(object$pointestimate.ci[[i]][j, 2]),
+                               fmtResult(object$point.estimate.ci[[i]][j, 2]),
                                "]")
                     cat("    ",
                         levels[j] * 100,
@@ -4271,9 +4274,9 @@ summary.ivmte <- function(object, ...) {
                     fmtResult(object$pvalue[i]), "\n", sep = "")
             }
             ## Return specification test
-            if (!is.null(object$jtest)) {
+            if (!is.null(object$j.test)) {
                 cat("Bootstrapped J-test p-value: ",
-                    fmtResult(object$jtest[2]), "\n", sep = "")
+                    fmtResult(object$j.test[2]), "\n", sep = "")
             }
             ## Return bootstrap counts
             cat(sprintf("Number of bootstraps: %s",
