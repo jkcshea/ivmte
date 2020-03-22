@@ -1935,11 +1935,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         list(bounds.se = bootSE,
                              bounds.bootstraps = boundEstimates,
                              bounds.ci = ci,
-                             pvalue = pvalue,
+                             p.value = pvalue,
                              bootstraps = bootstraps,
                              bootstraps.failed = bootFailN))
             if (specification.test) {
-                output$specification.pvalue <- criterionPValue
+                output$specification.p.value <- criterionPValue
             }
             if (!is.null(propEstimates)) {
                 output$propensity.se <- propSE
@@ -2207,7 +2207,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (!is.null(propEstimates)) {
             output2$propensity.ci = propensity.ci
         }
-        output3 <- list(pvalue = pvalue,
+        output3 <- list(p.value = pvalue,
                         bootstraps = bootstraps,
                         bootstraps.failed = bootFailN,
                         j.test = jtest,
@@ -4221,13 +4221,13 @@ summary.ivmte <- function(object, ...) {
                 }
                 ## p-values
                 cat("p-value: ",
-                    fmtResult(object$pvalue[ciN]), "\n", sep = "")
+                    fmtResult(object$p.value[ciN]), "\n", sep = "")
                 ciN <- ciN + 1
             }
             ## Return specification test
-            if (!is.null(object$specification.pvalue)) {
+            if (!is.null(object$specification.p.value)) {
                 cat("Bootstrapped specification test p-value: ",
-                    fmtResult(object$specification.pvalue), "\n", sep = "")
+                    fmtResult(object$specification.p.value), "\n", sep = "")
             }
             ## Return bootstrap counts
             cat(sprintf("Number of bootstraps: %s",
@@ -4271,7 +4271,7 @@ summary.ivmte <- function(object, ...) {
                 }
                 ## p-values
                 cat("p-value: ",
-                    fmtResult(object$pvalue[i]), "\n", sep = "")
+                    fmtResult(object$p.value[i]), "\n", sep = "")
             }
             ## Return specification test
             if (!is.null(object$j.test)) {
