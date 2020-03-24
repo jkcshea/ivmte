@@ -5,6 +5,7 @@ set.seed(10L)
 ## Run MST estimator
 ##------------------------
 
+devtools::load_all("../ivmte")
 dtcf <- ivmte:::gendistCovariates()$data.full
 dtc <- ivmte:::gendistCovariates()$data.dist
 ivlike <- c(ey ~ d,
@@ -42,6 +43,7 @@ result <- ivmte(ivlike = ivlike,
 ##------------------------
 
 ## Construct additional variables for which we need means of
+
 dtc$ey <- dtc$ey1 * dtc$p + dtc$ey0 * (1 - dtc$p)
 dtc$eyd <- dtc$ey1 * dtc$p
 varlist <- ~  eyd + ey + ey0 + ey1 + p + x1 + x2 + z1 + z2 +
@@ -131,13 +133,13 @@ wald <- (ey.z2.3 - ey.z2.2) / (ed.z2.3 - ed.z2.2)
 ##-------------------------
 
 test_that("IV-like estimates", {
-    expect_equal(as.numeric(result$sset$s1$beta), as.numeric(ols1))
-    expect_equal(as.numeric(result$sset$s2$beta), as.numeric(ols2))
-    expect_equal(as.numeric(result$sset$s3$beta), as.numeric(ols3[1]))
-    expect_equal(as.numeric(result$sset$s4$beta), as.numeric(ols3[2]))
-    expect_equal(as.numeric(result$sset$s5$beta), as.numeric(ols3[3]))
-    expect_equal(as.numeric(result$sset$s6$beta), as.numeric(tsls))
-    expect_equal(as.numeric(result$sset$s7$beta), as.numeric(wald))
+    expect_equal(as.numeric(result$s.set$s1$beta), as.numeric(ols1))
+    expect_equal(as.numeric(result$s.set$s2$beta), as.numeric(ols2))
+    expect_equal(as.numeric(result$s.set$s3$beta), as.numeric(ols3[1]))
+    expect_equal(as.numeric(result$s.set$s4$beta), as.numeric(ols3[2]))
+    expect_equal(as.numeric(result$s.set$s5$beta), as.numeric(ols3[3]))
+    expect_equal(as.numeric(result$s.set$s6$beta), as.numeric(tsls))
+    expect_equal(as.numeric(result$s.set$s7$beta), as.numeric(wald))
 })
 
 ##-------------------------
@@ -265,19 +267,19 @@ g.star.genlate <- genGammaTT(dtc,
 test_that("Gamma moments", {
     expect_equal(as.numeric(c(result$gstar$g0, result$gstar$g1)),
                  as.numeric(unlist(g.star.genlate)))
-    expect_equal(as.numeric(c(result$sset$s1$g0, result$sset$s1$g1)),
+    expect_equal(as.numeric(c(result$s.set$s1$g0, result$s.set$s1$g1)),
                  as.numeric(unlist(g.ols1)))
-    expect_equal(as.numeric(c(result$sset$s2$g0, result$sset$s2$g1)),
+    expect_equal(as.numeric(c(result$s.set$s2$g0, result$s.set$s2$g1)),
                  as.numeric(unlist(g.ols2)))
-    expect_equal(as.numeric(c(result$sset$s3$g0, result$sset$s3$g1)),
+    expect_equal(as.numeric(c(result$s.set$s3$g0, result$s.set$s3$g1)),
                  as.numeric(unlist(g.ols3.d)))
-    expect_equal(as.numeric(c(result$sset$s4$g0, result$sset$s4$g1)),
+    expect_equal(as.numeric(c(result$s.set$s4$g0, result$s.set$s4$g1)),
                  as.numeric(unlist(g.ols3.x1)))
-    expect_equal(as.numeric(c(result$sset$s5$g0, result$sset$s5$g1)),
+    expect_equal(as.numeric(c(result$s.set$s5$g0, result$s.set$s5$g1)),
                  as.numeric(unlist(g.ols3.x2)))
-    expect_equal(as.numeric(c(result$sset$s6$g0, result$sset$s6$g1)),
+    expect_equal(as.numeric(c(result$s.set$s6$g0, result$s.set$s6$g1)),
                  as.numeric(unlist(g.tsls)))
-    expect_equal(as.numeric(c(result$sset$s7$g0, result$sset$s7$g1)),
+    expect_equal(as.numeric(c(result$s.set$s7$g0, result$s.set$s7$g1)),
                  as.numeric(unlist(g.wald)))
 })
 
@@ -379,7 +381,8 @@ model.o$A <- rbind(cbind(A.extra, A),
 model.o$ub <- c(replicate(14, Inf), replicate(10, Inf))
 model.o$lb <- c(replicate(14, 0), replicate(10, -Inf))
 ## Minimize observational equivalence deviation
-minobseq <- runLpSolveAPI(model.o, 'min')$objval
+lpsolver.options <- list(epslevel = "tight")
+minobseq <- runLpSolveAPI(model.o, 'min', lpsolver.options)$objval
 
 ##-------------------------
 ## Obtain the bounds for generalized LATE
@@ -398,8 +401,8 @@ model.f$A <- rbind(A.top,
 model.f$ub <- c(replicate(14, Inf), replicate(10, Inf))
 model.f$lb <- c(replicate(14, 0), replicate(10, -Inf))
 ## Find bounds  with threshold
-min_genlate <- runLpSolveAPI(model.f, 'min')
-max_genlate <- runLpSolveAPI(model.f, 'max')
+min_genlate <- runLpSolveAPI(model.f, 'min', lpsolver.options)
+max_genlate <- runLpSolveAPI(model.f, 'max', lpsolver.options)
 bound <- c(min_genlate$objval, max_genlate$objval)
 
 ##-------------------------
@@ -408,14 +411,4 @@ bound <- c(min_genlate$objval, max_genlate$objval)
 
 test_that("LP problem", {
     expect_equal(result$bound, bound)
-    expect_equal(dim(result$lpresult$model$A),
-             dim(model.f$A))
-    expect_equal(as.numeric(result$lpresult$model$A),
-                 as.numeric(model.f$A))
-    expect_equal(as.numeric(result$lpresult$model$rhs),
-                 as.numeric(model.f$rhs))
-    expect_equal(as.numeric(result$lpresult$model$rhs),
-                 as.numeric(model.f$rhs))
-    expect_equal(result$lpresult$model$sense,
-                 model.f$sense)
 })

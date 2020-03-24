@@ -93,11 +93,11 @@ tsls <- (solve(pi %*% t(exz)) %*% pi %*% ezy)
 ##-------------------------
 
 test_that("IV-like estimates", {
-    expect_equal(as.numeric(result$sset$s1$beta), as.numeric(ols1[1]))
-    expect_equal(as.numeric(result$sset$s2$beta), as.numeric(ols1[2]))
-    expect_equal(as.numeric(result$sset$s3$beta), as.numeric(ols2[2]))
-    expect_equal(as.numeric(result$sset$s4$beta), as.numeric(tsls[2]))
-    expect_equal(as.numeric(result$sset$s5$beta), as.numeric(tsls[3]))
+    expect_equal(as.numeric(result$s.set$s1$beta), as.numeric(ols1[1]))
+    expect_equal(as.numeric(result$s.set$s2$beta), as.numeric(ols1[2]))
+    expect_equal(as.numeric(result$s.set$s3$beta), as.numeric(ols2[2]))
+    expect_equal(as.numeric(result$s.set$s4$beta), as.numeric(tsls[2]))
+    expect_equal(as.numeric(result$s.set$s5$beta), as.numeric(tsls[3]))
 })
 
 ##-------------------------
@@ -202,16 +202,16 @@ g5 <- genGammaSplinesTT(distr = dts,
 
 test_that("Gamma moments", {
     expect_equal(result$gstar[c("g0", "g1")], gstar)
-    expect_equal(list(g0 = result$sset$s1$g0,
-                      g1 = result$sset$s1$g1), g1)
-    expect_equal(list(g0 = result$sset$s2$g0,
-                      g1 = result$sset$s2$g1), g2)
-    expect_equal(list(g0 = result$sset$s3$g0,
-                      g1 = result$sset$s3$g1), g3)
-    expect_equal(list(g0 = result$sset$s4$g0,
-                      g1 = result$sset$s4$g1), g4)
-    expect_equal(list(g0 = result$sset$s5$g0,
-                      g1 = result$sset$s5$g1), g5)
+    expect_equal(list(g0 = result$s.set$s1$g0,
+                      g1 = result$s.set$s1$g1), g1)
+    expect_equal(list(g0 = result$s.set$s2$g0,
+                      g1 = result$s.set$s2$g1), g2)
+    expect_equal(list(g0 = result$s.set$s3$g0,
+                      g1 = result$s.set$s3$g1), g3)
+    expect_equal(list(g0 = result$s.set$s4$g0,
+                      g1 = result$s.set$s4$g1), g4)
+    expect_equal(list(g0 = result$s.set$s5$g0,
+                      g1 = result$s.set$s5$g1), g5)
 })
 
 ##-------------------------
@@ -236,8 +236,9 @@ maxy <- max(c(dts$ey0, dts$ey1))
 miny <- min(c(dts$ey0, dts$ey1))
 
 ## Construct monotonicity matrix components
-auGrid <- unique(result$audit.grid$audit[, "u"])
-axMat <- cbind(1, result$audit.grid$audit[, "x"])
+auGrid <- result$audit.grid$audit.u
+axMat <- unname(cbind(1, rep(unlist(result$audit.grid$audit.x),
+                             each = length(auGrid))))
 au1s1 <- splines2::bSpline(x = auGrid,
                            degree = 2,
                            knots = c(0.3, 0.6),
@@ -329,7 +330,8 @@ modelO$ub <- c(replicate(ncol(Aextra), Inf),
 modelO$lb <- c(replicate(ncol(Aextra), 0),
                replicate(ncol(amonoA0) + ncol(amonoA1), -Inf))
 ## Minimize observational equivalence deviation
-minobseq <- runLpSolveAPI(modelO, 'min')$objval
+lpsolver.options <- list(epslevel = "tight")
+minobseq <- runLpSolveAPI(modelO, 'min', lpsolver.options)$objval
 
 ##-------------------------
 ## Obtain the bounds for the ATT
@@ -354,8 +356,8 @@ modelF$lb <- c(replicate(ncol(Aextra), 0),
                replicate(ncol(amono0) + ncol(amono1), -Inf))
 
 ## Find bounds with threshold
-minAtt <- runLpSolveAPI(modelF, 'min')
-maxAtt <- runLpSolveAPI(modelF, 'max')
+minAtt <- runLpSolveAPI(modelF, 'min', lpsolver.options)
+maxAtt <- runLpSolveAPI(modelF, 'max', lpsolver.options)
 bound <- c(minAtt$objval, maxAtt$objval)
 
 ##-------------------------
@@ -364,10 +366,6 @@ bound <- c(minAtt$objval, maxAtt$objval)
 
 test_that("LP problem", {
     expect_equal(result$bound, bound)
-    expect_equal(as.numeric(result$lpresult$model$rhs), modelF$rhs)
-    expect_equal(result$lpresult$model$sense, modelF$sense)
-    expect_equal(as.numeric(result$lpresult$model$A), as.numeric(modelF$A))
-    expect_equal(dim(result$lpresult$model$A), dim(modelF$A))
 })
 
 ##------------------------
@@ -388,6 +386,7 @@ knots01 <- function(z, x) {
     0.3 + 0.3 * z + 0.1 * x
 }
 ## Custom weight estimate using smaller sample
+devtools::load_all("../ivmte")
 resultAlt <- ivmte(ivlike = ivlike,
                    data = dtsf,
                    components = components,
@@ -414,7 +413,6 @@ resultAlt <- ivmte(ivlike = ivlike,
                    mte.ub = 10,
                    lpsolver = "lpSolveAPI",
                    seed = 10L)
-
 
 ##------------------------
 ## Reconstruct target gamma moments

@@ -66,8 +66,8 @@ ols <- (solve(exx) %*% exy)
 ##-------------------------
 
 test_that("IV-like estimates", {
-    expect_equal(as.numeric(result$sset$s1$beta), as.numeric(ols[2]))
-    expect_equal(as.numeric(result$sset$s2$beta), as.numeric(ols[3]))
+    expect_equal(as.numeric(result$s.set$s1$beta), as.numeric(ols[2]))
+    expect_equal(as.numeric(result$s.set$s2$beta), as.numeric(ols[3]))
 })
 
 ##-------------------------
@@ -122,9 +122,9 @@ g.star.late <- genGammaTT(dtc[dtc$x1 == 0 & dtc$x2 == 1, ],
 test_that("Gamma moments", {
     expect_equal(as.numeric(c(result$gstar$g0, result$gstar$g1)),
                  as.numeric(unlist(g.star.late)))
-    expect_equal(as.numeric(c(result$sset$s1$g0, result$sset$s1$g1)),
+    expect_equal(as.numeric(c(result$s.set$s1$g0, result$s.set$s1$g1)),
                  as.numeric(unlist(g.ols.d)))
-    expect_equal(as.numeric(c(result$sset$s2$g0, result$sset$s2$g1)),
+    expect_equal(as.numeric(c(result$s.set$s2$g0, result$s.set$s2$g1)),
                  as.numeric(unlist(g.ols.x1)))
 })
 
@@ -142,6 +142,16 @@ for (i in 1:nrow(A)) {
     Aextra[i, (i * 2)] <- 1
 }
 grid <- result$audit.grid$initial[, 1:3]
+
+
+xGrid <- result$audit.grid$audit.x
+nx <- nrow(xGrid)
+uGrid <- result$audit.grid$audit.u
+xGrid <- xGrid[rep(seq(nrow(xGrid)), each = length(uGrid)), ]
+uGrid <- rep(uGrid, times = nx)
+grid <- cbind(xGrid, uGrid)
+colnames(grid) <- c("x1", "x2", "u")
+grid <- data.frame(grid)
 mono0 <- model.matrix(~ x1 + x2:u + x2:I(u^2),
                       data = grid)
 mono1 <- model.matrix(~ x1 + x1:x2 + u + x1:u + x2:I(u^2),
@@ -157,47 +167,6 @@ m0bound <- cbind(Bzeroes, mono0, b1zeroes)
 m1bound <- cbind(Bzeroes, b0zeroes, mono1)
 mtebound <- cbind(Bzeroes, -mono0, mono1)
 
-## Expand grid to include audit violations
-agrid <- result$audit.grid$audit[, 1:3]
-amono0 <- model.matrix(~ x1 + x2:u + x2:I(u^2),
-                       data = agrid)
-amono1 <- model.matrix(~ x1 + x1:x2 + u + x1:u + x2:I(u^2),
-                       data = agrid)
-aBzeroes <- matrix(0, ncol = ncol(Aextra), nrow(agrid))
-ab0zeroes <- matrix(0, ncol = ncol(amono0), nrow = nrow(agrid))
-ab1zeroes <- matrix(0, ncol = ncol(amono1), nrow = nrow(agrid))
-am0bound <- cbind(aBzeroes, amono0, ab1zeroes)
-am1bound <- cbind(aBzeroes, ab0zeroes, amono1)
-amtebound <- cbind(aBzeroes, -amono0, amono1)
-
-## Construct the audit matrices
-arhs <- c(replicate(nrow(am0bound), miny),
-          replicate(nrow(am1bound), miny),
-          replicate(nrow(amtebound), miny - maxy),
-          replicate(nrow(am0bound), maxy),
-          replicate(nrow(am1bound), maxy),
-          replicate(nrow(amtebound), maxy - miny))
-asense <- c(replicate(nrow(am0bound), ">="),
-            replicate(nrow(am1bound), ">="),
-            replicate(nrow(amtebound), ">="),
-            replicate(nrow(am0bound), "<="),
-            replicate(nrow(am1bound), "<="),
-            replicate(nrow(amtebound), "<=")
-            )
-aA <- rbind(am0bound,
-            am1bound,
-            amtebound,
-            am0bound,
-            am1bound,
-            amtebound
-            )
-violateVec <- c(35, 38, 39, 40, 41, 42, 43, 44, 45, 69, 70, 73, 74, 75, 78, 79,
-                80, 105, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154,
-                175, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 210)
-addShapeRhs <- arhs[violateVec]
-addShapeSense <- asense[violateVec]
-addShapeA <- aA[violateVec, ]
-
 ## Construct full lpSolveAPI model
 modelO <- list()
 modelO$obj <- c(replicate(ncol(Aextra), 1),
@@ -208,30 +177,28 @@ modelO$rhs <- c(estimates,
                 replicate(nrow(mtebound), miny - maxy),
                 replicate(nrow(m0bound), maxy),
                 replicate(nrow(m1bound), maxy),
-                replicate(nrow(mtebound), maxy - miny),
-                addShapeRhs)
+                replicate(nrow(mtebound), maxy - miny))
 modelO$sense <- c(replicate(length(estimates), "="),
                   replicate(nrow(m0bound), ">="),
                   replicate(nrow(m1bound), ">="),
                   replicate(nrow(mtebound), ">="),
                   replicate(nrow(m0bound), "<="),
                   replicate(nrow(m1bound), "<="),
-                  replicate(nrow(mtebound), "<="),
-                  addShapeSense)
+                  replicate(nrow(mtebound), "<="))
 modelO$A <- rbind(cbind(Aextra, A),
                   m0bound,
                   m1bound,
                   mtebound,
                   m0bound,
                   m1bound,
-                  mtebound,
-                  addShapeA)
+                  mtebound)
 modelO$ub <- c(replicate(ncol(Aextra), Inf),
                 replicate(ncol(A), Inf))
 modelO$lb <- c(replicate(ncol(Aextra), 0),
                 replicate(ncol(A), -Inf))
 ## Minimize observational equivalence deviation
-minobseq <- runLpSolveAPI(modelO, 'min')$objval
+lpsolver.options <- list(epslevel = "tight")
+minobseq <- runLpSolveAPI(modelO, 'min', lpsolver.options)$objval
 
 ##-------------------------
 ## Obtain the bounds for the LATE
@@ -255,8 +222,8 @@ modelF$ub <- c(replicate(ncol(Aextra), Inf),
 modelF$lb <- c(replicate(ncol(Aextra), 0),
                replicate(ncol(mono0) + ncol(mono1), -Inf))
 ## Find bounds with threshold
-minLate <- runLpSolveAPI(modelF, 'min')
-maxLate <- runLpSolveAPI(modelF, 'max')
+minLate <- runLpSolveAPI(modelF, 'min', lpsolver.options)
+maxLate <- runLpSolveAPI(modelF, 'max', lpsolver.options)
 bound <- c(minLate$objval, maxLate$objval)
 
 ##-------------------------
@@ -265,8 +232,4 @@ bound <- c(minLate$objval, maxLate$objval)
 
 test_that("LP problem", {
     expect_equal(result$bound, bound)
-    expect_equal(as.numeric(result$lpresult$model$rhs), modelF$rhs)
-    expect_equal(result$lpresult$model$sense, modelF$sense)
-    expect_equal(as.numeric(result$lpresult$model$A), as.numeric(modelF$A))
-    expect_equal(dim(result$lpresult$model$A), dim(modelF$A))
 })
