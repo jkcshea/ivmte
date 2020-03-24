@@ -72,6 +72,14 @@
 #' ## obtained from this object by the function 'genSSet'
 #' splinesList = list(removeSplines(formula0), removeSplines(formula1))
 #'
+#' ## If splines are interacted with other variables, the
+#' ## 'interactSplines' should be used.
+#' ## splinesList <- interactSplines(splinesobj = splinesList,
+#' ##                               m0 = formula0,
+#' ##                               m1 = formula1,
+#' ##                               data = data,
+#' ##                               uname = 'u')
+#'
 #' ## Construct MTR polynomials
 #' polynomials0 <- polyparse(formula = formula0,
 #'                  data = dtm,

@@ -999,6 +999,7 @@ parenthBoolean <- function(termsList) {
 #' @param data data.frame, restricted to complete observations.
 #' @param uname string, name of the unobserved variable.
 #' @return An updated version of \code{splinesobj}.
+#' @export
 interactSplines <- function(splinesobj, m0, m1, data, uname) {
     tmpInterName <- "..t.i.n"
     for (d in 0:1) {
