@@ -1159,6 +1159,18 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     parentFrame <- parent.frame()
     origm0 <- m0
     origm1 <- m1
+    if (length(attr(terms(origm0), which = "term.labels")) == 0 &&
+        attr(terms(origm0), which = "intercept") == 0) {
+        stop(gsub("\\s+", " ",
+                  "Formula for 'm0' is invalid. There must be at least one
+                   non-zero term."), call. = FALSE)
+    }
+    if (length(attr(terms(origm1), which = "term.labels")) == 0 &&
+        attr(terms(origm1), which = "intercept") == 0) {
+        stop(gsub("\\s+", " ",
+                  "Formula for 'm1' is invalid. There must be at least one
+                   non-zero term."), call. = FALSE)
+    }
     splinesobj <- list(removeSplines(m0, env = parentFrame),
                        removeSplines(m1, env = parentFrame))
     if (is.null(splinesobj[[1]]$formula)) {
