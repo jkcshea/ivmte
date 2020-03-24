@@ -3,12 +3,12 @@ title: "ivmte: An R Package for Marginal Treatment Effect Methods"
 author: "Joshua Shea and Alexander Torgovitsky"
 bibliography: refs.bib
 output:
-  github_document:
-    toc: true
-    keep_html: true
   html_document:
     toc: true
     keep_md: true
+  github_document:
+    toc: true
+    keep_html: true
 vignette: >
   %\VignetteIndexEntry{ivmte}
   %\VignetteEncoding{UTF-8}
@@ -25,6 +25,9 @@ require(pander)
 require(data.table)
 require(AER)
 require(ivmte)
+require(ggplot2)
+require(gridExtra)
+require(splines2)
 ```
 
 ## Introduction
@@ -625,14 +628,14 @@ The ```ivmte``` command does provide functionality for constructing confidence r
 To turn it on, set ```bootstraps``` to be a positive integer.
 
 ```{r, partial.ci}
-results <- ivmte(data = AE,
-                 target = "att",
-                 m0 = ~ u + yob,
-                 m1 = ~ u + yob,
-                 ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex,
-                 bootstraps = 50,
-                 noisy = FALSE)
+r <- ivmte(data = AE,
+           target = "att",
+           m0 = ~ u + yob,
+           m1 = ~ u + yob,
+           ivlike = worked ~ morekids + samesex + morekids*samesex,
+           propensity = morekids ~ samesex,
+           bootstraps = 50,
+           noisy = FALSE)
 ```
 
 Other options relevent to confidence region construction are `bootstraps.m`, which indicates the number of observations to draw from the sample on each bootstrap replication, and `bootstraps.replace` to indicate whether these observations should be drawn with or without replacement.
@@ -641,7 +644,46 @@ This corresponds to the usual nonparametric bootstrap.
 Choosing `bootstraps.m` to be smaller than the sample size and setting `bootstraps.replace` to be `TRUE` or `FALSE` corresponds to the "m out of n" bootstrap or subsampling, respectively.
 Regardless of these settings, two types of confidence regions are constructed following the terminology of @andrewshan2009ej; see @sheatorgovitsky2019wp for more detail, references, and important theoretical caveats to the procedures.
 
+The bootstrapped bounds are returned and stored in `r$bounds.bootstraps`, and can be used to plot the distribution of bound estimates.
+
+```{r, bootstrap.data, eval = TRUE}
+head(r$bounds.bootstrap)
+```
+The dashed lines in the figure below indicate the bounds obtained from the original sample.
+
+```{r, bootstrap.plot, eval = TRUE, echo = FALSE}
+bootstraps <- data.frame(type = rep(c('lb', 'ub'), each = 50),
+                         value = c(r$bounds.bootstraps[, 1],
+                                   r$bounds.bootstraps[, 2]))
+ggplot(data = bootstraps,
+       aes(x = value, color = type, fill = type)) + 
+    geom_histogram(position = "dodge", alpha = 0.5, binwidth = 0.05) + 
+    geom_vline(xintercept = r$bounds[1],
+               linetype = "dashed", size = 1.5, color = "orange") +
+    geom_vline(xintercept = r$bounds[2], 
+               linetype = "dashed", size = 1.5, color = "lightskyblue") +
+    ## Labeling options
+    labs(x = "Bound",
+         y = "Frequency") +
+    ## Presentation options
+    theme(text = element_text(size = 10),
+          axis.line = element_line(color = "black"),
+          axis.text = element_text(size=10,
+                                   angle = 0),
+          panel.background = element_blank(),
+          legend.key = element_blank(),
+          legend.position = "bottom",
+          legend.box = "vertical",
+          legend.title = element_blank(),
+          legend.text = element_text(size = 10)) +
+    scale_color_manual("", values = c("orange", "lightskyblue"),
+                       labels = c(" Lower bound   ", " Upper bound ")) +
+    scale_fill_manual("", values = c("orange", "lightskyblue"),
+                      labels = c(" Lower bound   ", " Upper bound "))
+```
+
 Confidence regions can also be constructed when ```point == TRUE``` in a similar way.
+The bootstrapped point estimates are returned and stored in `r$point.estimate.bootstraps`.
 
 ```{r, point.id.bootstrap}
 args <- list(data = AE,
@@ -685,6 +727,387 @@ r <- do.call(ivmte, args)
 args[["ivlike"]] <- y ~ d + factor(z) + d*factor(z) # many more moments
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
+```
+
+### Plotting MTRs and MTEs
+
+After the estimation procedure, the MTR and MTE functions can be plotted for for further analysis.
+Below is a demonstration of how to generate such plots when the MTR functions contain splines.
+
+```{r, draw.specification, eval = TRUE}
+args <- list(data = AE,
+             ivlike =  worked ~ morekids + samesex + morekids*samesex,
+             target = "att",
+             m0 = ~ 0 + uSplines(degree = 2, knots = c(1/3, 2/3)),
+             m1 = ~ 0 + uSplines(degree = 2, knots = c(1/3, 2/3)),
+             m1.inc = TRUE,
+             m0.inc = TRUE,
+             mte.dec = TRUE,
+             propensity = morekids ~ samesex,
+             noisy = FALSE)
+r <- do.call(ivmte, args)
+```
+
+The specification of each uniquely defined spline is stored in the list `r$splines.dict`.
+For example, if `m0` contained only the terms `uSplines(degree = 0, knots = 0.5)` and `x:uSplines(degree = 0, knots = 0.5)`, then the list `r$splines.dict$m0` will contain a single entry, since the two terms above contain the same spline.
+
+```{r, draw.m0.splines, eval = TRUE}
+specs0 <- r$splines.dict$m0[[1]]
+specs0
+```
+
+Since the splines must be constructed as part of the estimation procedure, the variable names for the basis splines are automatically generated according to a naming convention to ensure that each coefficient can be mapped to the correct basis.
+For example, consider the coefficient estimates for `m0` corresponding to the lower bound on the treatment effect, which are stored in `r$gstar.coef$min.g0`
+
+```{r, draw.m0.coef, eval = TRUE}
+r$gstar.coef$min.g0
+```
+
+* The first three characters of each variable name, `u0S`, indicate that the variables corresponds to a spline in `m0`.
+A basis splines in `m1` would instead be assigned a name beginning with `u1S`.
+* The next digit is an index assigned to each uniquely defined spline.
+The corresponding specification in `r$splines.dict` is the one with the same index in `r$splines.dict$gstar.index`.
+This is required to differentiate between splines with the same number of basis functions.
+* The number that follow the period indexes the basis spline.
+* As is standard in the R syntax, a colon is used to denote an interaction term.
+In order to avoid confusion between basis splines and variables in the data set, the names of basis splines always indicate an interaction.
+In this example, since the spline is not actually interacted with any variable, the name of each basis spline indicates that the function is interacted with the constant 1.
+
+For example, `u0S1.4:1` refers to the fourth basis function of the first spline in `m0`; whereas `u1S2.2:x` refers to the second basis function of the second spline in `m1`, interacted with the variable `x`.
+
+To plot the MTR, users simply need to construct the appropriate design matrix and multiply it with the coefficient estimates.
+Below, a design matrix for `m0` for a grid of 101 points over the unit interval is constructed using the command `bSpline` from the `splines2` package.
+While **ivmte** assumes the boundary knots are always 0 and 1, the user will have to explicitly declare the boundary knots when using the `bSpline` command.
+Multiplying the design matrix by `r$gstar.coef$min.g0` generates the fitted values for `m0` associated with the lower bound of the treatment effect.
+Likewise, multiplying the design matrix by `r$gstar.coef$max.g0` generates the fitted values for `m0` associated with the upper bound.
+
+```{r, draw.design.m0, eval = TRUE}
+uSeq <- seq(0, 1, by = 0.01)
+dmat0 <- bSpline(x = uSeq,
+                      degree = specs0$degree,
+                      intercept = specs0$intercept,
+                      knots = specs0$knots,
+                      Boundary.knots = c(0, 1))
+m0.min <- dmat0 %*% r$gstar.coef$min.g0
+m0.max <- dmat0 %*% r$gstar.coef$max.g0
+```
+
+
+```{r, draw.design.m1, eval = TRUE, echo = FALSE}
+specs1 <- r$splines.dict$m1[[1]]
+dmat1 <- bSpline(x = uSeq,
+                 degree = specs1$degree,
+                 intercept = specs1$intercept,
+                 knots = specs1$knots,
+                 Boundary.knots = c(0, 1))
+m1.min <- dmat1 %*% r$gstar.coef$min.g1
+m1.max <- dmat1 %*% r$gstar.coef$max.g1
+```
+
+The analogous steps can be performed to obtain the fitted values for `m1`.
+Taking the difference of the fitted values for `m1` and `m0` yields an MTE curve.
+However, unless there is point identification, the MTR and MTE curves are optimal but not unique.
+That is, the curves either maximize or minimize the treatment effect parameter, but there are other MTR and MTE curves that are observationally equivalent.
+
+Below are plots of the MTR and MTE as functions of unobserved heterogeneity `u`.
+The figures on the left correspond to the lower bound of the treatment effect, and the figures on the right correspond to the upper bound.
+
+```{r, eval = TRUE}
+mte.min <- m1.min - m0.min
+mte.max <- m1.max - m0.max
+```
+
+```{r, draw.plots, eval = TRUE, echo = FALSE, fig.width = 8, fig.height = 10}
+lim0 <- c(0, 0.8)
+lim1 <- c(0.0, 0.8)
+limte <- c(-0.2, 0.5)
+dt1 <- data.frame(x = uSeq, y = m0.min)
+dt2 <- data.frame(x = uSeq, y = m0.max)
+dt3 <- data.frame(x = uSeq, y = m1.min)
+dt4 <- data.frame(x = uSeq, y = m1.max)
+dt5 <- data.frame(x = uSeq, y = mte.min)
+dt6 <- data.frame(x = uSeq, y = mte.max)
+for (i in 1:6) {
+    if (i %in% c(1, 2)) {
+        ylim <- lim0
+        if (i == 1) ylab <- expression(paste("Min. ", m[0]))
+        if (i == 2) ylab <- expression(paste("Max. ", m[0]))
+    }
+    if (i %in% c(3, 4)) {
+        ylim <- lim1
+        if (i == 3) ylab <- expression(paste("Min. ", m[1]))
+        if (i == 4) ylab <- expression(paste("Max. ", m[1]))
+    }
+    if (i %in% c(5, 6)) {
+        ylim <- limte
+        if (i == 5) ylab <- expression(paste("Min. ", MTE(u)))
+        if (i == 6) ylab <- expression(paste("Max. ", MTE(u)))
+    }
+    assign("dt", get(paste0("dt", i)))
+    figure <- ggplot() +
+        geom_line(data = dt,
+                  aes(x = x,
+                      y = y),
+                  size = 1.0) +
+        ## Labeling options
+        labs(x = "u",
+             y = ylab) +
+        scale_x_continuous(limits = c(0, 1),
+                           breaks = seq(0, 1, 0.25)) +
+        scale_y_continuous(limits = ylim) +
+        ## Presentation options
+        theme(text = element_text(size = 10),
+              axis.line = element_line(color = "black"),
+              axis.text = element_text(size=10,
+                                       angle = 0),
+              panel.background = element_blank(),
+              legend.key = element_blank(),
+              legend.position = "bottom",
+              legend.box = "horizontal",
+              legend.title = element_blank(),
+              legend.text = element_text(size = 10))
+    assign(paste0("figure", i), figure)
+}
+grid.arrange(figure1, figure2, figure3, figure4, figure5, figure6, ncol=2)
+```
+
+In the case of the MTE associated with the lower bound, the monotonicity constraints are all binding, resulting in a constant MTE.
+If the plots do not satisfy all the shape constraints, this implies the audit grid is not large enough, and that `audit.nu` should be increased.
+
+### Plotting weights
+
+This section presents an example of how to plot the average weights associated with the target parameter and IV-like estimands, which may be of interest to the user.
+
+Continuing with the model specification from the previous section, information on the target weights for the treated individuals are stored in the list `r$gstar.weights$w1`, and the target weights for the untreated are stored in the list `r$gstar.weights$w0`.
+These lists contain three entries:
+
+1. `$lb`: A vector of the lower bounds for the values of `u` where the weight is not 0.
+2. `$ub`: A vector of the upper bounds for the values of `u` where the weight is not 0.
+3. `$multiplier`: A vector of the weights assigned to agents with `u` between `$lb` and `$ub`.
+
+The values of `$lb` and `$ub` are obtained from an agent's propensity to take up treatment.
+The weight assigned to agents outside of that interval is 0.
+
+The list `r$s.set` contains all the information from the IV-like estimands, including the treated and untreated weights.
+Information relevant to the first estimand is stored in the list `r$s.set$s1$`; information relevant to the second estimand is stored in the list `r$s.set$s2`, and so on.
+The weights for the first estimand are contained in `r$s.set$s1$w0` and `r$s.set$s1$w1`, both of which are lists that take the same structure as described earlier for `r$gstar.weights$w0` and `r$gstar.weights$w1`.
+
+Below, the treated weights for the target parameter and IV-like estimands are organized into matrices with columns for the lower bound, upper bound, and multiplier.
+
+```{r, weights.matrix, eval = TRUE, echo = TRUE}
+## Target weights
+w1 <- cbind(r$gstar.weights$w1$lb,
+                  r$gstar.weights$w1$ub,
+                  r$gstar.weights$w1$multiplier)
+## IV-like estimand weights
+sw1 <- cbind(r$s.set$s1$w1$lb,
+             r$s.set$s1$w1$ub,
+             r$s.set$s1$w1$multiplier)
+sw2 <- cbind(r$s.set$s2$w1$lb,
+             r$s.set$s2$w1$ub,
+             r$s.set$s2$w1$multiplier)
+sw3 <- cbind(r$s.set$s3$w1$lb,
+             r$s.set$s3$w1$ub,
+             r$s.set$s3$w1$multiplier)
+sw4 <- cbind(r$s.set$s4$w1$lb,
+             r$s.set$s4$w1$ub,
+             r$s.set$s4$w1$multiplier)
+## Assign column names
+colnames(w1) <-
+    colnames(sw1) <-
+    colnames(sw2) <-
+    colnames(sw3) <-
+    colnames(sw4) <- c("lb", "ub", "mp")
+```
+
+Since the propensity score model is simply `morekids ~ samesex`, and `samesex` is a binary variable, there are only two values of the propensity score.
+These two values partition the unit interval into three regions, and the average weights will vary across these three regions.
+These propensity scores can be recovered from the column `ub` in any of the matrices constructed above.
+```{r, weights.prop, eval = TRUE, echo = TRUE}
+pscore <- sort(unique(w1[, "ub"]))
+pscore
+```
+More generally, the propensity scores determine the upper bound for the region where the weights are non-zero for the treated weights associated with the IV-like estimands.
+In the case of the untreated weights associated with the IV-like estimands, the propensity score determines the lower bound.
+
+
+The code below demonstrates how to calculate the average weights for each interval, and stores the results in a `data.frame` that will be used to generate the plot.
+The analogous calculations can be performed to estimate the average weights for the untreated agents.
+
+```{r, weights.data, eval = TRUE, echo = TRUE}
+avg1 <- NULL ## The data.frame that will contain the average weights
+i <- 0 ## An index for the type of weight
+for (j in c('w1', 'sw1', 'sw2', 'sw3', 'sw4')) {
+    dt <- data.frame(get(j))
+    avg <- rbind(
+        ## Average for u in [0, pscore[1])
+        c(s = i, d = 1, lb = 0, ub = pscore[1],
+          avgWeight = mean(dt$mp)),
+        ## Average for u in [pscore[1], pscore[2])
+        c(s = i, d = 1, lb = pscore[1], ub = pscore[2],
+          avgWeight = mean(as.integer(dt$ub ==
+                                      pscore[2]) * dt$mp)),
+        ## Average for u in [pscore[2], 1]
+        c(s = i, d = 1, lb = pscore[2], ub = 1, avgWeight = 0))
+    avg1 <- rbind(avg1, avg)
+    i <- i + 1
+}
+avg1 <- data.frame(avg1)
+```
+
+* The first region, `[0, pscore[1])`, contains agents who take up treatment regardless of whether `samesex = FALSE` or `samesex = TRUE`.
+The average weight can therefore be estimated simply by taking the average of the weights assigned to each agent.
+* The second region, `[pscore[1], pscore[2])`, contains agents who would take up treatment if `samesex = TRUE`, but would not take up treatment if `samesex = FALSE`.
+The weights for agents with `samesex = FALSE` are thus 0 is in this region.
+* Finally, the third region `[pscore[2], 1]`, contains agents who will not take up treatment regardless of the value of `samesex`.
+Since the object of interest is the weights of the treated agents, the average weight in this third region is necessarily 0.
+
+The `data.frame` created above that will be used to generate the plot for the average treated weights takes on the following form.
+```{r, evaluate = TRUE, echo = FALSE}
+knitr::kable(avg1)
+```
+
+* The first column indicates the type of weight.
+A value of `0` indicates the weight corresponds to the target parameter. Integers greater than 0 indicate the weight corresponds to the IV-like estimand with the same index.
+* The second column indicates that the weights above correspond to the treated agents.
+* The third and fourth columns indicate the region in the unit interval that the average weights correspond to.
+* The final column contains the average weights.
+
+Adjusting for overlaps, the table above generates the plot below on the right.
+The analogous table containing the average untreated weights generates the plot on the left.
+For clarity, the weights for associated with the intercept have been omitted from both plots.
+```{r, weights.plot1, eval = TRUE, echo = FALSE}
+## Account for overlap
+avg1[avg1$lb > 0 & avg1$lb < pscore[2] & avg1$s == 2, ]$avgWeight <- -0.07
+avg1[avg1$lb > pscore[1] & avg1$s == 2, ]$avgWeight <- -0.07
+avg1[avg1$lb > pscore[1] & avg1$s == 0, ]$avgWeight <- +0.07
+avg1[avg1$lb > pscore[1] & avg1$s == 4, ]$avgWeight <- +0.14
+## Draw plot
+wFigure1 <- ggplot() +
+    geom_segment(data = avg1[avg1$s == 0, ],
+                 mapping = aes(x=lb, xend=ub, y = avgWeight, yend = avgWeight,
+                               color= "Target"), size = 2, linetype = "dashed") +
+    geom_segment(data = avg1[avg1$s == 2, ],
+                 mapping = aes(x=lb, xend=ub, y = avgWeight, yend = avgWeight,
+                               color= "More kids", ), size = 2) +
+    geom_segment(data = avg1[avg1$s == 3, ],
+                 mapping = aes(x=lb, xend=ub, y = avgWeight, yend = avgWeight,
+                               color= "Same sex"), size = 2) +
+    geom_segment(data = avg1[avg1$s == 4, ],
+                 mapping = aes(x=lb, xend=ub, y = avgWeight, yend = avgWeight,
+                               color= "More kids x Same sex"), size = 2) +
+    scale_x_continuous(breaks=seq(0, 1, 0.2)) +
+    theme(text = element_text(size = 10),
+          axis.line = element_line(color = "black"),
+          axis.text = element_text(size=10,
+                                   angle = 0),
+          panel.background = element_blank(),
+          legend.key = element_blank(),
+          legend.position = "bottom",
+          legend.box = "horizontal",
+          legend.title = element_blank(),
+          legend.text = element_text(size = 10)) +
+    labs(x="u", y="Average weights, d = 1") +
+    scale_color_manual("",
+                       breaks = c("Target", "More kids", "Same sex", "More kids x Same sex"),
+                       values = c("lightskyblue", "orange", "olivedrab", "gray60"))
+```
+
+```{r, weights.plot0, eval = TRUE, echo = FALSE}
+w0 <- cbind(r$gstar.weights$w0$lb,
+                  r$gstar.weights$w0$ub,
+                  r$gstar.weights$w0$multiplier)
+sw1 <- cbind(r$s.set$s1$w0$lb,
+             r$s.set$s1$w0$ub,
+             r$s.set$s1$w0$multiplier)
+sw2 <- cbind(r$s.set$s2$w0$lb,
+             r$s.set$s2$w0$ub,
+             r$s.set$s2$w0$multiplier)
+sw3 <- cbind(r$s.set$s3$w0$lb,
+             r$s.set$s3$w0$ub,
+             r$s.set$s3$w0$multiplier)
+sw4 <- cbind(r$s.set$s4$w0$lb,
+             r$s.set$s4$w0$ub,
+             r$s.set$s4$w0$multiplier)
+colnames(w0) <-
+    colnames(sw1) <-
+    colnames(sw2) <-
+    colnames(sw3) <-
+    colnames(sw4) <- c("lb", "ub", "mp")
+## Construct data frame
+avg0 <- NULL
+i <- 0
+for (j in c('w0', 'sw1', 'sw2', 'sw3', 'sw4')) {
+    dt <- data.frame(get(j))
+    if (j == 'w0') {
+        avg <- rbind(c(s = i, d = 1, lb = 0, ub = pscore[1],
+                       avgWeight = mean(dt$mp)),
+                     c(s = i, d = 1, lb = pscore[1], ub = pscore[2],
+                       avgWeight = mean(as.integer(dt$ub ==
+                                                   pscore[2]) * dt$mp)),
+                     c(s = i, d = 1, lb = pscore[2], ub = 1, avgWeight = 0))
+    } else {
+        avg <- rbind(c(s = i, d = 0, lb = 0, ub = pscore[1],
+                       avgWeight = 0),
+                     c(s = i, d = 0, lb = pscore[1], ub = pscore[2],
+                       avgWeight = mean(as.integer(dt$ub ==
+                                                   pscore[1]) * dt$mp)),
+                     c(s = i, d = 0, lb = pscore[2], ub = 1,
+                       avgWeight = mean(dt$mp)))
+    }
+    avg0 <- rbind(avg0, avg)
+    i <- i + 1
+}
+avg0 <- data.frame(avg0)
+## Deal with overlaps
+avg0[avg0$lb > 0 & avg0$lb < pscore[2] & avg0$s == 2, ]$avgWeight <- -0.055
+avg0[avg0$lb > 0 & avg0$lb < pscore[2] & avg0$s == 4, ]$avgWeight <- +0.055
+avg0[avg0$lb == 0 & avg0$s == 2, ]$avgWeight <- -0.055
+avg0[avg0$lb == 0 & avg0$s == 4, ]$avgWeight <- +0.055
+## Draw plot
+wFigure2 <- ggplot() +
+    geom_segment(data = avg0[avg0$s == 0, ],
+                 mapping = aes(x=lb, xend=ub, y = avgWeight, yend = avgWeight,
+                               color= "Target"), size = 2, linetype = "dashed") +
+    geom_segment(data = avg0[avg0$s == 2, ],
+                 mapping = aes(x=lb, xend=ub, y = avgWeight, yend = avgWeight,
+                               color= "More kids", ), size = 2) +
+    geom_segment(data = avg0[avg0$s == 3, ],
+                 mapping = aes(x=lb, xend=ub, y = avgWeight, yend = avgWeight,
+                               color= "Same sex"), size = 2) +
+    geom_segment(data = avg0[avg0$s == 4, ],
+                 mapping = aes(x=lb, xend=ub, y = avgWeight, yend = avgWeight,
+                               color= "More kids x Same sex"), size = 2) +
+    scale_x_continuous(breaks=seq(0, 1, 0.2)) +
+    theme(text = element_text(size = 10),
+          axis.line = element_line(color = "black"),
+          axis.text = element_text(size=10,
+                                   angle = 0),
+          panel.background = element_blank(),
+          legend.key = element_blank(),
+          legend.position = "bottom",
+          legend.box = "horizontal",
+          legend.title = element_blank(),
+          legend.text = element_text(size = 10)) +
+    labs(x="u", y="Average weights, d = 0") +
+    scale_color_manual("",
+                       breaks = c("Target", "More kids", "Same sex", "More kids x Same sex"),
+                       values = c("lightskyblue", "orange", "olivedrab", "gray60"))
+```
+
+```{r, weights.plot.combine, eval = TRUE, echo = FALSE, fig.width = 8, fig.height = 5}
+## Combine plots
+g_legend <- function(a.gplot) {
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)
+}
+jointLegend <- g_legend(wFigure2)
+grid.arrange(arrangeGrob(wFigure2 + theme(legend.position = "none"),
+                         wFigure1 + theme(legend.position = "none"),
+                         nrow = 1),
+             jointLegend, heights = c(10, 1))
 ```
 
 ## Help, Feature Requests and Bug Reports
