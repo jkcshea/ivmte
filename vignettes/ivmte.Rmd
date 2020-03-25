@@ -19,7 +19,8 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  cache = TRUE
+  cache = TRUE,
+  fig.path = "vignettes/ivmte_files/figure-html/"
 )
 require(pander)
 require(data.table)
