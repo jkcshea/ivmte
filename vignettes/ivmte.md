@@ -998,7 +998,7 @@ head(r$bounds.bootstrap)
 The dashed lines in the figure below indicate the bounds obtained from
 the original sample.
 
-![](vignettes/ivmte_files/figure-html/bootstrap.plot-1.png)<!-- -->
+![](vignettes/ivmte_files/figure-gfm/bootstrap.plot-1.png)<!-- -->
 
 Confidence regions can also be constructed when `point == TRUE` in a
 similar way. The bootstrapped point estimates are returned and stored in
@@ -1195,7 +1195,8 @@ The analogous steps can be performed to obtain the fitted values for
 yields an MTE curve. However, unless there is point identification, the
 MTR and MTE curves are optimal but not unique. That is, the curves
 either maximize or minimize the treatment effect parameter, but there
-are other MTR and MTE curves that are observationally equivalent.
+are other MTR and MTE curves that are observationally equivalent and
+yield the same maximal or minimal value of the treatment effect.
 
 Below are plots of the MTR and MTE as functions of unobserved
 heterogeneity `u`. The figures on the left correspond to the lower bound
@@ -1207,7 +1208,7 @@ mte.min <- m1.min - m0.min
 mte.max <- m1.max - m0.max
 ```
 
-![](vignettes/ivmte_files/figure-html/draw.plots-1.png)<!-- -->
+![](vignettes/ivmte_files/figure-gfm/draw.plots-1.png)<!-- -->
 
 In the case of the MTE associated with the lower bound, the monotonicity
 constraints are all binding, resulting in a constant MTE. If the plots
@@ -1370,7 +1371,7 @@ right. The analogous table containing the average untreated weights
 generates the plot on the left. For clarity, the weights for associated
 with the intercept have been omitted from both plots.
 
-![](vignettes/ivmte_files/figure-html/weights.plot.combine-1.png)<!-- -->
+![](vignettes/ivmte_files/figure-gfm/weights.plot.combine-1.png)<!-- -->
 
 ## Help, Feature Requests and Bug Reports
 

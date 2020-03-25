@@ -20,7 +20,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   cache = TRUE,
-  fig.path = "vignettes/ivmte_files/figure-html/"
+  fig.path = "vignettes/ivmte_files/figure-gfm/"
 )
 require(pander)
 require(data.table)
@@ -808,7 +808,7 @@ m1.max <- dmat1 %*% r$gstar.coef$max.g1
 The analogous steps can be performed to obtain the fitted values for `m1`.
 Taking the difference of the fitted values for `m1` and `m0` yields an MTE curve.
 However, unless there is point identification, the MTR and MTE curves are optimal but not unique.
-That is, the curves either maximize or minimize the treatment effect parameter, but there are other MTR and MTE curves that are observationally equivalent.
+That is, the curves either maximize or minimize the treatment effect parameter, but there are other MTR and MTE curves that are observationally equivalent and yield the same maximal or minimal value of the treatment effect.
 
 Below are plots of the MTR and MTE as functions of unobserved heterogeneity `u`.
 The figures on the left correspond to the lower bound of the treatment effect, and the figures on the right correspond to the upper bound.
