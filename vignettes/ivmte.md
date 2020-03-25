@@ -998,7 +998,7 @@ head(r$bounds.bootstrap)
 The dashed lines in the figure below indicate the bounds obtained from
 the original sample.
 
-![](ivmte_files/figure-gfm/bootstrap.plot-1.png)<!-- -->
+![](vignettes/ivmte_files/figure-html/bootstrap.plot-1.png)<!-- -->
 
 Confidence regions can also be constructed when `point == TRUE` in a
 similar way. The bootstrapped point estimates are returned and stored in
@@ -1207,7 +1207,7 @@ mte.min <- m1.min - m0.min
 mte.max <- m1.max - m0.max
 ```
 
-![](ivmte_files/figure-gfm/draw.plots-1.png)<!-- -->
+![](vignettes/ivmte_files/figure-html/draw.plots-1.png)<!-- -->
 
 In the case of the MTE associated with the lower bound, the monotonicity
 constraints are all binding, resulting in a constant MTE. If the plots
@@ -1370,7 +1370,7 @@ right. The analogous table containing the average untreated weights
 generates the plot on the left. For clarity, the weights for associated
 with the intercept have been omitted from both plots.
 
-![](ivmte_files/figure-gfm/weights.plot.combine-1.png)<!-- -->
+![](vignettes/ivmte_files/figure-html/weights.plot.combine-1.png)<!-- -->
 
 ## Help, Feature Requests and Bug Reports
 
