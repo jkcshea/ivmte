@@ -3041,6 +3041,12 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        bounds = c(audit$min, audit$max),
                        lp.solver = lpsolver,
                        moments = nIndepMoments,
+                       audit.grid = list(audit.x =
+                                             audit$gridobj$audit.grid$support,
+                                         audit.u =
+                                             audit$gridobj$audit.grid$uvec,
+                                         audit.noX =
+                                             audit$gridobj$audit.grid$noX),
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
@@ -3963,7 +3969,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
         } else {
             colDrop <- redundant
         }
-    }    
+    }
     ## Perform first stage GMM
     if (is.null(center)) {
         theta <- solve(t(xmat) %*% xmat) %*% t(xmat) %*% ymat
@@ -4128,8 +4134,13 @@ print.ivmte <- function(x, ...) {
             cat(sprintf("Audit terminated successfully after %s",
                         x$audit.count), rs, "\n")
         }
-        cat(sprintf("Independent moments: %s \n", x$moments))
-        cat(sprintf("Minimum criterion: %s \n", x$audit.criterion))
+        cat(sprintf("MTR coefficients: %s \n",
+                    length(c(x$gstar$g0, x$gstar$g1))))
+        ## cat(sprintf("Total moments: %s \n", length(x$s.set)))
+        ## cat(sprintf("Independent moments: %s \n", x$moments))
+        cat(sprintf("Independent/total moments: %s/%s \n",
+                    x$moments, length(x$s.set)))
+        cat(sprintf("Minimum criterion: %s \n", fmtResult(x$audit.criterion)))
         ## Return LP solver used
         cat(sprintf("LP solver: %s\n", x$lp.solver))
         if (x$lp.solver == "lp_solve ('lpSolveAPI')") {
@@ -4150,7 +4161,12 @@ print.ivmte <- function(x, ...) {
         ## Return point estimate
         cat(sprintf("Point estimate of the target parameter: %s\n",
                     fmtResult(x$point.estimate)))
-        cat(sprintf("Independent moments: %s \n", x$moments$count))
+        cat(sprintf("MTR coefficients: %s \n",
+                    length(c(x$gstar$g0, x$gstar$g1))))
+        ## cat(sprintf("Total moments: %s \n", length(x$s.set)))
+        ## cat(sprintf("Independent moments: %s \n", x$moments$count))
+        cat(sprintf("Independent/total moments: %s/%s \n",
+                    x$moments$count, length(x$s.set)))
     }
     cat("\n")
 }
@@ -4181,8 +4197,14 @@ summary.ivmte <- function(object, ...) {
             cat(sprintf("Audit terminated successfully after %s",
                         object$audit.count), rs, "\n")
         }
-        cat(sprintf("Independent moments: %s \n", object$moments))
-        cat(sprintf("Minimum criterion: %s \n", object$audit.criterion))
+        cat(sprintf("MTR coefficients: %s \n",
+                    length(c(object$gstar$g0, object$gstar$g1))))
+        ## cat(sprintf("Total moments: %s \n", length(object$s.set)))
+        ## cat(sprintf("Independent moments: %s \n", object$moments))
+        cat(sprintf("Independent/total moments: %s/%s \n",
+                    object$moments, length(object$s.set)))
+        cat(sprintf("Minimum criterion: %s \n",
+                    fmtResult(object$audit.criterion)))
         ## Return LP solver used
         cat(sprintf("LP solver: %s\n", object$lp.solver))
         if (object$lp.solver == "lp_solve ('lpSolveAPI')") {
@@ -4245,7 +4267,12 @@ summary.ivmte <- function(object, ...) {
         ## Return bounds, audit cout, and minumum criterion
         cat(sprintf("Point estimate of the target parameter: %s\n",
                     fmtResult(object$point.estimate)))
-        cat(sprintf("Independent moments: %s\n", object$moments$count))
+        cat(sprintf("MTR coefficients: %s \n",
+                    length(c(object$gstar$g0, object$gstar$g1))))
+        ## cat(sprintf("Total moments: %s \n", length(object$s.set)))
+        ## cat(sprintf("Independent moments: %s\n", object$moments$count))
+        cat(sprintf("Independent/total moments: %s/%s \n",
+                    object$moments$count, length(object$s.set)))
         if (!is.null(object$bootstraps)) {
             ## Return confidence intervals and p-values
             levels <- as.numeric(rownames(object$point.estimate.ci[[1]]))
