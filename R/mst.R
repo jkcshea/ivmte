@@ -329,15 +329,18 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
                   specification.test = TRUE,
-                  noisy = TRUE,
+                  noisy = FALSE,
                   smallreturnlist = FALSE, seed = 12345, debug = FALSE) {
 
     ## TESTING ----------------------------------------------
-    print("This switch should depend on whether or not noisy is on.")
-    tmpOutput <- file(".tmpLog.log")
-    sink(tmpOutput)    
+    unlink(".ivmte.R.tmp.log")
+    tmpOutput <- file(".ivmte.R.tmp.log")
+    if (noisy) {
+        sink(tmpOutput, split = TRUE)
+    } else {
+        sink(tmpOutput)
+    }
     ## END TESTING ------------------------------------------
-    
     call <- match.call(expand.dots = FALSE)
     envList <- list(m0 = environment(m0),
                     m1 = environment(m1),
@@ -1651,7 +1654,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                          "target.knots0", "target.knots1",
                                          "late.Z", "late.to", "late.from",
                                          "late.X", "eval.X",
-                                         "specification.test"),
+                                         "specification.test",
+                                         "noisy"),
                             newargs = list(m0 = quote(m0),
                                            m1 = quote(m1),
                                            target.weight0 =
@@ -1663,6 +1667,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                            data = quote(data),
                                            subset = quote(subset),
                                            lpsolver = quote(lpsolver),
+                                           noisy = TRUE,
                                            vars_y = quote(vars_y),
                                            vars_mtr = quote(vars_mtr),
                                            vars_data = quote(vars_data),
@@ -1691,48 +1696,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         origEstimate <- eval(estimateCall)
         ## Estimate bounds without resampling
         if (bootstraps == 0) {
-            if (!noisy) {
-                ## Some output must be returned, evne if noisy = FALSE
-                cat("\n")
-                cat("Bounds on the target parameter: [",
-                    fmtResult(origEstimate$bounds[1]), ", ",
-                fmtResult(origEstimate$bounds[2]), "]\n",
-                sep = "")
-                if (origEstimate$audit.count == 1) rs <- "round.\n"
-                if (origEstimate$audit.count > 1) rs <- "rounds.\n"
-                if (origEstimate$audit.count < audit.max) {
-                    cat("Audit terminated successfully after",
-                        origEstimate$audit.count,
-                        rs, "\n")
-                }
-                if (origEstimate$audit.count == audit.max) {
-                    if (is.null(origEstimate$audit.grid$violations)) {
-                        cat("Audit terminated successfully after",
-                            origEstimate$audit.count,
-                            rs, "\n")
-                    } else {
-                        cat("\n")
-                        warning(gsub("\\s+", " ",
-                                     "Audit reached audit.max.
-                                      Try increasing audit.max."),
-                                call. = FALSE,
-                                immediate. = TRUE)
-                    }
-                }
-            }
             output <- origEstimate
             output$call.options <- opList
             output <- output[sort(names(output))]
             class(output) <- "ivmte"
-            ## Testing ---------------------------------------------
-            sink()
-            sink(type = "message")
-            close(tmpOutput)
-            output$messages <- readLines(".tmpLog.log")
-            rm(tmpOutput)
-            unlink(".tmpLog.log")
-            ## End testing -----------------------------------------
-            return(invisible(output))
         } else {
             ## Obtain audit grid from original estimate
             audit.grid <- list(support = origEstimate$audit.grid$audit.x,
@@ -1775,9 +1742,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                    size = bootstraps.m,
                                    replace = bootstraps.replace)
                 bdata <- data[bootIDs, ]
-                if (noisy == TRUE) {
-                    cat("Bootstrap iteration ", b, "...\n", sep = "")
-                }
+                cat("Bootstrap iteration ", b, "...\n", sep = "")
                 bootCall <-
                     modcall(estimateCall,
                             dropargs = c("data", "noisy", "seed",
@@ -1809,35 +1774,29 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                bootEstimate$propensity.coef)
                     }
                     b <- b + 1
-                    if (noisy == TRUE) {
-                        cat("    Audit count: ",
-                            bootEstimate$audit.count, "\n", sep = "")
-                        cat("    Minimum criterion: ",
-                            fmtResult(bootEstimate$audit.criterion),
-                            "\n", sep = "")
-                        cat("    Bounds: ",
-                            paste0("[",
-                                   fmtResult(bootEstimate$bounds[1]),
-                                   ", ",
-                                   fmtResult(bootEstimate$bounds[2]),
-                                   "]"), "\n\n", sep = "")
-                    }
+                    cat("    Audit count: ",
+                        bootEstimate$audit.count, "\n", sep = "")
+                    cat("    Minimum criterion: ",
+                        fmtResult(bootEstimate$audit.criterion),
+                        "\n", sep = "")
+                    cat("    Bounds: ",
+                        paste0("[",
+                               fmtResult(bootEstimate$bounds[1]),
+                               ", ",
+                               fmtResult(bootEstimate$bounds[2]),
+                               "]"), "\n\n", sep = "")
                 } else {
-                    if (noisy) {
-                        warning(paste0(bootEstimate, ", resampling...\n"),
-                                call. = FALSE,
-                                immediate. = TRUE)
-                    }
+                    warning(paste0(bootEstimate, ", resampling...\n"),
+                            call. = FALSE,
+                            immediate. = TRUE)
                     bseeds[b] <- round(runif(1) * 1000000)
                     bootFailN <- bootFailN + 1
                     bootFailIndex <- unique(c(bootFailIndex, b))
                 }
             }
-            if (noisy) {
-                cat("--------------------------------------------------\n")
-                cat("Results", "\n")
-                cat("--------------------------------------------------\n")
-            }
+            cat("--------------------------------------------------\n")
+            cat("Results", "\n")
+            cat("--------------------------------------------------\n")
             cat("\n")
             ## Some output must be returned, evne if noisy = FALSE
             cat("Bounds on the target parameter: [",
@@ -1975,24 +1934,15 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             output$call.options <- opList
             output <- output[sort(names(output))]
             class(output) <- "ivmte"
-            return(invisible(output))
         }
     }
     ## Point estimate without resampling
     if (point == TRUE & bootstraps == 0) {
         origEstimate <- eval(estimateCall)
-        if (!noisy) {
-            ## Some output must be returned, even if noisy = FALSE
-            cat("\n")
-            cat("Point estimate of the target parameter: ",
-                fmtResult(origEstimate$point.estimate), "\n\n",
-                sep = "")
-        }
         output <- origEstimate
         output$call.options = opList
         output <- output[sort(names(output))]
         class(output) <- "ivmte"
-        return(invisible(output))
     }
     ## Point estimate with resampling
     if (point == TRUE & bootstraps > 0) {
@@ -2072,16 +2022,15 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     next
                 }
             }
-            if (noisy == TRUE) {
-                cat("Bootstrap iteration ", b, "...\n", sep = "")
-            }
+            cat("Bootstrap iteration ", b, "...\n", sep = "")
             bootCall <-
                 modcall(estimateCall,
                         dropargs = c("data", "noisy", "seed"),
                         newargs = list(data = quote(bdata),
                                        noisy = FALSE,
                                        seed = bseeds[b],
-                                       point.center = origEstimate$moments,
+                                       point.center =
+                                           origEstimate$moments$criterion,
                                        point.redundant =
                                            origEstimate$redundant))
             bootEstimate <- try(eval(bootCall), silent = TRUE)
@@ -2099,15 +2048,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     jstats <- c(jstats, bootEstimate$j.test[1])
                 }
                 b <- b + 1
-                if (noisy == TRUE) {
-                    cat("    Point estimate:",
-                        fmtResult(bootEstimate$point.estimate),
-                        "\n\n", sep = "")
-                }
+                cat("    Point estimate:",
+                    fmtResult(bootEstimate$point.estimate),
+                    "\n\n", sep = "")
             } else {
-                if (noisy == TRUE) {
-                    message("    Error, resampling...\n", sep = "")
-                }
+                message("    Error, resampling...\n", sep = "")
                 bseeds[b] <- round(runif(1) * 1000000)
                 bootFailN <- bootFailN + 1
                 bootFailIndex <- unique(c(bootFailIndex, b))
@@ -2244,11 +2189,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             output1$j.test <- NULL
         }
         output <- c(output1, output2, output3)
-        if (noisy) {
-            cat("--------------------------------------------------\n")
-            cat("Results", "\n")
-            cat("--------------------------------------------------\n")
-        }
+        cat("--------------------------------------------------\n")
+        cat("Results", "\n")
+        cat("--------------------------------------------------\n")
         cat("\nPoint estimate of the target parameter: ",
             fmtResult(origEstimate$point.estimate), "\n",
             sep = "")
@@ -2308,8 +2251,17 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         output$call.options <- opList
         output <- output[sort(names(output))]
         class(output) <- "ivmte"
-        return(invisible(output))
     }
+    ## Testing ---------------------------------------------
+    sink()
+    sink(type = "message")
+    close(tmpOutput)
+    output$messages <- readLines(".ivmte.R.tmp.log")
+    rm(tmpOutput)
+    unlink(".ivmte.R.tmp.log")
+    ## End testing -----------------------------------------
+    if (!noisy) return(output)
+    if (noisy) return(invisible(output))
 }
 
 #' Construct confidence intervals for treatment effects under partial
@@ -2853,7 +2805,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                      g1 = colMeans(gstar1)),
                         propensity = pmodel,
                         point.estimate = gmmResult$point.estimate,
-                        moments = gmmResult$moments,
+                        moments = list(count = length(gmmResult$moments),
+                                       criterion = gmmResult$moments),
                         redundant = gmmResult$redundant,
                         j.test = gmmResult$j.test,
                         mtr.coef = gmmResult$coef))
@@ -2870,7 +2823,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                            gstar = list(g0 = colMeans(gstar0),
                                         g1 = colMeans(gstar1)),
                            point.estimate = gmmResult$point.estimate,
-                           moments = gmmResult$moments,
+                           moments = list(count = length(gmmResult$moments),
+                                          criterion = gmmResult$moments),
                            redundant = gmmResult$redundant,
                            j.test = gmmResult$j.test,
                            mtr.coef = gmmResult$coef)
@@ -3061,7 +3015,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        bounds = c(audit$min, audit$max),
                        lp.result =  audit$lpresult,
                        lp.solver = lpsolver,
-                       indep.moments = nIndepMoments,
+                       moments = nIndepMoments,
                        audit.grid = list(audit.x =
                                              audit$gridobj$audit.grid$support,
                                          audit.u =
@@ -3086,7 +3040,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          maxg1 = audit$maxg1),
                        bounds = c(audit$min, audit$max),
                        lp.solver = lpsolver,
-                       indep.moments = nIndepMoments,
+                       moments = nIndepMoments,
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
@@ -3902,8 +3856,23 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
                               sparse = TRUE)
     xmat <- matrix(altmean %*% altmm / nrow(mm), ncol = (gn0 + gn1))
     if (qr(xmat)$rank < (gn0 + gn1)) {
-        if (hasArg(nMoments) && hasArg(splines)) {
-            if (nMoments > qr(xmat)$rank && splines) {
+        if (hasArg(nMoments)) {
+            if (splines) {
+                if (nMoments > qr(xmat)$rank && splines) {
+                    stop(gsub("\\s+", " ",
+                              paste0("GMM system is underidentified: there are ",
+                              (gn0 + gn1),
+                              " unknowns, but the Gamma matrix has rank ",
+                              qr(xmat)$rank,
+                              ". The previous count of ",
+                              nMoments,
+                              " independent moments becomes
+                          unreliable when m0 or m1 includes splines.
+                          Either adjust the IV-like specifications,
+                          or adjust m0 and m1.")),
+                         call. = FALSE)
+                }
+            } else {
                 stop(gsub("\\s+", " ",
                           paste0("GMM system is underidentified: there are ",
                           (gn0 + gn1),
@@ -3911,10 +3880,10 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
                           qr(xmat)$rank,
                           ". The previous count of ",
                           nMoments,
-                          " independent moments becomes
-                          unreliable when m0 or m1 includes splines.
-                          Either adjust the IV-like specifications,
-                          or adjust m0 and m1.")),
+                          " independent moments does not account for how the
+                          weights generated by each moment interact with
+                          the terms in the MTR. Either adjust the IV-like
+                          specifications, or adjust m0 and m1.")),
                      call. = FALSE)
             }
         }
@@ -3994,7 +3963,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
         } else {
             colDrop <- redundant
         }
-    }
+    }    
     ## Perform first stage GMM
     if (is.null(center)) {
         theta <- solve(t(xmat) %*% xmat) %*% t(xmat) %*% ymat
@@ -4159,6 +4128,7 @@ print.ivmte <- function(x, ...) {
             cat(sprintf("Audit terminated successfully after %s",
                         x$audit.count), rs, "\n")
         }
+        cat(sprintf("Independent moments: %s \n", x$moments))
         cat(sprintf("Minimum criterion: %s \n", x$audit.criterion))
         ## Return LP solver used
         cat(sprintf("LP solver: %s\n", x$lp.solver))
@@ -4180,6 +4150,7 @@ print.ivmte <- function(x, ...) {
         ## Return point estimate
         cat(sprintf("Point estimate of the target parameter: %s\n",
                     fmtResult(x$point.estimate)))
+        cat(sprintf("Independent moments: %s \n", x$moments$count))
     }
     cat("\n")
 }
@@ -4210,6 +4181,7 @@ summary.ivmte <- function(object, ...) {
             cat(sprintf("Audit terminated successfully after %s",
                         object$audit.count), rs, "\n")
         }
+        cat(sprintf("Independent moments: %s \n", object$moments))
         cat(sprintf("Minimum criterion: %s \n", object$audit.criterion))
         ## Return LP solver used
         cat(sprintf("LP solver: %s\n", object$lp.solver))
@@ -4273,6 +4245,7 @@ summary.ivmte <- function(object, ...) {
         ## Return bounds, audit cout, and minumum criterion
         cat(sprintf("Point estimate of the target parameter: %s\n",
                     fmtResult(object$point.estimate)))
+        cat(sprintf("Independent moments: %s\n", object$moments$count))
         if (!is.null(object$bootstraps)) {
             ## Return confidence intervals and p-values
             levels <- as.numeric(rownames(object$point.estimate.ci[[1]]))
