@@ -4134,39 +4134,12 @@ print.ivmte <- function(x, ...) {
             cat(sprintf("Audit terminated successfully after %s",
                         x$audit.count), rs, "\n")
         }
-        cat(sprintf("MTR coefficients: %s \n",
-                    length(c(x$gstar$g0, x$gstar$g1))))
-        ## cat(sprintf("Total moments: %s \n", length(x$s.set)))
-        ## cat(sprintf("Independent moments: %s \n", x$moments))
-        cat(sprintf("Independent/total moments: %s/%s \n",
-                    x$moments, length(x$s.set)))
-        cat(sprintf("Minimum criterion: %s \n", fmtResult(x$audit.criterion)))
-        ## Return LP solver used
-        cat(sprintf("LP solver: %s\n", x$lp.solver))
-        if (x$lp.solver == "lp_solve ('lpSolveAPI')") {
-            warning(
-                gsub("\\s+", " ",
-                     "The R package 'lpSolveAPI' interfaces with 'lp_solve',
-                      which is outdated and potentially unreliable.  It is
-                      recommended to use commercial solvers
-                      Gurobi (lpsolver = 'gurobi')
-                      or CPLEX (lpsolver = 'cplexAPI') instead.
-                      Free academic licenses can be obtained for these
-                      commercial solvers."),
-                "\n", call. = FALSE)
-        }
     }
     if (!is.null(x$point.estimate)) {
         cat("\n")
         ## Return point estimate
         cat(sprintf("Point estimate of the target parameter: %s\n",
                     fmtResult(x$point.estimate)))
-        cat(sprintf("MTR coefficients: %s \n",
-                    length(c(x$gstar$g0, x$gstar$g1))))
-        ## cat(sprintf("Total moments: %s \n", length(x$s.set)))
-        ## cat(sprintf("Independent moments: %s \n", x$moments$count))
-        cat(sprintf("Independent/total moments: %s/%s \n",
-                    x$moments$count, length(x$s.set)))
     }
     cat("\n")
 }
@@ -4199,8 +4172,6 @@ summary.ivmte <- function(object, ...) {
         }
         cat(sprintf("MTR coefficients: %s \n",
                     length(c(object$gstar$g0, object$gstar$g1))))
-        ## cat(sprintf("Total moments: %s \n", length(object$s.set)))
-        ## cat(sprintf("Independent moments: %s \n", object$moments))
         cat(sprintf("Independent/total moments: %s/%s \n",
                     object$moments, length(object$s.set)))
         cat(sprintf("Minimum criterion: %s \n",
@@ -4269,8 +4240,6 @@ summary.ivmte <- function(object, ...) {
                     fmtResult(object$point.estimate)))
         cat(sprintf("MTR coefficients: %s \n",
                     length(c(object$gstar$g0, object$gstar$g1))))
-        ## cat(sprintf("Total moments: %s \n", length(object$s.set)))
-        ## cat(sprintf("Independent moments: %s\n", object$moments$count))
         cat(sprintf("Independent/total moments: %s/%s \n",
                     object$moments$count, length(object$s.set)))
         if (!is.null(object$bootstraps)) {
