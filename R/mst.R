@@ -331,6 +331,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   specification.test = TRUE,
                   noisy = TRUE,
                   smallreturnlist = FALSE, seed = 12345, debug = FALSE) {
+
+    ## TESTING ----------------------------------------------
+    print("This switch should depend on whether or not noisy is on.")
+    tmpOutput <- file(".tmpLog.log")
+    sink(tmpOutput)    
+    ## END TESTING ------------------------------------------
+    
     call <- match.call(expand.dots = FALSE)
     envList <- list(m0 = environment(m0),
                     m1 = environment(m1),
@@ -1717,6 +1724,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             output$call.options <- opList
             output <- output[sort(names(output))]
             class(output) <- "ivmte"
+            ## Testing ---------------------------------------------
+            sink()
+            sink(type = "message")
+            close(tmpOutput)
+            output$messages <- readLines(".tmpLog.log")
+            rm(tmpOutput)
+            unlink(".tmpLog.log")
+            ## End testing -----------------------------------------
             return(invisible(output))
         } else {
             ## Obtain audit grid from original estimate
