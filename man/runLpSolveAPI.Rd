@@ -14,13 +14,12 @@ programming problem.}
 problem as a maximization or minimization problem.}
 
 \item{lpsolver.options}{list, each item of the list should
-correspond to an option specific to the LP solver
-selected.}
+correspond to an option specific to the LP solver selected.}
 }
 \value{
 a list of the output from \code{lpSolveAPI}. This includes
-    the optimization status, the objective value, the solution
-    vector.
+    the objective value, the solution vector, and the optimization
+    status (status of \code{1} indicates successful optimization).
 }
 \description{
 This function solves the LP problem using the \code{lpSolveAPI}

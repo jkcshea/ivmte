@@ -7,7 +7,7 @@
 #' will be saved inside an environment variable, which is supposed to
 #' be passed through the argument \code{env}. The environment
 #' \code{env} is supposed to already contain a list under the entry
-#' \code{$mbobj$ containing the matrices defining the shape
+#' \code{$mbobj} containing the matrices defining the shape
 #' constraints. This list of shape constraints \code{$mbobj} should
 #' contain three entries: \code{mbA} (the matrix defining the
 #' constraints); \code{mbs} (a vector containing the appropriate value
@@ -39,8 +39,8 @@
 #' sSet <- list()
 #'
 #' ## Declare MTR formulas
-#' formula1 = ~ 1 + u
 #' formula0 = ~ 1 + u
+#' formula1 = ~ 1 + u
 #'
 #' ## Construct object that separates out non-spline components of MTR
 #' ## formulas from the spline components. The MTR functions are
@@ -49,27 +49,39 @@
 #'
 #' ## Construct MTR polynomials
 #' polynomials0 <- polyparse(formula = formula0,
-#'                  data = dtm,
-#'                  uname = u,
-#'                  as.function = FALSE)
-#' polynomials1 <- polyparse(formula = formula0,
-#'                  data = dtm,
-#'                  uname = u,
-#'                  as.function = FALSE)
+#'                           data = dtm,
+#'                           uname = u,
+#'                           as.function = FALSE)
+#' polynomials1 <- polyparse(formula = formula1,
+#'                           data = dtm,
+#'                           uname = u,
+#'                            as.function = FALSE)
 #'
 #' ## Generate propensity score model
 #' propensityObj <- propensity(formula = d ~ z,
 #'                             data = dtm,
 #'                             link = "linear")
 #'
-#' ## Generate target gamma moments
+#' ## Generate IV estimates
 #' ivEstimates <- ivEstimate(formula = ey ~ d | z,
 #'                           data = dtm,
 #'                           components = l(intercept, d),
 #'                           treat = d,
 #'                           list = FALSE)
 #'
-#' ## Construct S-set, which contains the coefficients and weights
+#' ## Generate target gamma moments
+#' targetGamma <- genTarget(treat = "d",
+#'                          m0 = ~ 1 + u,
+#'                          m1 = ~ 1 + u,
+#'                          target = "atu",
+#'                          data = dtm,
+#'                          splinesobj = splinesList,
+#'                          pmodobj = propensityObj,
+#'                          pm0 = polynomials0,
+#'                          pm1 = polynomials1,
+#'                          point = FALSE)
+#'
+#' ## Construct S-set. which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands
 #' sSet <- genSSet(data = dtm,
 #'                 sset = sSet,
@@ -83,9 +95,48 @@
 #'                 yvar = "ey",
 #'                 dvar = "d",
 #'                 means = TRUE)
+#' ## Only the entry $sset is required
+#' sSet <- sSet$sset
 #'
-#' ## Construct the LP problem to be solved using lpSolveAPI
-#' lpSetup(sset = sSet$sset, lpsolver = "lpSolveAPI")
+#' ## Define additional upper- and lower-bound constraints for the LP
+#' ## problem.  The code below imposes a lower bound of 0.2 and upper
+#' ## bound of 0.8 on the MTRs.
+#' A <- matrix(0, nrow = 22, ncol = 4)
+#' A <- cbind(A, rbind(cbind(1, seq(0, 1, 0.1)),
+#'                     matrix(0, nrow = 11, ncol = 2)))
+#' A <- cbind(A, rbind(matrix(0, nrow = 11, ncol = 2),
+#'                     cbind(1, seq(0, 1, 0.1))))
+#' sense <- c(rep(">", 11), rep("<", 11))
+#' rhs <- c(rep(0.2, 11), rep(0.8, 11))
+#'
+#' ## Construct LP object to be interpreted and solved by
+#' ## lpSolveAPI. Note that an environment has to be created for the LP
+#' ## object. The matrices defining the shape restrictions must be stored
+#' ## as a list under the entry \code{$mbobj} in the environment.
+#' lpEnv <- new.env()
+#' lpEnv$mbobj <- list(mbA = A,
+#'                     mbs = sense,
+#'                     mbrhs = rhs)
+#' ## Convert the matrices defining the shape constraints into a format
+#' ## that is suitable for the LP solver.
+#' lpSetup(env = lpEnv,
+#'         sset = sSet,
+#'         lpsolver = "lpsolveapi")
+#' ## Setup LP model so that it is solving for the bounds.
+#' lpSetupBound(env = lpEnv,
+#'              g0 = targetGamma$gstar0,
+#'              g1 = targetGamma$gstar1,
+#'              sset = sSet,
+#'              criterion.factor = 0,
+#'              lpsolver = "lpsolveapi")
+#' ## Declare any LP solver options as a list.
+#' lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
+#' ## Obtain the bounds.
+#' bounds <- bound(env = lpEnv,
+#'                 sset = sSet,
+#'                 lpsolver = "lpsolveapi",
+#'                 lpsolver.options = lpOptions)
+#' cat("The bounds are [",  bounds$min, ",", bounds$max, "].\n")
 #'
 #' @export
 lpSetup <- function(env, sset, orig.sset = NULL,
@@ -337,6 +388,7 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #'     function if \code{setup = TRUE}.
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
+#' @export
 lpSetupBound <- function(env, g0, g1, sset, criterion.factor, lpsolver,
                          setup = TRUE) {
     if (setup) {
@@ -389,8 +441,8 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.factor, lpsolver,
 #' sSet <- list()
 #'
 #' ## Declare MTR formulas
-#' formula1 = ~ 1 + u
 #' formula0 = ~ 1 + u
+#' formula1 = ~ 1 + u
 #'
 #' ## Construct object that separates out non-spline components of MTR
 #' ## formulas from the spline components. The MTR functions are
@@ -399,13 +451,13 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.factor, lpsolver,
 #'
 #' ## Construct MTR polynomials
 #' polynomials0 <- polyparse(formula = formula0,
-#'                  data = dtm,
-#'                  uname = u,
-#'                  as.function = FALSE)
-#' polynomials1 <- polyparse(formula = formula0,
-#'                  data = dtm,
-#'                  uname = u,
-#'                  as.function = FALSE)
+#'                           data = dtm,
+#'                           uname = u,
+#'                           as.function = FALSE)
+#' polynomials1 <- polyparse(formula = formula1,
+#'                           data = dtm,
+#'                           uname = u,
+#'                            as.function = FALSE)
 #'
 #' ## Generate propensity score model
 #' propensityObj <- propensity(formula = d ~ z,
@@ -445,32 +497,48 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.factor, lpsolver,
 #'                 yvar = "ey",
 #'                 dvar = "d",
 #'                 means = TRUE)
+#' ## Only the entry $sset is required
+#' sSet <- sSet$sset
 #'
 #' ## Define additional upper- and lower-bound constraints for the LP
-#' ## problem
+#' ## problem.  The code below imposes a lower bound of 0.2 and upper
+#' ## bound of 0.8 on the MTRs.
 #' A <- matrix(0, nrow = 22, ncol = 4)
 #' A <- cbind(A, rbind(cbind(1, seq(0, 1, 0.1)),
 #'                     matrix(0, nrow = 11, ncol = 2)))
 #' A <- cbind(A, rbind(matrix(0, nrow = 11, ncol = 2),
 #'                     cbind(1, seq(0, 1, 0.1))))
-#'
 #' sense <- c(rep(">", 11), rep("<", 11))
 #' rhs <- c(rep(0.2, 11), rep(0.8, 11))
 #'
-#' ## Construct LP object to be interpreted and solved by lpSolveAPI
-#' lpObject <- lpSetup(sset = sSet$sset,
-#'                     mbA = A,
+#' ## Construct LP object to be interpreted and solved by
+#' ## lpSolveAPI. Note that an environment has to be created for the LP
+#' ## object. The matrices defining the shape restrictions must be stored
+#' ## as a list under the entry \code{$mbobj} in the environment.
+#' lpEnv <- new.env()
+#' lpEnv$mbobj <- list(mbA = A,
 #'                     mbs = sense,
-#'                     mbrhs = rhs,
-#'                     lpsolver = "lpSolveAPI")
-#'
-#' ## Estimate the bounds
-#' obsEqMin(sset = sSet$sset,
-#'          lpobj = lpObject,
-#'          lpsolver = "lpSolveAPI")
+#'                     mbrhs = rhs)
+#' ## Convert the matrices defining the shape constraints into a format
+#' ## that is suitable for the LP solver.
+#' lpSetup(env = lpEnv,
+#'         sset = sSet,
+#'         lpsolver = "lpsolveapi")
+#' ## Setup LP model so that it will minimize the criterion
+#' lpSetupCriterion(env = lpEnv,
+#'                 sset = sSet)
+#' ## Declare any LP solver options as a list.
+#' lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
+#' ## Minimize the criterion.
+#' obseqMin <- criterionMin(env = lpEnv,
+#'                          sset = sSet,
+#'                          lpsolver = "lpsolveapi",
+#'                          lpsolver.options = lpOptions)
+#' obseqMin
+#' cat("The minimum criterion is",  obseqMin$obj, "\n")
 #'
 #' @export
-obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
+criterionMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
     lpsolver <- tolower(lpsolver)
     if (lpsolver == "gurobi") {
         if (debug & lpsolver.options$outputflag == 1) {
@@ -489,18 +557,20 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
         optx     <- result$optx
         status   <- result$status
         if (debug) cat("\n")
-    }
-    if (lpsolver == "cplexapi") {
+    } else if (lpsolver == "cplexapi") {
         result   <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, lpsolver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
-    }
-    if (lpsolver == "lpsolveapi") {
+    } else if (lpsolver == "lpsolveapi") {
         result   <- runLpSolveAPI(env$lpobj, 'min', lpsolver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
+    } else {
+        stop(gsub('\\s+', ' ',
+                  "Invalid LP solver. Option 'lpsolver' must be either 'gurobi',
+                  'cplexapi', or 'lpsolveapi'."))
     }
     ## provide nicer output
     g0sol <- optx[(2 * env$lpobj$sn + 1) : (2 * env$lpobj$sn + env$lpobj$gn0)]
@@ -565,13 +635,13 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'
 #' ## Construct MTR polynomials
 #' polynomials0 <- polyparse(formula = formula0,
-#'                  data = dtm,
-#'                  uname = u,
-#'                  as.function = FALSE)
+#'                           data = dtm,
+#'                           uname = u,
+#'                           as.function = FALSE)
 #' polynomials1 <- polyparse(formula = formula1,
-#'                  data = dtm,
-#'                  uname = u,
-#'                  as.function = FALSE)
+#'                           data = dtm,
+#'                           uname = u,
+#'                            as.function = FALSE)
 #'
 #' ## Generate propensity score model
 #' propensityObj <- propensity(formula = d ~ z,
@@ -613,7 +683,7 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'                 means = TRUE)
 #' ## Only the entry $sset is required
 #' sSet <- sSet$sset
-#' 
+#'
 #' ## Define additional upper- and lower-bound constraints for the LP
 #' ## problem
 #' A <- matrix(0, nrow = 22, ncol = 4)
@@ -687,8 +757,7 @@ bound <- function(env, sset, lpsolver,
         maxstatus <- maxresult$status
         maxoptx <- maxresult$optx
         if (debug) cat("\n")
-    }
-    if (lpsolver == "cplexapi") {
+    } else if (lpsolver == "cplexapi") {
         minresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, lpsolver.options)
         min       <- minresult$objval
         minoptx   <- minresult$optx
@@ -697,8 +766,7 @@ bound <- function(env, sset, lpsolver,
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
-    }
-    if (lpsolver == "lpsolveapi") {
+    } else if (lpsolver == "lpsolveapi") {
         minresult <- runLpSolveAPI(env$lpobj, 'min', lpsolver.options)
         min       <- minresult$objval
         minoptx   <- minresult$optx
@@ -707,6 +775,10 @@ bound <- function(env, sset, lpsolver,
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
+    } else {
+        stop(gsub('\\s+', ' ',
+                  "Invalid LP solver. Option 'lpsolver' must be either 'gurobi',
+                  'cplexapi', or 'lpsolveapi'."))
     }
     env$lpobj$modelsense <- NULL
     if (maxstatus == 0 || minstatus == 0) {
@@ -756,8 +828,8 @@ bound <- function(env, sset, lpsolver,
 #' @param lpsolver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver selected.
 #' @return a list of the output from Gurobi. This includes the
-#'     optimization status, the objective value, the solution vector,
-#'     amongst other things.
+#'     objective value, the solution vector, and the optimization status
+#'     (status of \code{1} indicates successful optimization) .
 runGurobi <- function(lpobj, lpsolver.options) {
     result <- gurobi::gurobi(lpobj, lpsolver.options)
     status <- 0
@@ -772,19 +844,18 @@ runGurobi <- function(lpobj, lpsolver.options) {
 #' Running cplexAPI LP solver
 #'
 #' This function solves the LP problem using the cplexAPI package. The
-#' object generated by \code{\link{lpSetup}} is not compatible
-#' with the \code{cplexAPI} functions. This function adapts the object
-#' to solve the LP problem.
+#' object generated by \code{\link{lpSetup}} is not compatible with
+#' the \code{cplexAPI} functions. This function adapts the object to
+#' solve the LP problem.
 #' @param lpobj list of matrices and vectors defining the linear
 #'     programming problem.
 #' @param lpdir input either CPX_MAX or CPX_MIN, which sets the LP
 #'     problem as a maximization or minimization problem.
 #' @param lpsolver.options list, each item of the list should
-#'     correspond to an option specific to the LP solver
-#'     selected.
+#'     correspond to an option specific to the LP solver selected.
 #' @return a list of the output from CPLEX. This includes the
-#'     optimization status, the objective value, the solution vector,
-#'     amongst other things.
+#'     objective value, the solution vector, and the optimization
+#'     status (status of \code{1} indicates successful optimization).
 runCplexAPI <- function(lpobj, lpdir, lpsolver.options) {
     ## Declare environment and set options
     env  <- cplexAPI::openEnvCPLEX()
@@ -848,11 +919,10 @@ runCplexAPI <- function(lpobj, lpdir, lpsolver.options) {
 #' @param modelsense input either 'max' or 'min' which sets the LP
 #'     problem as a maximization or minimization problem.
 #' @param lpsolver.options list, each item of the list should
-#'     correspond to an option specific to the LP solver
-#'     selected.
+#'     correspond to an option specific to the LP solver selected.
 #' @return a list of the output from \code{lpSolveAPI}. This includes
-#'     the optimization status, the objective value, the solution
-#'     vector.
+#'     the objective value, the solution vector, and the optimization
+#'     status (status of \code{1} indicates successful optimization).
 runLpSolveAPI <- function(lpobj, modelsense, lpsolver.options) {
     lpmodel <- lpSolveAPI::make.lp(nrow(lpobj$A), ncol(lpobj$A))
     for (j in 1:ncol(lpobj$A)) {

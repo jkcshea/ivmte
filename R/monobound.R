@@ -82,6 +82,16 @@ gengrid <- function(index, xsupport, usupport, uname) {
 #'     \code{D = 1} corresponding to the upper bound of the target
 #'     parameter. If passed, this will initiate checks of shape
 #'     constraints.
+#' @param audit.tol feasibility tolerance when performing the
+#'     audit. By default to set to be equal to the Gurobi
+#'     (\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+#'     "cplexapi"}) feasibility toleraence, which is set to
+#'     \code{1e-06} by default.  If the LP solver is lp_solve
+#'     (\code{lpsolver = "lpsolveapi"}), this parameter is set to
+#'     \code{1e-06} by default. This parameter should only be changed
+#'     if the feasibility tolerance of the LP solver is changed, or if
+#'     numerical issues result in discrepancies between the LP
+#'     solver's feasibility check and the audit.
 #' @return a constraint matrix for the LP problem, the associated
 #'     vector of inequalities, and the RHS vector in the inequality
 #'     constraint. The objects pertain only to the boundedness
@@ -458,6 +468,16 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
 #'     \code{D = 1} corresponding to the upper bound of the target
 #'     parameter. If passed, this will initiate checks of shape
 #'     constraints.
+#' @param audit.tol feasibility tolerance when performing the
+#'     audit. By default to set to be equal to the Gurobi
+#'     (\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+#'     "cplexapi"}) feasibility toleraence, which is set to
+#'     \code{1e-06} by default.  If the LP solver is lp_solve
+#'     (\code{lpsolver = "lpsolveapi"}), this parameter is set to
+#'     \code{1e-06} by default. This parameter should only be changed
+#'     if the feasibility tolerance of the LP solver is changed, or if
+#'     numerical issues result in discrepancies between the LP
+#'     solver's feasibility check and the audit.
 #' @return constraint matrix for the LP problem. The matrix pertains
 #'     only to the monotonicity conditions on the MTR and MTE declared
 #'     by the user.
@@ -978,6 +998,16 @@ combinemonobound <- function(bdA, monoA) {
 #'     \code{D = 1} corresponding to the upper bound of the target
 #'     parameter. If passed, this will initiate checks of shape
 #'     constraints.
+#' @param audit.tol feasibility tolerance when performing the
+#'     audit. By default to set to be equal to the Gurobi
+#'     (\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+#'     "cplexapi"}) feasibility toleraence, which is set to
+#'     \code{1e-06} by default.  If the LP solver is lp_solve
+#'     (\code{lpsolver = "lpsolveapi"}), this parameter is set to
+#'     \code{1e-06} by default. This parameter should only be changed
+#'     if the feasibility tolerance of the LP solver is changed, or if
+#'     numerical issues result in discrepancies between the LP
+#'     solver's feasibility check and the audit.
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
 #'     boundedness and monotonicity constraints of an LP problem.

@@ -15,8 +15,8 @@ correspond to an option specific to the LP solver selected.}
 }
 \value{
 a list of the output from Gurobi. This includes the
-    optimization status, the objective value, the solution vector,
-    amongst other things.
+    objective value, the solution vector, and the optimization status
+    (status of \code{1} indicates successful optimization) .
 }
 \description{
 This function solves the LP problem using the Gurobi package. The

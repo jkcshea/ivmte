@@ -148,7 +148,7 @@
 #'       m1.ub = 0.8,
 #'       audit.max = 5,
 #'       lpsolver = "lpSolveAPI")
-#' 
+#'
 #' @export
 audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1, vars_data,
@@ -406,8 +406,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         }
         lpSetupSolver(env = lpEnv, lpsolver = lpsolver)
         lpSetupCriterion(env = lpEnv, sset = sset)
-        minobseq <- obsEqMin(lpEnv, sset, lpsolver,
-                             lpsolver.options.criterion, debug)
+        minobseq <- criterionMin(lpEnv, sset, lpsolver,
+                                 lpsolver.options.criterion, debug)
         ## Try to diagnose cases where the solution is
         ## infeasible. Here, the problem is solved without any shape
         ## restrictions. We then check if any of the lower and upper
@@ -417,11 +417,11 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
             rm(minobseq)
             lpSetupInfeasible(lpEnv, sset)
-            minobseqAlt <- obsEqMin(env = lpEnv,
-                                    sset = sset,
-                                    lpsolver = lpsolver,
-                                    lpsolver.options =
-                                        lpsolver.options.criterion)
+            minobseqAlt <- criterionMin(env = lpEnv,
+                                        sset = sset,
+                                        lpsolver = lpsolver,
+                                        lpsolver.options =
+                                            lpsolver.options.criterion)
             solVec <- minobseqAlt$x
             ## Test for violation
             negatepos <- which(lpEnv$mbobj$mbs == ">=")
@@ -510,8 +510,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         if (!is.null(orig.sset) & !is.null(orig.criterion)) {
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol, setup = TRUE)
-            minobseqTest <- obsEqMin(lpEnv, sset, lpsolver,
-                                     lpsolver.options.criterion)
+            minobseqTest <- criterionMin(lpEnv, sset, lpsolver,
+                                         lpsolver.options.criterion)
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol, setup = FALSE)
         }

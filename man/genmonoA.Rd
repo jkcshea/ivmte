@@ -71,6 +71,17 @@ constraints.}
 \code{D = 1} corresponding to the upper bound of the target
 parameter. If passed, this will initiate checks of shape
 constraints.}
+
+\item{audit.tol}{feasibility tolerance when performing the
+audit. By default to set to be equal to the Gurobi
+(\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+"cplexapi"}) feasibility toleraence, which is set to
+\code{1e-06} by default.  If the LP solver is lp_solve
+(\code{lpsolver = "lpsolveapi"}), this parameter is set to
+\code{1e-06} by default. This parameter should only be changed
+if the feasibility tolerance of the LP solver is changed, or if
+numerical issues result in discrepancies between the LP
+solver's feasibility check and the audit.}
 }
 \value{
 constraint matrix for the LP problem. The matrix pertains

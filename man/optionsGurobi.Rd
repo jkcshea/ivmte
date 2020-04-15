@@ -12,6 +12,11 @@ if one were using the \code{gurobi} library directly. That is,
 the name of each item must be the name of the option, and is
 case sensitive. The value assigned to each item is the value to
 set the option to.}
+
+\item{debug}{boolean, indicates whether or not the function should
+provide output when obtaining bounds. The option is only
+applied when \code{lpsolver = 'gurobi'}. The output provided is
+the same as what the Gurobi API would send to the console.}
 }
 \value{
 list, the set of options declared by the user, including

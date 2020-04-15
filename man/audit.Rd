@@ -39,6 +39,10 @@ using the expression "uSplines(degree, knots, intercept)". The
 \code{intercept} argument may be omitted, and is set to
 \code{TRUE} by default.}
 
+\item{pm0}{A list of the monomials in the MTR for d = 0.}
+
+\item{pm1}{A list of the monomials in the MTR for d = 1.}
+
 \item{splinesobj}{list of spline components in the MTRs for treated
 and control groups. Spline terms are extracted using
 \code{\link{removeSplines}}. This object is supposed to be a
@@ -229,12 +233,6 @@ the audit procedure.}
 provide output when obtaining bounds. The option is only
 applied when \code{lpsolver = 'gurobi'}. The output provided is
 the same as what the Gurobi API would send to the console.}
-
-\item{save.grid}{boolean, set to \code{FALSE} by default. Set to
-true if the fine grid from the audit should be saved. This
-option is used for inference procedure under partial
-identification, which uses the fine grid from the original
-sample in all bootstrap resamples.}
 }
 \value{
 a list. Included in the list is the minimum violation of
@@ -268,8 +266,8 @@ dtm <- ivmte:::gendistMosquito()
 sSet <- list()
 
 ## Declare MTR formulas
-formula1 = ~ 1 + u
 formula0 = ~ 1 + u
+formula1 = ~ 1 + u
 
 ## Construct object that separates out non-spline components of MTR
 ## formulas from the spline components. The MTR functions are
@@ -290,7 +288,7 @@ polynomials0 <- polyparse(formula = formula0,
                  uname = u,
                  as.function = FALSE)
 
-polynomials1 <- polyparse(formula = formula0,
+polynomials1 <- polyparse(formula = formula1,
                  data = dtm,
                  uname = u,
                  as.function = FALSE)
@@ -339,6 +337,8 @@ audit(data = dtm,
       uname = u,
       m0 = formula0,
       m1 = formula1,
+      pm0 = polynomials0,
+      pm1 = polynomials1,
       splinesobj = splinesList,
       vars_data = colnames(dtm),
       vars_mtr = "u",

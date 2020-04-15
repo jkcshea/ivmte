@@ -7,26 +7,21 @@
 lpSetup(env, sset, orig.sset = NULL, lpsolver, shape = TRUE)
 }
 \arguments{
+\item{env}{environment containing the matrices defining the LP
+problem.}
+
 \item{sset}{List of IV-like estimates and the corresponding gamma
 terms.}
 
-\item{orig.sset}{list, only used for bootstraps. The list
-caontains the gamma moments for each element in the S-set, as
-well as the IV-like coefficients.}
+\item{orig.sset}{list, only used for bootstraps. The list caontains
+the gamma moments for each element in the S-set, as well as the
+IV-like coefficients.}
 
 \item{lpsolver}{string, name of the package used to solve the LP
 problem.}
 
 \item{shape}{boolean, default set to TRUE. Switch to determine
 whether or not to include shape restrictions in the LP problem.}
-
-\item{mbA}{Matrix used to define the constraints in the LP problem.}
-
-\item{mbs}{Vector of model sense/inequalities signs used to define
-the constraints in the LP problem.}
-
-\item{mbrhs}{Vector of constants used to define the constraints in
-the LP problem.}
 }
 \value{
 A list of matrices and vectors necessary to define an LP
@@ -36,12 +31,20 @@ A list of matrices and vectors necessary to define an LP
 This function takes in the IV estimates from the set of IV
 regressions declared by the user, as well as their corresponding
 moments of the terms in the MTR. These are then used to construct
-the components that make up the LP problem. Additional constraint
-matrix is added using \code{mbA} (\code{mb} stands for
-"monotonicity/boundedness"); extra model sense is added using
-\code{mbs}; extra RHS values added using \code{mbrhs}). Depending
-on the linear programming solver used, this function will return
-different output specific to the solver.
+the components that make up the LP problem. Note that the LP model
+will be saved inside an environment variable, which is supposed to
+be passed through the argument \code{env}. The environment
+\code{env} is supposed to already contain a list under the entry
+\code{$mbobj} containing the matrices defining the shape
+constraints. This list of shape constraints \code{$mbobj} should
+contain three entries: \code{mbA} (the matrix defining the
+constraints); \code{mbs} (a vector containing the appropriate value
+given \code{lpsolver} to indicate whether a row in \code{mbA} is an
+equality or inequaliyt constraint); \code{mbrhs} (a vector of the
+right hand side values defining the constraint of the form \code{Ax
+= b}, i.e. the vector \code{b}). Depending on the linear
+programming solver used, this function will return different output
+specific to the solver.
 }
 \examples{
 dtm <- ivmte:::gendistMosquito()
@@ -51,8 +54,8 @@ dtm <- ivmte:::gendistMosquito()
 sSet <- list()
 
 ## Declare MTR formulas
-formula1 = ~ 1 + u
 formula0 = ~ 1 + u
+formula1 = ~ 1 + u
 
 ## Construct object that separates out non-spline components of MTR
 ## formulas from the spline components. The MTR functions are
@@ -61,27 +64,39 @@ splinesList = list(removeSplines(formula0), removeSplines(formula1))
 
 ## Construct MTR polynomials
 polynomials0 <- polyparse(formula = formula0,
-                 data = dtm,
-                 uname = u,
-                 as.function = FALSE)
-polynomials1 <- polyparse(formula = formula0,
-                 data = dtm,
-                 uname = u,
-                 as.function = FALSE)
+                          data = dtm,
+                          uname = u,
+                          as.function = FALSE)
+polynomials1 <- polyparse(formula = formula1,
+                          data = dtm,
+                          uname = u,
+                           as.function = FALSE)
 
 ## Generate propensity score model
 propensityObj <- propensity(formula = d ~ z,
                             data = dtm,
                             link = "linear")
 
-## Generate target gamma moments
+## Generate IV estimates
 ivEstimates <- ivEstimate(formula = ey ~ d | z,
                           data = dtm,
                           components = l(intercept, d),
                           treat = d,
                           list = FALSE)
 
-## Construct S-set, which contains the coefficients and weights
+## Generate target gamma moments
+targetGamma <- genTarget(treat = "d",
+                         m0 = ~ 1 + u,
+                         m1 = ~ 1 + u,
+                         target = "atu",
+                         data = dtm,
+                         splinesobj = splinesList,
+                         pmodobj = propensityObj,
+                         pm0 = polynomials0,
+                         pm1 = polynomials1,
+                         point = FALSE)
+
+## Construct S-set. which contains the coefficients and weights
 ## corresponding to various IV-like estimands
 sSet <- genSSet(data = dtm,
                 sset = sSet,
@@ -95,8 +110,47 @@ sSet <- genSSet(data = dtm,
                 yvar = "ey",
                 dvar = "d",
                 means = TRUE)
+## Only the entry $sset is required
+sSet <- sSet$sset
 
-## Construct the LP problem to be solved using lpSolveAPI
-lpSetup(sset = sSet$sset, lpsolver = "lpSolveAPI")
+## Define additional upper- and lower-bound constraints for the LP
+## problem.  The code below imposes a lower bound of 0.2 and upper
+## bound of 0.8 on the MTRs.
+A <- matrix(0, nrow = 22, ncol = 4)
+A <- cbind(A, rbind(cbind(1, seq(0, 1, 0.1)),
+                    matrix(0, nrow = 11, ncol = 2)))
+A <- cbind(A, rbind(matrix(0, nrow = 11, ncol = 2),
+                    cbind(1, seq(0, 1, 0.1))))
+sense <- c(rep(">", 11), rep("<", 11))
+rhs <- c(rep(0.2, 11), rep(0.8, 11))
+
+## Construct LP object to be interpreted and solved by
+## lpSolveAPI. Note that an environment has to be created for the LP
+## object. The matrices defining the shape restrictions must be stored
+## as a list under the entry \\code{$mbobj} in the environment.
+lpEnv <- new.env()
+lpEnv$mbobj <- list(mbA = A,
+                    mbs = sense,
+                    mbrhs = rhs)
+## Convert the matrices defining the shape constraints into a format
+## that is suitable for the LP solver.
+lpSetup(env = lpEnv,
+        sset = sSet,
+        lpsolver = "lpsolveapi")
+## Setup LP model so that it is solving for the bounds.
+lpSetupBound(env = lpEnv,
+             g0 = targetGamma$gstar0,
+             g1 = targetGamma$gstar1,
+             sset = sSet,
+             criterion.factor = 0,
+             lpsolver = "lpsolveapi")
+## Declare any LP solver options as a list.
+lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
+## Obtain the bounds.
+bounds <- bound(env = lpEnv,
+                sset = sSet,
+                lpsolver = "lpsolveapi",
+                lpsolver.options = lpOptions)
+cat("The bounds are [",  bounds$min, ",", bounds$max, "].\\n")
 
 }

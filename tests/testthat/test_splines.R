@@ -386,7 +386,6 @@ knots01 <- function(z, x) {
     0.3 + 0.3 * z + 0.1 * x
 }
 ## Custom weight estimate using smaller sample
-devtools::load_all("../ivmte")
 resultAlt <- ivmte(ivlike = ivlike,
                    data = dtsf,
                    components = components,
