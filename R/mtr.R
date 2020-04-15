@@ -810,7 +810,7 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
             missingVars <- inters[[j]][!inters[[j]] %in%
                                        colnames(nonSplinesDmat)]
             if (length(missingVars) > 0) {
-                nonSplinesDmat <- as.data.table(nonSplinesDmat)
+                nonSplinesDmat <- data.frame(nonSplinesDmat)
                 for (mv in missingVars) {
                     nonSplinesDmat[, mv] <- 0
                 }

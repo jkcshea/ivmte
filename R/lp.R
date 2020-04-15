@@ -3,22 +3,27 @@
 #' This function takes in the IV estimates from the set of IV
 #' regressions declared by the user, as well as their corresponding
 #' moments of the terms in the MTR. These are then used to construct
-#' the components that make up the LP problem. Additional constraint
-#' matrix is added using \code{mbA} (\code{mb} stands for
-#' "monotonicity/boundedness"); extra model sense is added using
-#' \code{mbs}; extra RHS values added using \code{mbrhs}). Depending
-#' on the linear programming solver used, this function will return
-#' different output specific to the solver.
+#' the components that make up the LP problem. Note that the LP model
+#' will be saved inside an environment variable, which is supposed to
+#' be passed through the argument \code{env}. The environment
+#' \code{env} is supposed to already contain a list under the entry
+#' \code{$mbobj$ containing the matrices defining the shape
+#' constraints. This list of shape constraints \code{$mbobj} should
+#' contain three entries: \code{mbA} (the matrix defining the
+#' constraints); \code{mbs} (a vector containing the appropriate value
+#' given \code{lpsolver} to indicate whether a row in \code{mbA} is an
+#' equality or inequaliyt constraint); \code{mbrhs} (a vector of the
+#' right hand side values defining the constraint of the form \code{Ax
+#' = b}, i.e. the vector \code{b}). Depending on the linear
+#' programming solver used, this function will return different output
+#' specific to the solver.
+#' @param env environment containing the matrices defining the LP
+#'     problem.
 #' @param sset List of IV-like estimates and the corresponding gamma
 #'     terms.
-#' @param orig.sset list, only used for bootstraps. The list
-#'     caontains the gamma moments for each element in the S-set, as
-#'     well as the IV-like coefficients.
-#' @param mbA Matrix used to define the constraints in the LP problem.
-#' @param mbs Vector of model sense/inequalities signs used to define
-#'     the constraints in the LP problem.
-#' @param mbrhs Vector of constants used to define the constraints in
-#'     the LP problem.
+#' @param orig.sset list, only used for bootstraps. The list caontains
+#'     the gamma moments for each element in the S-set, as well as the
+#'     IV-like coefficients.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
 #' @param shape boolean, default set to TRUE. Switch to determine
@@ -84,7 +89,7 @@
 #'
 #' @export
 lpSetup <- function(env, sset, orig.sset = NULL,
-                       lpsolver, shape = TRUE) {
+                    lpsolver, shape = TRUE) {
     ## Read in constraint grids and sequences
     lpsolver <- tolower(lpsolver)
     for (i in names(env$shapeSeq)) {
@@ -162,6 +167,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
 #'     terms.
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
+#' @export
 lpSetupInfeasible <- function(env, sset) {
     sn <- length(sset)
     ## Separate shape constraint objects
@@ -183,6 +189,7 @@ lpSetupInfeasible <- function(env, sset) {
 #'     terms.
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
+#' @export
 lpSetupCriterion <- function(env, sset) {
     ## determine lengths
     sn  <- length(sset)
@@ -202,6 +209,7 @@ lpSetupCriterion <- function(env, sset) {
 #' @param lpsolver Character, the LP solver.
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
+#' @export
 lpSetupSolver <- function(env, lpsolver) {
     if (lpsolver == "cplexapi") {
         env$lpobj$sense[env$lpobj$sense == "<"]  <- "L"
@@ -241,6 +249,7 @@ lpSetupSolver <- function(env, lpsolver) {
 #'     TRUE}.
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
+#' @export
 lpSetupCriterionBoot <- function(env, sset, orig.sset,
                                  orig.criterion,
                                  criterion.tol = 0, setup = TRUE) {
@@ -354,23 +363,16 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.factor, lpsolver,
 #'
 #' Given a set of IV-like estimates and the set of matrices/vectors
 #' defining an LP problem, this function minimizes the violation of
-#' observational equivalence under the L1 norm.
+#' observational equivalence under the L1 norm. The LP model must be
+#' passed as an environment variable, under the entry \code{$lpobj}.
+#' @param env environment containing the matrices defining the LP
+#'     problem.
 #' @param sset A list of IV-like estimates and the corresponding gamma
 #'     terms.
-#' @param orig.sset list, only used for bootstraps. The list
-#'     caontains the gamma moments for each element in the S-set, as
-#'     well as the IV-like coefficients.
-#' @param orig.criterion numeric, only used for bootstraps. The scalar
-#'     corresponds to the minimum observational equivalence criterion
-#'     from the original sample.
-#' @param criterion.tol tolerance for violation of observational
-#'     equivalence, set to 0 by default.
-#' @param lpobj A list of matrices and vectors defining an LP problem.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
 #' @param lpsolver.options list, each item of the list should
-#'     correspond to an option specific to the LP solver
-#'     selected.
+#'     correspond to an option specific to the LP solver selected.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{lpsolver = 'gurobi'}. The output provided is
@@ -517,21 +519,16 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 
 #' Obtaining TE bounds
 #'
-#' This function estimates the bounds on the target treatment effect.
-#' @param g0 set of expectations for each terms of the MTR for the
-#'     control group.
-#' @param g1 set of expectations for each terms of the MTR for the
-#'     control group.
+#' This function estimates the bounds on the target treatment
+#' effect. The LP model must be passed as an environment variable,
+#' under the entry \code{$lpobj}.
+#' @param env environment containing the matrices defining the LP
+#'     problem.
 #' @param sset a list containing the point estimates and gamma
 #'     components associated with each element in the S-set. This
 #'     object is only used to determine the names of terms. If it is
 #'     no submitted, then no names are provided to the solution
 #'     vector.
-#' @param lpobj A list of matrices and vectors defining an LP problem.
-#' @param criterion.factor overall multiplicative factor for how much more
-#'     the solution is permitted to violate observational equivalence
-#'     of the IV-like estimands, i.e. \code{criterion.factor} will
-#'     multiply \code{minobseq} directly.
 #' @param noisy boolean, set to \code{TRUE} if optimization results
 #'     should be displayed.
 #' @param lpsolver string, name of the package used to solve the LP
@@ -558,8 +555,8 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #' sSet <- list()
 #'
 #' ## Declare MTR formulas
-#' formula1 = ~ 1 + u
 #' formula0 = ~ 1 + u
+#' formula1 = ~ 1 + u
 #'
 #' ## Construct object that separates out non-spline components of MTR
 #' ## formulas from the spline components. The MTR functions are
@@ -571,7 +568,7 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'                  data = dtm,
 #'                  uname = u,
 #'                  as.function = FALSE)
-#' polynomials1 <- polyparse(formula = formula0,
+#' polynomials1 <- polyparse(formula = formula1,
 #'                  data = dtm,
 #'                  uname = u,
 #'                  as.function = FALSE)
@@ -614,7 +611,9 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'                 yvar = "ey",
 #'                 dvar = "d",
 #'                 means = TRUE)
-#'
+#' ## Only the entry $sset is required
+#' sSet <- sSet$sset
+#' 
 #' ## Define additional upper- and lower-bound constraints for the LP
 #' ## problem
 #' A <- matrix(0, nrow = 22, ncol = 4)
@@ -622,23 +621,37 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'                     matrix(0, nrow = 11, ncol = 2)))
 #' A <- cbind(A, rbind(matrix(0, nrow = 11, ncol = 2),
 #'                     cbind(1, seq(0, 1, 0.1))))
-#'
 #' sense <- c(rep(">", 11), rep("<", 11))
 #' rhs <- c(rep(0.2, 11), rep(0.8, 11))
 #'
-#' ## Construct LP object to be interpreted and solved by lpSolveAPI
-#' lpObject <- lpSetup(sset = sSet$sset,
-#'                     mbA = A,
+#' ## Construct LP object to be interpreted and solved by
+#' ## lpSolveAPI. Note that an environment has to be created for the LP
+#' ## object. The matrices defining the shape restrictions must be stored
+#' ## as a list under the entry \code{$mbobj} in the environment.
+#' lpEnv <- new.env()
+#' lpEnv$mbobj <- list(mbA = A,
 #'                     mbs = sense,
-#'                     mbrhs = rhs,
-#'                     lpsolver = "lpSolveAPI")
-#'
-#' ## Estimate the bounds
-#' bound(g0 = targetGamma$gstar0,
-#'       g1 = targetGamma$gstar1,
-#'       sset = sSet$sset,
-#'       lpobj = lpObject,
-#'       lpsolver = "lpSolveAPI")
+#'                     mbrhs = rhs)
+#' ## Convert the matrices defining the shape constraints into a format
+#' ## that is suitable for the LP solver.
+#' lpSetup(env = lpEnv,
+#'         sset = sSet,
+#'         lpsolver = "lpsolveapi")
+#' ## Setup LP model so that it is solving for the bounds.
+#' lpSetupBound(env = lpEnv,
+#'              g0 = targetGamma$gstar0,
+#'              g1 = targetGamma$gstar1,
+#'              sset = sSet,
+#'              criterion.factor = 0,
+#'              lpsolver = "lpsolveapi")
+#' ## Declare any LP solver options as a list.
+#' lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
+#' ## Obtain the bounds.
+#' bounds <- bound(env = lpEnv,
+#'                 sset = sSet,
+#'                 lpsolver = "lpsolveapi",
+#'                 lpsolver.options = lpOptions)
+#' cat("The bounds are [",  bounds$min, ",", bounds$max, "].\n")
 #'
 #' @export
 bound <- function(env, sset, lpsolver,
@@ -802,8 +815,8 @@ runCplexAPI <- function(lpobj, lpdir, lpsolver.options) {
                                 matcnt = cnt,
                                 matind = ind,
                                 matval = val,
-                                lb = lb,
-                                ub = ub)
+                                lb = lpobj$lb,
+                                ub = lpobj$ub)
     cplexAPI::lpoptCPLEX(env, prob)
     solution <- cplexAPI::solutionCPLEX(env, prob)
     cplexAPI::delProbCPLEX(env, prob)
@@ -897,9 +910,14 @@ magnitude <- function(x) {
 #'     the name of each item must be the name of the option, and is
 #'     case sensitive. The value assigned to each item is the value to
 #'     set the option to.
+#' @param debug boolean, indicates whether or not the function should
+#'     provide output when obtaining bounds. The option is only
+#'     applied when \code{lpsolver = 'gurobi'}. The output provided is
+#'     the same as what the Gurobi API would send to the console.
 #' @return list, the set of options declared by the user, including
 #'     some additional default values (if not assigned by the user)
 #'     and accounting for \code{debug}.
+#' @export
 optionsGurobi <- function(options, debug) {
     if (! "outputflag" %in% names(options)) {
         if (debug)  options$outputflag = 1
@@ -912,9 +930,7 @@ optionsGurobi <- function(options, debug) {
         options$FeasibilityTol <- 1e-06
     }
     if (! "presolve" %in% names(options)) {
-        if (hasArg(lpsolver.presolve)) {
-            options$presolve <- as.integer(lpsolver.presolve)
-        }
+        options$presolve <- 1
     }
     return(options)
 }
@@ -932,6 +948,7 @@ optionsGurobi <- function(options, debug) {
 #'     should always be omitted.
 #' @return string, the command to be evaluated to implement the
 #'     options.
+#' @export
 optionsLpSolveAPI <- function(options) {
     ## Implement default tolerance
     if (!"epslevel" %in% names(options)) {
@@ -964,6 +981,7 @@ optionsLpSolveAPI <- function(options) {
 #'     = NA)}).
 #' @return list, each element being the command to evaluate to
 #'     implement an option.
+#' @export
 optionsCplexAPI <- function(options) {
     ## Implement default tolerance
     if ("setDblParmCPLEX" %in% names(options)) {

@@ -20,11 +20,8 @@
 #' @param audit.grid list, contains the A matrix used in the audit
 #'     for the original sample, as well as the RHS vector used in the
 #'     audit from the original sample.
-#' @param save.grid boolean, set to \code{FALSE} by default. Set to
-#'     true if the fine grid from the audit should be saved. This
-#'     option is used for inference procedure under partial
-#'     identification, which uses the fine grid from the original
-#'     sample in all bootstrap resamples.
+#' @param pm0 A list of the monomials in the MTR for d = 0.
+#' @param pm1 A list of the monomials in the MTR for d = 1.
 #' @param m1.ub.default boolean, default set to FALSE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
 #' @param m0.ub.default boolean, default set to FALSE. Indicator for
@@ -64,8 +61,8 @@
 #' sSet <- list()
 #'
 #' ## Declare MTR formulas
-#' formula1 = ~ 1 + u
 #' formula0 = ~ 1 + u
+#' formula1 = ~ 1 + u
 #'
 #' ## Construct object that separates out non-spline components of MTR
 #' ## formulas from the spline components. The MTR functions are
@@ -86,7 +83,7 @@
 #'                  uname = u,
 #'                  as.function = FALSE)
 #'
-#' polynomials1 <- polyparse(formula = formula0,
+#' polynomials1 <- polyparse(formula = formula1,
 #'                  data = dtm,
 #'                  uname = u,
 #'                  as.function = FALSE)
@@ -135,6 +132,8 @@
 #'       uname = u,
 #'       m0 = formula0,
 #'       m1 = formula1,
+#'       pm0 = polynomials0,
+#'       pm1 = polynomials1,
 #'       splinesobj = splinesList,
 #'       vars_data = colnames(dtm),
 #'       vars_mtr = "u",
@@ -149,7 +148,7 @@
 #'       m1.ub = 0.8,
 #'       audit.max = 5,
 #'       lpsolver = "lpSolveAPI")
-#'
+#' 
 #' @export
 audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1, vars_data,
