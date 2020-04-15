@@ -64,11 +64,8 @@ utils::globalVariables("u")
 #'     \code{uSpline(degree = 2, knots = c(0.4, 0.8), intercept =
 #'     TRUE)}. The \code{intercept} argument may be omitted, and is
 #'     set to \code{TRUE} by default.
-#' @param m1 one-sided formula for marginal treatment response
-#'     function for treated group. Splines can also be incorporated
-#'     using the expression "uSplines(degree, knots, intercept)". The
-#'     \code{intercept} argument may be omitted, and is set to
-#'     \code{TRUE} by default.
+#' @param m1 one-sided formula for the marginal treatment response
+#'     function for the treated group. See \code{m0} for details.
 #' @param uname variable name for the unobservable used in declaring
 #'     the MTRs. The name can be provided with or without quotation
 #'     marks.
@@ -137,18 +134,20 @@ utils::globalVariables("u")
 #'     formula and link specified in \code{link}. If a variable name
 #'     is declared, then the corresponding column in the data is taken
 #'     as the vector of propensity scores. A variable name can be
-#'     passed either as a string (e.g \code{propensity = 'p'}). , a
+#'     passed either as a string (e.g \code{propensity = 'p'}), a
 #'     variable (e.g. \code{propensity = p}), or a one-sided formula
-#'     (e.g. \code{propensity = ~p}.
+#'     (e.g. \code{propensity = ~p}).
 #' @param link character, name of link function to estimate propensity
 #'     score. Can be chosen from \code{'linear'}, \code{'probit'}, or
-#'     \code{'logit'}. Default is set to \code{'logit'}.
+#'     \code{'logit'}. Default is set to \code{'logit'}. The link
+#'     should be provided with quoation marks.
 #' @param treat variable name for treatment indicator. The name can be
 #'     provided with or without quotation marks.
 #' @param lpsolver character, name of the linear programming package
 #'     in R used to obtain the bounds on the treatment effect. The
 #'     function supports \code{'gurobi'}, \code{'cplexapi'},
-#'     \code{'lpsolveapi'}.
+#'     \code{'lpsolveapi'}. The name of the solver should be provided
+#'     with quotation marks.
 #' @param lpsolver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver selected.
 #' @param lpsolver.presolve boolean, default set to \code{TRUE}. Set
@@ -178,15 +177,21 @@ utils::globalVariables("u")
 #'     imposing shape restrictions on the MTRs.
 #' @param initgrid.nu integer determining the number of points in the
 #'     open interval (0, 1) drawn from a Halton sequence. The end
-#'     points 0 and 1 are additionally included. These points are used
-#'     to form the initial constraint grid for imposing shape
-#'     restrictions on the \code{u} components of the MTRs.
+#'     points 0 and 1 are additionally included. These points are
+#'     always a subset of the points defining the audit grid (see
+#'     \code{audit.nu}). These points are used to form the initial
+#'     constraint grid for imposing shape restrictions on the \code{u}
+#'     components of the MTRs.
 #' @param audit.nx integer determining the number of points on the
 #'     covariates space to audit in each iteration of the audit
 #'     procedure.
 #' @param audit.nu integer determining the number of points in the
-#'     interval [0, 1], corresponding to space of unobservable
-#'     \code{u}, to audit in each iteration of the audit procedure.
+#'     open interval (0, 1) drawn from a Halton sequence. The end
+#'     points 0 and 1 are additionally included. These points are used
+#'     to audit whether the shape restrictions on the \code{u}
+#'     components of the MTRs are satisfied. The initial grid used to
+#'     impose the shape constraints in the LP problem are constructed
+#'     from a subset of these points.
 #' @param audit.add maximum number of points to add to the initial
 #'     constraint grid for imposing each kind of shape constraint. For
 #'     example, if there are 5 different kinds of shape constraints,
@@ -197,7 +202,7 @@ utils::globalVariables("u")
 #' @param audit.tol feasibility tolerance when performing the
 #'     audit. By default to set to be equal to the Gurobi
 #'     (\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
-#'     "cplexapi"}) feasibility toleraence, which is set to
+#'     "cplexapi"}) feasibility tolerance, which is set to
 #'     \code{1e-06} by default.  If the LP solver is lp_solve
 #'     (\code{lpsolver = "lpsolveapi"}), this parameter is set to
 #'     \code{1e-06} by default. This parameter should only be changed
@@ -206,14 +211,15 @@ utils::globalVariables("u")
 #'     solver's feasibility check and the audit.
 #' @param point boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if it is believed that the treatment effects are
-#'     point identified. If set to \code{TRUE}, then a two-step GMM
+#'     point identified. If set to \code{TRUE}, a two-step GMM
 #'     procedure is implemented to estimate the treatment
 #'     effects. Shape constraints on the MTRs will be ignored under
 #'     point identification.
 #' @param point.eyeweight boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if the GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
-#' @param bootstraps integer, default set to 0.
+#' @param bootstraps integer, default set to 0. This determines the
+#'     number of bootstraps used to perform statistical inference.
 #' @param bootstraps.m integer, default set to size of data
 #'     set. Determines the size of the subsample drawn from the
 #'     original data set when performing inference via the
@@ -233,7 +239,7 @@ utils::globalVariables("u")
 #'     effect bound. Set to \code{'both'} to construct both types of
 #'     confidence intervals.
 #' @param specification.test boolean, default set to
-#'     \code{TRUE}. Function performs a specificaiton test for the
+#'     \code{TRUE}. Function performs a specification test for the
 #'     partially identified case when \code{bootstraps > 0}.
 #' @param noisy boolean, default set to \code{TRUE}. If \code{TRUE},
 #'     then messages are provided throughout the estimation
@@ -255,36 +261,46 @@ utils::globalVariables("u")
 #'     expectations of each term in the MTRs; the components and
 #'     results of the LP problem.
 #'
-#' @details The return list includes the following objects.
-#'     \describe{
-#' \item{sset}{a list of all the coefficient estimates and weights
-#'     corresponding to each element in the S-set.}
+#' @details When the function is used to estimate bounds, and
+#'     statistical inference is not performed, the function returns
+#'     the following objects.
+#' \describe{
+#'
+#' \item{audit.count}{the number of audits required until there were
+#' no more violations; or the number of audits performed before the audit
+#' procedure was terminated.}
+#' \item{audit.criterion}{the minimum criterion.}
+#' \item{audit.grid}{a list containing the points used to define the audit
+#' grid, as well as the list of points where the shape constraints were
+#' violated.}
+#' \item{bounds}{a vector with the estimated lower and upper bounds of
+#' the target treatment effect.}
+#' \item{call.options}{a list containing all the model specifications and
+#' call options generating the results.}
 #' \item{gstar}{a list containing the estimate of the weighted means
 #' for each component in the MTRs. The weights are determined by the
 #' target parameter declared in \code{target}, or the weights defined
 #' by \code{target.weight1}, \code{target.knots1},
 #' \code{target.weight0}, \code{target.knots0}.}
-#' \item{gstar.weights}{a list containing the target weights used to
-#' estimate \code{gstar}.}
 #' \item{gstar.coef}{a list containing the coefficients on the treated
 #' and control group MTRs.}
+#' \item{gstar.weights}{a list containing the target weights used to
+#' estimate \code{gstar}.}
+#' \item{lp.result}{a list containing the LP model, and the full output
+#' from solving the LP problem.}
+#' \item{lp.solver}{the LP solver used in estimation.}
+#' \item{moments}{the number of elements in the S-set used to generate
+#' achieve (partial) identification.}
 #' \item{propensity}{the propensity score model. If a variable is fed
 #' to the \code{propensity} argument when calling \code{ivmte}, then
-#' the returned object is a list containing the name of variable given by the
-#' user, and the values of that variable used in estimation.}
-#' \item{bounds}{a vector with the estimated lower and upper bounds of
-#' the target treatment effect.}
-#' \item{lpresult}{a list containing the LP model, and the full output
-#' from solving the LP problem.}
-#' \item{audit.grid}{the audit grid on which all shape constraints
-#' were satisfied.}
-#' \item{audit.count}{the number of audits required until there were
-#' no more violations.}
-#' \item{audit.criterion}{the minimum criterion.}
-#' \item{splinesdict}{a list including the specifications of each
+#' the returned object is a list containing the name of variable given
+#' by the user, and the values of that variable used in estimation.}
+#' \item{s.set}{a list of all the coefficient estimates and weights
+#'     corresponding to each element in the S-set.}
+#' \item{splines.dict}{a list including the specifications of each
 #' spline declared in each MTR.}
-#' }
-#'
+#' \item{messages}{a vector of character strings logging the output of
+#' the estimation procedure.}
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
 #'
