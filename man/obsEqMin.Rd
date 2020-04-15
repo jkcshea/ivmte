@@ -4,12 +4,23 @@
 \alias{obsEqMin}
 \title{Minimizing violation of observational equivalence}
 \usage{
-obsEqMin(sset, orig.sset = NULL, orig.criterion = NULL,
-  criterion.tol = 0, lpobj, lpsolver, debug = FALSE)
+obsEqMin(env, sset, lpsolver, lpsolver.options, debug = FALSE)
 }
 \arguments{
 \item{sset}{A list of IV-like estimates and the corresponding gamma
 terms.}
+
+\item{lpsolver}{string, name of the package used to solve the LP
+problem.}
+
+\item{lpsolver.options}{list, each item of the list should
+correspond to an option specific to the LP solver
+selected.}
+
+\item{debug}{boolean, indicates whether or not the function should
+provide output when obtaining bounds. The option is only
+applied when \code{lpsolver = 'gurobi'}. The output provided is
+the same as what the Gurobi API would send to the console.}
 
 \item{orig.sset}{list, only used for bootstraps. The list
 caontains the gamma moments for each element in the S-set, as
@@ -23,14 +34,6 @@ from the original sample.}
 equivalence, set to 0 by default.}
 
 \item{lpobj}{A list of matrices and vectors defining an LP problem.}
-
-\item{lpsolver}{string, name of the package used to solve the LP
-problem.}
-
-\item{debug}{boolean, indicates whether or not the function should
-provide output when obtaining bounds. The option is only
-applied when \code{lpsolver = 'gurobi'}. The output provided is
-the same as what the Gurobi API would send to the console.}
 }
 \value{
 A list including the minimum violation of observational

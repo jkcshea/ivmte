@@ -331,8 +331,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   specification.test = TRUE,
                   noisy = FALSE,
                   smallreturnlist = FALSE, seed = 12345, debug = FALSE) {
-
-    ## TESTING ----------------------------------------------
+    ## Save log output
     unlink(".ivmte.R.tmp.log")
     tmpOutput <- file(".ivmte.R.tmp.log")
     if (noisy) {
@@ -340,7 +339,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
     } else {
         sink(tmpOutput)
     }
-    ## END TESTING ------------------------------------------
     call <- match.call(expand.dots = FALSE)
     envList <- list(m0 = environment(m0),
                     m1 = environment(m1),
@@ -2252,14 +2250,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         output <- output[sort(names(output))]
         class(output) <- "ivmte"
     }
-    ## Testing ---------------------------------------------
+    ## Return log output
     sink()
     sink(type = "message")
     close(tmpOutput)
     output$messages <- readLines(".ivmte.R.tmp.log")
     rm(tmpOutput)
     unlink(".ivmte.R.tmp.log")
-    ## End testing -----------------------------------------
     if (!noisy) return(output)
     if (noisy) return(invisible(output))
 }

@@ -4,8 +4,7 @@
 \alias{lpSetup}
 \title{Constructing LP problem}
 \usage{
-lpSetup(sset, orig.sset = NULL, mbA = NULL, mbs = NULL,
-  mbrhs = NULL, lpsolver, shape = TRUE)
+lpSetup(env, sset, orig.sset = NULL, lpsolver, shape = TRUE)
 }
 \arguments{
 \item{sset}{List of IV-like estimates and the corresponding gamma
@@ -15,6 +14,12 @@ terms.}
 caontains the gamma moments for each element in the S-set, as
 well as the IV-like coefficients.}
 
+\item{lpsolver}{string, name of the package used to solve the LP
+problem.}
+
+\item{shape}{boolean, default set to TRUE. Switch to determine
+whether or not to include shape restrictions in the LP problem.}
+
 \item{mbA}{Matrix used to define the constraints in the LP problem.}
 
 \item{mbs}{Vector of model sense/inequalities signs used to define
@@ -22,12 +27,6 @@ the constraints in the LP problem.}
 
 \item{mbrhs}{Vector of constants used to define the constraints in
 the LP problem.}
-
-\item{lpsolver}{string, name of the package used to solve the LP
-problem.}
-
-\item{shape}{boolean, default set to TRUE. Switch to determine
-whether or not to include shape restrictions in the LP problem.}
 }
 \value{
 A list of matrices and vectors necessary to define an LP

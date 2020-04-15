@@ -5,7 +5,8 @@
 \title{Generating the LP constraint matrix for bounds}
 \usage{
 genboundA(A0, A1, sset, gridobj, uname, m0.lb, m0.ub, m1.lb, m1.ub, mte.lb,
-  mte.ub)
+  mte.ub, solution.m0.min = NULL, solution.m1.min = NULL,
+  solution.m0.max = NULL, solution.m1.max = NULL, audit.tol)
 }
 \arguments{
 \item{A0}{the matrix of values from evaluating the MTR for control
@@ -38,6 +39,26 @@ term.}
 \item{mte.lb}{scalar, lower bound on MTE.}
 
 \item{mte.ub}{scalar, upper bound on MTE.}
+
+\item{solution.m0.min}{vector, the coefficients for the MTR for
+\code{D = 0} corresponding to the lower bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
+
+\item{solution.m1.min}{vector, the coefficients for the MTR for
+\code{D = 1} corresponding to the lower bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
+
+\item{solution.m0.max}{vector, the coefficients for the MTR for
+\code{D = 0} corresponding to the upper bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
+
+\item{solution.m1.max}{vector, the coefficients for the MTR for
+\code{D = 1} corresponding to the upper bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
 }
 \value{
 a constraint matrix for the LP problem, the associated

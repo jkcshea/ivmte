@@ -4,9 +4,11 @@
 \alias{genmonoboundA}
 \title{Generating monotonicity and boundedness constraints}
 \usage{
-genmonoboundA(support, grid_index, uvec, splinesobj, monov, uname, m0, m1,
-  sset, gstar0, gstar1, m0.lb, m0.ub, m1.lb, m1.ub, mte.lb, mte.ub, m0.dec,
-  m0.inc, m1.dec, m1.inc, mte.dec, mte.inc)
+genmonoboundA(pm0, pm1, support, grid_index, uvec, splinesobj, monov,
+  uname, m0, m1, sset, gstar0, gstar1, m0.lb, m0.ub, m1.lb, m1.ub, mte.lb,
+  mte.ub, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc,
+  solution.m0.min = NULL, solution.m1.min = NULL,
+  solution.m0.max = NULL, solution.m1.max = NULL, audit.tol)
 }
 \arguments{
 \item{support}{a matrix for the support of all variables that enter
@@ -81,6 +83,26 @@ decreasing.}
 
 \item{mte.inc}{boolean, indicating whether the MTE is monotone
 increasing.}
+
+\item{solution.m0.min}{vector, the coefficients for the MTR for
+\code{D = 0} corresponding to the lower bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
+
+\item{solution.m1.min}{vector, the coefficients for the MTR for
+\code{D = 1} corresponding to the lower bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
+
+\item{solution.m0.max}{vector, the coefficients for the MTR for
+\code{D = 0} corresponding to the upper bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
+
+\item{solution.m1.max}{vector, the coefficients for the MTR for
+\code{D = 1} corresponding to the upper bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
 }
 \value{
 a list containing a unified constraint matrix, unified

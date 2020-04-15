@@ -4,17 +4,19 @@
 \alias{audit}
 \title{Audit procedure}
 \usage{
-audit(data, uname, m0, m1, splinesobj, vars_mtr, terms_mtr0, terms_mtr1,
-  vars_data, initgrid.nu = 20, initgrid.nx = 20, audit.nx = 2500,
-  audit.nu = 25, audit.add = 100, audit.max = 25,
-  audit.grid = NULL, save.grid = FALSE, m1.ub, m0.ub, m1.lb, m0.lb,
-  mte.ub, mte.lb, m1.ub.default = FALSE, m0.ub.default = FALSE,
+audit(data, uname, m0, m1, pm0, pm1, splinesobj, vars_mtr, terms_mtr0,
+  terms_mtr1, vars_data, initgrid.nu = 20, initgrid.nx = 20,
+  audit.nx = 2500, audit.nu = 25, audit.add = 100, audit.max = 25,
+  audit.tol, audit.grid = NULL, m1.ub, m0.ub, m1.lb, m0.lb, mte.ub,
+  mte.lb, m1.ub.default = FALSE, m0.ub.default = FALSE,
   mte.ub.default = FALSE, m1.lb.default = FALSE,
   m0.lb.default = FALSE, mte.lb.default = FALSE, m0.dec = FALSE,
   m0.inc = FALSE, m1.dec = FALSE, m1.inc = FALSE, mte.dec = FALSE,
   mte.inc = FALSE, sset, gstar0, gstar1, orig.sset = NULL,
-  orig.criterion = NULL, criterion.tol = 0, lpsolver, noisy = TRUE,
-  seed = 12345, debug = FALSE)
+  orig.criterion = NULL, criterion.tol = 0, lpsolver, lpsolver.options,
+  lpsolver.presolve, lpsolver.options.criterion, lpsolver.options.bounds,
+  smallreturnlist = FALSE, noisy = TRUE, seed = 12345,
+  debug = FALSE)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -56,10 +58,11 @@ for renaming each component.}
 \item{vars_data}{character, vector of variables that can be found
 in the data.}
 
-\item{initgrid.nu}{integer determining the number of evenly spread
-points in the interval [0, 1] of the unobservable \code{u} used
+\item{initgrid.nu}{integer determining the number of points in the
+open interval (0, 1) drawn from a Halton sequence. The end
+points 0 and 1 are additionally included. These points are used
 to form the initial constraint grid for imposing shape
-restrictions on the MTRs.}
+restrictions on the \code{u} components of the MTRs.}
 
 \item{initgrid.nx}{integer determining the number of points of the
 covariates used to form the initial constraint grid for
@@ -82,15 +85,20 @@ added to the constraint grid.}
 \item{audit.max}{maximum number of iterations in the audit
 procedure.}
 
-\item{audit.grid}{list, contains the A A matrix used in the audit
+\item{audit.tol}{feasibility tolerance when performing the
+audit. By default to set to be equal to the Gurobi
+(\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+"cplexapi"}) feasibility toleraence, which is set to
+\code{1e-06} by default.  If the LP solver is lp_solve
+(\code{lpsolver = "lpsolveapi"}), this parameter is set to
+\code{1e-06} by default. This parameter should only be changed
+if the feasibility tolerance of the LP solver is changed, or if
+numerical issues result in discrepancies between the LP
+solver's feasibility check and the audit.}
+
+\item{audit.grid}{list, contains the A matrix used in the audit
 for the original sample, as well as the RHS vector used in the
 audit from the original sample.}
-
-\item{save.grid}{boolean, set to \code{FALSE} by default. Set to
-true if the fine grid from the audit should be saved. This
-option is used for inference procedure under partial
-identification, which uses the fine grid from the original
-sample in all bootstrap resamples.}
 
 \item{m1.ub}{numeric value for upper bound on MTR for the treated
 group. By default, this will be set to the largest value of the
@@ -188,6 +196,27 @@ in R used to obtain the bounds on the treatment effect. The
 function supports \code{'gurobi'}, \code{'cplexapi'},
 \code{'lpsolveapi'}.}
 
+\item{lpsolver.options}{list, each item of the list should
+correspond to an option specific to the LP solver selected.}
+
+\item{lpsolver.presolve}{boolean, default set to \code{TRUE}. Set
+this parameter to \code{FALSE} if presolve should be turned off
+for the LP problems.}
+
+\item{lpsolver.options.criterion}{list, each item of the list
+should correspond to an option specific to the LP solver
+selected. These options are specific for finding the minimum
+criterion.}
+
+\item{lpsolver.options.bounds}{list, each item of the list should
+correspond to an option specific to the LP solver
+selected. These options are specific for finding the bounds.}
+
+\item{smallreturnlist}{boolean, default set to \code{FALSE}. Set to
+\code{TRUE} to exclude large intermediary components
+(i.e. propensity score model, LP model, bootstrap iterations)
+from being included in the return list.}
+
 \item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
 then messages are provided throughout the estimation
 procedure. Set to \code{FALSE} to suppress all messages,
@@ -200,6 +229,12 @@ the audit procedure.}
 provide output when obtaining bounds. The option is only
 applied when \code{lpsolver = 'gurobi'}. The output provided is
 the same as what the Gurobi API would send to the console.}
+
+\item{save.grid}{boolean, set to \code{FALSE} by default. Set to
+true if the fine grid from the audit should be saved. This
+option is used for inference procedure under partial
+identification, which uses the fine grid from the original
+sample in all bootstrap resamples.}
 }
 \value{
 a list. Included in the list is the minimum violation of
@@ -240,6 +275,14 @@ formula0 = ~ 1 + u
 ## formulas from the spline components. The MTR functions are
 ## obtained from this object by the function 'genSSet'
 splinesList = list(removeSplines(formula0), removeSplines(formula1))
+
+## If splines are interacted with other variables, the
+## 'interactSplines' should be used.
+## splinesList <- interactSplines(splinesobj = splinesList,
+##                               m0 = formula0,
+##                               m1 = formula1,
+##                               data = data,
+##                               uname = 'u')
 
 ## Construct MTR polynomials
 polynomials0 <- polyparse(formula = formula0,

@@ -525,7 +525,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                      g0 = gstar0,
                      g1 = gstar1,
                      sset = sset,
-                     obseq.factor = minobseq$obj * (1 + criterion.tol),
+                     criterion.factor = minobseq$obj * (1 + criterion.tol),
                      lpsolver = lpsolver,
                      setup = TRUE)
         lpresult <- bound(env = lpEnv,

@@ -4,39 +4,45 @@
 \alias{bound}
 \title{Obtaining TE bounds}
 \usage{
-bound(g0, g1, sset, lpobj, obseq.factor, lpsolver, noisy = FALSE,
-  debug = FALSE)
+bound(env, sset, lpsolver, lpsolver.options, noisy = FALSE,
+  smallreturnlist = FALSE, debug = FALSE)
 }
 \arguments{
-\item{g0}{set of expectations for each terms of the MTR for the
-control group.}
-
-\item{g1}{set of expectations for each terms of the MTR for the
-control group.}
-
 \item{sset}{a list containing the point estimates and gamma
 components associated with each element in the S-set. This
 object is only used to determine the names of terms. If it is
 no submitted, then no names are provided to the solution
 vector.}
 
-\item{lpobj}{A list of matrices and vectors defining an LP problem.}
-
-\item{obseq.factor}{overall multiplicative factor for how much more
-the solution is permitted to violate observational equivalence
-of the IV-like estimands, i.e. \code{obseq.factor} will
-multiply \code{minobseq} directly.}
-
 \item{lpsolver}{string, name of the package used to solve the LP
 problem.}
 
+\item{lpsolver.options}{list, each item of the list should
+correspond to an option specific to the LP solver selected.}
+
 \item{noisy}{boolean, set to \code{TRUE} if optimization results
 should be displayed.}
+
+\item{smallreturnlist}{boolean, set to \code{TRUE} if the LP model
+should not be returned.}
 
 \item{debug}{boolean, indicates whether or not the function should
 provide output when obtaining bounds. The option is only
 applied when \code{lpsolver = 'gurobi'}. The output provided is
 the same as what the Gurobi API would send to the console.}
+
+\item{g0}{set of expectations for each terms of the MTR for the
+control group.}
+
+\item{g1}{set of expectations for each terms of the MTR for the
+control group.}
+
+\item{lpobj}{A list of matrices and vectors defining an LP problem.}
+
+\item{criterion.factor}{overall multiplicative factor for how much more
+the solution is permitted to violate observational equivalence
+of the IV-like estimands, i.e. \code{criterion.factor} will
+multiply \code{minobseq} directly.}
 }
 \value{
 a list containing the bounds on the treatment effect; the
@@ -136,7 +142,6 @@ bound(g0 = targetGamma$gstar0,
       g1 = targetGamma$gstar1,
       sset = sSet$sset,
       lpobj = lpObject,
-      obseq.factor = 1,
       lpsolver = "lpSolveAPI")
 
 }

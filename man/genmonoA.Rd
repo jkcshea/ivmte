@@ -5,7 +5,9 @@
 \title{Generate LP components of the monotonicity constraints}
 \usage{
 genmonoA(A0, A1, sset, uname, gridobj, gstar0, gstar1, m0.dec, m0.inc,
-  m1.dec, m1.inc, mte.dec, mte.inc)
+  m1.dec, m1.inc, mte.dec, mte.inc, solution.m0.min = NULL,
+  solution.m1.min = NULL, solution.m0.max = NULL,
+  solution.m1.max = NULL, audit.tol)
 }
 \arguments{
 \item{A0}{the matrix of values from evaluating the MTR for control
@@ -49,6 +51,26 @@ decreasing.}
 
 \item{mte.inc}{boolean, indicating whether the MTE is monotone
 increasing.}
+
+\item{solution.m0.min}{vector, the coefficients for the MTR for
+\code{D = 0} corresponding to the lower bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
+
+\item{solution.m1.min}{vector, the coefficients for the MTR for
+\code{D = 1} corresponding to the lower bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
+
+\item{solution.m0.max}{vector, the coefficients for the MTR for
+\code{D = 0} corresponding to the upper bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
+
+\item{solution.m1.max}{vector, the coefficients for the MTR for
+\code{D = 1} corresponding to the upper bound of the target
+parameter. If passed, this will initiate checks of shape
+constraints.}
 }
 \value{
 constraint matrix for the LP problem. The matrix pertains

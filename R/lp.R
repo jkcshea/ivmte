@@ -316,9 +316,9 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #'     object is only used to determine the names of terms. If it is
 #'     no submitted, then no names are provided to the solution
 #'     vector.
-#' @param obseq.factor overall multiplicative factor for how much more
+#' @param criterion.factor overall multiplicative factor for how much more
 #'     the solution is permitted to violate observational equivalence
-#'     of the IV-like estimands, i.e. \code{obseq.factor} will
+#'     of the IV-like estimands, i.e. \code{criterion.factor} will
 #'     multiply \code{minobseq} directly.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
@@ -328,12 +328,12 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #'     function if \code{setup = TRUE}.
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
-lpSetupBound <- function(env, g0, g1, sset, obseq.factor, lpsolver,
+lpSetupBound <- function(env, g0, g1, sset, criterion.factor, lpsolver,
                          setup = TRUE) {
     if (setup) {
         lpsolver <- tolower(lpsolver)
         env$lpobj$obj <- c(replicate(2 * env$lpobj$sn, 0), g0, g1)
-        env$lpobj$rhs <- c(obseq.factor, env$lpobj$rhs)
+        env$lpobj$rhs <- c(criterion.factor, env$lpobj$rhs)
         avec <- c(replicate(2 * env$lpobj$sn, 1),
                   replicate(env$lpobj$gn0 + env$lpobj$gn1, 0))
         env$lpobj$A <- rbind(avec, env$lpobj$A)
@@ -528,9 +528,9 @@ obsEqMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'     no submitted, then no names are provided to the solution
 #'     vector.
 #' @param lpobj A list of matrices and vectors defining an LP problem.
-#' @param obseq.factor overall multiplicative factor for how much more
+#' @param criterion.factor overall multiplicative factor for how much more
 #'     the solution is permitted to violate observational equivalence
-#'     of the IV-like estimands, i.e. \code{obseq.factor} will
+#'     of the IV-like estimands, i.e. \code{criterion.factor} will
 #'     multiply \code{minobseq} directly.
 #' @param noisy boolean, set to \code{TRUE} if optimization results
 #'     should be displayed.

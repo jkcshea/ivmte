@@ -10,15 +10,15 @@ ivmteEstimate(data, target, late.Z, late.from, late.to, late.X, eval.X,
   target.knots0 = NULL, target.knots1 = NULL, m0, m1, uname = u,
   m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc, m1.dec,
   m1.inc, mte.dec, mte.inc, ivlike, components, subset, propensity,
-  link = "logit", treat, lpsolver, criterion.tol = 0,
+  link = "logit", treat, lpsolver, lpsolver.options, lpsolver.presolve,
+  lpsolver.options.criterion, lpsolver.options.bounds, criterion.tol = 0,
   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
-  audit.nu = 25, audit.add = 100, audit.max = 25,
-  audit.grid = NULL, save.grid = FALSE, point = FALSE,
-  point.eyeweight = FALSE, point.center = NULL,
-  point.redundant = NULL, count.moments = TRUE, orig.sset = NULL,
-  orig.criterion = NULL, vars_y, vars_mtr, terms_mtr0, terms_mtr1,
-  vars_data, splinesobj, noisy = TRUE, smallreturnlist = FALSE,
-  seed = 12345, debug = FALSE, environments)
+  audit.nu = 25, audit.add = 100, audit.max = 25, audit.tol,
+  audit.grid = NULL, point = FALSE, point.eyeweight = FALSE,
+  point.center = NULL, point.redundant = NULL, count.moments = TRUE,
+  orig.sset = NULL, orig.criterion = NULL, vars_y, vars_mtr,
+  terms_mtr0, terms_mtr1, vars_data, splinesobj, noisy = TRUE,
+  smallreturnlist = FALSE, seed = 12345, debug = FALSE, environments)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -185,6 +185,22 @@ in R used to obtain the bounds on the treatment effect. The
 function supports \code{'gurobi'}, \code{'cplexapi'},
 \code{'lpsolveapi'}.}
 
+\item{lpsolver.options}{list, each item of the list should
+correspond to an option specific to the LP solver selected.}
+
+\item{lpsolver.presolve}{boolean, default set to \code{TRUE}. Set
+this parameter to \code{FALSE} if presolve should be turned off
+for the LP problems.}
+
+\item{lpsolver.options.criterion}{list, each item of the list
+should correspond to an option specific to the LP solver
+selected. These options are specific for finding the minimum
+criterion.}
+
+\item{lpsolver.options.bounds}{list, each item of the list should
+correspond to an option specific to the LP solver
+selected. These options are specific for finding the bounds.}
+
 \item{criterion.tol}{tolerance for violation of observational
 equivalence, set to 0 by default. Statistical noise may
 prohibit the theoretical LP problem from being feasible. That
@@ -202,10 +218,11 @@ value greater than 0 to allow for more conservative bounds.}
 covariates used to form the initial constraint grid for
 imposing shape restrictions on the MTRs.}
 
-\item{initgrid.nu}{integer determining the number of evenly spread
-points in the interval [0, 1] of the unobservable \code{u} used
+\item{initgrid.nu}{integer determining the number of points in the
+open interval (0, 1) drawn from a Halton sequence. The end
+points 0 and 1 are additionally included. These points are used
 to form the initial constraint grid for imposing shape
-restrictions on the MTRs.}
+restrictions on the \code{u} components of the MTRs.}
 
 \item{audit.nx}{integer determining the number of points on the
 covariates space to audit in each iteration of the audit
@@ -224,15 +241,20 @@ added to the constraint grid.}
 \item{audit.max}{maximum number of iterations in the audit
 procedure.}
 
+\item{audit.tol}{feasibility tolerance when performing the
+audit. By default to set to be equal to the Gurobi
+(\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+"cplexapi"}) feasibility toleraence, which is set to
+\code{1e-06} by default.  If the LP solver is lp_solve
+(\code{lpsolver = "lpsolveapi"}), this parameter is set to
+\code{1e-06} by default. This parameter should only be changed
+if the feasibility tolerance of the LP solver is changed, or if
+numerical issues result in discrepancies between the LP
+solver's feasibility check and the audit.}
+
 \item{audit.grid}{list, contains the A A matrix used in the audit
 for the original sample, as well as the RHS vector used in the
 audit from the original sample.}
-
-\item{save.grid}{boolean, set to \code{FALSE} by default. Set to
-true if the fine grid from the audit should be saved. This
-option is used for inference procedure under partial
-identification, which uses the fine grid from the original
-sample in all bootstrap resamples.}
 
 \item{point}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} if it is believed that the treatment effects are
