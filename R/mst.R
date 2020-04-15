@@ -265,7 +265,6 @@ utils::globalVariables("u")
 #'     statistical inference is not performed, the function returns
 #'     the following objects.
 #' \describe{
-#'
 #' \item{audit.count}{the number of audits required until there were
 #' no more violations; or the number of audits performed before the audit
 #' procedure was terminated.}
@@ -301,6 +300,78 @@ utils::globalVariables("u")
 #' spline declared in each MTR.}
 #' \item{messages}{a vector of character strings logging the output of
 #' the estimation procedure.}
+#' }
+#'
+#' If \code{bootstraps} is not 0, then statistical inference will be
+#' performed and the output will additionally contain the following
+#' objects.
+#' \describe{
+#' \item{bootstraps}{the number of bootstraps.}
+#' \item{bootstraps.failed}{the number of bootstraps that failed (e.g.
+#' due to collinearity) and had to be repeated.}
+#' \item{bounds.bootstraps}{the estimates of the bounds from every
+#' bootstrap draw.}
+#' \item{bounds.ci}{forward and/or backward confidence intervals for
+#' the bound estimates at the levels specified in \code{levels}.}
+#' \item{bounds.se}{bootstrap standard errors on the lower and upper
+#' bound estimates.}
+#' \item{p.value}{p-value for the estimated bounds. p-values are
+#' constructed by finding the level at which the confidence interval
+#' no longer contains 0.}
+#' \item{propensity.ci}{confidence interval for coefficient estimates
+#' of the propensity score model.}
+#' \item{propensity.se}{standard errors for the coefficient estimates
+#' of the propensity score model.}
+#' \item{specification.p.value}{p-value from a specification test.
+#' The specification test is only performed if the minimum criterion
+#' is not 0.}
+#' }
+#'
+#' If \code{point = TRUE} and \code{bootstraps = 0}, then point
+#' estimation is performed using two-step GMM. The output will contain
+#' the following objects.
+#' \describe{
+#' \item{j.test}{test statistic and results from the asymptotic J-test.}
+#' \item{moments}{a vector. Each element is the GMM criterion for each
+#' moment condition used in estimation.}
+#' \item{mtr.coef}{coefficient estimates for the MTRs.}
+#' \item{point.estimate}{point estimate of the treatment effect.}
+#' \item{redundant}{indexes for the moment conditions (i.e. elements
+#' in the S set) that were linearly independent and could be dropped.}
+#' }
+#'
+#' If \code{point = TRUE} and \code{bootstraps} is not 0, then
+#' point estimation is performed using two-step GMM, and additional
+#' statistical inference is performed using the bootstrap samples.
+#' The output will contain the following additional objects.
+#' \describe{
+#' \item{bootstraps}{the number of bootstraps.}
+#' \item{bootstraps.failed}{the number of bootstraps that failed (e.g.
+#' due to collinearity) and had to be repeated.}
+#' \item{j.test}{test statistic and result from the J-test performed
+#' using the bootstrap samples.}
+#' \item{j.test.bootstraps}{J-test statistic from each bootstrap.}
+#' \item{mtr.bootstraps}{coefficient estimates for the MTRs from
+#' each bootstrap sample. These are used to construct the confidence
+#' intervals and standard errors for the MTR coefficients.}
+#' \item{mtr.ci}{confidence intervals for each MTR coefficient.}
+#' \item{mtr.se}{standard errors for each MTR coefficient estimate.}
+#' \item{p.value}{p-value for the treatment effect point estimate
+#' estimated using the bootstrap.}
+#' \item{point.estimate.bootstraps}{treatment effect point estimate
+#' from each bootstrap sample. These are used to construct the
+#' confidence interval, standard error, and p-value for the treatment
+#' effect.}
+#' \item{point.estimate.ci}{confidence interval for the treatment
+#' effect.}
+#' \item{point.estimate.se}{standard error for the treatment effect
+#' estimate.}
+#' \item{propensity.ci}{confidence interval for the coefficients in
+#' the propensity score model, constructed using the bootstrap.}
+#' \item{propensity.se}{standard errors for the coefficient estimates
+#' of the propensity score model.}
+#' }
+#'
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
 #'
@@ -4039,6 +4110,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
     } else {
         jtest <- NULL
     }
+    theta <- as.vector(theta)
     names(theta) <- c(paste0("m0.", colnames(gstar0)),
                       paste0("m1.", colnames(gstar1)))
     point.estimate <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
