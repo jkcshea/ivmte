@@ -48,7 +48,9 @@ Suggests:
     knitr,
     rmarkdown,
     pander,
-    AER
+    AER,
+    ggplot2,
+    gridExtra
 License: GPL-2 | GPL-3
 Encoding: UTF-8
 LazyData: true

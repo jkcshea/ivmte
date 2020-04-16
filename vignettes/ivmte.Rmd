@@ -185,7 +185,8 @@ results <- ivmte(data = AE,
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex)
+                 propensity = morekids ~ samesex,
+                 noisy = TRUE)
 ```
 Here's what these required parameters refer to:
 
@@ -204,15 +205,19 @@ results <- ivmte(data = AE,
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex)
+                 propensity = morekids ~ samesex, 
+                 noisy = TRUE)
 ```
 
-The `ivmte` function indicates its progress in performing a sequence of intermediate operations.
+When `noisy = TRUE`, the `ivmte` function indicates its progress in performing a sequence of intermediate operations.
 It then runs through an audit procedure to enforce shape constraints.
 The audit procedure is described in more detail [ahead](#audit).
 After the audit procedure terminates, `ivmte` returns bounds on the target parameter, which in this case is the average treatment on the treated (`target = "att"`).
 These bounds are the primary output of interest.
-The detailed output can be suppressed by passing `noisy = FALSE` as an additional parameter:
+
+The detailed output can be suppressed by passing `noisy = FALSE` as an additional parameter.
+By default, detailed output is suppressed.
+Should the user wish to review the output, it is returned under the entry `$messages`, regardless of the value of the `noisy` parameter.
 
 ```{r, syntaxrun.quiet}
 results <- ivmte(data = AE,
@@ -222,6 +227,8 @@ results <- ivmte(data = AE,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
                  propensity = morekids ~ samesex,
                  noisy = FALSE)
+results
+cat(results$messages, sep = "\n")
 ```
 
 ### Specifying the MTR Functions
@@ -239,9 +246,9 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + I(u^2) + yob + u*yob,
              m1 = ~ u + I(u^2) + I(u^3) + yob + u*yob,
-             propensity = morekids ~ samesex,
-             noisy = FALSE)
+             propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
+r
 ```
 
 A restriction that we make for computational purposes is that `u` can only appear in polynomial terms (perhaps interacted with other variables).
@@ -258,6 +265,7 @@ args[["m0"]] <- ~ v + I(v^2) + yob + v*yob
 args[["m1"]] <- ~ v + I(v^2) + I(v^3) + yob + v*yob
 args[["uname"]] <- "v"
 r <- do.call(ivmte, args)
+r
 ```
 
 There are some limitations regarding the use of factor variables.
@@ -279,6 +287,7 @@ args[["m0"]] <- ~ u + yob
 ```{r, factor.ok}
 args[["m1"]] <- ~ u + (yob == 55) + (yob == 60)
 r <- do.call(ivmte, args)
+r
 ```
 
 #### Polynomial Splines
@@ -292,9 +301,9 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + uSplines(degree = 2, knots = c(.2, .4, .6, .8)) + yob,
              m1 = ~ uSplines(degree = 3, knots = c(.1, .3, .5, .7))*yob,
-             propensity = morekids ~ samesex,
-             noisy = FALSE)
+             propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
+r
 ```
 The `degree` refers to the polynomial degree, so that `degree = 2` is a quadratic spline, and `degree = 3` is a cubic spline.
 Constant splines, which have an important role in some of the theory developed by @mogstadsantostorgovitsky2018e, can be implemented with `degree = 0`.
@@ -323,9 +332,9 @@ args <- list(data = AE,
              m1.inc = TRUE,
              m0.inc = TRUE,
              mte.dec = TRUE,
-             propensity = morekids ~ samesex,
-             noisy = FALSE)
+             propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
+r
 ```
 
 #### The Audit Procedure {#audit}
@@ -362,11 +371,12 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + I(u^2) + yob + u*yob,
              m1 = ~ u + I(u^2) + I(u^3) + yob + u*yob,
-             propensity = morekids ~ samesex,
-             noisy = FALSE)
+             propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
+r
 args[["target"]] <- "ate"
 r <- do.call(ivmte, args)
+r
 ```
 
 #### LATEs and Generalized LATEs
@@ -383,9 +393,9 @@ args <- list(data = ivmteSimData,
              late.to = c(z = 3),
              m0 = ~ u + I(u^2) + I(u^3) + x,
              m1 = ~ u + I(u^2) + I(u^3) + x,
-             propensity = d ~ z + x,
-             noisy = FALSE)
+             propensity = d ~ z + x)
 r <- do.call(ivmte, args)
+r
 ```
 
 We can condition on covariates in the definition of the LATE by adding the named list `late.X` as follows.
@@ -393,8 +403,10 @@ We can condition on covariates in the definition of the LATE by adding the named
 ```{r, late.cond}
 args[["late.X"]] = c(x = 2)
 r <- do.call(ivmte, args)
+r
 args[["late.X"]] = c(x = 8)
 r <- do.call(ivmte, args)
+r
 ```
 
 **ivmte** also provides support for generalized LATEs, i.e. LATEs where the intervals of `u` that are being considered may or may not correspond to points in the support of the propensity score.
@@ -410,13 +422,13 @@ args <- list(data = ivmteSimData,
              genlate.ub = .4,
              m0 = ~ u + I(u^2) + I(u^3) + x,
              m1 = ~ u + I(u^2) + I(u^3) + x,
-             propensity = d ~ z + x,
-             noisy = FALSE)
+             propensity = d ~ z + x)
 r <- do.call(ivmte, args)
 args[["genlate.ub"]] <- .41
 r <- do.call(ivmte, args)
 args[["genlate.ub"]] <- .42
 r <- do.call(ivmte, args)
+r
 ```
 
 Generalized LATEs can also be made conditional-on-covariates by passing `late.X`:
@@ -424,6 +436,7 @@ Generalized LATEs can also be made conditional-on-covariates by passing `late.X`
 ```{r, genlate.cond}
 args[["late.X"]] <- c(x = 2)
 r <- do.call(ivmte, args)
+r
 ```
 
 #### Custom Target Parameters
@@ -479,9 +492,9 @@ args <- list(data = ivmteSimData,
              target.weight1 = c(0, weight1, 0),
              m0 = ~ u + I(u^2) + I(u^3) + x,
              m1 = ~ u + I(u^2) + I(u^3) + x,
-             propensity = d ~ z + x,
-             noisy = FALSE)
+             propensity = d ~ z + x)
 r <- do.call(ivmte, args)
+r
 ```
 
 The knot specification here is the same for both the treated and untreated weights.
@@ -524,9 +537,9 @@ args <- list(data = ivmteSimData,
              target = "ate",
              m0 = ~ uSplines(degree = 1, knots = c(.25, .5, .75)) + x,
              m1 = ~ uSplines(degree = 1, knots = c(.25, .5, .75)) + x,
-             propensity = d ~ z + x,
-             noisy = FALSE)
+             propensity = d ~ z + x)
 r <- do.call(ivmte, args)
+r
 ```
 
 There are 10 moments being fit in this specification.
@@ -551,6 +564,7 @@ For example, the following includes the coefficients on the intercept and `x` fr
 ```{r, ivlike.components}
 args[["components"]] <- l(c(intercept, x), c(d), )
 r <- do.call(ivmte, args)
+r
 ```
 
 Note that `intercept` is a reserved word that is used to specify the coefficient on the constant term.
@@ -560,6 +574,7 @@ If the function `list` is used to pass the `components` option, an error will fo
 args[["components"]] <- list(c(intercept, x), c(d), )
 args[["components"]] <- list(c("intercept", "x"), c("d"), "")
 r <- do.call(ivmte, args)
+r
 ```
 
 #### Subsetting
@@ -577,9 +592,9 @@ args <- list(data = ivmteSimData,
              target = "ate",
              m0 = ~ uSplines(degree = 3, knots = c(.25, .5, .75)) + x,
              m1 = ~ uSplines(degree = 3, knots = c(.25, .5, .75)) + x,
-             propensity = d ~ z + x,
-             noisy = FALSE)
+             propensity = d ~ z + x)
 r <- do.call(ivmte, args)
+r
 ```
 
 ### Specifying the Propensity Score
@@ -596,8 +611,8 @@ results <- ivmte(data = AE,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
                  propensity = morekids ~ samesex + yob,
-                 link = "probit",
-                 noisy = FALSE)
+                 link = "probit")
+results
 ```
 
 ### Point Identified Models
@@ -612,11 +627,11 @@ args <- list(data = ivmteSimData,
              target = "ate",
              m0 = ~ u,
              m1 = ~ u,
-             propensity = d ~ factor(z),
-             noisy = FALSE)
+             propensity = d ~ factor(z))
 r <- do.call(ivmte, args)
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
+r
 ```
 Notice that even though ```point = FALSE``` and ```point = TRUE``` provide a single number for the target parameter in this scenario, that number is slightly different.
 The reason is that, for computational reasons, ```point = TRUE``` uses the usual quadratic loss, while ```point = FALSE``` uses absolute deviations loss.
@@ -627,7 +642,7 @@ The default when ```point = TRUE``` is to use the optimal two-step GMM weighting
 
 The ```ivmte``` command does provide functionality for constructing confidence regions, although this is turned off by default, since it can be computationally expensive.
 To turn it on, set ```bootstraps``` to be a positive integer.
-
+The confidence intervals are stored under `$bounds.ci`.
 ```{r, partial.ci}
 r <- ivmte(data = AE,
            target = "att",
@@ -635,8 +650,8 @@ r <- ivmte(data = AE,
            m1 = ~ u + yob,
            ivlike = worked ~ morekids + samesex + morekids*samesex,
            propensity = morekids ~ samesex,
-           bootstraps = 50,
-           noisy = FALSE)
+           bootstraps = 50)
+summary(r)
 ```
 
 Other options relevent to confidence region construction are `bootstraps.m`, which indicates the number of observations to draw from the sample on each bootstrap replication, and `bootstraps.replace` to indicate whether these observations should be drawn with or without replacement.
@@ -644,6 +659,10 @@ The default is to set `bootstraps.m` to the sample size of the observed data wit
 This corresponds to the usual nonparametric bootstrap.
 Choosing `bootstraps.m` to be smaller than the sample size and setting `bootstraps.replace` to be `TRUE` or `FALSE` corresponds to the "m out of n" bootstrap or subsampling, respectively.
 Regardless of these settings, two types of confidence regions are constructed following the terminology of @andrewshan2009ej; see @sheatorgovitsky2019wp for more detail, references, and important theoretical caveats to the procedures.
+While the `summary` output displays only the backward confidence region, both forward and backward confidence regions are stored under `$bounds.ci`.
+```{r, partial.ci.show}
+r$bounds.ci
+```
 
 The bootstrapped bounds are returned and stored in `r$bounds.bootstraps`, and can be used to plot the distribution of bound estimates.
 
@@ -694,9 +713,9 @@ args <- list(data = AE,
              ivlike = worked ~ morekids + samesex + morekids*samesex,
              propensity = morekids ~ samesex,
              point = TRUE,
-             bootstraps = 50,
-             noisy = FALSE)
+             bootstraps = 50)
 r <- do.call(ivmte, args)
+summary(r)
 ```
 The p-value reported in both cases is for the null hypothesis that the target parameter is equal to 0, which we infer here by finding the largest confidence region that does not contain 0.
 By default, `ivmte` returns 99%, 95%, and 90% confidence intervals.
@@ -721,13 +740,14 @@ args <- list(data = ivmteSimData,
              m0.dec = TRUE,
              m1.dec = TRUE,
              propensity = d ~ factor(z),
-             bootstraps = 50,
-             noisy = FALSE)
+             bootstraps = 50)
 r <- do.call(ivmte, args)
+r
 
 args[["ivlike"]] <- y ~ d + factor(z) + d*factor(z) # many more moments
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
+r
 ```
 
 ### Plotting MTRs and MTEs
@@ -744,9 +764,9 @@ args <- list(data = AE,
              m1.inc = TRUE,
              m0.inc = TRUE,
              mte.dec = TRUE,
-             propensity = morekids ~ samesex,
-             noisy = FALSE)
+             propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
+r
 ```
 
 The specification of each uniquely defined spline is stored in the list `r$splines.dict`.

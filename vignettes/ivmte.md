@@ -270,7 +270,8 @@ results <- ivmte(data = AE,
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex)
+                 propensity = morekids ~ samesex,
+                 noisy = TRUE)
 ```
 
 Here’s what these required parameters refer to:
@@ -294,7 +295,8 @@ results <- ivmte(data = AE,
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex)
+                 propensity = morekids ~ samesex, 
+                 noisy = TRUE)
 #> 
 #> LP solver: Gurobi ('gurobi')
 #> 
@@ -323,14 +325,18 @@ results <- ivmte(data = AE,
 #> Bounds on the target parameter: [-0.09835591, -0.08285941]
 ```
 
-The `ivmte` function indicates its progress in performing a sequence of
-intermediate operations. It then runs through an audit procedure to
-enforce shape constraints. The audit procedure is described in more
-detail [ahead](#audit). After the audit procedure terminates, `ivmte`
-returns bounds on the target parameter, which in this case is the
-average treatment on the treated (`target = "att"`). These bounds are
-the primary output of interest. The detailed output can be suppressed by
-passing `noisy = FALSE` as an additional parameter:
+When `noisy = TRUE`, the `ivmte` function indicates its progress in
+performing a sequence of intermediate operations. It then runs through
+an audit procedure to enforce shape constraints. The audit procedure is
+described in more detail [ahead](#audit). After the audit procedure
+terminates, `ivmte` returns bounds on the target parameter, which in
+this case is the average treatment on the treated (`target = "att"`).
+These bounds are the primary output of interest.
+
+The detailed output can be suppressed by passing `noisy = FALSE` as an
+additional parameter. By default, detailed output is suppressed. Should
+the user wish to review the output, it is returned under the entry
+`$messages`, regardless of the value of the `noisy` parameter.
 
 ``` r
 results <- ivmte(data = AE,
@@ -340,10 +346,37 @@ results <- ivmte(data = AE,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
                  propensity = morekids ~ samesex,
                  noisy = FALSE)
+results
 #> 
 #> Bounds on the target parameter: [-0.09835591, -0.08285941]
-#> Audit terminated successfully after 1 round.
+#> Audit terminated successfully after 1 round
+cat(results$messages, sep = "\n")
 #> 
+#> LP solver: Gurobi ('gurobi')
+#> 
+#> Obtaining propensity scores...
+#> 
+#> Generating target moments...
+#>     Integrating terms for control group...
+#>     Integrating terms for treated group...
+#> 
+#> Generating IV-like moments...
+#>     Moment 1...
+#>     Moment 2...
+#>     Moment 3...
+#>     Moment 4...
+#>     Independent moments: 4 
+#> 
+#> Performing audit procedure...
+#>     Generating initial constraint grid...
+#> 
+#>     Audit count: 1
+#>     Minimum criterion: 0
+#>     Obtaining bounds...
+#>     Violations: 0
+#>     Audit finished.
+#> 
+#> Bounds on the target parameter: [-0.09835591, -0.08285941]
 ```
 
 ### Specifying the MTR Functions
@@ -363,13 +396,12 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + I(u^2) + yob + u*yob,
              m1 = ~ u + I(u^2) + I(u^3) + yob + u*yob,
-             propensity = morekids ~ samesex,
-             noisy = FALSE)
+             propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.2987098, 0.1289499]
-#> Audit terminated successfully after 1 round.
-#> 
+#> Audit terminated successfully after 1 round
 ```
 
 A restriction that we make for computational purposes is that `u` can
@@ -381,7 +413,7 @@ args[["m0"]] <- ~ log(u) + yob
 r <- do.call(ivmte, args)
 #> Error: The following terms are not declared properly.
 #>   m0: log(u) 
-#> The unobserved variable 'u' must be declared as a monomial, e.g. u, I(u^3). The monomial can be interacted with other variables, e.g. x:u, x:I(u^3). Expressions where the unobservable term is not a monomial are either not permissable or will not be parsed correctly, e.g. exp(u), I((x * u)^2). Try to rewrite the expression so that 'u' is only included in monomials.
+#> The unobserved variable 'u' must be declared as a monomial, e.g. u, I(u^3). The monomial can be interacted with other variables, e.g. x:u, x:I(u^3). Expressions where the unobservable term is not a monomial are either not permissible or will not be parsed correctly, e.g. exp(u), I((x * u)^2). Try to rewrite the expression so that 'u' is only included in monomials.
 ```
 
 Names other than `u` can be used for the selection equation
@@ -393,10 +425,10 @@ args[["m0"]] <- ~ v + I(v^2) + yob + v*yob
 args[["m1"]] <- ~ v + I(v^2) + I(v^3) + yob + v*yob
 args[["uname"]] <- "v"
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.2987098, 0.1289499]
-#> Audit terminated successfully after 1 round.
-#> 
+#> Audit terminated successfully after 1 round
 ```
 
 There are some limitations regarding the use of factor variables. For
@@ -413,10 +445,10 @@ However, one can work around this in a natural way.
 ``` r
 args[["m1"]] <- ~ u + (yob == 55) + (yob == 60)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.09835591, -0.08285941]
-#> Audit terminated successfully after 1 round.
-#> 
+#> Audit terminated successfully after 1 round
 ```
 
 #### Polynomial Splines
@@ -430,13 +462,12 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + uSplines(degree = 2, knots = c(.2, .4, .6, .8)) + yob,
              m1 = ~ uSplines(degree = 3, knots = c(.1, .3, .5, .7))*yob,
-             propensity = morekids ~ samesex,
-             noisy = FALSE)
+             propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.4479412, 0.2875447]
-#> Audit terminated successfully after 2 rounds.
-#> 
+#> Audit terminated successfully after 2 rounds
 ```
 
 The `degree` refers to the polynomial degree, so that `degree = 2` is a
@@ -480,13 +511,12 @@ args <- list(data = AE,
              m1.inc = TRUE,
              m0.inc = TRUE,
              mte.dec = TRUE,
-             propensity = morekids ~ samesex,
-             noisy = FALSE)
+             propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.09256466, 0.2006589]
-#> Audit terminated successfully after 1 round.
-#> 
+#> Audit terminated successfully after 1 round
 ```
 
 #### The Audit Procedure
@@ -547,19 +577,18 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + I(u^2) + yob + u*yob,
              m1 = ~ u + I(u^2) + I(u^3) + yob + u*yob,
-             propensity = morekids ~ samesex,
-             noisy = FALSE)
+             propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.2987098, 0.1289499]
-#> Audit terminated successfully after 1 round.
-#> 
+#> Audit terminated successfully after 1 round
 args[["target"]] <- "ate"
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.3800976, 0.2003928]
-#> Audit terminated successfully after 1 round.
-#> 
+#> Audit terminated successfully after 1 round
 ```
 
 #### LATEs and Generalized LATEs
@@ -580,13 +609,12 @@ args <- list(data = ivmteSimData,
              late.to = c(z = 3),
              m0 = ~ u + I(u^2) + I(u^3) + x,
              m1 = ~ u + I(u^2) + I(u^3) + x,
-             propensity = d ~ z + x,
-             noisy = FALSE)
+             propensity = d ~ z + x)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.6931532, -0.4397993]
-#> Audit terminated successfully after 2 rounds.
-#> 
+#> Audit terminated successfully after 2 rounds
 ```
 
 We can condition on covariates in the definition of the LATE by adding
@@ -595,16 +623,16 @@ the named list `late.X` as follows.
 ``` r
 args[["late.X"]] = c(x = 2)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.8419396, -0.2913049]
-#> Audit terminated successfully after 2 rounds.
-#> 
+#> Audit terminated successfully after 2 rounds
 args[["late.X"]] = c(x = 8)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.7721625, -0.3209851]
-#> Audit terminated successfully after 2 rounds.
-#> 
+#> Audit terminated successfully after 2 rounds
 ```
 
 **ivmte** also provides support for generalized LATEs, i.e. LATEs where
@@ -622,25 +650,16 @@ args <- list(data = ivmteSimData,
              genlate.ub = .4,
              m0 = ~ u + I(u^2) + I(u^3) + x,
              m1 = ~ u + I(u^2) + I(u^3) + x,
-             propensity = d ~ z + x,
-             noisy = FALSE)
+             propensity = d ~ z + x)
 r <- do.call(ivmte, args)
-#> 
-#> Bounds on the target parameter: [-0.7597831, -0.2984248]
-#> Audit terminated successfully after 2 rounds.
-#> 
 args[["genlate.ub"]] <- .41
 r <- do.call(ivmte, args)
-#> 
-#> Bounds on the target parameter: [-0.7551905, -0.3083199]
-#> Audit terminated successfully after 2 rounds.
-#> 
 args[["genlate.ub"]] <- .42
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.7504255, -0.3182317]
-#> Audit terminated successfully after 2 rounds.
-#> 
+#> Audit terminated successfully after 2 rounds
 ```
 
 Generalized LATEs can also be made conditional-on-covariates by passing
@@ -649,10 +668,10 @@ Generalized LATEs can also be made conditional-on-covariates by passing
 ``` r
 args[["late.X"]] <- c(x = 2)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.867551, -0.2750135]
-#> Audit terminated successfully after 2 rounds.
-#> 
+#> Audit terminated successfully after 2 rounds
 ```
 
 #### Custom Target Parameters
@@ -717,13 +736,12 @@ args <- list(data = ivmteSimData,
              target.weight1 = c(0, weight1, 0),
              m0 = ~ u + I(u^2) + I(u^3) + x,
              m1 = ~ u + I(u^2) + I(u^3) + x,
-             propensity = d ~ z + x,
-             noisy = FALSE)
+             propensity = d ~ z + x)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.8419396, -0.2913049]
-#> Audit terminated successfully after 2 rounds.
-#> 
+#> Audit terminated successfully after 2 rounds
 ```
 
 The knot specification here is the same for both the treated and
@@ -779,16 +797,15 @@ args <- list(data = ivmteSimData,
              target = "ate",
              m0 = ~ uSplines(degree = 1, knots = c(.25, .5, .75)) + x,
              m1 = ~ uSplines(degree = 1, knots = c(.25, .5, .75)) + x,
-             propensity = d ~ z + x,
-             noisy = FALSE)
+             propensity = d ~ z + x)
 r <- do.call(ivmte, args)
 #> Warning: The following IV-like specifications do not include the treatment
 #> variable: 1. This may result in fewer independent moment conditions than
 #> expected.
+r
 #> 
 #> Bounds on the target parameter: [-0.6427017, -0.3727193]
-#> Audit terminated successfully after 1 round.
-#> 
+#> Audit terminated successfully after 1 round
 ```
 
 There are 10 moments being fit in this specification. Five of these
@@ -823,10 +840,10 @@ coefficients in the third formula.
 ``` r
 args[["components"]] <- l(c(intercept, x), c(d), )
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.6865291, -0.2573525]
-#> Audit terminated successfully after 1 round.
-#> 
+#> Audit terminated successfully after 1 round
 ```
 
 Note that `intercept` is a reserved word that is used to specify the
@@ -839,6 +856,10 @@ args[["components"]] <- list(c(intercept, x), c(d), )
 args[["components"]] <- list(c("intercept", "x"), c("d"), "")
 r <- do.call(ivmte, args)
 #> Error in terms.formula(fi, ...): invalid model formula in ExtractVars
+r
+#> 
+#> Bounds on the target parameter: [-0.6865291, -0.2573525]
+#> Audit terminated successfully after 1 round
 ```
 
 #### Subsetting
@@ -861,16 +882,15 @@ args <- list(data = ivmteSimData,
              target = "ate",
              m0 = ~ uSplines(degree = 3, knots = c(.25, .5, .75)) + x,
              m1 = ~ uSplines(degree = 3, knots = c(.25, .5, .75)) + x,
-             propensity = d ~ z + x,
-             noisy = FALSE)
+             propensity = d ~ z + x)
 r <- do.call(ivmte, args)
 #> Warning: The following IV-like specifications do not include the treatment
 #> variable: 1. This may result in fewer independent moment conditions than
 #> expected.
+r
 #> 
 #> Bounds on the target parameter: [-0.6697228, -0.3331582]
-#> Audit terminated successfully after 2 rounds.
-#> 
+#> Audit terminated successfully after 2 rounds
 ```
 
 ### Specifying the Propensity Score
@@ -891,12 +911,11 @@ results <- ivmte(data = AE,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
                  propensity = morekids ~ samesex + yob,
-                 link = "probit",
-                 noisy = FALSE)
+                 link = "probit")
+results
 #> 
 #> Bounds on the target parameter: [-0.100781, -0.0825274]
-#> Audit terminated successfully after 1 round.
-#> 
+#> Audit terminated successfully after 1 round
 ```
 
 ### Point Identified Models
@@ -914,15 +933,11 @@ args <- list(data = ivmteSimData,
              target = "ate",
              m0 = ~ u,
              m1 = ~ u,
-             propensity = d ~ factor(z),
-             noisy = FALSE)
+             propensity = d ~ factor(z))
 r <- do.call(ivmte, args)
-#> 
-#> Bounds on the target parameter: [-0.5349027, -0.5349027]
-#> Audit terminated successfully after 1 round.
-#> 
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
+r
 #> 
 #> Point estimate of the target parameter: -0.5389508
 ```
@@ -943,7 +958,8 @@ weighting, however the identity weighting can be computed by passing
 The `ivmte` command does provide functionality for constructing
 confidence regions, although this is turned off by default, since it can
 be computationally expensive. To turn it on, set `bootstraps` to be a
-positive integer.
+positive integer. The confidence intervals are stored under
+`$bounds.ci`.
 
 ``` r
 r <- ivmte(data = AE,
@@ -952,11 +968,15 @@ r <- ivmte(data = AE,
            m1 = ~ u + yob,
            ivlike = worked ~ morekids + samesex + morekids*samesex,
            propensity = morekids ~ samesex,
-           bootstraps = 50,
-           noisy = FALSE)
+           bootstraps = 50)
+summary(r)
 #> 
 #> Bounds on the target parameter: [-0.09835591, -0.08285941]
-#> Audit terminated successfully after 1 round. 
+#> Audit terminated successfully after 1 round 
+#> MTR coefficients: 6 
+#> Independent/total moments: 4/4 
+#> Minimum criterion: 0 
+#> LP solver: Gurobi ('gurobi')
 #> 
 #> Bootstrapped confidence intervals (backward):
 #>     90%: [-0.2013432, -0.01624443]
@@ -978,7 +998,24 @@ than the sample size and setting `bootstraps.replace` to be `TRUE` or
 respectively. Regardless of these settings, two types of confidence
 regions are constructed following the terminology of Andrews and Han
 (2009); see Shea and Torgovitsky (2019) for more detail, references, and
-important theoretical caveats to the procedures.
+important theoretical caveats to the procedures. While the `summary`
+output displays only the backward confidence region, both forward and
+backward confidence regions are stored under `$bounds.ci`.
+
+``` r
+r$bounds.ci
+#> $backward
+#>      lb.backward   ub.backward
+#> 0.9   -0.2013432 -0.0162444309
+#> 0.95  -0.2185989 -0.0037296334
+#> 0.99  -0.2300391  0.0006812143
+#> 
+#> $forward
+#>      lb.forward   ub.forward
+#> 0.9  -0.1600080 -0.002993087
+#> 0.95 -0.1694774  0.022998745
+#> 0.99 -0.1961220  0.057292430
+```
 
 The bootstrapped bounds are returned and stored in
 `r$bounds.bootstraps`, and can be used to plot the distribution of bound
@@ -1012,11 +1049,13 @@ args <- list(data = AE,
              ivlike = worked ~ morekids + samesex + morekids*samesex,
              propensity = morekids ~ samesex,
              point = TRUE,
-             bootstraps = 50,
-             noisy = FALSE)
+             bootstraps = 50)
 r <- do.call(ivmte, args)
+summary(r)
 #> 
 #> Point estimate of the target parameter: -0.09160436
+#> MTR coefficients: 4 
+#> Independent/total moments: 4/4 
 #> 
 #> Bootstrapped confidence intervals (nonparametric):
 #>     90%: [-0.1869028, -0.02510774]
@@ -1056,36 +1095,21 @@ args <- list(data = ivmteSimData,
              m0.dec = TRUE,
              m1.dec = TRUE,
              propensity = d ~ factor(z),
-             bootstraps = 50,
-             noisy = FALSE)
+             bootstraps = 50)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.6189484, -0.6189484]
-#> Audit terminated successfully after 1 round. 
-#> 
-#> Bootstrapped confidence intervals (backward):
-#>     90%: [-0.6411833, -0.6011875]
-#>     95%: [-0.64164, -0.5966297]
-#>     99%: [-0.6465837, -0.5944238]
-#> p-value: 0
-#> Bootstrapped specification test p-value: 0.78
-#> Number of bootstraps: 50
+#> Audit terminated successfully after 1 round
 
 args[["ivlike"]] <- y ~ d + factor(z) + d*factor(z) # many more moments
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
 #> Warning: If argument 'point' is set to TRUE, then shape restrictions on m0
 #> and m1 are ignored, and the audit procedure is not implemented.
+r
 #> 
 #> Point estimate of the target parameter: -0.5559325
-#> 
-#> Bootstrapped confidence intervals (nonparametric):
-#>     90%: [-0.6066197, -0.5112431]
-#>     95%: [-0.6101133, -0.5086833]
-#>     99%: [-0.6147004, -0.4743232]
-#> p-value: 0
-#> Bootstrapped J-test p-value: 0.44
-#> Number of bootstraps: 50
 ```
 
 ### Plotting MTRs and MTEs
@@ -1103,13 +1127,12 @@ args <- list(data = AE,
              m1.inc = TRUE,
              m0.inc = TRUE,
              mte.dec = TRUE,
-             propensity = morekids ~ samesex,
-             noisy = FALSE)
+             propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
+r
 #> 
 #> Bounds on the target parameter: [-0.08484221, 0.08736006]
-#> Audit terminated successfully after 2 rounds.
-#> 
+#> Audit terminated successfully after 2 rounds
 ```
 
 The specification of each uniquely defined spline is stored in the list
