@@ -2531,9 +2531,17 @@ checkU <- function(formula, uname) {
 #' Santos (2018)
 #'
 #' This function estimates bounds on treatment effect parameters,
-#' following the procedure described in Mogstad, Torgovitsky
-#' (2017). Of the target parameters, the user can choose from the ATE,
-#' ATT, ATU, LATE, and generalized LATE. The user is required to
+#' following the procedure described in
+#' \href{https://doi.org/10.3982/ECTA15463}{Mogstad, Santos and
+#' Torgovitsky (2018)}. A detailed description of the module and its
+#' features can be found in
+#' \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea
+#' and Torgovitsky (2019)}. For examples of how to use the package,
+#' see the vignette, which is also available on the module's
+#' \href{https://github.com/jkcshea/ivmte}{GitHub} page.
+#'
+#' The treatment effects parameters the user can choose from are the
+#' ATE, ATT, ATU, LATE, and generalized LATE. The user is required to
 #' provide a polynomial expression for the marginal treatment
 #' responses (MTR), as well as a set of regressions. By restricting
 #' the set of coefficients on each term of the MTRs to be consistent
@@ -2548,12 +2556,11 @@ checkU <- function(formula, uname) {
 #' data set already containing the propensity scores.
 #'
 #' Constraints on the shape of the MTRs and marginal treatment effects
-#' (MTE) can be imposed by the user, also. Specifically, bounds and
-#' monotonicity restrictions are permitted. These constraints are only
-#' enforced over a subset of the data. However, an audit procedure
-#' randomly selects points outside of this subset to determine whether
-#' or not the constraints hold. The user can specify how stringent
-#' this audit procedure is using the function arguments.
+#' (MTE) can be imposed by the user. Specifically, bounds and
+#' monotonicity restrictions are permitted. These constraints are
+#' first enforced over a subset of points in the data. An iterative
+#' audit procedure is then performed to ensure the constraints hold
+#' more generally.
 #'
 #' @param late.Z vector of variable names used to define the LATE.
 #' @param late.from baseline set of values of Z used to define the
