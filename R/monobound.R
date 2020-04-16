@@ -931,7 +931,7 @@ combinemonobound <- function(bdA, monoA) {
 #' associated with the monotonicity and boundedness constraints
 #' declared by the user.
 #' @param pm0 A list of the monomials in the MTR for d = 0.
-#' @param pm1 A list of the monomials in the MTR for d = 1. 
+#' @param pm1 A list of the monomials in the MTR for d = 1.
 #' @param support a matrix for the support of all variables that enter
 #'     into the MTRs.
 #' @param grid_index a vector, the row numbers of \code{support} used
