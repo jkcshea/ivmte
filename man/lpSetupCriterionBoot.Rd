@@ -34,6 +34,8 @@ Nothing, as this modifies an environment variable to save
     memory.
 }
 \description{
-This function recenters various objects in the LP environment so
-that a specification test can be performed via the bootstrap.
+This function re-centers various objects in the LP environment so
+that a specification test can be performed via the bootstrap. The
+LP model must be passed as an environment variable, under the entry
+\code{$lpobj}. See \code{\link{lpSetup}}.
 }

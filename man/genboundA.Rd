@@ -79,6 +79,6 @@ a constraint matrix for the LP problem, the associated
 }
 \description{
 This function generates the component of the constraint matrix in
-the LP problem pertaining to bounds on the MTRs and MTEs. These
-bounds are declared by the user.
+the LP problem pertaining to the lower and upper bounds on the MTRs
+and MTEs. These bounds are declared by the user.
 }

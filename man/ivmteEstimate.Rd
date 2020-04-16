@@ -37,11 +37,11 @@ LATE.}
 \item{late.to}{comparison set of values of Z used to define the
 LATE.}
 
-\item{late.X}{vector of variable names of covariates which we
-condition on when defining the LATE.}
+\item{late.X}{vector of variable names of covariates to condition
+on when defining the LATE.}
 
-\item{eval.X}{numeric vector of the values at which we condition
-variables in \code{late.X} on when estimating the LATE.}
+\item{eval.X}{numeric vector of the values to condition variables
+in \code{late.X} on when estimating the LATE.}
 
 \item{genlate.lb}{lower bound value of unobservable \code{u} for
 estimating the generalized LATE.}
@@ -79,11 +79,8 @@ incorporated using the expression \code{uSpline}, e.g.
 TRUE)}. The \code{intercept} argument may be omitted, and is
 set to \code{TRUE} by default.}
 
-\item{m1}{one-sided formula for marginal treatment response
-function for treated group. Splines can also be incorporated
-using the expression "uSplines(degree, knots, intercept)". The
-\code{intercept} argument may be omitted, and is set to
-\code{TRUE} by default.}
+\item{m1}{one-sided formula for the marginal treatment response
+function for the treated group. See \code{m0} for details.}
 
 \item{uname}{variable name for the unobservable used in declaring
 the MTRs. The name can be provided with or without quotation
@@ -169,13 +166,14 @@ the function estimates the propensity score according to the
 formula and link specified in \code{link}. If a variable name
 is declared, then the corresponding column in the data is taken
 as the vector of propensity scores. A variable name can be
-passed either as a string (e.g \code{propensity = 'p'}). , a
+passed either as a string (e.g \code{propensity = 'p'}), a
 variable (e.g. \code{propensity = p}), or a one-sided formula
-(e.g. \code{propensity = ~p}.}
+(e.g. \code{propensity = ~p}).}
 
 \item{link}{character, name of link function to estimate propensity
 score. Can be chosen from \code{'linear'}, \code{'probit'}, or
-\code{'logit'}. Default is set to \code{'logit'}.}
+\code{'logit'}. Default is set to \code{'logit'}. The link
+should be provided with quoation marks.}
 
 \item{treat}{variable name for treatment indicator. The name can be
 provided with or without quotation marks.}
@@ -183,7 +181,8 @@ provided with or without quotation marks.}
 \item{lpsolver}{character, name of the linear programming package
 in R used to obtain the bounds on the treatment effect. The
 function supports \code{'gurobi'}, \code{'cplexapi'},
-\code{'lpsolveapi'}.}
+\code{'lpsolveapi'}. The name of the solver should be provided
+with quotation marks.}
 
 \item{lpsolver.options}{list, each item of the list should
 correspond to an option specific to the LP solver selected.}
@@ -220,17 +219,23 @@ imposing shape restrictions on the MTRs.}
 
 \item{initgrid.nu}{integer determining the number of points in the
 open interval (0, 1) drawn from a Halton sequence. The end
-points 0 and 1 are additionally included. These points are used
-to form the initial constraint grid for imposing shape
-restrictions on the \code{u} components of the MTRs.}
+points 0 and 1 are additionally included. These points are
+always a subset of the points defining the audit grid (see
+\code{audit.nu}). These points are used to form the initial
+constraint grid for imposing shape restrictions on the \code{u}
+components of the MTRs.}
 
 \item{audit.nx}{integer determining the number of points on the
 covariates space to audit in each iteration of the audit
 procedure.}
 
 \item{audit.nu}{integer determining the number of points in the
-interval [0, 1], corresponding to space of unobservable
-\code{u}, to audit in each iteration of the audit procedure.}
+open interval (0, 1) drawn from a Halton sequence. The end
+points 0 and 1 are additionally included. These points are used
+to audit whether the shape restrictions on the \code{u}
+components of the MTRs are satisfied. The initial grid used to
+impose the shape constraints in the LP problem are constructed
+from a subset of these points.}
 
 \item{audit.add}{maximum number of points to add to the initial
 constraint grid for imposing each kind of shape constraint. For
@@ -244,7 +249,7 @@ procedure.}
 \item{audit.tol}{feasibility tolerance when performing the
 audit. By default to set to be equal to the Gurobi
 (\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
-"cplexapi"}) feasibility toleraence, which is set to
+"cplexapi"}) feasibility tolerance, which is set to
 \code{1e-06} by default.  If the LP solver is lp_solve
 (\code{lpsolver = "lpsolveapi"}), this parameter is set to
 \code{1e-06} by default. This parameter should only be changed
@@ -252,13 +257,13 @@ if the feasibility tolerance of the LP solver is changed, or if
 numerical issues result in discrepancies between the LP
 solver's feasibility check and the audit.}
 
-\item{audit.grid}{list, contains the A A matrix used in the audit
-for the original sample, as well as the RHS vector used in the
-audit from the original sample.}
+\item{audit.grid}{list, contains the \code{A} matrix used in the
+audit for the original sample, as well as the RHS vector used
+in the audit from the original sample.}
 
 \item{point}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} if it is believed that the treatment effects are
-point identified. If set to \code{TRUE}, then a two-step GMM
+point identified. If set to \code{TRUE}, a two-step GMM
 procedure is implemented to estimate the treatment
 effects. Shape constraints on the MTRs will be ignored under
 point identification.}
@@ -267,7 +272,7 @@ point identification.}
 \code{TRUE} if the GMM point estimate should use the identity
 weighting matrix (i.e. one-step GMM).}
 
-\item{point.center}{numeric, a vector of GMM moment conditoins
+\item{point.center}{numeric, a vector of GMM moment conditions
 evaluated at a solution. When bootstrapping, the moment
 conditions from the original sample can be passed through this
 argument to recenter the bootstrap distribution of the
@@ -279,7 +284,7 @@ components in the S-set are redundant.}
 \item{count.moments}{boolean, indicate if number of linearly
 independent moments should be counted.}
 
-\item{orig.sset}{list, only used for bootstraps. The list caontains
+\item{orig.sset}{list, only used for bootstraps. The list contains
 the gamma moments for each element in the S-set, as well as the
 IV-like coefficients.}
 
@@ -307,7 +312,7 @@ and control groups. Spline terms are extracted using
 \code{\link{removeSplines}}. This object is supposed to be a
 dictionary of splines, containing the original calls of each
 spline in the MTRs, their specifications, and the index used
-for renaming each component.}
+for naming each basis spline.}
 
 \item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
 then messages are provided throughout the estimation
@@ -329,9 +334,8 @@ the same as what the Gurobi API would send to the console.}
 
 \item{environments}{a list containing the environments of the MTR
 formulas, the IV-like formulas, and the propensity score
-formulas. If a formulas is not provided, and thus no
-environment can be found, then the parent.frame() is assigned
-by default.}
+formulas. If a formula is not provided, and thus no environment
+can be found, then the parent.frame() is assigned by default.}
 }
 \value{
 Returns a list of results from throughout the estimation
@@ -342,9 +346,20 @@ Returns a list of results from throughout the estimation
 }
 \description{
 This function estimates bounds on treatment effect parameters,
-following the procedure described in Mogstad, Torgovitsky
-(2017). Of the target parameters, the user can choose from the ATE,
-ATT, ATU, LATE, and generalized LATE. The user is required to
+following the procedure described in
+\href{https://doi.org/10.3982/ECTA15463}{Mogstad, Santos and
+Torgovitsky (2018)}. A detailed description of the module and its
+features can be found in
+\href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea
+and Torgovitsky (2019)}. However, this is not the main function of
+the module. See \code{\link{ivmte}} for the main function. For
+examples of how to use the package, see the vignette, which is
+available on the module's
+\href{https://github.com/jkcshea/ivmte}{GitHub} page.
+}
+\details{
+The treatment effects parameters the user can choose from are the
+ATE, ATT, ATU, LATE, and generalized LATE. The user is required to
 provide a polynomial expression for the marginal treatment
 responses (MTR), as well as a set of regressions. By restricting
 the set of coefficients on each term of the MTRs to be consistent
@@ -352,18 +367,16 @@ with the regression estimates, the function is able to restrict
 itself to a set of MTRs. The bounds on the treatment effect
 parameter correspond to finding coefficients on the MTRs that
 maximize their average difference.
-}
-\details{
+
 The estimation procedure relies on the propensity to take up
 treatment. The propensity scores can either be estimated as part of
 the estimation procedure, or the user can specify a variable in the
 data set already containing the propensity scores.
 
 Constraints on the shape of the MTRs and marginal treatment effects
-(MTE) can be imposed by the user, also. Specifically, bounds and
-monotonicity restrictions are permitted. These constraints are only
-enforced over a subset of the data. However, an audit procedure
-randomly selects points outside of this subset to determine whether
-or not the constraints hold. The user can specify how stringent
-this audit procedure is using the function arguments.
+(MTE) can be imposed by the user. Specifically, bounds and
+monotonicity restrictions are permitted. These constraints are
+first enforced over a subset of points in the data. An iterative
+audit procedure is then performed to ensure the constraints hold
+more generally.
 }

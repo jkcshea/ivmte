@@ -21,10 +21,11 @@ object is only used to determine the names of terms. If it is
 no submitted, then no names are provided to the solution
 vector.}
 
-\item{criterion.factor}{overall multiplicative factor for how much more
-the solution is permitted to violate observational equivalence
-of the IV-like estimands, i.e. \code{criterion.factor} will
-multiply \code{minobseq} directly.}
+\item{criterion.factor}{overall multiplicative factor for how much
+more the solution is permitted to violate observational
+equivalence of the IV-like estimands,
+i.e. \code{criterion.factor} will multiply \code{minobseq}
+directly.}
 
 \item{lpsolver}{string, name of the package used to solve the LP
 problem.}
@@ -40,5 +41,6 @@ Nothing, as this modifies an environment variable to save
 }
 \description{
 This function sets up the LP model so that the bounds can be
-obtained.
+obtained. The LP model must be passed as an environment variable,
+under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
 }

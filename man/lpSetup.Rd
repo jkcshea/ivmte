@@ -13,7 +13,7 @@ problem.}
 \item{sset}{List of IV-like estimates and the corresponding gamma
 terms.}
 
-\item{orig.sset}{list, only used for bootstraps. The list caontains
+\item{orig.sset}{list, only used for bootstraps. The list contains
 the gamma moments for each element in the S-set, as well as the
 IV-like coefficients.}
 
@@ -32,19 +32,20 @@ This function takes in the IV estimates from the set of IV
 regressions declared by the user, as well as their corresponding
 moments of the terms in the MTR. These are then used to construct
 the components that make up the LP problem. Note that the LP model
-will be saved inside an environment variable, which is supposed to
-be passed through the argument \code{env}. The environment
-\code{env} is supposed to already contain a list under the entry
-\code{$mbobj} containing the matrices defining the shape
-constraints. This list of shape constraints \code{$mbobj} should
-contain three entries: \code{mbA} (the matrix defining the
-constraints); \code{mbs} (a vector containing the appropriate value
-given \code{lpsolver} to indicate whether a row in \code{mbA} is an
-equality or inequaliyt constraint); \code{mbrhs} (a vector of the
-right hand side values defining the constraint of the form \code{Ax
-= b}, i.e. the vector \code{b}). Depending on the linear
-programming solver used, this function will return different output
-specific to the solver.
+will be saved inside an environment variable, which is to be passed
+through the argument \code{env}. This is done for efficient use of
+memory. The environment \code{env} is supposed to already contain a
+list under the entry \code{$mbobj} containing the matrices defining
+the shape constraints. This list of shape constraints \code{$mbobj}
+should contain three entries corresponding to a system of linear
+equations of the form \code{Ax <=> b}: \code{mbA}, the matrix
+defining the constraints, \code{A}; \code{mbs}, a vector indicating
+whether a row in \code{mbA} is an equality or inequality constraint
+(for Gurobi and CPLEX, use '<=', '>=', '='; for lpSolveAPI, use
+'L', 'G', and 'E'); \code{mbrhs}, a vector of the right hand side
+values defining the constraint of the form i.e. the vector
+\code{b}. Depending on the linear programming solver used, this
+function will return different output specific to the solver.
 }
 \examples{
 dtm <- ivmte:::gendistMosquito()

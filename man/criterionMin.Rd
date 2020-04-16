@@ -34,6 +34,7 @@ Given a set of IV-like estimates and the set of matrices/vectors
 defining an LP problem, this function minimizes the violation of
 observational equivalence under the L1 norm. The LP model must be
 passed as an environment variable, under the entry \code{$lpobj}.
+See \code{\link{lpSetup}}.
 }
 \examples{
 dtm <- ivmte:::gendistMosquito()

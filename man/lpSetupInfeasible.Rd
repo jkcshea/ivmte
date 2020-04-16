@@ -17,8 +17,11 @@ Nothing, as this modifies an environment variable to save
     memory.
 }
 \description{
-This function separates the shape contraints from the LP
+This function separates the shape constraints from the LP
 environment. That way, the model can be solved without any shape
-constraints. This is done in order to check which shape constraints
-are causing the model to be infeasible.
+constraints, which is the primary cause of infeasibility. This is
+done in order to check which shape constraints are causing the
+model to be infeasible. The LP model must be passed as an
+environment variable, under the entry \code{$lpobj}. See
+\code{\link{lpSetup}}.
 }

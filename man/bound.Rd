@@ -44,7 +44,7 @@ a list containing the bounds on the treatment effect; the
 \description{
 This function estimates the bounds on the target treatment
 effect. The LP model must be passed as an environment variable,
-under the entry \code{$lpobj}.
+under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
 }
 \examples{
 dtm <- ivmte:::gendistMosquito()

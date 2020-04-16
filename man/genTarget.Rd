@@ -20,11 +20,8 @@ incorporated using the expression \code{uSpline}, e.g.
 TRUE)}. The \code{intercept} argument may be omitted, and is
 set to \code{TRUE} by default.}
 
-\item{m1}{one-sided formula for marginal treatment response
-function for treated group. Splines can also be incorporated
-using the expression "uSplines(degree, knots, intercept)". The
-\code{intercept} argument may be omitted, and is set to
-\code{TRUE} by default.}
+\item{m1}{one-sided formula for the marginal treatment response
+function for the treated group. See \code{m0} for details.}
 
 \item{target}{character, target parameter to be
 estimated. Currently function allows for ATE (\code{'ate'}),
@@ -62,11 +59,11 @@ LATE.}
 \item{late.to}{comparison set of values of Z used to define the
 LATE.}
 
-\item{late.X}{vector of variable names of covariates which we
-condition on when defining the LATE.}
+\item{late.X}{vector of variable names of covariates to condition
+on when defining the LATE.}
 
-\item{eval.X}{numeric vector of the values at which we condition
-variables in \code{late.X} on when estimating the LATE.}
+\item{eval.X}{numeric vector of the values to condition variables
+in \code{late.X} on when estimating the LATE.}
 
 \item{genlate.lb}{lower bound value of unobservable \code{u} for
 estimating the generalized LATE.}
@@ -82,7 +79,7 @@ and control groups. Spline terms are extracted using
 \code{\link{removeSplines}}. This object is supposed to be a
 dictionary of splines, containing the original calls of each
 spline in the MTRs, their specifications, and the index used
-for renaming each component.}
+for naming each basis spline.}
 
 \item{pmodobj}{A vector of propensity scores.}
 

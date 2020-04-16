@@ -33,7 +33,7 @@ Returns a list containing the matrices of IV-like
 }
 \description{
 This function estimates the IV-like estimands, as well as generates
-the IV-like specifications.
+the weights associated with the IV-like specifications.
 }
 \examples{
 dtm <- ivmte:::gendistMosquito()

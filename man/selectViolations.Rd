@@ -9,10 +9,10 @@ selectViolations(diffVec, audit.add, lb0seq, lb1seq, lbteseq, ub0seq,
 }
 \arguments{
 \item{diffVec}{numeric vector, with a positive value indicating a
-violation of a shape constriant.}
+violation of a shape constraint.}
 
 \item{audit.add}{integer, the number of points from the audit grid
-to add to the intial for each constraint type. For instance, if
+to add to the initial for each constraint type. For instance, if
 there are 5 different kinds of constraints imposed, and
 \code{audit.add = 5}, then up to 30 points may be added to the
 constraint grid.}
@@ -39,17 +39,17 @@ treatment effect.}
 
 \item{mono0seq}{integer matrix, indicates which rows in the audit
 constraint matrix correspond to the monotonicity conditions for
-m0, and whether the constriant is increasing (+1) or decreasing
+m0, and whether the constraint is increasing (+1) or decreasing
 (-1).}
 
 \item{mono1seq}{integer matrix, indicates which rows in the audit
 constraint matrix correspond to the monotonicity conditions for
-m1, and whether the constriant is increasing (+1) or decreasing
+m1, and whether the constraint is increasing (+1) or decreasing
 (-1).}
 
 \item{monoteseq}{integer matrix, indicates which rows in the audit
 constraint matrix correspond to the monotonicity conditions for
-the treatment effect, and whether the constriant is increasing
+the treatment effect, and whether the constraint is increasing
 (+1) or decreasing (-1).}
 
 \item{mbmap}{integer vector, indexes the X-value associated with
@@ -60,7 +60,7 @@ The audit grid is represented using a set of constraint
     matrices. Each point in the audit grid corresponds to a set of
     rows in the constraint matrices. The function simply returns
     the vector of row numbers for the points from the audit grid
-    whose corresponding constriants should be added to the original
+    whose corresponding constraints should be added to the original
     LP problem (i.e. the points to add to the original grid).
 }
 \description{

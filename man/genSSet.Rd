@@ -12,28 +12,31 @@ genSSet(data, sset, sest, splinesobj, pmodobj, pm0, pm1, ncomponents,
 \item{data}{\code{data.frame} used to estimate the treatment
 effects.}
 
-\item{sset}{A list, which is modified and returned as the output.}
+\item{sset}{list, which is modified and returned as the
+output. This object will contain all the information from the
+IV-like specifications that can be used for estimating the
+treatment effect.}
 
-\item{sest}{A list containing the point estimates and S-weights
+\item{sest}{list containing the point estimates and S-weights
 corresponding to a particular IV-like estimand.}
 
 \item{splinesobj}{list of spline components in the MTRs for treated
 and control groups. Spline terms are extracted using
 \code{\link{removeSplines}}.}
 
-\item{pmodobj}{A vector of propensity scores.}
+\item{pmodobj}{vector of propensity scores.}
 
-\item{pm0}{A list of the monomials in the MTR for d = 0.}
+\item{pm0}{list of the monomials in the MTR for the control group.}
 
-\item{pm1}{A list of the monomials in the MTR for d = 1.}
+\item{pm1}{list of the monomials in the MTR for the treated group.}
 
 \item{ncomponents}{The number of components from the IV regression
-we want to include in the S-set.}
+to include in the S-set.}
 
-\item{scount}{A counter for the number of elements in the S-set.}
+\item{scount}{integer, an index for the elements in the S-set.}
 
-\item{subset_index}{An index for the subset of the data the IV
-regression is restricted to.}
+\item{subset_index}{vector of integers, a row index for the subset of
+the data the IV regression is restricted to.}
 
 \item{means}{boolean, set to \code{TRUE} by default. If set to
 \code{TRUE}, then the gamma moments are returned, i.e. sample
@@ -69,7 +72,11 @@ A list containing the point estimate for the IV regression,
 This function takes in the IV estimate and its IV-like
 specification, and generates a list containing the corresponding
 point estimate, and the corresponding moments (gammas) that will
-enter into the constraint matrix of the LP problem.
+enter into the constraint matrix of the LP problem. The function
+requires the user to provide a list (i.e. the list the point
+estimates and moments corresponding to other IV-like
+specifications; or an empty list) to append these point estimates
+and moments to.
 }
 \examples{
 dtm <- ivmte:::gendistMosquito()
@@ -111,7 +118,7 @@ ivEstimates <- ivEstimate(formula = ey ~ d | z,
                           list = FALSE)
 
 ## Construct S-set, which contains the coefficients and weights
-## coresponding to various IV-like estimands
+## corresponding to various IV-like estimands
 genSSet(data = dtm,
         sset = sSet,
         sest = ivEstimates,

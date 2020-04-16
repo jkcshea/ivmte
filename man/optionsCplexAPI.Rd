@@ -20,7 +20,7 @@ with each entry being a named vector
 (e.g. \code{list(setDblParmCPLEX = list(c(parm = 1016, value =
 1e-04), c(parm = 1084, value = 2)))}). If the option only
 requires the \code{env} parameter, then an \code{NA} should be
-passsed as the parameter value (e.g. \code{list(setDefaultParm
+passed as the parameter value (e.g. \code{list(setDefaultParm
 = NA)}).}
 }
 \value{

@@ -13,9 +13,10 @@ matrix \code{xsupport} to include in the grid.}
 \item{xsupport}{a matrix containing all the unique combinations of
 the covariates included in the MTRs.}
 
-\item{usupport}{a vector of evenly spaced points in the interval
-[0, 1], including 0 and 1. The number of points is decided by
-the user.}
+\item{usupport}{a vector of points in the interval [0, 1],
+including 0 and 1. The number of points is decided by the
+user. The function generates these points using a Halton
+sequence.}
 
 \item{uname}{name declared by user to represent the unobservable
 term.}
@@ -27,9 +28,9 @@ a list containing the grid used in the audit; a vector
 }
 \description{
 This function takes in a matrix summarizing the support of the
-covariates, as well as an evenly spaced set of points summarizing
-the support of the unobservable variable. A Cartesian product of
-the subset of the support of the covariates and the points in the
-support of the unobservable generates the grid that is used for the
-audit procedure.
+covariates, as well as set of points summarizing the support of the
+unobservable variable. A Cartesian product of the subset of the
+support of the covariates and the points in the support of the
+unobservable generates the grid that is used for the audit
+procedure.
 }

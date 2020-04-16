@@ -12,14 +12,17 @@ gmmEstimate(sset, gstar0, gstar1, center = NULL, subsetList = NULL,
 \item{sset}{a list of lists constructed from the function
 \link{genSSet}. Each inner list should include a coefficient
 corresponding to a term in an IV specification, a matrix of the
-estimates of the gamma moments conditional on (X, Z) for d = 0,
-and a matrix of the estimates of the gamma moments conditional
-on (X, Z) for d = 1. The column means of the last two matrices
-is what is used to generate the gamma moments.}
+estimates of the gamma moments conditional on (X, Z) for the
+control group, and a matrix of the estimates of the gamma
+moments conditional on (X, Z) for the treated group. The column
+means of the last two matrices is what is used to generate the
+gamma moments.}
 
-\item{gstar0}{vector, the target gamma moments for d = 0.}
+\item{gstar0}{vector, the target gamma moments for the control
+group.}
 
-\item{gstar1}{vector, the target gamma moments for d = 1.}
+\item{gstar1}{vector, the target gamma moments for the treated
+group.}
 
 \item{center}{numeric, the GMM moment equations from the original
 sample. When bootstrapping, the solution to the point
@@ -57,7 +60,8 @@ a list containing the point estimate of the treatment
     effects, and the MTR coefficient estimates. The moment
     conditions evaluated at the solution are also returned, along
     with the J-test results. However, if the option \code{center}
-    is passed, then the moment conditions and J-test are centered.
+    is passed, then the moment conditions and J-test are centered
+    (this is to perform the J-test via bootstrap).
 }
 \description{
 If the user sets the argument \code{point = TRUE} in the function
@@ -66,7 +70,7 @@ parameter is point identified. The observational equivalence
 condition is then set up as a two-step GMM problem. Solving this
 GMM problem recovers the coefficients on the MTR functions m0 and
 m1. Combining these coefficients with the target gamma moments
-allows us to estimate the target treatment effect.
+allows one to estimate the target treatment effect.
 }
 \examples{
 dtm <- ivmte:::gendistMosquito()
