@@ -4,24 +4,28 @@
 #' function sets up the LP problem of minimizing the violation of
 #' observational equivalence for the set of IV-like estimands, while
 #' satisfying boundedness and monotonicity constraints declared by the
-#' user. Rather than enforce boundedness and monotonicity hold across
-#' the entire support of covariates and unobservables, this procedure
-#' enforces the conditions over a subset of points in a grid. This
-#' grid corresponds to the set of values the covariates can take, and a
-#' subset of values of the unobservable term. The size of this grid is
-#' specified by the user in the function arguments. The procedure then
-#' goes on to check whether the constraints are satisfied at points
-#' off the grid. Any point where either the boundedness or
-#' monotonicity constraints are violated are incorporated into the
-#' grid, and the process is repeated until the grid incorporates the
-#' entire support of the covariates, or until some a maximum number of
-#' iterations is reached.
+#' user. Rather than enforce that boundedness and monotonicity hold
+#' across the entire support of covariates and unobservables, this
+#' procedure enforces the conditions over a grid of points. This grid
+#' corresponds to the set of values the covariates can take, and a set
+#' of values of the unobservable term. The size of this grid is
+#' specified by the user in the function arguments. The procedure
+#' first estimates the bounds while imposing the shape constraints for
+#' an initial subset of points in the grid. The procedure then goes on
+#' to check ('audit') whether the constraints are satisfied over the
+#' entire grid. Any point where either the boundedness or monotonicity
+#' constraints are violated are incorporated into the initial grid,
+#' and the process is repeated until the audit no longer finds any
+#' violations, or until some maximum number of iterations is
+#' reached.
 #'
-#' @param audit.grid list, contains the A matrix used in the audit
-#'     for the original sample, as well as the RHS vector used in the
-#'     audit from the original sample.
-#' @param pm0 A list of the monomials in the MTR for d = 0.
-#' @param pm1 A list of the monomials in the MTR for d = 1.
+#' @param audit.grid list, contains the \code{A} matrix used in the
+#'     audit for the original sample, as well as the RHS vector used
+#'     in the audit from the original sample.
+#' @param pm0 A list of the monomials in the MTR for the control
+#'     group.
+#' @param pm1 A list of the monomials in the MTR for the treated
+#'     group.
 #' @param m1.ub.default boolean, default set to FALSE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
 #' @param m0.ub.default boolean, default set to FALSE. Indicator for
@@ -34,12 +38,13 @@
 #'     whether the value assigned was by the user, or set by default.
 #' @param mte.lb.default boolean, default set to FALSE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
-#' @param sset a list containing the point estimates and gamma
+#' @param sset a list containing the point estimates and gamma moments
+#'     for each IV-like specification.
 #' @param gstar0 set of expectations for each terms of the MTR for the
-#'     control group.
+#'     control group, corresponding to the target parameter.
 #' @param gstar1 set of expectations for each terms of the MTR for the
-#'     control group.
-#' @param orig.sset list, only used for bootstraps. The list caontains
+#'     control group, corresponding to the target parameter.
+#' @param orig.sset list, only used for bootstraps. The list contains
 #'     the gamma moments for each element in the S-set, as well as the
 #'     IV-like coefficients.
 #' @param orig.criterion numeric, only used for bootstraps. The scalar
@@ -48,10 +53,12 @@
 #'
 #' @inheritParams ivmteEstimate
 #'
-#' @return a list. Included in the list is the minimum violation of
-#'     observational equivalence of the set of IV-like estimands, as
-#'     well as the list of matrices and vectors associated with
-#'     solving the LP problem.
+#' @return a list. Included in the list are estimates of the treatment
+#'     effect bounds; the minimum violation of observational
+#'     equivalence of the set of IV-like estimands; the list of
+#'     matrices and vectors defining the LP problem; the points used
+#'     to generate the audit grid, and the points where the shape
+#'     constraints were violated.
 #'
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
@@ -925,9 +932,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
 #' (i.e. should be appended to the constraint matrix).
 #'
 #' @param diffVec numeric vector, with a positive value indicating a
-#'     violation of a shape constriant.
+#'     violation of a shape constraint.
 #' @param audit.add integer, the number of points from the audit grid
-#'     to add to the intial for each constraint type. For instance, if
+#'     to add to the initial for each constraint type. For instance, if
 #'     there are 5 different kinds of constraints imposed, and
 #'     \code{audit.add = 5}, then up to 30 points may be added to the
 #'     constraint grid.
@@ -947,15 +954,15 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
 #'     treatment effect.
 #' @param mono0seq integer matrix, indicates which rows in the audit
 #'     constraint matrix correspond to the monotonicity conditions for
-#'     m0, and whether the constriant is increasing (+1) or decreasing
+#'     m0, and whether the constraint is increasing (+1) or decreasing
 #'     (-1).
 #' @param mono1seq integer matrix, indicates which rows in the audit
 #'     constraint matrix correspond to the monotonicity conditions for
-#'     m1, and whether the constriant is increasing (+1) or decreasing
+#'     m1, and whether the constraint is increasing (+1) or decreasing
 #'     (-1).
 #' @param monoteseq integer matrix, indicates which rows in the audit
 #'     constraint matrix correspond to the monotonicity conditions for
-#'     the treatment effect, and whether the constriant is increasing
+#'     the treatment effect, and whether the constraint is increasing
 #'     (+1) or decreasing (-1).
 #' @param mbmap integer vector, indexes the X-value associated with
 #'     each row in the audit constraint matrix.
@@ -963,7 +970,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
 #'     matrices. Each point in the audit grid corresponds to a set of
 #'     rows in the constraint matrices. The function simply returns
 #'     the vector of row numbers for the points from the audit grid
-#'     whose corresponding constriants should be added to the original
+#'     whose corresponding constraints should be added to the original
 #'     LP problem (i.e. the points to add to the original grid).
 selectViolations <- function(diffVec, audit.add,
                              lb0seq, lb1seq, lbteseq,

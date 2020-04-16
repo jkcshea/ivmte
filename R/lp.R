@@ -4,24 +4,25 @@
 #' regressions declared by the user, as well as their corresponding
 #' moments of the terms in the MTR. These are then used to construct
 #' the components that make up the LP problem. Note that the LP model
-#' will be saved inside an environment variable, which is supposed to
-#' be passed through the argument \code{env}. The environment
-#' \code{env} is supposed to already contain a list under the entry
-#' \code{$mbobj} containing the matrices defining the shape
-#' constraints. This list of shape constraints \code{$mbobj} should
-#' contain three entries: \code{mbA} (the matrix defining the
-#' constraints); \code{mbs} (a vector containing the appropriate value
-#' given \code{lpsolver} to indicate whether a row in \code{mbA} is an
-#' equality or inequaliyt constraint); \code{mbrhs} (a vector of the
-#' right hand side values defining the constraint of the form \code{Ax
-#' = b}, i.e. the vector \code{b}). Depending on the linear
-#' programming solver used, this function will return different output
-#' specific to the solver.
+#' will be saved inside an environment variable, which is to be passed
+#' through the argument \code{env}. This is done for efficient use of
+#' memory. The environment \code{env} is supposed to already contain a
+#' list under the entry \code{$mbobj} containing the matrices defining
+#' the shape constraints. This list of shape constraints \code{$mbobj}
+#' should contain three entries corresponding to a system of linear
+#' equations of the form \code{Ax <=> b}: \code{mbA}, the matrix
+#' defining the constraints, \code{A}; \code{mbs}, a vector indicating
+#' whether a row in \code{mbA} is an equality or inequality constraint
+#' (for Gurobi and CPLEX, use '<=', '>=', '='; for lpSolveAPI, use
+#' 'L', 'G', and 'E'); \code{mbrhs}, a vector of the right hand side
+#' values defining the constraint of the form i.e. the vector
+#' \code{b}. Depending on the linear programming solver used, this
+#' function will return different output specific to the solver.
 #' @param env environment containing the matrices defining the LP
 #'     problem.
 #' @param sset List of IV-like estimates and the corresponding gamma
 #'     terms.
-#' @param orig.sset list, only used for bootstraps. The list caontains
+#' @param orig.sset list, only used for bootstraps. The list contains
 #'     the gamma moments for each element in the S-set, as well as the
 #'     IV-like coefficients.
 #' @param lpsolver string, name of the package used to solve the LP
@@ -209,10 +210,13 @@ lpSetup <- function(env, sset, orig.sset = NULL,
 
 #' Configure LP environment for diagnostics
 #'
-#' This function separates the shape contraints from the LP
+#' This function separates the shape constraints from the LP
 #' environment. That way, the model can be solved without any shape
-#' constraints. This is done in order to check which shape constraints
-#' are causing the model to be infeasible.
+#' constraints, which is the primary cause of infeasibility. This is
+#' done in order to check which shape constraints are causing the
+#' model to be infeasible. The LP model must be passed as an
+#' environment variable, under the entry \code{$lpobj}. See
+#' \code{\link{lpSetup}}.
 #' @param env The LP environment
 #' @param sset List of IV-like estimates and the corresponding gamma
 #'     terms.
@@ -234,7 +238,8 @@ lpSetupInfeasible <- function(env, sset) {
 #' Configure LP environment for minimizing the criterion
 #'
 #' This function sets up the objective function for minimizing the
-#' criterion.
+#' criterion. The LP model must be passed as an environment variable,
+#' under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
 #' @param env The LP environment
 #' @param sset List of IV-like estimates and the corresponding gamma
 #'     terms.
@@ -255,7 +260,8 @@ lpSetupCriterion <- function(env, sset) {
 #' Configure LP environment to be compatible with solvers
 #'
 #' This alters the LP environment so the model will be compatible with
-#' specific solvers.
+#' specific solvers. The LP model must be passed as an environment
+#' variable, under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
 #' @param env The LP environment
 #' @param lpsolver Character, the LP solver.
 #' @return Nothing, as this modifies an environment variable to save
@@ -281,8 +287,10 @@ lpSetupSolver <- function(env, lpsolver) {
 
 #' Configure LP environment for specification testing
 #'
-#' This function recenters various objects in the LP environment so
-#' that a specification test can be performed via the bootstrap.
+#' This function re-centers various objects in the LP environment so
+#' that a specification test can be performed via the bootstrap. The
+#' LP model must be passed as an environment variable, under the entry
+#' \code{$lpobj}. See \code{\link{lpSetup}}.
 #' @param env the LP environment
 #' @param sset list of IV-like estimates and the corresponding gamma
 #'     terms.
@@ -365,7 +373,8 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #' Configure LP environment for obtaining the bounds
 #'
 #' This function sets up the LP model so that the bounds can be
-#' obtained.
+#' obtained. The LP model must be passed as an environment variable,
+#' under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
 #' @param env the environment containing the LP model.
 #' @param g0 set of expectations for each terms of the MTR for the
 #'     control group.
@@ -376,10 +385,11 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #'     object is only used to determine the names of terms. If it is
 #'     no submitted, then no names are provided to the solution
 #'     vector.
-#' @param criterion.factor overall multiplicative factor for how much more
-#'     the solution is permitted to violate observational equivalence
-#'     of the IV-like estimands, i.e. \code{criterion.factor} will
-#'     multiply \code{minobseq} directly.
+#' @param criterion.factor overall multiplicative factor for how much
+#'     more the solution is permitted to violate observational
+#'     equivalence of the IV-like estimands,
+#'     i.e. \code{criterion.factor} will multiply \code{minobseq}
+#'     directly.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
 #' @param setup boolean. If \code{TRUE}, the function will modify the
@@ -417,6 +427,7 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.factor, lpsolver,
 #' defining an LP problem, this function minimizes the violation of
 #' observational equivalence under the L1 norm. The LP model must be
 #' passed as an environment variable, under the entry \code{$lpobj}.
+#' See \code{\link{lpSetup}}.
 #' @param env environment containing the matrices defining the LP
 #'     problem.
 #' @param sset A list of IV-like estimates and the corresponding gamma
@@ -591,7 +602,7 @@ criterionMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'
 #' This function estimates the bounds on the target treatment
 #' effect. The LP model must be passed as an environment variable,
-#' under the entry \code{$lpobj}.
+#' under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
 #' @param env environment containing the matrices defining the LP
 #'     problem.
 #' @param sset a list containing the point estimates and gamma
@@ -1047,7 +1058,7 @@ optionsLpSolveAPI <- function(options) {
 #'     (e.g. \code{list(setDblParmCPLEX = list(c(parm = 1016, value =
 #'     1e-04), c(parm = 1084, value = 2)))}). If the option only
 #'     requires the \code{env} parameter, then an \code{NA} should be
-#'     passsed as the parameter value (e.g. \code{list(setDefaultParm
+#'     passed as the parameter value (e.g. \code{list(setDefaultParm
 #'     = NA)}).
 #' @return list, each element being the command to evaluate to
 #'     implement an option.

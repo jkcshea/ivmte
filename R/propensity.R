@@ -31,7 +31,7 @@
 #' @param env environment, the environment for the original
 #'     propensity score formula.
 #' @return A vector of propensity scores for each observation, as well
-#'     as a `model'. If the user inputs a formula characterizing the
+#'     as a 'model'. If the user inputs a formula characterizing the
 #'     model for taking up treatment, then the \code{lm}/\code{glm}
 #'     object is returned. If the user declares a variable in the data
 #'     set to be used as the propensity score, then a

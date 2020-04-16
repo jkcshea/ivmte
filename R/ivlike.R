@@ -103,7 +103,7 @@ piv <- function(Y, X, Z, lmcomponents = NULL, weights = NULL, order = NULL,
 #' Obtaining IV-like specifications
 #'
 #' This function estimates the IV-like estimands, as well as generates
-#' the IV-like specifications.
+#' the weights associated with the IV-like specifications.
 #'
 #' @param formula formula to be estimated using OLS/IV.
 #' @param data \code{data.frame} with which to perform the estimation.

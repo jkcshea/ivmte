@@ -1,19 +1,20 @@
 #' Generating the grid for the audit procedure
 #'
 #' This function takes in a matrix summarizing the support of the
-#' covariates, as well as an evenly spaced set of points summarizing
-#' the support of the unobservable variable. A Cartesian product of
-#' the subset of the support of the covariates and the points in the
-#' support of the unobservable generates the grid that is used for the
-#' audit procedure.
+#' covariates, as well as set of points summarizing the support of the
+#' unobservable variable. A Cartesian product of the subset of the
+#' support of the covariates and the points in the support of the
+#' unobservable generates the grid that is used for the audit
+#' procedure.
 #'
 #' @param index a vector whose elements indicate the rows in the
 #'     matrix \code{xsupport} to include in the grid.
 #' @param xsupport a matrix containing all the unique combinations of
 #'     the covariates included in the MTRs.
-#' @param usupport a vector of evenly spaced points in the interval
-#'     [0, 1], including 0 and 1. The number of points is decided by
-#'     the user.
+#' @param usupport a vector of points in the interval [0, 1],
+#'     including 0 and 1. The number of points is decided by the
+#'     user. The function generates these points using a Halton
+#'     sequence.
 #' @param uname name declared by user to represent the unobservable
 #'     term.
 #' @return a list containing the grid used in the audit; a vector
@@ -44,8 +45,8 @@ gengrid <- function(index, xsupport, usupport, uname) {
 #' Generating the LP constraint matrix for bounds
 #'
 #' This function generates the component of the constraint matrix in
-#' the LP problem pertaining to bounds on the MTRs and MTEs. These
-#' bounds are declared by the user.
+#' the LP problem pertaining to the lower and upper bounds on the MTRs
+#' and MTEs. These bounds are declared by the user.
 #' @param A0 the matrix of values from evaluating the MTR for control
 #'     observations over the grid generated to perform the audit. This
 #'     matrix will be incorporated into the final constraint matrix
@@ -417,7 +418,7 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
 #'
 #' This function generates the matrix and vectors associated with the
 #' monotonicity constraints declared by the user. It takes in a grid
-#' of the covariates on which we define the LP constraints, and then
+#' of the covariates on which the LP constraints are defined, and then
 #' calculates the values of the MTR and MTE over the grid. The
 #' matrices characterizing the monotonicity conditions can then be
 #' obtained by taking first differences over the grid of the
@@ -538,7 +539,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     ## vector, and the RHS vector associated with the monotonicity
     ## constraints for m0, m1, and the mte. In addition, mappings to
     ## the grid index and U index are constructed; also, a list of the
-    ## direction of monotonicity constriants is generated (since you
+    ## direction of monotonicity constraints is generated (since you
     ## allow m0, m1, and mte to face both increasing and decreasing
     ## monotonicity constraints simultaneously---forcing them to be
     ## constants).

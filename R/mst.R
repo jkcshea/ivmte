@@ -2536,8 +2536,10 @@ checkU <- function(formula, uname) {
 #' Torgovitsky (2018)}. A detailed description of the module and its
 #' features can be found in
 #' \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea
-#' and Torgovitsky (2019)}. For examples of how to use the package,
-#' see the vignette, which is also available on the module's
+#' and Torgovitsky (2019)}. However, this is not the main function of
+#' the module. See \code{\link{ivmte}} for the main function. For
+#' examples of how to use the package, see the vignette, which is
+#' available on the module's
 #' \href{https://github.com/jkcshea/ivmte}{GitHub} page.
 #'
 #' The treatment effects parameters the user can choose from are the
@@ -2567,14 +2569,14 @@ checkU <- function(formula, uname) {
 #'     LATE.
 #' @param late.to comparison set of values of Z used to define the
 #'     LATE.
-#' @param late.X vector of variable names of covariates which we
-#'     condition on when defining the LATE.
-#' @param eval.X numeric vector of the values at which we condition
-#'     variables in \code{late.X} on when estimating the LATE.
-#' @param audit.grid list, contains the A A matrix used in the audit
-#'     for the original sample, as well as the RHS vector used in the
-#'     audit from the original sample.
-#' @param point.center numeric, a vector of GMM moment conditoins
+#' @param late.X vector of variable names of covariates to condition
+#'     on when defining the LATE.
+#' @param eval.X numeric vector of the values to condition variables
+#'     in \code{late.X} on when estimating the LATE.
+#' @param audit.grid list, contains the \code{A} matrix used in the
+#'     audit for the original sample, as well as the RHS vector used
+#'     in the audit from the original sample.
+#' @param point.center numeric, a vector of GMM moment conditions
 #'     evaluated at a solution. When bootstrapping, the moment
 #'     conditions from the original sample can be passed through this
 #'     argument to recenter the bootstrap distribution of the
@@ -2583,7 +2585,7 @@ checkU <- function(formula, uname) {
 #'     components in the S-set are redundant.
 #' @param count.moments boolean, indicate if number of linearly
 #'     independent moments should be counted.
-#' @param orig.sset list, only used for bootstraps. The list caontains
+#' @param orig.sset list, only used for bootstraps. The list contains
 #'     the gamma moments for each element in the S-set, as well as the
 #'     IV-like coefficients.
 #' @param orig.criterion numeric, only used for bootstraps. The scalar
@@ -2604,12 +2606,11 @@ checkU <- function(formula, uname) {
 #'     \code{\link{removeSplines}}. This object is supposed to be a
 #'     dictionary of splines, containing the original calls of each
 #'     spline in the MTRs, their specifications, and the index used
-#'     for renaming each component.
+#'     for naming each basis spline.
 #' @param environments a list containing the environments of the MTR
 #'     formulas, the IV-like formulas, and the propensity score
-#'     formulas. If a formulas is not provided, and thus no
-#'     environment can be found, then the parent.frame() is assigned
-#'     by default.
+#'     formulas. If a formula is not provided, and thus no environment
+#'     can be found, then the parent.frame() is assigned by default.
 #'
 #' @inheritParams ivmte
 #'
@@ -3631,24 +3632,31 @@ genTarget <- function(treat, m0, m1, target,
 #' This function takes in the IV estimate and its IV-like
 #' specification, and generates a list containing the corresponding
 #' point estimate, and the corresponding moments (gammas) that will
-#' enter into the constraint matrix of the LP problem.
+#' enter into the constraint matrix of the LP problem. The function
+#' requires the user to provide a list (i.e. the list the point
+#' estimates and moments corresponding to other IV-like
+#' specifications; or an empty list) to append these point estimates
+#' and moments to.
 #'
 #' @param data \code{data.frame} used to estimate the treatment
 #'     effects.
-#' @param sset A list, which is modified and returned as the output.
-#' @param sest A list containing the point estimates and S-weights
+#' @param sset list, which is modified and returned as the
+#'     output. This object will contain all the information from the
+#'     IV-like specifications that can be used for estimating the
+#'     treatment effect.
+#' @param sest list containing the point estimates and S-weights
 #'     corresponding to a particular IV-like estimand.
 #' @param splinesobj list of spline components in the MTRs for treated
 #'     and control groups. Spline terms are extracted using
 #'     \code{\link{removeSplines}}.
-#' @param pmodobj A vector of propensity scores.
-#' @param pm0 A list of the monomials in the MTR for d = 0.
-#' @param pm1 A list of the monomials in the MTR for d = 1.
+#' @param pmodobj vector of propensity scores.
+#' @param pm0 list of the monomials in the MTR for the control group.
+#' @param pm1 list of the monomials in the MTR for the treated group.
 #' @param ncomponents The number of components from the IV regression
-#'     we want to include in the S-set.
-#' @param scount A counter for the number of elements in the S-set.
-#' @param subset_index An index for the subset of the data the IV
-#'     regression is restricted to.
+#'     to include in the S-set.
+#' @param scount integer, an index for the elements in the S-set.
+#' @param subset_index vector of integers, a row index for the subset of
+#'     the data the IV regression is restricted to.
 #' @param means boolean, set to \code{TRUE} by default. If set to
 #'     \code{TRUE}, then the gamma moments are returned, i.e. sample
 #'     averages are taken. If set to \code{FALSE}, then no sample
@@ -3712,7 +3720,7 @@ genTarget <- function(treat, m0, m1, target,
 #'                           list = FALSE)
 #'
 #' ## Construct S-set, which contains the coefficients and weights
-#' ## coresponding to various IV-like estimands
+#' ## corresponding to various IV-like estimands
 #' genSSet(data = dtm,
 #'         sset = sSet,
 #'         sest = ivEstimates,
@@ -3861,16 +3869,19 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #' condition is then set up as a two-step GMM problem. Solving this
 #' GMM problem recovers the coefficients on the MTR functions m0 and
 #' m1. Combining these coefficients with the target gamma moments
-#' allows us to estimate the target treatment effect.
+#' allows one to estimate the target treatment effect.
 #' @param sset a list of lists constructed from the function
 #'     \link{genSSet}. Each inner list should include a coefficient
 #'     corresponding to a term in an IV specification, a matrix of the
-#'     estimates of the gamma moments conditional on (X, Z) for d = 0,
-#'     and a matrix of the estimates of the gamma moments conditional
-#'     on (X, Z) for d = 1. The column means of the last two matrices
-#'     is what is used to generate the gamma moments.
-#' @param gstar0 vector, the target gamma moments for d = 0.
-#' @param gstar1 vector, the target gamma moments for d = 1.
+#'     estimates of the gamma moments conditional on (X, Z) for the
+#'     control group, and a matrix of the estimates of the gamma
+#'     moments conditional on (X, Z) for the treated group. The column
+#'     means of the last two matrices is what is used to generate the
+#'     gamma moments.
+#' @param gstar0 vector, the target gamma moments for the control
+#'     group.
+#' @param gstar1 vector, the target gamma moments for the treated
+#'     group.
 #' @param center numeric, the GMM moment equations from the original
 #'     sample. When bootstrapping, the solution to the point
 #'     identified case obtained from the original sample can be passed
@@ -3898,7 +3909,8 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'     effects, and the MTR coefficient estimates. The moment
 #'     conditions evaluated at the solution are also returned, along
 #'     with the J-test results. However, if the option \code{center}
-#'     is passed, then the moment conditions and J-test are centered.
+#'     is passed, then the moment conditions and J-test are centered
+#'     (this is to perform the J-test via bootstrap).
 #'
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
@@ -4421,25 +4433,4 @@ summary.ivmte <- function(object, ...) {
         }
     }
     cat("\n")
-}
-
-#' Stop function that also terminates sink
-#'
-#' The \code{ivmte} function stores all output in the console using
-#' \code{sink}. If the function is to terminate early because of an
-#' error, the sink must be reset. This function simply resets the sink
-#' before stopping the function.
-#'
-#' @param ... zero or more objects which can be coerced to character
-#'     (and which are pasted together with no separator) or a single
-#'     condition object.
-#' @param call. logical, indicating if the call should become part of
-#'     the error message. By default set to \code{FALSE}.
-#' @return nothing, simply terminates the \code{ivmte} function.
-stopIvmte <- function(..., call. = FALSE) {
-    sink()
-    close(tmpOutput)
-    rm(tmpOutput)
-    unlink(".ivmte.R.tmp.log")
-    stop(..., call. = call.)
 }
