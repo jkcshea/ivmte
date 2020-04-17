@@ -460,18 +460,18 @@ polynomial splines in `u` using the keyword `uSplines`. For example,
 args <- list(data = AE,
              ivlike =  worked ~ morekids + samesex + morekids*samesex,
              target = "att",
-             m0 = ~ u + uSplines(degree = 2, knots = c(.2, .4, .6, .8)) + yob,
-             m1 = ~ uSplines(degree = 3, knots = c(.1, .3, .5, .7))*yob,
+             m0 = ~ u + uSplines(degree = 1, knots = c(.2, .4, .6, .8)) + yob,
+             m1 = ~ uSplines(degree = 2, knots = c(.1, .3, .5, .7))*yob,
              propensity = morekids ~ samesex)
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.4479412, 0.2875447]
+#> Bounds on the target parameter: [-0.4655487, 0.3252209]
 #> Audit terminated successfully after 2 rounds
 ```
 
-The `degree` refers to the polynomial degree, so that `degree = 2` is a
-quadratic spline, and `degree = 3` is a cubic spline. Constant splines,
+The `degree` refers to the polynomial degree, so that `degree = 1` is a
+linear spline, and `degree = 2` is a quadratic spline. Constant splines,
 which have an important role in some of the theory developed by Mogstad,
 Santos, and Torgovitsky (2018), can be implemented with `degree = 0`.
 The vector `knots` indicates the piecewise regions for the spline. Note
@@ -506,8 +506,8 @@ Here is an example with monotonicity restrictions:
 args <- list(data = AE,
              ivlike =  worked ~ morekids + samesex + morekids*samesex,
              target = "att",
-             m0 = ~ u + uSplines(degree = 2, knots = c(.2, .4, .6, .8)) + yob,
-             m1 = ~ uSplines(degree = 3, knots = c(.1, .3, .5, .7))*yob,
+             m0 = ~ u + uSplines(degree = 1, knots = c(.2, .4, .6, .8)) + yob,
+             m1 = ~ uSplines(degree = 2, knots = c(.1, .3, .5, .7))*yob,
              m1.inc = TRUE,
              m0.inc = TRUE,
              mte.dec = TRUE,
@@ -515,8 +515,8 @@ args <- list(data = AE,
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.09256466, 0.2006589]
-#> Audit terminated successfully after 1 round
+#> Bounds on the target parameter: [-0.09250779, 0.090854]
+#> Audit terminated successfully after 3 rounds
 ```
 
 #### The Audit Procedure

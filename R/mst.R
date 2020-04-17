@@ -2356,8 +2356,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             ##     fmtResult(pvalue[2]), "\n\n", sep = "")
             if (totalBootstraps > bootstraps) {
                 warning(gsub("\\s+", " ",
-                             paste0("In order to obtain ", bootstraps, " boostrap
-                         samples without omiting any
+                             paste0("In order to obtain ", bootstraps,
+                         " boostrap samples without omiting any
                          levels from all categorical variables,
                          a total of ", totalBootstraps, " samples
                          had to be drawn. This is due to factor variables
