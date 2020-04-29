@@ -425,8 +425,20 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Keep track of sinks
         origSinks <- sink.number()
         ## Save log output
-        unlink(".ivmte.R.tmp.log")
-        tmpOutput <- file(".ivmte.R.tmp.log")
+        logNameCount <- 0
+        logName <- ".ivmte.R.tmp.log"
+        logNameExists <- file.exists(logName)
+        while(logNameExists) {
+            logNameCount <- logNameCount + 1
+            if (logNameCount == 1) {
+                logName <- paste0(logName, logNameCount)
+            } else {
+                logName <- gsub((logNameCount - 1), logNameCount, logName)
+            }
+            logNameExists <- file.exists(logName)
+        }
+        unlink(logName)
+        tmpOutput <- file(logName)
         if (noisy) {
             sink(tmpOutput, split = TRUE)
         } else {
@@ -2371,21 +2383,21 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Return log output
         sink()
         close(tmpOutput)
-        output$messages <- readLines(".ivmte.R.tmp.log")
+        output$messages <- readLines(logName)
         rm(tmpOutput)
-        unlink(".ivmte.R.tmp.log")
+        unlink(logName)
         if (!noisy) return(output)
         if (noisy) return(invisible(output))
     }, error = function(err) {
         if (origSinks < sink.number()) {
             sink()
             close(tmpOutput)
-            messages <- readLines(".ivmte.R.tmp.log")
+            messages <- readLines(logName)
             if (length(messages) > 0) {
                 cat(messages, sep = '\n')
                 if (exists("tmpOutput")) rm(tmpOutput)
             }
-            unlink(".ivmte.R.tmp.log")
+            unlink(logName)
             stop(err)
         }
     }, finally = {
@@ -2394,7 +2406,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             sink()
             if (exists("tmpOutput")) close(tmpOutput)
             if (exists("tmpOutput")) rm(tmpOutput)
-            unlink(".ivmte.R.tmp.log")
+            unlink(logName)
         }
     })
 }
