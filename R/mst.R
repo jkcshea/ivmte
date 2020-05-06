@@ -426,15 +426,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         origSinks <- sink.number()
         ## Save log output
         logNameCount <- 0
-        logName <- ".ivmte.R.tmp.log"
+        logName <- paste0(".ivmte.R.tmp.log", logNameCount)
         logNameExists <- file.exists(logName)
         while(logNameExists) {
             logNameCount <- logNameCount + 1
-            if (logNameCount == 1) {
-                logName <- paste0(logName, logNameCount)
-            } else {
-                logName <- gsub((logNameCount - 1), logNameCount, logName)
-            }
+            logName <- gsub((logNameCount - 1), logNameCount, logName)
             logNameExists <- file.exists(logName)
         }
         unlink(logName)
@@ -2383,7 +2379,16 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Return log output
         sink()
         close(tmpOutput)
-        output$messages <- readLines(logName)
+        messageCheck <- try(output$messages <- readLines(logName),
+                            silent = TRUE)
+        if (class(messageCheck) == "try-error") {
+            output$messages <-
+                c("Error in saving console messages.",
+                  "This can only occur if the package is run in parallel.",
+                  "The error is random, and is related to filenames.",
+                  "Please post an issue on GitHub if otherwise.",
+                  "However, the estimation was performed successfullly.")
+        }
         rm(tmpOutput)
         unlink(logName)
         if (!noisy) return(output)
