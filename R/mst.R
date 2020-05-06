@@ -2385,9 +2385,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             output$messages <-
                 c("Error in saving console messages.",
                   "This can only occur if the package is run in parallel.",
-                  "The error is random, and is related to filenames.",
                   "Please post an issue on GitHub if otherwise.",
-                  "However, the estimation was performed successfullly.")
+                  "The error is random, and pertains to the log file's name.",
+                  "Nevertheless, the estimation is performed successfullly.")
         }
         rm(tmpOutput)
         unlink(logName)
