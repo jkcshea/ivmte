@@ -213,7 +213,7 @@ tsls <- function(X, Z, Z0, Z1, components, treat, order = NULL) {
     ## construct first stage matrix
     exz <- (1 / nrow(X)) * t(X) %*% Z
     ezz <- (1 / nrow(Z)) * t(Z) %*% Z
-    pi  <- exz %*% solve(ezz)
+    pi  <- exz %*% chol2inv(chol(ezz))
     ## construct weights
     wvec0 <- solve(pi %*% t(exz)) %*% pi %*% t(Z0)
     wvec0 <- extractcols(t(wvec0), cpos)
