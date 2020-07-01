@@ -31,8 +31,8 @@ extractcols <- function(M, components) {
 #'
 #' Function generating the S-weights for OLS estimand, with controls.
 #' @param X Matrix of covariates, including the treatment indicator.
-#' @param X0 Matrix of covariates, once fixing treatment to be 1.
-#' @param X1 Matrix of covariates, once fixing treatment to be 0.
+#' @param X0 Matrix of covariates, once fixing treatment to be 0.
+#' @param X1 Matrix of covariates, once fixing treatment to be 1.
 #' @param components Vector of variable names of which user wants the
 #'     S-weights for.
 #' @param treat Variable name for the treatment indicator.
@@ -104,7 +104,8 @@ olsj <- function(X, X0, X1, components, treat, order = NULL) {
                               variable was never included in the IV-like
                               specification."
             } else {
-                emessageIV <- paste0("This may be due to collinearity, or that the
+                emessageIV <- paste0("This may be due to collinearity,
+                              or that the
                               variable was never included in IV-like
                               specification ", order, ".")
             }
@@ -118,10 +119,10 @@ olsj <- function(X, X0, X1, components, treat, order = NULL) {
             stop(emessage)
         }
     }
-    wvec0 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X0)
+    wvec0 <- chol2inv(chol((1 / nrow(X)) * t(X) %*% X)) %*% t(X0)
     wvec0 <- extractcols(t(wvec0), cpos)
     colnames(wvec0) <- components
-    wvec1 <- solve((1 / nrow(X)) * t(X) %*% X) %*% t(X1)
+    wvec1 <- chol2inv(chol((1 / nrow(X)) * t(X) %*% X)) %*% t(X1)
     wvec1 <- extractcols(t(wvec1), cpos)
     colnames(wvec1) <- components
     return(list(s0 = wvec0, s1 = wvec1))

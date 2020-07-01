@@ -503,7 +503,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                               problem. This should only happen if the implied
                               parameter space is empty. The likely cause of an
                               empty parameter space is incoherent shape
-                              restrictions. For example, if ",
+                              restrictions. For example, ",
                              paste(unique(violateType), collapse = ", "),
                              " are all set simultaneously. Try changing the
                               shape constraints on the MTR functions.\n")),
