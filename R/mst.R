@@ -2400,7 +2400,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             messages <- readLines(logName)
             if (length(messages) > 0) {
                 cat(messages, sep = '\n')
-                if (exists("tmpOutput")) rm(tmpOutput)
+                if (exists("tmpOutput")) suppressWarnings(rm(tmpOutput))
             }
             unlink(logName)
             stop(err)
@@ -2409,8 +2409,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Turn off sinks if there are interruptions
         if (origSinks < sink.number()) {
             sink()
-            if (exists("tmpOutput")) close(tmpOutput)
-            if (exists("tmpOutput")) rm(tmpOutput)
+            if (exists("tmpOutput")) suppressWarnings(close(tmpOutput))
+            if (exists("tmpOutput")) suppressWarnings(rm(tmpOutput))
             unlink(logName)
         }
     })
