@@ -415,13 +415,26 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         lpSetupCriterion(env = lpEnv, sset = sset)
         minobseq <- criterionMin(lpEnv, sset, lpsolver,
                                  lpsolver.options.criterion, debug)
-        ## Try to diagnose cases where the solution is
-        ## infeasible. Here, the problem is solved without any shape
-        ## restrictions. We then check if any of the lower and upper
-        ## bounds are violated, which is a likely cause for infeasible
-        ## solutions.
+        ## Try to diagnose cases where the solution is not
+        ## available. This could be due to infeasibility or numerical
+        ## issues. To deal with infeasibilty, the LP problem is solved
+        ## without any shape restrictions. We then check if any of the
+        ## lower and upper bounds are violated, which is a likely
+        ## cause for infeasible solutions.
         if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
             (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
+            ## Inform the user of numerical issues.
+            if (minobseq$status == 2) {
+                stop(gsub("\\s+", " ",
+                          paste0("No solution due to numerical issues.
+                                  A possible reason for this is that
+                                  covariates are not scaled appropriately
+                                  (i.e. the range of magnitude exceeds 1e13).
+                                  This is known to cause numerical issues in
+                                  LP problems.\n")),
+                     call. = FALSE)
+            }
+            ## Otherwise, continue and test for infeasibility.
             rm(minobseq)
             lpSetupInfeasible(lpEnv, sset)
             minobseqAlt <- criterionMin(env = lpEnv,
