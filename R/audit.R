@@ -543,7 +543,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                           debug = debug)
         if (is.null(lpresult)) {
             if (noisy) {
-                message("    LP solutions are unbounded.")
+                cat("    LP solutions are unbounded.\n")
             }
             return(list(error = "Failure to maximize/minimize.",
                         audit.grid = audit.grid))
@@ -594,7 +594,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                  solution.m1.max =
                                                      lpresult$maxg1,
                                                  audit.tol = audit.tol))
-        auditObj<- eval(monoboundAcall)
+        auditObj <- eval(monoboundAcall)
         ## Combine the violation matrices
         violateMat <- NULL
         if (!is.null(auditObj$bounds)) {
@@ -674,7 +674,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         if (!is.null(violateMat)) {
             if (noisy) cat("    Violations: ", nrow(violateMat), "\n")
             if (audit_count == audit.max) {
-                ## End audit and return violation matrix if max audit is achieved.
+                ## End audit and return violation matrix if max audit
+                ## is achieved.
                 if (noisy) {
                     warning(paste0(gsub("\\s+", " ",
                                         paste0("Audit finished: maximum number
@@ -737,11 +738,36 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 addm0 <- NULL
                 addm1 <- NULL
                 addmte <- NULL
+                ## Placeholders for violation types
+                tmpAdd <- 0
+                addlb0seq <- NULL
+                addlb1seq <- NULL
+                addlbteseq <- NULL
+                addub0seq <- NULL
+                addub1seq <- NULL
+                addubteseq <- NULL
+                addmono0incseq <- NULL
+                addmono0decseq <- NULL
+                addmono1incseq <- NULL
+                addmono1decseq <- NULL
+                addmonoteincseq <- NULL
+                addmonotedecseq <- NULL
+                nShapeConstraints <- max(c(lpEnv$mbobj$lb0seq,
+                                           lpEnv$mbobj$lb1seq,
+                                           lpEnv$mbobj$ub0seq,
+                                           lpEnv$mbobj$ub1seq,
+                                           lpEnv$mbobj$lbteseq,
+                                           lpEnv$mbobj$ubteseq,
+                                           lpEnv$mbobj$mono0seq[, 1],
+                                           lpEnv$mbobj$mono1seq[, 1],
+                                           lpEnv$mbobj$monoteseq[, 1]))
                 for (i in types) {
                     ## Expand constraints for m0
                     if (i == 1) {
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
+                        addlb0seq <- seq(length(addIndex)) + tmpAdd
+                        tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$m0.lb
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep(">=", length(addIndex)))
@@ -754,6 +780,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (i == 4) {
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
+                        addub0seq <- seq(length(addIndex)) + tmpAdd
+                        tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$m0.ub
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep("<=", length(addIndex)))
@@ -768,9 +796,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                "pos"]
                         tmpGrid <- auditObj$mono$monoA$m0
                         if (i == 7) {
+                            addmono0incseq <- seq(length(addIndex)) + tmpAdd
+                            tmpAdd <- tmpAdd + length(addIndex)
                             lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                    rep(">=", length(addIndex)))
                         } else {
+                            addmono0decseq <- seq(length(addIndex)) + tmpAdd
+                            tmpAdd <- tmpAdd + length(addIndex)
                             lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                    rep("<=", length(addIndex)))
                         }
@@ -782,6 +814,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     }
                 }
                 if (!is.null(addm0)) {
+                    ## Update the constraint matrix
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A,
                               cbind(matrix(0, nrow = nrow(addm0),
@@ -789,6 +822,24 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                     addm0,
                                     matrix(0, nrow = nrow(addm0),
                                            ncol = length(sset$s1$g1))))
+                    ## Update the contraint sequences
+                    lpEnv$mbobj$lb0seq <- c(lpEnv$mbobj$lb0seq,
+                                            addlb0seq + nShapeConstraints)
+                    rm(addlb0seq)
+                    lpEnv$mbobj$ub0seq <- c(lpEnv$mbobj$ub0seq,
+                                            addub0seq + nShapeConstraints)
+                    rm(addub0seq)
+                    if (!is.null(addmono0incseq)) {
+                        lpEnv$mbobj$mono0seq <-
+                            rbind(lpEnv$mbobj$mono0seq,
+                                  cbind(addmono0incseq + nShapeConstraints, 1))
+                    }
+                    if (!is.null(addmono0decseq)) {
+                        lpEnv$mbobj$mono0seq <-
+                            rbind(lpEnv$mbobj$mono0seq,
+                                  cbind(addmono0decseq + nShapeConstraints, -1))
+                    }
+                    rm(addmono0incseq, addmono0decseq)
                 }
                 rm(addm0)
                 ## Expand constraints for m1
@@ -796,6 +847,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (i == 2) {
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
+                        addlb1seq <- seq(length(addIndex)) + tmpAdd
+                        tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$m1.lb
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep(">=", length(addIndex)))
@@ -808,6 +861,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (i == 5) {
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
+                        addub1seq <- seq(length(addIndex)) + tmpAdd
+                        tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$m1.ub
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep("<=", length(addIndex)))
@@ -822,9 +877,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                "pos"]
                         tmpGrid <- auditObj$mono$monoA$m1
                         if (i == 9) {
+                            addmono1incseq <- seq(length(addIndex)) + tmpAdd
+                            tmpAdd <- tmpAdd + length(addIndex)
                             lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                    rep(">=", length(addIndex)))
                         } else {
+                            addmono1decseq <- seq(length(addIndex)) + tmpAdd
+                            tmpAdd <- tmpAdd + length(addIndex)
                             lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                    rep("<=", length(addIndex)))
                         }
@@ -836,6 +895,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     }
                 }
                 if (!is.null(addm1)) {
+                    ## Update the constraint matrix
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A,
                               cbind(matrix(0, nrow = nrow(addm1),
@@ -843,6 +903,24 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                     matrix(0, nrow = nrow(addm1),
                                            ncol = length(sset$s1$g0)),
                                     addm1))
+                    ## Update the contraint sequences
+                    lpEnv$mbobj$lb1seq <- c(lpEnv$mbobj$lb1seq,
+                                            addlb1seq + nShapeConstraints)
+                    rm(addlb1seq)
+                    lpEnv$mbobj$ub1seq <- c(lpEnv$mbobj$ub1seq,
+                                            addub1seq + nShapeConstraints)
+                    rm(addub1seq)
+                    if (!is.null(addmono1incseq)) {
+                        lpEnv$mbobj$mono1seq <-
+                            rbind(lpEnv$mbobj$mono1seq,
+                                  cbind(addmono1incseq + nShapeConstraints, 1))
+                    }
+                    if (!is.null(addmono1decseq)) {
+                        lpEnv$mbobj$mono1seq <-
+                            rbind(lpEnv$mbobj$mono1seq,
+                                  cbind(addmono1decseq + nShapeConstraints, -1))
+                    }
+                    rm(addmono1incseq, addmono1decseq)
                 }
                 rm(addm1)
                 ## Expand constraints for mte
@@ -850,6 +928,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (i == 3) {
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
+                        addlbteseq <- seq(length(addIndex)) + tmpAdd
+                        tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$mte.lb
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep(">=", length(addIndex)))
@@ -862,6 +942,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (i == 6) {
                         addIndex <- violateMat[violateMat$type == i,
                                                "pos"]
+                        addubteseq <- seq(length(addIndex)) + tmpAdd
+                        tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$mte.ub
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep("<=", length(addIndex)))
@@ -876,9 +958,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                "pos"]
                         tmpGrid <- auditObj$mono$monoA$mte
                         if (i == 11) {
+                            addmonoteincseq <- seq(length(addIndex)) + tmpAdd
+                            tmpAdd <- tmpAdd + length(addIndex)
                             lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                    rep(">=", length(addIndex)))
                         } else {
+                            addmonotedecseq <- seq(length(addIndex)) + tmpAdd
+                            tmpAdd <- tmpAdd + length(addIndex)
                             lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                    rep("<=", length(addIndex)))
                         }
@@ -890,13 +976,34 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     }
                 }
                 if (!is.null(addmte)) {
+                    ## Update the constraint matrix
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A,
                               cbind(matrix(0, nrow = nrow(addmte),
                                            ncol = 2 * sn),
                                     addmte))
+                    ## Update the contraint sequences
+                    lpEnv$mbobj$lbteseq <- c(lpEnv$mbobj$lbteseq,
+                                             addlbteseq + nShapeConstraints)
+                    rm(addlbteseq)
+                    lpEnv$mbobj$ubteseq <- c(lpEnv$mbobj$ubteseq,
+                                             addubteseq + nShapeConstraints)
+                    rm(addubteseq)
+                    if (!is.null(addmonoteincseq)) {
+                        lpEnv$mbobj$monoteseq <-
+                            rbind(lpEnv$mbobj$monoteseq,
+                                  cbind(addmonoteincseq + nShapeConstraints, 1))
+                    }
+                    if (!is.null(addmonotedecseq)) {
+                        lpEnv$mbobj$monoteseq <-
+                            rbind(lpEnv$mbobj$monoteseq,
+                                  cbind(addmonotedecseq + nShapeConstraints,
+                                        -1))
+                    }
+                    rm(addmonoteincseq, addmonotedecseq)
                 }
                 rm(addmte)
+                ## Move on to next iteration of the audit
                 audit_count <- audit_count + 1
                 lpSetupBound(env = lpEnv, setup = FALSE)
             }
@@ -908,6 +1015,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             }
             break
         }
+    }
+    if (!is.null(violateMat)) {
+        violateMat$type <- violateMat$type.string
+        violateMat$type.string <- NULL
+        violateMat$group.name <- NULL
+        violateMat$pos <- NULL
     }
     output <- list(max = lpresult$max,
                    min = lpresult$min,
