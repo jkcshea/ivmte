@@ -406,6 +406,14 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
                                      diff = diff)
             violateMat$group.name <- paste0(violateMat$type, ".",
                                             violateMat$grid.x)
+            violateMat$type.string <- factor(violateMat$type,
+                                            levels = seq(6),
+                                            labels = c('m0.lb',
+                                                       'm1.lb',
+                                                       'mte.lb',
+                                                       'm0.ub',
+                                                       'm1.ub',
+                                                       'mte.ub'))
             return(list(bdA = bdA,
                         violateMat = violateMat))
         } else {
@@ -875,6 +883,14 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                                      diff = diff)
             violateMat$group.name <- paste0(violateMat$type, ".",
                                             violateMat$grid.x)
+            violateMat$type.string <- factor(violateMat$type,
+                                             levels = seq(7, 12),
+                                             labels = c('m0.inc',
+                                                        'm0.dec',
+                                                        'm1.inc',
+                                                        'm1.dec',
+                                                        'mte.inc',
+                                                        'mte.dec'))
             return(list(monoA = monoA,
                         violateMat = violateMat))
         } else {
