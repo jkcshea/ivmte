@@ -845,6 +845,7 @@ runGurobi <- function(lpobj, lpsolver.options) {
     result <- gurobi::gurobi(lpobj, lpsolver.options)
     status <- 0
     if (result$status == "OPTIMAL") status <- 1
+    if (result$status == "NUMERIC") status <- 2
     optx <- result$x
     return(list(objval = result$objval,
                 optx = result$x,
