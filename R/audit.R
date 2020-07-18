@@ -407,6 +407,40 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     ## Generate LP environment that is to be updated
     lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
             lpsolver = lpsolver)
+    ## Prepare LP messages
+    ##
+    ## Status codes: 1-optimal; 2-infeasible; 3-infeasible or
+    ## unbounded; 4-unbounded; 5-numerical error; 6-suboptimal;
+    ## 7-optimal but infeasible after rescaling.
+    messageAlt <- gsub("\\s+", " ",
+                       "If the LP solver does not return a solution,
+                        export the LP model
+                        and pass it directly into the LP solver.\n")
+    messageInf <- gsub("\\s+", " ",
+                       "Since a minimum criterion was found, the
+                        model should be feasible.
+                        For more details, export the model, and pass it
+                        to the LP solver.\n")
+    messageInfUnb <- gsub("\\s+", " ",
+                          "Since a minimum criterion was found, the
+                           model is most likely feasible but
+                           unbounded. This can happen if
+                           the initial grid is too small. Try
+                           increasing the parameters 'initgrid.nx'
+                           and 'initgrid.nu'. If the model is infeasible,
+                           then export the model, and pass it
+                           to the LP solver for more details.\n")
+    messageUnb <- gsub("\\s+", " ",
+                       "A possible reason for unboundedness is that
+                        the initial grid is too small. Try
+                        increasing the parameters 'initgrid.nx'
+                        and 'initgrid.nu'.\n")
+    messageNum <- gsub("\\s+", " ",
+                       "A possible reason for numerical issues is that
+                        covariates are not scaled appropriately
+                        (i.e. the range of magnitude exceeds 1e13).
+                        This is known to cause numerical issues in
+                        LP problems.\n")
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
@@ -421,18 +455,26 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         ## without any shape restrictions. We then check if any of the
         ## lower and upper bounds are violated, which is a likely
         ## cause for infeasible solutions.
-        if (!is.numeric(minobseq$obj) || is.na(minobseq$obj) ||
-            (lpsolver == "lpsolveapi" && minobseq$status == 0)) {
-            ## Inform the user of numerical issues.
-            if (minobseq$status == 2) {
-                stop(gsub("\\s+", " ",
-                          paste0("No solution due to numerical issues.
-                                  A possible reason for this is that
-                                  covariates are not scaled appropriately
-                                  (i.e. the range of magnitude exceeds 1e13).
-                                  This is known to cause numerical issues in
-                                  LP problems.\n")),
-                     call. = FALSE)
+        if (minobseq$status %in% c(0, 2, 3, 4, 5)) {
+            origMinStatus <- minobseq$status
+            ## Stop if issues are numerical, or unbounded, or unknown.
+            if (origMinStatus == 0) {
+                errMess <-
+                    paste('No solution provided by the LP solver.',
+                          messageAlt)
+                stop(errMess, call. = FALSE)
+            }
+            if (origMinStatus == 4) {
+                errMess <-
+                    paste0('No solution since the model is unbounded.',
+                           messageUnb)
+                stop(errMess, call. = FALSE)
+            }
+            if (origMinStatus == 5) {
+                errMess <-
+                paste('No solution due to numerical issues.',
+                      messageNum)
+                stop(errMess, call. = FALSE)
             }
             ## Otherwise, continue and test for infeasibility.
             rm(minobseq)
@@ -511,16 +553,35 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (mte.dec == TRUE) return("mte.dec = TRUE")
                 }
             })
-            stop(gsub("\\s+", " ",
-                      paste0("No feasible solution to the criterion minimization
-                              problem. This should only happen if the implied
-                              parameter space is empty. The likely cause of an
-                              empty parameter space is incoherent shape
-                              restrictions. For example, ",
-                             paste(unique(violateType), collapse = ", "),
-                             " are all set simultaneously. Try changing the
-                              shape constraints on the MTR functions.\n")),
-                 call. = FALSE)
+            messageInfDiag <-
+                gsub('\\s+', ' ',
+                     paste0("The model should only be infeasible if the implied
+                            parameter space is empty. The likely cause of an
+                            empty parameter space is incoherent shape
+                            restrictions. For example, ",
+                            paste(unique(violateType), collapse = ", "),
+                            " are all set simultaneously. Try changing the
+                            shape constraints on the MTR functions.\n"))
+            messageUnbDiag <- gsub('\\s+', ' ',
+                                   "The model may be unbounded if
+                                   the initial grid is too small. Try
+                                   increasing the parameters 'initgrid.nx'
+                                   and 'initgrid.nu'.\n")
+
+            if (origMinStatus == 2) {
+                stop(gsub("\\s+", " ",
+                          paste("No solution since the LP solver proved the
+                                 model was infeasible.",
+                                messageInfDiag)),
+                     call. = FALSE)
+            }
+            if (origMinStatus == 3) {
+                stop(gsub("\\s+", " ",
+                          paste("No solution since the LP solver proved the
+                                 model was infeasible or unbounded.",
+                                messageInfDiag, messageUnbDiag)),
+                     call. = FALSE)
+            }
         }
         if (noisy) {
             cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
@@ -554,6 +615,82 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                           noisy = noisy,
                           smallreturnlist = smallreturnlist,
                           debug = debug)
+        ## EXPERIMENTING ---------------------------
+        if (lpresult$err == TRUE) {
+            errMess <- NULL
+            errTypes <- NULL
+            for (type in c('min', 'max')) {
+                tmpName <- paste0(type, 'status')
+                if (type == 'min') tmpType <- 'minimization'
+                if (type == 'max') tmpType <- 'maximization'
+
+                if (lpresult[type] == 0) {
+                    errMess <-
+                        paste(errMess,
+                              gsub('\\s+', ' ',
+                                   paste('The LP solver did not provide a
+                                     solution for the', tmpType,
+                                     'problem.')))
+                }
+                if (lpresult[type] == 2) {
+                    errMess <-
+                        paste(errMess,
+                              gsub('\\s+', ' ',
+                                   paste('The', tmpType, 'problem was proven
+                                          to be infeasible.')))
+                }
+                if (lpresult[type] == 3) {
+                    errMess <-
+                        paste(errMess,
+                              gsub('\\s+', ' ',
+                                   paste('The', tmpType,
+                                         'problem was proven to be
+                                          infeasible or unbounded.')))
+                }
+                if (lpresult[type] == 4) {
+                    errMess <-
+                        paste(errMess,
+                              gsub('\\s+', ' ',
+                                   paste('The', tmpType,
+                                         'problem was proven to be
+                                          unbounded.')))
+                }
+                if (lpresult[type] == 5) {
+                    errMess <-
+                        paste(errMess,
+                              gsub('\\s+', ' ',
+                                   paste('The', tmpType,
+                                         'problem resulted in
+                                          numerical issues.')))
+                }
+                errTypes <- c(errTypes, lpresult[type])
+            }
+            ## Include explanation
+            errTypes <- unique(errTypes)
+            if (length(errTypes) == 2 &&
+                errTypes[1] == 3 && errTypes[2] == 4) errTypes <- 3
+            for (et in errTypes) {
+                if (et == 0) {
+                    errMess <- paste(errMess, messageAlt)
+                }
+                if (et == 2) {
+                    errMess <- paste(errMess, messageInf)
+                }
+                if (et == 3) {
+                    errMess <- paste(errMess, messageInfUnb)
+                }
+                if (et == 4) {
+                    errMess <- paste(errMess, messageUnb)
+                }
+                if (et == 5) {
+                    errMess <- paste(errMess, messageNum)
+                }
+            }
+            print(errMess)
+        }
+
+        stop(' YOU NEED THE WARNINGS.')
+        ## END EXPERIMENTING -----------------------
         if (is.null(lpresult)) {
             if (noisy) {
                 cat("    LP solutions are unbounded.\n")

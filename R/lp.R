@@ -792,8 +792,10 @@ bound <- function(env, sset, lpsolver,
                   'cplexapi', or 'lpsolveapi'."))
     }
     env$lpobj$modelsense <- NULL
-    if (maxstatus == 0 || minstatus == 0) {
-        return(NULL)
+    if (maxstatus %in% c(2, 3, 4, 5) || minstatus %in% c(2, 3, 4, 5)) {
+        return(list(err = TRUE,
+                    maxstatus = maxstatus,
+                    minstatus = minstatus))
     }
     ming0 <- minoptx[(2 * env$lpobj$sn + 1) :
                      (2 * env$lpobj$sn + env$lpobj$gn0)]
@@ -845,7 +847,11 @@ runGurobi <- function(lpobj, lpsolver.options) {
     result <- gurobi::gurobi(lpobj, lpsolver.options)
     status <- 0
     if (result$status == "OPTIMAL") status <- 1
-    if (result$status == "NUMERIC") status <- 2
+    if (result$status == "INFEASIBLE") status <- 2
+    if (result$status == "INF_OR_UNBD") status <- 3
+    if (result$status == "UNBOUNDED") status <- 4
+    if (result$status == "NUMERIC") status <- 5
+    if (result$status == "SUBOPTIMAL") status <- 6
     optx <- result$x
     return(list(objval = result$objval,
                 optx = result$x,
@@ -904,16 +910,21 @@ runCplexAPI <- function(lpobj, lpdir, lpsolver.options) {
     solution <- cplexAPI::solutionCPLEX(env, prob)
     cplexAPI::delProbCPLEX(env, prob)
     cplexAPI::closeEnvCPLEX(env)
+    status <- 0
     if (typeof(solution) == "S4") {
         if (attr(solution, "class") == "cplexError") {
-            status <- 0
+            status <- 5
             solution <- list()
             solution$objval <- NA
             solution$x <- NA
         }
     }  else {
         if (solution$lpstat == 1) status <- 1
-        if (solution$lpstat != 1) status <- 0
+        if (solution$lpstat == 2) status <- 4
+        if (solution$lpstat == 3) status <- 2
+        if (solution$lpstat == 4) status <- 3
+        if (solution$lpstat == 5) status <- 7
+        if (solution$lpstat == 6) status <- 6
     }
     return(list(objval = solution$objval,
                 optx   = solution$x,
@@ -961,8 +972,12 @@ runLpSolveAPI <- function(lpobj, modelsense, lpsolver.options) {
                            lower = lpobj$lb,
                            upper = lpobj$ub)
     solved <- lpSolveAPI::solve.lpExtPtr(lpmodel)
+    status <- 0
     if (solved == 0) status <- 1
-    if (solved != 0) status <- 0
+    if (solved == 1) status <- 6
+    if (solved == 2) status <- 2
+    if (solved == 3) status <- 4
+    if (solved == 5) status <- 5
     return(list(objval = lpSolveAPI::get.objective(lpmodel),
                 optx   = lpSolveAPI::get.variables(lpmodel),
                 status = status))
