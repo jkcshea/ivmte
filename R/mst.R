@@ -2397,12 +2397,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (origSinks < sink.number()) {
             sink()
             close(tmpOutput)
-            messages <- readLines(logName)
-            if (length(messages) > 0) {
-                cat(messages, sep = '\n')
-                if (exists("tmpOutput")) suppressWarnings(rm(tmpOutput))
+            if (!noisy) {
+                messages <- readLines(logName)
+                if (length(messages) > 0) {
+                    cat(messages, sep = '\n')
+                    if (exists("tmpOutput")) suppressWarnings(rm(tmpOutput))
+                }
+                unlink(logName)
             }
-            unlink(logName)
             stop(err)
         }
     }, finally = {
@@ -3071,17 +3073,19 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         if (is.null(audit$error)) {
             autoExpand <- Inf
         }
-        if (!is.null(audit$error) &&
-            audit$error == "Failure to maximize/minimize.") {
+        if (!is.null(audit$errorTypes)) {
+            if (any(c(0, 2, 5) %in% audit$errorTypes)) {
+                stop(audit$error, call. = FALSE)
+            }
             if (initgrid.nx == audit.nx && initgrid.nu == audit.nu) {
-                if (lpsolver != "lpsolveapi") {
-                    stop(paste0(gsub("\\s+", " ",
-                                     "The LP problem is unbounded,
-                                  and automatic grid expansion is not
+                errMessage1 <- audit$error
+                errMessage2 <-
+                    gsub("\\s+", " ",
+                         "Automatic grid expansion is also not
                                   possible.
                                   Consider imposing additional shape
                                   constraints, or increasing the size of the
-                                  initial grid  for the audit.
+                                  initial grid for the audit.
                                   In order to increase the size of the
                                   initial grid, it will be
                                   necessary to increase the size of the audit
@@ -3091,31 +3095,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                   is currently binding.
                                   In order to allow for automatic grid
                                   expansion, make sure audit.nx > initgrid.nx
-                                  or audit.nu > initgrid.nu.")),
-                         call. = FALSE)
-                } else {
-                    stop(paste0(gsub("\\s+", " ",
-                                     "The LP problem is unbounded (but this
-                                  may be due to 'lpsolveapi'; it is strongly
-                                  encouraged to use commerical solvers Gurobi
-                                  or CPLEX, which offer free academic licenses),
-                                  and automatic grid expansion is not
-                                  possible.
-                                  Consider imposing additional shape
-                                  constraints, or increasing the size of the
-                                  initial grid  for the audit.
-                                  In order to increase the size of the
-                                  initial grid, it will be
-                                  necessary to increase the size of the audit
-                                  grid.
-                                  This is because the initial grid must be a
-                                  subset of the audit grid, and this constraint
-                                  is currently binding.
-                                  In order to allow for automatic grid
-                                  expansion, make sure audit.nx > initgrid.nx
-                                  or audit.nu > initgrid.nu.")),
-                         call. = FALSE)
-                }
+                                  or audit.nu > initgrid.nu.")
+                stop(paste(errMessage1, "\n", errMessage2), call. = FALSE)
             }
             autoExpand <- autoExpand + 1
             newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
@@ -3140,11 +3121,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         }
     }
     rm(audit_call)
-    if (!is.null(audit$error) && autoExpand > autoExpandMax) {
-        if (lpsolver != "lpsolveapi") {
-            stop(paste0(gsub("\\s+", " ",
-                             "Automatic grid expansion limit reached.
-                         The LP problem is still unbounded.
+    if (!is.null(audit$errorTypes) && autoExpand > autoExpandMax) {
+        errMessage1 <- audit$error
+        errMessage2 <-
+            paste0(gsub("\\s+", " ",
+                        "Automatic grid expansion limit is also reached.
                          Either impose additional shape constraints,
                          or increase the size of the initial grid
                          for the audit. Since the initial grid must
@@ -3153,32 +3134,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                          grid also.
                          The most recent options after automatic expansion
                          were:"),
-                        "\ninitgrid.nx = ", newGrid.nx,
-                        "\ninitgrid.nu = ", newGrid.nu,
-                        "\naudit.nx = ", audit.nx,
-                        "\naudit.nu = ", audit.nu),
-                 call. = FALSE)
-        } else {
-            stop(paste0(gsub("\\s+", " ",
-                             "Automatic grid expansion limit reached.
-                         The LP problem is still unbounded (but this
-                         may be due to 'lpsolveapi'; it is strongly
-                         encouraged to use commerical solvers Gurobi
-                         or CPLEX, which offer free academic licenses).
-                         Either impose additional shape constraints,
-                         or increase the size of the initial grid
-                         for the audit. Since the initial grid must
-                         be a subset of the audit grid, it may be
-                         necessary to increase the size of the audit
-                         grid also.
-                         The most recent options after automatic expansion
-                         were:"),
-                        "\ninitgrid.nx = ", newGrid.nx,
-                        "\ninitgrid.nu = ", newGrid.nu,
-                        "\naudit.nx = ", audit.nx,
-                        "\naudit.nu = ", audit.nu),
-                 call. = FALSE)
-        }
+                   "\ninitgrid.nx = ", newGrid.nx,
+                   "\ninitgrid.nu = ", newGrid.nu,
+                   "\naudit.nx = ", audit.nx,
+                   "\naudit.nu = ", audit.nu)
+        stop(paste(errMessage1, "\n", errMessage2), call. = FALSE)
     }
     if (noisy) {
         cat("Bounds on the target parameter: [",

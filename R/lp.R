@@ -792,8 +792,9 @@ bound <- function(env, sset, lpsolver,
                   'cplexapi', or 'lpsolveapi'."))
     }
     env$lpobj$modelsense <- NULL
+    ## Return error codes, if any
     if (maxstatus %in% c(2, 3, 4, 5) || minstatus %in% c(2, 3, 4, 5)) {
-        return(list(err = TRUE,
+        return(list(error = TRUE,
                     maxstatus = maxstatus,
                     minstatus = minstatus))
     }
@@ -825,7 +826,8 @@ bound <- function(env, sset, lpsolver,
                    ming0 = ming0,
                    ming1 = ming1,
                    minresult = minresult,
-                   minstatus = minstatus)
+                   minstatus = minstatus,
+                   error = FALSE)
     if (!smallreturnlist) output$model = env$lpobj
     return(output)
 }

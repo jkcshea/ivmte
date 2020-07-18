@@ -409,13 +409,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             lpsolver = lpsolver)
     ## Prepare LP messages
     ##
-    ## Status codes: 1-optimal; 2-infeasible; 3-infeasible or
+    ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible or
     ## unbounded; 4-unbounded; 5-numerical error; 6-suboptimal;
     ## 7-optimal but infeasible after rescaling.
     messageAlt <- gsub("\\s+", " ",
                        "If the LP solver does not return a solution,
                         export the LP model
-                        and pass it directly into the LP solver.\n")
+                        and pass it to the LP solver
+                        for more details.\n")
     messageInf <- gsub("\\s+", " ",
                        "Since a minimum criterion was found, the
                         model should be feasible.
@@ -427,7 +428,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            unbounded. This can happen if
                            the initial grid is too small. Try
                            increasing the parameters 'initgrid.nx'
-                           and 'initgrid.nu'. If the model is infeasible,
+                           and 'initgrid.nu'. If the model is
+                           indeed infeasible,
                            then export the model, and pass it
                            to the LP solver for more details.\n")
     messageUnb <- gsub("\\s+", " ",
@@ -441,6 +443,17 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         (i.e. the range of magnitude exceeds 1e13).
                         This is known to cause numerical issues in
                         LP problems.\n")
+    messageSub <- gsub("\\s+", " ",
+                       "Tolerance parameters for the LP solver
+                        can be passed through the argument
+                        'lpsolver.options'.\n")
+    messageOptInf <- gsub("\\s+", " ",
+                          " A possible reason for this is that covariates
+                            are not scaled appropriately
+                            (i.e. the range of magnitude exceeds 1e13).
+                            Tolerance parameters for the LP solver
+                            can also be passed through the argument
+                            'lpsolver.options'.\n")
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
@@ -615,16 +628,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                           noisy = noisy,
                           smallreturnlist = smallreturnlist,
                           debug = debug)
-        ## EXPERIMENTING ---------------------------
-        if (lpresult$err == TRUE) {
+        if (lpresult$error == TRUE) {
             errMess <- NULL
             errTypes <- NULL
             for (type in c('min', 'max')) {
                 tmpName <- paste0(type, 'status')
                 if (type == 'min') tmpType <- 'minimization'
                 if (type == 'max') tmpType <- 'maximization'
-
-                if (lpresult[type] == 0) {
+                if (lpresult[[tmpName]] == 0) {
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
@@ -632,14 +643,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                      solution for the', tmpType,
                                      'problem.')))
                 }
-                if (lpresult[type] == 2) {
+                if (lpresult[[tmpName]] == 2) {
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
                                    paste('The', tmpType, 'problem was proven
                                           to be infeasible.')))
                 }
-                if (lpresult[type] == 3) {
+                if (lpresult[[tmpName]] == 3) {
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
@@ -647,7 +658,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                          'problem was proven to be
                                           infeasible or unbounded.')))
                 }
-                if (lpresult[type] == 4) {
+                if (lpresult[[tmpName]] == 4) {
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
@@ -655,7 +666,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                          'problem was proven to be
                                           unbounded.')))
                 }
-                if (lpresult[type] == 5) {
+                if (lpresult[[tmpName]] == 5) {
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
@@ -663,12 +674,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                          'problem resulted in
                                           numerical issues.')))
                 }
-                errTypes <- c(errTypes, lpresult[type])
+                errTypes <- c(errTypes, lpresult[[tmpName]])
             }
             ## Include explanation
-            errTypes <- unique(errTypes)
+            origErrTypes <- sort(unique(errTypes))
+            errTypes <- sort(unique(errTypes))
             if (length(errTypes) == 2 &&
-                errTypes[1] == 3 && errTypes[2] == 4) errTypes <- 3
+                errTypes[1] == 2 && errTypes[2] == 3) errTypes <- 3
             for (et in errTypes) {
                 if (et == 0) {
                     errMess <- paste(errMess, messageAlt)
@@ -686,11 +698,46 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     errMess <- paste(errMess, messageNum)
                 }
             }
-            print(errMess)
+            return(list(error = errMess,
+                        errorTypes = origErrTypes,
+                        audit.grid = audit.grid))
         }
-
-        stop(' YOU NEED THE WARNINGS.')
-        ## END EXPERIMENTING -----------------------
+        ## Provide warnings if solutions are suboptimal.
+        bWarn <- NULL
+        bWarnTypes <- NULL
+        for (type in c('min', 'max')) {
+            tmpName <- paste0(type, 'status')
+            if (type == 'min') tmpType <- 'minimization'
+            if (type == 'max') tmpType <- 'maximization'
+            if (lpresult[[tmpName]] == 6) {
+                bWarn <-
+                    paste(bWarn,
+                          gsub("\\s+", " ",
+                               paste('The LP solver was unable to satisfy
+                               the optimality tolerance for the',
+                               tmpType, 'problem, so a suboptimal
+                               solution is returned.')))
+            }
+            if (lpresult[[tmpName]] == 7) {
+                bWarn <-
+                    paste(bWarn,
+                          gsub("\\s+", " ",
+                               paste('The solution to the',
+                                     tmpType, 'problem is optimal,
+                                     but infeasible after rescaling.')))
+            }
+            bWarnTypes <- c(bWarnTypes,
+                            lpresult[[tmpName]])
+        }
+        bWarnTypes <- sort(unique(bWarnTypes))
+        for (wt in bWarnTypes) {
+            if (wt == 6) {
+                bWarn <- paste(bWarn, messageSub)
+            }
+            if (wt == 7) {
+                bWarn <- paste(bWarn, messageOptInf)
+            }
+        }
         if (is.null(lpresult)) {
             if (noisy) {
                 cat("    LP solutions are unbounded.\n")
