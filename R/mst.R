@@ -3098,6 +3098,32 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                   or audit.nu > initgrid.nu.")
                 stop(paste(errMessage1, "\n\n", errMessage2), call. = FALSE)
             }
+            if (any(c(3, 4, 6, 7) %in% audit$errorTypes)) {
+                tmpErrMessage <- NULL
+                if (3 %in% audit$errorTypes) {
+                    tmpErrMessage <-
+                        c(tmpErrMessage,
+                          'infeasible or unbounded (most likely unbounded)')
+                }
+                if (4 %in% audit$errorTypes) {
+                    tmpErrMessage <-
+                        c(tmpErrMessage,
+                          'unbounded')
+                }
+                ## if (6 %in% audit$errorTypes) {
+                ##     tmpErrMessage <-
+                ##         c(tmpErrMessage,
+                ##           'suboptimal')
+                ## }
+                ## if (7 %in% audit$errorTypes) {
+                ##     tmpErrMessage <-
+                ##         c(tmpErrMessage,
+                ##           'optimal but infeasible after rescaling')
+                ## }
+            }
+            tmpErrMessage <- paste(tmpErrMessage, collapse = "; ")
+            cat(paste0("    LP model was ",
+                       tmpErrMessage, ".\n"))
             autoExpand <- autoExpand + 1
             newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
             newGrid.nx <- min(ceiling(newGrid.nx * 1.5), audit.nx)
