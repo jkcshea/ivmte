@@ -609,6 +609,29 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol, setup = FALSE)
         }
+        ## Provide warnings if solutions are suboptimal.
+        bWarn <- NULL
+        if (minobseq$status == 6) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste('The LP solver was unable to satisfy
+                               the optimality tolerance when
+                               minimizing the criterion, so a suboptimal
+                               solution is returned.')))
+            bWarn <- paste(bWarn, messageSub)
+        }
+        if (minobseq$status == 7) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste('The solution to the problem of
+                                  minimizing the criterion
+                                  is optimal, but infeasible after
+                                  rescaling.')))
+            bWarn <- paste(bWarn, messageOptInf)
+        }
+        if (!is.null(bWarn)) warning(bWarn, call. = FALSE, immediate. = TRUE)
 
         ## Obtain bounds
         if (noisy) {
@@ -738,36 +761,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 bWarn <- paste(bWarn, messageOptInf)
             }
         }
-        if (is.null(lpresult)) {
-            if (noisy) {
-                cat("    LP solutions are unbounded.\n")
-            }
-            return(list(error = "Failure to maximize/minimize.",
-                        audit.grid = audit.grid))
-        }
+        if (!is.null(bWarn)) warning(bWarn, call. = FALSE, immediate. = TRUE)
+        ## Save results
         solVecMin <- c(lpresult$ming0, lpresult$ming1)
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
         optstatus <- min(c(lpresult$minstatus,
                            lpresult$maxstatus))
-        if (optstatus == 0) {
-            if (criterion.tol == 0) {
-                stop(gsub("\\s+", " ",
-                          "Unable to obtain bounds. Try setting criterion.tol
-                          to be greater than 0 to allow for model
-                          misspecification, or expanding the initial constraint
-                          grid size for imposing the shape restrictions
-                          (initgrid.nx, initgrid.nu). \n"))
-            } else {
-                stop(gsub("\\s+", " ",
-                          paste0("Bounds extend to +/- infinity.
-                          Consider increasing the size of
-                          the initial constraint grid (initgrid.nx,
-                          initgrid.nu). \n")))
-            }
-        } else {
-            if (existsolution == FALSE) existsolution <- TRUE
-            prevbound <- c(lpresult$min, lpresult$max)
-        }
+        if (existsolution == FALSE) existsolution <- TRUE
+        prevbound <- c(lpresult$min, lpresult$max)
         ## Test for violations for minimization problem
         monoboundAcall <- modcall(call,
                                   newcall = genmonoboundA,

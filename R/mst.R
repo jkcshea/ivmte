@@ -3096,7 +3096,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                   In order to allow for automatic grid
                                   expansion, make sure audit.nx > initgrid.nx
                                   or audit.nu > initgrid.nu.")
-                stop(paste(errMessage1, "\n", errMessage2), call. = FALSE)
+                stop(paste(errMessage1, "\n\n", errMessage2), call. = FALSE)
             }
             autoExpand <- autoExpand + 1
             newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
@@ -3138,7 +3138,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                    "\ninitgrid.nu = ", newGrid.nu,
                    "\naudit.nx = ", audit.nx,
                    "\naudit.nu = ", audit.nu)
-        stop(paste(errMessage1, "\n", errMessage2), call. = FALSE)
+        stop(paste(errMessage1, "\n\n", errMessage2), call. = FALSE)
     }
     if (noisy) {
         cat("Bounds on the target parameter: [",
