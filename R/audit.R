@@ -414,14 +414,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     ## 7-optimal but infeasible after rescaling.
     messageAlt <- gsub("\\s+", " ",
                        "If the LP solver does not return a solution,
-                        export the LP model
-                        and pass it to the LP solver
+                        consider exporting the LP model
+                        and passing it to the LP solver
                         for more details.\n")
     messageInf <- gsub("\\s+", " ",
                        "Since a minimum criterion was found, the
                         model should be feasible.
-                        For more details, export the model, and pass it
-                        to the LP solver.\n")
+                        For more details, consider exporting the model
+                        and passing it to the LP solver.\n")
     messageInfUnb <- gsub("\\s+", " ",
                           "Since a minimum criterion was found, the
                            model is most likely feasible but
@@ -430,7 +430,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            increasing the parameters 'initgrid.nx'
                            and 'initgrid.nu'. If the model is
                            indeed infeasible,
-                           then export the model, and pass it
+                           consider exporting the model and passing it
                            to the LP solver for more details.\n")
     messageUnb <- gsub("\\s+", " ",
                        "A possible reason for unboundedness is that
@@ -440,7 +440,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     messageNum <- gsub("\\s+", " ",
                        "A possible reason for numerical issues is that
                         covariates are not scaled appropriately
-                        (i.e. the range of magnitude exceeds 1e13).
+                        (i.e. the range of magnitudes exceeds 1e13).
                         This is known to cause numerical issues in
                         LP problems.\n")
     messageSub <- gsub("\\s+", " ",
@@ -448,12 +448,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         can be passed through the argument
                         'lpsolver.options'.\n")
     messageOptInf <- gsub("\\s+", " ",
-                          " A possible reason for this is that covariates
-                            are not scaled appropriately
-                            (i.e. the range of magnitude exceeds 1e13).
-                            Tolerance parameters for the LP solver
-                            can also be passed through the argument
-                            'lpsolver.options'.\n")
+                          "A possible reason for this is that covariates
+                           are not scaled appropriately
+                           (i.e. the range of magnitudes exceeds 1e13).
+                           Tolerance parameters for the LP solver
+                           can also be passed through the argument
+                           'lpsolver.options'.\n")
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
