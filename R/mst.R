@@ -1685,7 +1685,15 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                           ".")
             stop(gsub("\\s+", " ", varError), call. = FALSE)
         }
-        data  <- data[complete.cases(data[, vars_data]), ]
+        data <- data[complete.cases(data[, vars_data]), ]
+        ## Ensure there is variation in the treated variable
+        if (var(data[, treat]) == 0) {
+            stop(gsub('\\s+', ' ',
+                      paste0('The function only uses the subsample of complete
+                              observations, in which there
+                              is no variation in the treatment variable, ',
+                             treat, '.')), call. = FALSE)
+        }
         ## Adjust row names to handle bootstrapping
         rownames(data) <- as.character(seq(1, nrow(data)))
         ## Construct a list of what variables interact with the
