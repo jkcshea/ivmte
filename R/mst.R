@@ -1685,7 +1685,24 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                           ".")
             stop(gsub("\\s+", " ", varError), call. = FALSE)
         }
+        origDataRows <- nrow(data)
         data <- data[complete.cases(data[, vars_data]), ]
+        ## Inform the user if observations have been dropped
+        if (origDataRows != nrow(data)) {
+            if (origDataRows - nrow(data) == 1) {
+                warning(gsub('\\s+', ' ',
+                             paste0(origDataRows - nrow(data),
+                                    ' incomplete observation dropped.')),
+                        call. = FALSE,
+                        immediate. = TRUE)
+            } else {
+                warning(gsub('\\s+', ' ',
+                             paste0(origDataRows - nrow(data),
+                                    ' incomplete observations dropped.')),
+                        call. = FALSE,
+                        immediate. = TRUE)
+            }
+        }
         ## Ensure there is variation in the treated variable
         if (var(data[, treat]) == 0) {
             stop(gsub('\\s+', ' ',
