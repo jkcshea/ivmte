@@ -1689,7 +1689,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Ensure there is variation in the treated variable
         if (var(data[, treat]) == 0) {
             stop(gsub('\\s+', ' ',
-                      paste0('The function only uses the subsample of complete
+                      paste0('Estimation only uses the subsample of complete
                               observations, in which there
                               is no variation in the treatment variable, ',
                              treat, '.')), call. = FALSE)
