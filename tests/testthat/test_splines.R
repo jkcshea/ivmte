@@ -36,8 +36,7 @@ result <- ivmte(ivlike = ivlike,
                 m1.ub = 55,
                 m0.lb = 0,
                 mte.inc = TRUE,
-                lpsolver = "lpSolveAPI",
-                seed = 10L)
+                lpsolver = "lpSolveAPI")
 
 ##-------------------------
 ## Perform tests
@@ -410,8 +409,7 @@ resultAlt <- ivmte(ivlike = ivlike,
                    m0.lb = 0,
                    mte.inc = TRUE,
                    mte.ub = 10,
-                   lpsolver = "lpSolveAPI",
-                   seed = 10L)
+                   lpsolver = "lpSolveAPI")
 
 ##------------------------
 ## Reconstruct target gamma moments

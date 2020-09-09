@@ -34,8 +34,7 @@ result <- ivmte(ivlike = ivlike,
                 m1.inc = TRUE,
                 mte.dec = TRUE,
                 treat = d,
-                lpsolver = "lpSolveAPI",
-                seed = 10L)
+                lpsolver = "lpSolveAPI")
 
 ##------------------------
 ## Implement test

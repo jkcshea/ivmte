@@ -249,8 +249,6 @@ utils::globalVariables("u")
 #'     \code{TRUE} to exclude large intermediary components
 #'     (i.e. propensity score model, LP model, bootstrap iterations)
 #'     from being included in the return list.
-#' @param seed integer, the seed that determines the random grid in
-#'     the audit procedure.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{lpsolver = 'gurobi'}. The output provided is
@@ -417,7 +415,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
                   specification.test = TRUE,
                   noisy = FALSE,
-                  smallreturnlist = FALSE, seed = 12345, debug = FALSE) {
+                  smallreturnlist = FALSE, debug = FALSE) {
     ## Try-catch is implemented to deal with sinking of
     ## output. Specifically, if the function ends prematurely, the
     ## sink can still be reset at the 'finally' segment.
@@ -1068,10 +1066,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             call. = FALSE)
                 }
             }
-        }
-        ## Seed check
-        if (!(is.numeric(seed) & length(seed) == 1)) {
-            stop("'seed' must be a scalar.", call. = FALSE)
         }
         ## Audit checks
         if (!(is.numeric(criterion.tol) & criterion.tol >= 0)) {
@@ -1763,8 +1757,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                         'm0.ub', 'm1.lb', 'm0.lb',
                                         'mte.ub', 'mte.lb', 'm0.dec',
                                         'm0.inc', 'm1.dec', 'm1.inc',
-                                        'mte.dec', 'mte.inc', 'link',
-                                        'seed'))
+                                        'mte.dec', 'mte.inc', 'link'))
         opList <- eval(opList)
         opList$ivlike <- ivlike
         opList$components <- components
@@ -1849,8 +1842,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 if (is.null(audit.grid$support)) audit.grid$noX <- TRUE
                 if (!is.null(audit.grid$support)) audit.grid$noX <- FALSE
                 ## Estimate bounds with resampling
-                set.seed(seed)
-                bseeds <- round(runif(bootstraps) * 1000000)
                 boundEstimates <- NULL
                 propEstimates <- NULL
                 b <- 1
@@ -1880,7 +1871,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                          call. = FALSE)
                 }
                 while (b <= bootstraps) {
-                    set.seed(bseeds[b])
                     bootIDs  <- sample(x = seq(1, nrow(data)),
                                        size = bootstraps.m,
                                        replace = bootstraps.replace)
@@ -1888,12 +1878,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     cat("Bootstrap iteration ", b, "...\n", sep = "")
                     bootCall <-
                         modcall(estimateCall,
-                                dropargs = c("data", "noisy", "seed",
+                                dropargs = c("data", "noisy",
                                              "audit.grid",
                                              "count.moments"),
                                 newargs = list(data = quote(bdata),
                                                noisy = FALSE,
-                                               seed = bseeds[b],
                                                audit.grid = audit.grid,
                                                orig.sset = origSset,
                                                orig.criterion = origCriterion,
@@ -1933,7 +1922,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         warning(paste0(bootEstimate, ", resampling...\n"),
                                 call. = FALSE,
                                 immediate. = TRUE)
-                        bseeds[b] <- round(runif(1) * 1000000)
                         bootFailN <- bootFailN + 1
                         bootFailIndex <- unique(c(bootFailIndex, b))
                     }
@@ -2090,8 +2078,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Point estimate with resampling
         if (point == TRUE & bootstraps > 0) {
-            set.seed(seed)
-            bseeds <- round(runif(bootstraps) * 1000000)
             origEstimate <- eval(estimateCall)
             teEstimates  <- NULL
             mtrEstimates <- NULL
@@ -2116,7 +2102,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                            boolean expressions) in the bootstrap sample.
                            Additional bootstrap samples will be drawn.")
             while (b <= bootstraps) {
-                set.seed(bseeds[b])
                 totalBootstraps <- totalBootstraps + 1
                 bootIDs  <- sample(seq(1, nrow(data)),
                                    size = bootstraps.m,
@@ -2172,10 +2157,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 cat("Bootstrap iteration ", b, "...\n", sep = "")
                 bootCall <-
                     modcall(estimateCall,
-                            dropargs = c("data", "noisy", "seed"),
+                            dropargs = c("data", "noisy"),
                             newargs = list(data = quote(bdata),
                                            noisy = FALSE,
-                                           seed = bseeds[b],
                                            point.center =
                                                origEstimate$moments$criterion,
                                            point.redundant =
@@ -2201,7 +2185,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         "\n\n", sep = "")
                 } else {
                     message("    Error, resampling...\n", sep = "")
-                    bseeds[b] <- round(runif(1) * 1000000)
                     bootFailN <- bootFailN + 1
                     bootFailIndex <- unique(c(bootFailIndex, b))
                 }
@@ -2695,7 +2678,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           orig.criterion = NULL, vars_y,
                           vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                           splinesobj, noisy = TRUE,
-                          smallreturnlist = FALSE, seed = 12345,
+                          smallreturnlist = FALSE,
                           debug = FALSE, environments) {
     call <- match.call(expand.dots = FALSE)
     if (classFormula(ivlike)) ivlike <- c(ivlike)
@@ -3041,7 +3024,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "lpsolver.options.criterion", "lpsolver.options.bounds",
                     "criterion.tol",
                     "orig.sset", "orig.criterion",
-                    "smallreturnlist", "noisy", "seed", "debug")
+                    "smallreturnlist", "noisy", "debug")
     audit_call <- modcall(call,
                           newcall = audit,
                           keepargs = audit.args,
