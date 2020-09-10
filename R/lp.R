@@ -553,8 +553,8 @@ criterionMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
     lpsolver <- tolower(lpsolver)
     if (lpsolver == "gurobi") {
         if (debug & lpsolver.options$outputflag == 1) {
-            message("\nMinimum criterion optimization statistics:")
-            message("------------------------------------------")
+            cat("\nMinimum criterion optimization statistics:\n")
+            cat("------------------------------------------\n")
         }
         env$lpobj$modelsense <- "min"
         if (debug) {
@@ -743,8 +743,8 @@ bound <- function(env, sset, lpsolver,
     ## Obtain lower and upper bounds
     if (lpsolver == "gurobi") {
         if (debug & lpsolver.options$outputflag == 1) {
-            message("\nLower bound optimization statistics:")
-            message("------------------------------------")
+            cat("\nLower bound optimization statistics:\n")
+            cat("------------------------------------\n")
         }
         if (debug == TRUE){
             env$lpobj$modelsense <- NULL
@@ -759,8 +759,8 @@ bound <- function(env, sset, lpsolver,
         minstatus <- minresult$status
         minoptx <- minresult$optx
         if (debug & lpsolver.options$outputflag == 1) {
-            message("\nUpper bound optimization statistics:")
-            message("------------------------------------")
+            cat("\nUpper bound optimization statistics:\n")
+            cat("------------------------------------\n")
         }
         env$lpobj$modelsense <- "max"
         maxresult <- runGurobi(env$lpobj, lpsolver.options)

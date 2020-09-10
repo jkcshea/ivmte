@@ -2184,7 +2184,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         fmtResult(bootEstimate$point.estimate),
                         "\n\n", sep = "")
                 } else {
-                    message("    Error, resampling...\n", sep = "")
+                    cat("    Error, resampling...\n", sep = "")
                     bootFailN <- bootFailN + 1
                     bootFailIndex <- unique(c(bootFailIndex, b))
                 }
