@@ -179,8 +179,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   lpsolver, lpsolver.options, lpsolver.presolve,
                   lpsolver.options.criterion, lpsolver.options.bounds,
                   smallreturnlist = FALSE,
-                  noisy = TRUE, seed = 12345, debug = FALSE) {
-    set.seed(seed)
+                  noisy = TRUE, debug = FALSE) {
     call  <- match.call()
     lpsolver <- tolower(lpsolver)
     ## Set the audit tolerance
