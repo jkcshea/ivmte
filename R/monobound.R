@@ -21,6 +21,7 @@
 #'     mapping the elements in the support of the covariates to
 #'     \code{index}.
 gengrid <- function(index, xsupport, usupport, uname) {
+    if (length(usupport) == 0) usupport <- 0
     subsupport <- xsupport[index, ]
     if (is.null(dim(subsupport))) {
         subsupport <- data.frame(subsupport)
@@ -1093,6 +1094,7 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
     u1unique <- uvec[!duplicated(fullU1mat)]
     ## Now update U grid to only include non-redundant values
     uvec <- sort(unique(c(u0unique, u1unique)))
+    if (length(uvec) == 0) uvec <- 0
     rm(u0mat, u1mat,
        us0mat, us1mat,
        fullU0mat, fullU1mat,
@@ -1276,6 +1278,24 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
     }
     A0 <- A0[order(A0[, ".grid.order"]), ]
     A1 <- A1[order(A1[, ".grid.order"]), ]
+    ## If both m0 and m1 are just the intercepts, then the objects A0
+    ## and A1 will not be matrices. This will cause an error when
+    ## trying to account for column names. So convert A0 and A1 into
+    ## matrices.
+    if (is.null(dim(A0))) {
+        tmpNames <- names(A0)
+        A0 <- matrix(A0, nrow = 1)
+        colnames(A0) <- tmpNames
+        rownames(A0) <- 1
+        rm(tmpNames)
+    }
+    if (is.null(dim(A1))) {
+        tmpNames <- names(A1)
+        A1 <- matrix(A1, nrow = 1)
+        colnames(A1) <- tmpNames
+        rownames(A1) <- 1
+        rm(tmpNames)
+    }
     ## Rename columns so they match with the names in vectors gstar0
     ## and gstar1 (the problem stems from the unpredictable ordering
     ## of variables in interaction terms).
