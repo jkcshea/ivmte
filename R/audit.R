@@ -491,6 +491,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             ## Otherwise, continue and test for infeasibility.
             rm(minobseq)
             lpSetupInfeasible(lpEnv, sset)
+            if (lpsolver == "gurobi") {
+                if (debug & lpsolver.options.criterion$outputflag == 1) {
+                    cat("Infeasibility diagnosis optimization statistics:\n")
+                    cat("------------------------------------------------\n")
+                }
+            }
             minobseqAlt <- criterionMin(env = lpEnv,
                                         sset = sset,
                                         lpsolver = lpsolver,
