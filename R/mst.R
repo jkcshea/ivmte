@@ -1574,6 +1574,22 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                      vars_mtr,
                      vars_weights,
                      vars_propensity)
+        ## If the MTRs do not contain the unobserved random variable,
+        ## provide warning that monotonicity constraints are
+        ## redundant.
+        if (!(uname %in% vars_mtr |
+              !is.null(splinesobj[[1]]$splineslist) |
+              !is.null(splinesobj[[2]]$splineslist))) {
+            if (hasArg(m0.dec) | hasArg(m0.inc) |
+                hasArg(m1.dec) | hasArg(m1.inc) |
+                hasArg(mte.dec) | hasArg(mte.inc)) {
+                warning(gsub('\\s+', ' ',
+                             paste0("Neither 'm0' and 'm1' contain the
+                                 unobserved variable ", uname, ".
+                                 Monotonicity constraints are ignored.")),
+                        call. = FALSE, immediate. = FALSE)
+            }
+        }
         ## For the components, since they may be terms, we first collect
         ## all terms, and then break it down into variables.
         vars_components <- NULL

@@ -407,7 +407,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         lpEnv <- new.env()
         lpEnv$mbobj <- eval(monoboundAcall)
     }
-
+    
     ## Generate LP environment that is to be updated
     lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
             lpsolver = lpsolver)

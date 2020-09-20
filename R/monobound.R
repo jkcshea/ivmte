@@ -1388,23 +1388,25 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
     if (hasArg(m0.inc)  | hasArg(m0.dec) |
         hasArg(m1.inc)  | hasArg(m1.dec) |
         hasArg(mte.inc) | hasArg(mte.dec)) {
-        monolist  <- c("m0.dec", "m0.inc",
-                       "m1.dec", "m1.inc",
-                       "mte.dec", "mte.inc",
-                       "solution.m0.min", "solution.m1.min",
-                       "solution.m0.max", "solution.m1.max",
-                       "audit.tol")
-        monoAcall <- modcall(call,
-                             newcall = genmonoA,
-                             keepargs = monolist,
-                             newargs = list(A0 = quote(A0),
-                                            A1 = quote(A1),
-                                            sset = quote(sset),
-                                            gridobj = quote(gridobj),
-                                            uname = uname,
-                                            gstar0 = quote(gstar0),
-                                            gstar1 = quote(gstar1)))
-        monoA <- eval(monoAcall)
+        if (!(length(uvec) == 1 && uvec == 0)) {
+            monolist  <- c("m0.dec", "m0.inc",
+                           "m1.dec", "m1.inc",
+                           "mte.dec", "mte.inc",
+                           "solution.m0.min", "solution.m1.min",
+                           "solution.m0.max", "solution.m1.max",
+                           "audit.tol")
+            monoAcall <- modcall(call,
+                                 newcall = genmonoA,
+                                 keepargs = monolist,
+                                 newargs = list(A0 = quote(A0),
+                                                A1 = quote(A1),
+                                                sset = quote(sset),
+                                                gridobj = quote(gridobj),
+                                                uname = uname,
+                                                gstar0 = quote(gstar0),
+                                                gstar1 = quote(gstar1)))
+            monoA <- eval(monoAcall)
+        }
     }
     if (audit) {
         ## Return violation matrices, if the function is used to
