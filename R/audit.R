@@ -388,7 +388,11 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                        prob = replicate(nrow(support),
                        (1/nrow(support)))))
         }
-        uvec <- sort(c(0, 1, round(rhalton(initgrid.nu), 8)))
+        if (initgrid.nu > 0) {
+            uvec <- sort(c(0, 1, round(rhalton(initgrid.nu), 8)))
+        } else {
+            uvec <- c(0, 1)
+        }
         monoboundAcall <- modcall(call,
                                   newcall = genmonoboundA,
                                   keepargs = monoboundAlist,
@@ -403,6 +407,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         lpEnv <- new.env()
         lpEnv$mbobj <- eval(monoboundAcall)
     }
+
     ## Generate LP environment that is to be updated
     lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
             lpsolver = lpsolver)
@@ -585,7 +590,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                    the initial grid is too small. Try
                                    increasing the parameters 'initgrid.nx'
                                    and 'initgrid.nu'.\n")
-
             if (origMinStatus == 2) {
                 stop(gsub("\\s+", " ",
                           paste("No solution since the LP solver proved the
@@ -1225,6 +1229,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         violateMat$group.name <- NULL
         violateMat$pos <- NULL
     }
+    ## Return output
     output <- list(max = lpresult$max,
                    min = lpresult$min,
                    lpresult = lpresult,

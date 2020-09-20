@@ -1073,8 +1073,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         if (!((initgrid.nu %% 1 == 0) & initgrid.nu >= 0)) {
             stop(gsub("\\s+", " ",
-                      "'initgrid.nu' must be an integer than or equal to 0
-                    (end points 0 and 1 are always included)."),
+                      "'initgrid.nu' must be an integer greater than or equal to
+                       0 (end points 0 and 1 are always included)."),
                  call. = FALSE)
         }
         if (!((initgrid.nx %% 1 == 0) & initgrid.nx >= 0)) {

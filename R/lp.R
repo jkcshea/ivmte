@@ -149,11 +149,11 @@ lpSetup <- function(env, sset, orig.sset = NULL,
             env$shapeSeq[[i]] <- NULL
         }
     }
-    ## determine lengths
+    ## Determine lengths
     sn  <- length(sset)
     gn0 <- length(sset$s1$g0)
     gn1 <- length(sset$s1$g1)
-    ## generate all vectors/matrices for LP optimization to minimize
+    ## Generate all vectors/matrices for LP optimization to minimize
     ## observational equivalence
     rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
     if (!is.null(orig.sset)) {
@@ -178,8 +178,16 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         A <- rbind(A, avec)
         scount <- scount + 1
     }
-    colnames(A) <- c(seq(1, 2 * sn),
+    ## Generate informative colnumn names and row names indicating
+    ## which rows correspond to which IV-like specifications, and
+    ## which columns correspond to which MTR terms
+    colnames(A) <- c(c(rbind(paste0('slack', seq(sn), '-'),
+                             paste0('slack', seq(sn), '+'))),
                      colnames(A)[(2 * sn + 1) : ncol(A)])
+    tmpIvs <- paste0('iv', lapply(sset, function(x) x$ivspec))
+    tmpBetas <- lapply(sset, function(x) names(x$beta))
+    rownames(A) <-mapply(paste, tmpIvs, tmpBetas, sep = '.')
+    rm(tmpIvs, tmpBetas)
     ## Define bounds on parameters
     ub <- replicate(ncol(A), Inf)
     lb <- c(replicate(sn * 2, 0), replicate(gn0 + gn1, -Inf))
@@ -408,6 +416,71 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.factor, lpsolver,
         avec <- c(replicate(2 * env$lpobj$sn, 1),
                   replicate(env$lpobj$gn0 + env$lpobj$gn1, 0))
         env$lpobj$A <- rbind(avec, env$lpobj$A)
+        ## Label each row with the corresponding constraint. IV-like
+        ## constraints are already labeled.
+        rownames(env$lpobj$A)[1] <- 'criterion'
+        tmpOffset <- env$lpobj$sn + 1
+        if (length(env$mbobj$lb0seq) > 0) {
+            rownames(env$lpobj$A)[env$mbobj$lb0seq + tmpOffset] <- 'm0.lb'
+        }
+        if (length(env$mbobj$lb1seq) > 0) {
+            rownames(env$lpobj$A)[env$mbobj$lb1seq + tmpOffset] <- 'm1.lb'
+        }
+        if (length(env$mbobj$lbteseq) > 0) {
+            rownames(env$lpobj$A)[env$mbobj$lbteseq + tmpOffset] <- 'mte.lb'
+        }
+        if (length(env$mbobj$ub0seq) > 0) {
+            rownames(env$lpobj$A)[env$mbobj$ub0seq + tmpOffset] <- 'm0.ub'
+        }
+        if (length(env$mbobj$ub1seq) > 0) {
+            rownames(env$lpobj$A)[env$mbobj$ub1seq + tmpOffset] <- 'm1.ub'
+        }
+        if (length(env$mbobj$ubteseq) > 0) {
+            rownames(env$lpobj$A)[env$mbobj$ubteseq + tmpOffset] <- 'mte.ub'
+        }
+        if (!is.null(env$mbobj$mono0seq)) {
+            tmpDec <- which(env$mbobj$mono0seq[, 2] == -1)
+            if (length(tmpDec) > 0) {
+                tmpDec <- env$mbobj$mono0seq[, 1][tmpDec]
+                rownames(env$lpobj$A)[tmpDec + tmpOffset] <- 'm0.dec'
+            }
+            rm(tmpDec)
+            tmpInc <- which(env$mbobj$mono0seq[, 2] == 1)
+            if (length(tmpInc) > 0) {
+                tmpInc <- env$mbobj$mono0seq[, 1][tmpInc]
+                rownames(env$lpobj$A)[tmpInc + tmpOffset] <- 'm0.inc'
+            }
+            rm(tmpInc)
+        }
+        if (!is.null(env$mbobj$mono1seq)) {
+            tmpDec <- which(env$mbobj$mono1seq[, 2] == -1)
+            if (length(tmpDec) > 0) {
+                tmpDec <- env$mbobj$mono1seq[, 1][tmpDec]
+                rownames(env$lpobj$A)[tmpDec + tmpOffset] <- 'm1.dec'
+            }
+            rm(tmpDec)
+            tmpInc <- which(env$mbobj$mono1seq[, 2] == 1)
+            if (length(tmpInc) > 0) {
+                tmpInc <- env$mbobj$mono1seq[, 1][tmpInc]
+                rownames(env$lpobj$A)[tmpInc + tmpOffset] <- 'm1.inc'
+            }
+            rm(tmpInc)
+        }
+        if (!is.null(env$mbobj$monoteseq)) {
+            tmpDec <- which(env$mbobj$monoteseq[, 2] == -1)
+            if (length(tmpDec) > 0) {
+                tmpDec <- env$mbobj$monoteseq[, 1][tmpDec]
+                rownames(env$lpobj$A)[tmpDec + tmpOffset] <- 'mte.dec'
+            }
+            rm(tmpDec)
+            tmpInc <- which(env$mbobj$monoteseq[, 2] == 1)
+            if (length(tmpInc) > 0) {
+                tmpInc <- env$mbobj$monoteseq[, 1][tmpInc]
+                rownames(env$lpobj$A)[tmpInc + tmpOffset] <- 'mte.inc'
+            }
+            rm(tmpInc)
+        }
+        ## Adjust syntax for LP solver.
         if (lpsolver %in% c("gurobi", "lpsolveapi")) {
             env$lpobj$sense <- c("<=", env$lpobj$sense)
         }
