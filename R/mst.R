@@ -1584,9 +1584,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 hasArg(m1.dec) | hasArg(m1.inc) |
                 hasArg(mte.dec) | hasArg(mte.inc)) {
                 warning(gsub('\\s+', ' ',
-                             paste0("Neither 'm0' and 'm1' contain the
-                                 unobserved variable ", uname, ".
-                                 Monotonicity constraints are ignored.")),
+                             paste0("Neither 'm0' nor 'm1' contains the
+                                 unobserved variable '", uname, "'.
+                                 Monotonicity constraints only apply to the
+                                 unobserved variable, so will be ignored.")),
                         call. = FALSE, immediate. = FALSE)
             }
         }
