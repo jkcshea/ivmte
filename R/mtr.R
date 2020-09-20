@@ -850,6 +850,13 @@ genGammaSplines <- function(splinesobj, data, lb, ub, multiplier = 1,
         splinesNames <- gsub(":\\(Intercept\\)", ":1", splinesNames)
         splinesNames <- gsub("\\(Intercept\\):", "1:", splinesNames)
         splinesGamma <- splinesGamma[late.rows, ]
+        if (is.null(dim(splinesGamma))) {
+            if (length(late.rows) > 1) {
+                splinesGamma <- matrix(splinesGamma, ncol = 1)
+            } else {
+                splinesGamma <- matrix(splinesGamma, nrow = 1)
+            }
+        }
         if (means == TRUE) {
             splinesGamma <- colMeans(splinesGamma)
             names(splinesGamma) <- splinesNames
