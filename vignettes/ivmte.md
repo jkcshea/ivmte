@@ -689,9 +689,13 @@ between each knot is given by `target.weight0`. Since the weighting
 functions might depend on both the instrument and other covariates, both
 `target.knots0` and `target.weight0` should be lists consisting of
 functions or scalars. (A scalar is interpreted as a constant function.)
-Specifying the treated weights works the same way but with
-`target.knots1` and `target.weight1`. Note that the `target` option is
-ignored when a set of knots and weights are passed.
+If the lists include any functions, then the arguments of the functions
+must be the names of the variables that the knots or weights depend on.
+These variables do not have to be a part of the model, but must be
+included in the data provided to `ivmte`. Specifying the treated weights
+works the same way but with `target.knots1` and `target.weight1`. If the
+`target` option is passed along with the custom weights, an error is
+returned.
 
 Here is an example of using custom weights to replicate the conditional
 LATE from above.
