@@ -3501,6 +3501,13 @@ genTarget <- function(treat, m0, m1, target,
             numeric <- which(unlist(lapply(target.weight0, is.numeric)))
             target.weight0[numeric] <- sapply(unlist(target.weight0[numeric]),
                                               constructConstant)
+            constants <- which(sapply(target.weight0,
+                                      function(x) length(formalArgs(x))) == 0)
+            target.weight0[constants] <- sapply(target.weight0[constants],
+                                                function(x) funEval(x))
+            target.weight0[constants] <-
+                sapply(unlist(target.weight0[constants]),
+                       constructConstant)
         }
         if (is.numeric(target.weight1)) {
             target.weight1 <- sapply(target.weight1, constructConstant)
@@ -3508,6 +3515,13 @@ genTarget <- function(treat, m0, m1, target,
             numeric <- which(unlist(lapply(target.weight1, is.numeric)))
             target.weight1[numeric] <- sapply(unlist(target.weight1[numeric]),
                                               constructConstant)
+            constants <- which(sapply(target.weight1,
+                                      function(x) length(formalArgs(x))) == 0)
+            target.weight1[constants] <- sapply(target.weight1[constants],
+                                                function(x) funEval(x))
+            target.weight1[constants] <-
+                sapply(unlist(target.weight1[constants]),
+                       constructConstant)
         }
         ## Convert fixed/numeric knots into functions
         if (!is.null(target.knots0)) {
@@ -3517,6 +3531,13 @@ genTarget <- function(treat, m0, m1, target,
                 numeric <- which(unlist(lapply(target.knots0, is.numeric)))
                 target.knots0[numeric] <- sapply(unlist(target.knots0[numeric]),
                                                  constructConstant)
+                constants <- which(sapply(target.knots0,
+                                          function(x) length(formalArgs(x))) == 0)
+                target.knots0[constants] <- sapply(target.knots0[constants],
+                                                    function(x) funEval(x))
+                target.knots0[constants] <-
+                    sapply(unlist(target.knots0[constants]),
+                           constructConstant)
             }
         }
         if (!is.null(target.knots1)) {
@@ -3526,6 +3547,13 @@ genTarget <- function(treat, m0, m1, target,
                 numeric <- which(unlist(lapply(target.knots1, is.numeric)))
                 target.knots1[numeric] <- sapply(unlist(target.knots1[numeric]),
                                                  constructConstant)
+                constants <- which(sapply(target.knots1,
+                                          function(x) length(formalArgs(x))) == 0)
+                target.knots1[constants] <- sapply(target.knots1[constants],
+                                                    function(x) funEval(x))
+                target.knots1[constants] <-
+                    sapply(unlist(target.knots1[constants]),
+                           constructConstant)
             }
         }
         for (d in 0:1) {
