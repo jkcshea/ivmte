@@ -423,7 +423,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Keep track of sinks
         origSinks <- sink.number()
         ## Save log output
-        logNameCount <- 0
+        logNameCount <- Sys.getpid()
         logName <- paste0(".ivmte.R.tmp.log", logNameCount)
         logNameExists <- file.exists(logName)
         while(logNameExists) {
@@ -452,7 +452,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         for (i in 1:length(envList)) {
             if (is.null(envList[[i]])) envList[[i]] <- parent.frame()
         }
-
         ##---------------------------
         ## 1. Check linear programming dependencies
         ##---------------------------
@@ -2223,7 +2222,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             (sum(teEstimates - origEstimate$point.estimate >=
                                  abs(origEstimate$point.estimate)) +
                              sum(teEstimates - origEstimate$point.estimate <=
-                                 -abs(origEstimate$point.estimate))) / bootstraps,
+                                 -abs(origEstimate$point.estimate))) /
+                            bootstraps,
                         parametric =
                             pnorm(-abs(origEstimate$point.estimate -
                                        mean(teEstimates)) / bootSE) * 2)
@@ -2313,7 +2313,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 mtr.ci$normal[[paste0("level", level * 100)]] <-
                     t(get(paste0("mtrci2", level * 100)))
                 if (!is.null(propEstimates)) {
-                    propensity.ci$nonparametric[[paste0("level", level * 100)]] <-
+                    propensity.ci$nonparametric[[paste0("level",
+                                                        level * 100)]] <-
                         t(get(paste0("propci1", level * 100)))
                     propensity.ci$normal[[paste0("level", level * 100)]] <-
                         t(get(paste0("propci2", level * 100)))
@@ -2420,6 +2421,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (noisy) return(invisible(output))
     }, error = function(err) {
         if (origSinks < sink.number()) {
+            ## If there was an error, output should be returned so the
+            ## user knows how far the function got before crashing.
             sink()
             close(tmpOutput)
             if (!noisy) {
