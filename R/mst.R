@@ -1886,67 +1886,173 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                'bootstraps.replace = FALSE'."),
                          call. = FALSE)
                 }
-                while (b <= bootstraps) {
-                    bootIDs  <- sample(x = seq(1, nrow(data)),
-                                       size = bootstraps.m,
-                                       replace = bootstraps.replace)
-                    bdata <- data[bootIDs, ]
-                    cat("Bootstrap iteration ", b, "...\n", sep = "")
-                    bootCall <-
-                        modcall(estimateCall,
-                                dropargs = c("data", "noisy",
-                                             "audit.grid",
-                                             "count.moments"),
-                                newargs = list(data = quote(bdata),
-                                               noisy = FALSE,
-                                               audit.grid = audit.grid,
-                                               orig.sset = origSset,
-                                               orig.criterion = origCriterion,
-                                               count.moments = FALSE))
-                    bootEstimate <- try(eval(bootCall), silent = TRUE)
-                    if (is.list(bootEstimate)) {
+                ## The following function is what will be run for the
+                ## bootstrap. This can be used by the 'future.apply'
+                ## package.
+                tmpBootCall <- function(bootIndex, noisy = FALSE) {
+                    if (noisy) cat("Bootstrap iteration ", bootIndex,
+                                   "...\n", sep = "")
+                    output <- list(bootFailN = 0)
+                    tmpSuccess <- FALSE
+                    while(!tmpSuccess) {
+                        bootIDs  <- sample(x = seq(1, nrow(data)),
+                                           size = bootstraps.m,
+                                           replace = bootstraps.replace)
+                        bdata <- data[bootIDs, ]
+                        bootCall <-
+                            modcall(estimateCall,
+                                    dropargs = c("data", "noisy",
+                                                 "audit.grid",
+                                                 "count.moments"),
+                                    newargs = list(data = quote(bdata),
+                                                   noisy = FALSE,
+                                                   audit.grid = audit.grid,
+                                                   orig.sset = origSset,
+                                                   orig.criterion =
+                                                       origCriterion,
+                                                   count.moments = FALSE))
+                        bootEstimate <- try(eval(bootCall), silent = TRUE)
+                        if (is.list(bootEstimate)) {
+                            tmpSuccess <- TRUE
+                            output$bound <- bootEstimate$bound
+                            if (specification.test) {
+                                output$specification.test <-
+                                    bootEstimate$specification.test
+                            }
+                            if (!"propensity.coef" %in% names(bootEstimate) &&
+                                (class(bootEstimate$propensity$model)[1] == "lm"
+                                    |
+                                    class(bootEstimate$propensity$model)[1] ==
+                                    "glm")) {
+                                output$propensity.coef <-
+                                    bootEstimate$propensity$model$coef
+                            } else {
+                                output$propensity.coef <-
+                                    bootEstimate$propensity.coef
+                            }
+                            ## If the future package is used, then
+                            ## bootstrap output should be
+                            ## suppressed. If the bootstrap is
+                            ## sequential, then produce output.
+                            if (noisy) {
+                                cat("    Audit count: ",
+                                    bootEstimate$audit.count, "\n", sep = "")
+                                cat("    Minimum criterion: ",
+                                    fmtResult(bootEstimate$audit.criterion),
+                                    "\n", sep = "")
+                                cat("    Bounds: ",
+                                    paste0("[",
+                                           fmtResult(bootEstimate$bounds[1]),
+                                           ", ",
+                                           fmtResult(bootEstimate$bounds[2]),
+                                           "]"), "\n\n", sep = "")
+                            }
+                        } else {
+                            if (noisy) cat("    Error, resampling...\n",
+                                           sep = "")
+                            output$bootFailN <- output$bootFailN + 1
+                        }
+                    }
+                    return(output)
+                }
+                ## Check if user wants to use 'future'. If neither
+                ## 'future' nor 'future.apply' is loaded, then it is
+                ## assumed the user does not wish to use futures. If
+                ## 'future' is loaded, but 'future.apply' is not
+                ## installed, then a warning is thrown out to inform
+                ## the user that the bootstrap cannot be parallelized
+                ## until 'future.apply' is installed.
+                tmpFuture <- ('future.apply' %in% loadedNamespaces() |
+                              'future' %in% loadedNamespaces())
+                if (tmpFuture) {
+                    if (!requireNamespace('future.apply', quietly = TRUE)) {
+                        tmpFuture <- FALSE
+                        warning(gsub('\\s+', ' ',
+                                     "'future' package is not used in the
+                                      bootstrap since the 'future.apply' package
+                                      is not installed. Please install the
+                                      'future.apply' package to parallelize the
+                                      bootstrap using the 'future' package."),
+                                immediate. = FALSE,
+                                call. = FALSE)
+                    }
+                }
+                ## If neither 'future' nor 'future.apply' is loaded
+                ## into the session, then the bootstrap will be performed sequentially.
+                if (!tmpFuture) {
+                    for (b in 1:bootstraps) {
+                        bootEstimate <- tmpBootCall(bootIndex = b,
+                                                    noisy = noisy)
                         boundEstimates  <- rbind(boundEstimates,
                                                  bootEstimate$bound)
                         if (specification.test) {
                             bootCriterion <- c(bootCriterion,
                                                bootEstimate$specification.test)
                         }
-                        if (!"propensity.coef" %in% names(bootEstimate) &&
-                            (class(bootEstimate$propensity$model)[1] == "lm" |
-                             class(bootEstimate$propensity$model)[1] ==
-                             "glm")) {
-                            propEstimates <-
-                                cbind(propEstimates,
-                                      bootEstimate$propensity$model$coef)
-                        } else {
-                            propEstimates <- cbind(propEstimates,
-                                                   bootEstimate$propensity.coef)
-                        }
-                        b <- b + 1
-                        cat("    Audit count: ",
-                            bootEstimate$audit.count, "\n", sep = "")
-                        cat("    Minimum criterion: ",
-                            fmtResult(bootEstimate$audit.criterion),
-                            "\n", sep = "")
-                        cat("    Bounds: ",
-                            paste0("[",
-                                   fmtResult(bootEstimate$bounds[1]),
-                                   ", ",
-                                   fmtResult(bootEstimate$bounds[2]),
-                                   "]"), "\n\n", sep = "")
+                        propEstimates <-
+                            cbind(propEstimates,
+                                  bootEstimate$propensity.coef)
+                        bootFailIndex <- c(bootFailIndex,
+                                           bootEstimate$bootFailN)
+                        rm(bootEstimate)
+                    }
+                } else {
+                    ## If 'future' is loaded into the session, and
+                    ## 'future.apply' is available, then perform
+                    ## bootstrap in parallel
+                    bootEstimate <-
+                        future.apply::future_lapply(X = 1:bootstraps,
+                                                    FUN = tmpBootCall,
+                                                    future.seed = TRUE,
+                                                    noisy = noisy)
+                    boundEstimates <- Reduce(rbind,
+                                             lapply(bootEstimate,
+                                                    function(x) {
+                                                        x$bound
+                                                    }))
+                    if (specification.test) {
+                        bootCriterion <- Reduce(rbind,
+                                                lapply(bootEstimate,
+                                                       function(x) {
+                                                           x$specification.test
+                                                       }))
+                    }
+                    propEstimates <- Reduce(cbind,
+                                            lapply(bootEstimate,
+                                                   function(x) {
+                                                       x$propensity.coef
+                                                   }))
+                    bootFailIndex <- Reduce(c,
+                                            lapply(bootEstimate,
+                                                   function(x) {
+                                                       x$bootFailN
+                                                   }))
+                    rm(bootEstimate)
+                }
+                bootFailN <- sum(bootFailIndex)
+                if (bootFailN > 0) {
+                    if (bootFailN < 10) {
+                        warning(gsub("\\s+", " ",
+                                     paste0("Bootstrap iteration(s) ",
+                                            paste(which(bootFailIndex != 0),
+                                                  collapse = ", "),
+                                            " failed. Failed bootstraps are
+                                            repeated.")),
+                                call. = FALSE)
                     } else {
-                        warning(paste0(bootEstimate, ", resampling...\n"),
-                                call. = FALSE,
-                                immediate. = TRUE)
-                        bootFailN <- bootFailN + 1
-                        bootFailIndex <- unique(c(bootFailIndex, b))
+                        warning(gsub("\\s+", " ",
+                                     paste0(bootFailN, " bootstrap
+                                            iterations failed.
+                                            Failed bootstraps are
+                                            repeated.")),
+                                call. = FALSE)
                     }
                 }
                 cat("--------------------------------------------------\n")
                 cat("Results", "\n")
                 cat("--------------------------------------------------\n")
                 cat("\n")
-                ## Some output must be returned, evne if noisy = FALSE
+                ## Some output must be returned, even if noisy = FALSE
                 cat("Bounds on the target parameter: [",
                     fmtResult(origEstimate$bounds[1]), ", ",
                     fmtResult(origEstimate$bounds[2]), "]\n",
@@ -2110,107 +2216,203 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                            in the data set when 'bootstraps.replace = FALSE'."),
                      call. = FALSE)
             }
-            totalBootstraps <- 0
+            missingFactors <- 0
             factorMessage <- 0
             factorText <- gsub("\\s+", " ",
                                "Insufficient variation in categorical variables
                            (i.e. factor variables, binary variables,
                            boolean expressions) in the bootstrap sample.
                            Additional bootstrap samples will be drawn.")
-            while (b <= bootstraps) {
-                totalBootstraps <- totalBootstraps + 1
-                bootIDs  <- sample(seq(1, nrow(data)),
-                                   size = bootstraps.m,
-                                   replace = bootstraps.replace)
-                bdata <- data[bootIDs, ]
-                ## Check if the bootstrap data contains sufficient
-                ## variation in all boolean and factor expressions.
-                if (!is.null(factorDict)) {
-                    for (i in 1:length(factorDict)) {
-                        factorCheck <-
-                            suppressWarnings(
-                                all(sort(unique(bdata[, names(factorDict)[i]]))
-                                    == factorDict[[i]]))
-                        if (!factorCheck) break
-                    }
-                    if (!factorCheck) {
-                        if (factorMessage == 0) {
-                            factorMessage <- 1
-                            warning(factorText, call. = FALSE,
-                                    immediate. = TRUE)
+            ## The following function is what will be run for the
+            ## bootstrap. This can be used by the 'future.apply'
+            ## package.
+            tmpBootCall <- function(bootIndex, noisy = FALSE) {
+                if (noisy) cat("Bootstrap iteration ", bootIndex,
+                               "...\n", sep = "")
+                output <- list(bootFailN = 0,
+                               missingFactors = 0)
+                tmpSuccess <- FALSE
+                while(!tmpSuccess) {
+                    bootIDs  <- sample(x = seq(1, nrow(data)),
+                                       size = bootstraps.m,
+                                       replace = bootstraps.replace)
+                    bdata <- data[bootIDs, ]
+                    ## Check if the bootstrap data contains sufficient
+                    ## variation in all boolean and factor expressions.
+                    if (!is.null(factorDict)) {
+                        for (i in 1:length(factorDict)) {
+                            factorCheck <-
+                                suppressWarnings(
+                                    all(sort(unique(bdata[, names(
+                                        factorDict)[i]]))
+                                        == factorDict[[i]]))
+                            if (!factorCheck) break
                         }
-                        next
-                    }
-                }
-                ## Check if the binary variables contain sufficient variation
-                if (!is.null(binaryVars)) {
-                    binarySd <- apply(as.matrix(bdata[, binaryVars]), 2, sd)
-                    if (! all(binarySd > 0)) {
-                        if (factorMessage == 0) {
-                            factorMessage <- 1
-                            warning(factorText, call. = FALSE,
-                                    immediate. = TRUE)
+                        if (!factorCheck) {
+                            if (factorMessage == 0) {
+                                factorMessage <- 1
+                                warning(factorText, call. = FALSE,
+                                        immediate. = TRUE)
+                            }
+                            output$missingFactors <- output$missingFactors + 1
+                            next
                         }
-                        next
                     }
-                }
-                ## Check if the boolean variables contain sufficient variation
-                if (!is.null(boolVars)) {
-                    boolFormula <-
-                        as.formula(paste("~ 0 +", paste(boolVars,
-                                                        collapse = " + ")))
-                    boolDmat <- design(boolFormula, bdata)$X
-                    boolSd <- apply(boolDmat, 2, sd)
-                    if (! all(boolSd > 0)) {
-                        if (factorMessage == 0) {
-                            factorMessage <- 1
-                            warning(factorText, call. = FALSE,
-                                    immediate. = TRUE)
+                    ## Check if the binary variables contain
+                    ## sufficient variation
+                    if (!is.null(binaryVars)) {
+                        binarySd <- apply(as.matrix(bdata[, binaryVars]), 2, sd)
+                        if (! all(binarySd > 0)) {
+                            if (factorMessage == 0) {
+                                factorMessage <- 1
+                                warning(factorText, call. = FALSE,
+                                        immediate. = TRUE)
+                            }
+                            output$missingFactors <- output$missingFactors + 1
+                            next
                         }
-                        next
                     }
-                }
-                cat("Bootstrap iteration ", b, "...\n", sep = "")
-                bootCall <-
-                    modcall(estimateCall,
-                            dropargs = c("data", "noisy"),
-                            newargs = list(data = quote(bdata),
-                                           noisy = FALSE,
-                                           point.center =
-                                               origEstimate$moments$criterion,
-                                           point.redundant =
-                                               origEstimate$redundant))
-                bootEstimate <- try(eval(bootCall), silent = TRUE)
-                if (is.list(bootEstimate)) {
-                    teEstimates  <- c(teEstimates, bootEstimate$point.estimate)
-                    mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
-                    if (!"propensity.coef" %in% names(bootEstimate)) {
-                        propEstimates <-
-                            cbind(propEstimates,
-                                  bootEstimate$propensity$model$coef)
+                    ## Check if the boolean variables contain
+                    ## sufficient variation
+                    if (!is.null(boolVars)) {
+                        boolFormula <-
+                            as.formula(paste("~ 0 +", paste(boolVars,
+                                                            collapse = " + ")))
+                        boolDmat <- design(boolFormula, bdata)$X
+                        boolSd <- apply(boolDmat, 2, sd)
+                        if (! all(boolSd > 0)) {
+                            if (factorMessage == 0) {
+                                factorMessage <- 1
+                                warning(factorText, call. = FALSE,
+                                        immediate. = TRUE)
+                            }
+                            output$missingFactors <- output$missingFactors + 1
+                            next
+                        }
+                    }
+                    ## The following code is used to obtain the point estimate.
+                    bootCall <-
+                        modcall(estimateCall,
+                                dropargs = c("data", "noisy"),
+                                newargs =
+                                    list(data = quote(bdata),
+                                         noisy = FALSE,
+                                         point.center =
+                                             origEstimate$moments$criterion,
+                                         point.redundant =
+                                             origEstimate$redundant))
+                    bootEstimate <- try(eval(bootCall), silent = TRUE)
+                    if (is.list(bootEstimate)) {
+                        tmpSuccess <- TRUE
+                        output$point.estimate <- bootEstimate$point.estimate
+                        output$mtr.coef <- bootEstimate$mtr.coef
+                        if (!"propensity.coef" %in% names(bootEstimate)) {
+                            output$propensity.coef <-
+                                bootEstimate$propensity$model$coef
+                        } else {
+                            output$propensity.coef <-
+                                bootEstimate$propensity.coef
+                        }
+                        if (!is.null(bootEstimate$j.test)) {
+                            output$jstat <- bootEstimate$j.test[1]
+                        }
+                        if (noisy) {
+                            cat("    Point estimate:",
+                                fmtResult(bootEstimate$point.estimate),
+                                "\n\n", sep = "")
+                        }
                     } else {
-                        propEstimates <- cbind(propEstimates,
-                                               bootEstimate$propensity.coef)
+                        if (noisy) cat("    Error, resampling...\n", sep = "")
+                        output$bootFailN <- output$bootFailN + 1
                     }
-                    if (!is.null(bootEstimate$j.test)) {
-                        jstats <- c(jstats, bootEstimate$j.test[1])
-                    }
-                    b <- b + 1
-                    cat("    Point estimate:",
-                        fmtResult(bootEstimate$point.estimate),
-                        "\n\n", sep = "")
-                } else {
-                    cat("    Error, resampling...\n", sep = "")
-                    bootFailN <- bootFailN + 1
-                    bootFailIndex <- unique(c(bootFailIndex, b))
+                }
+                return(output)
+            }
+            ## Check if user wants to use 'future'. If neither
+            ## 'future' nor 'future.apply' is loaded, then it is
+            ## assumed the user does not wish to use futures. If
+            ## 'future' is loaded, but 'future.apply' is not
+            ## installed, then a warning is thrown out to inform
+            ## the user that the bootstrap cannot be parallelized
+            ## until 'future.apply' is installed.
+            tmpFuture <- ('future.apply' %in% loadedNamespaces() |
+                          'future' %in% loadedNamespaces())
+            if (tmpFuture) {
+                if (!requireNamespace('future.apply', quietly = TRUE)) {
+                    tmpFuture <- FALSE
+                    warning(gsub('\\s+', ' ',
+                                 "'future' package is not used in the
+                                  bootstrap since the 'future.apply' package
+                                  is not installed. Please install the
+                                  'future.apply' package to parallelize the
+                                  bootstrap using the 'future' package."),
+                            immediate. = FALSE,
+                            call. = FALSE)
                 }
             }
+            ## If neither 'future' nor 'future.apply' is loaded
+            ## into the session, then the bootstrap will be performed sequentially.
+            if (!tmpFuture) {
+                for (b in 1:bootstraps) {
+                    bootEstimate <- tmpBootCall(bootIndex = b,
+                                                noisy = noisy)
+                    teEstimates  <- c(teEstimates, bootEstimate$point.estimate)
+                    mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
+                    propEstimates <- cbind(propEstimates,
+                                           bootEstimate$propensity.coef)
+                    jstats <- c(jstats, bootEstimate$jstat)
+                    bootFailIndex <- c(bootFailIndex,
+                                       bootEstimate$bootFailN)
+                    missingFactors <- c(missingFactors,
+                                        bootEstimate$missingFactors)
+                    rm(bootEstimate)
+                }
+            } else {
+                ## If 'future' is loaded into the session, and
+                ## 'future.apply' is available, then perform
+                ## bootstrap in parallel
+                bootEstimate <-
+                    future.apply::future_lapply(X = 1:bootstraps,
+                                                FUN = tmpBootCall,
+                                                future.seed = TRUE,
+                                                noisy = noisy)
+                teEstimates <- Reduce(c, lapply(bootEstimate,
+                                                function(x) x$point.estimate))
+                mtrEstimates <- Reduce(cbind, lapply(bootEstimate,
+                                                     function(x) x$mtr.coef))
+                propEstimates <- Reduce(cbind,
+                                        lapply(bootEstimate,
+                                               function(x) x$propensity.coef))
+                jstats <- Reduce(c, lapply(bootEstimate,
+                                           function(x) {
+                                               if (is.null(x$jstat)) NULL
+                                               if (!is.null(x$jstat)) x$jstat
+                                           }))
+                bootFailIndex <- Reduce(c, lapply(bootEstimate,
+                                                  function(x) x$bootFailN))
+                missingFactors <-
+                    Reduce(c, lapply(bootEstimate,
+                                     function(x) x$missingFactors))
+                rm(bootEstimate)
+            }
+            bootFailN <- sum(bootFailIndex)
             if (bootFailN > 0) {
-                warning(gsub("\\s+", " ",
-                             paste0("Bootstrap iteration(s) ",
-                                    paste(bootFailIndex, collapse = ", "),
-                                    " failed. Failed bootstraps are repeated.")),
-                        call. = FALSE)
+                if (bootFailN < 10) {
+                    warning(gsub("\\s+", " ",
+                                 paste0("Bootstrap iteration(s) ",
+                                        paste(which(bootFailIndex != 0),
+                                              collapse = ", "),
+                                        " failed. Failed bootstraps are
+                                            repeated.")),
+                            call. = FALSE)
+                } else {
+                    warning(gsub("\\s+", " ",
+                                 paste0(bootFailN, " bootstrap
+                                            iterations failed.
+                                            Failed bootstraps are
+                                            repeated.")),
+                            call. = FALSE)
+                }
             }
             bootSE <- sd(teEstimates)
             mtrSE  <- apply(mtrEstimates, 1, sd)
@@ -2388,13 +2590,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             ## }
             ## cat("p-value: ",
             ##     fmtResult(pvalue[2]), "\n\n", sep = "")
-            if (totalBootstraps > bootstraps) {
+            if (sum(missingFactors) > bootstraps) {
                 warning(gsub("\\s+", " ",
                              paste0("In order to obtain ", bootstraps,
                          " boostrap samples without omiting any
                          levels from all categorical variables,
-                         a total of ", totalBootstraps, " samples
-                         had to be drawn. This is due to factor variables
+                         a total of ", (bootstraps + sum(missingFactors)),
+                         " samples had to be drawn.
+                         This is due to factor variables
                          and/or boolean variables potentially being omitted from
                          boostrap samples.")), call. = FALSE)
             }
