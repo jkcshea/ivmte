@@ -186,7 +186,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
                      colnames(A)[(2 * sn + 1) : ncol(A)])
     tmpIvs <- paste0('iv', lapply(sset, function(x) x$ivspec))
     tmpBetas <- lapply(sset, function(x) names(x$beta))
-    rownames(A) <-mapply(paste, tmpIvs, tmpBetas, sep = '.')
+    rownames(A) <- mapply(paste, tmpIvs, tmpBetas, sep = '.')
     rm(tmpIvs, tmpBetas)
     ## Define bounds on parameters
     ub <- replicate(ncol(A), Inf)

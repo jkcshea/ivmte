@@ -2048,6 +2048,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                 call. = FALSE)
                     }
                 }
+                rownames(boundEstimates) <- seq(bootstraps)
+                colnames(boundEstimates) <- c('lower', 'upper')
                 cat("--------------------------------------------------\n")
                 cat("Results", "\n")
                 cat("--------------------------------------------------\n")
@@ -2112,9 +2114,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                             propCoef, FUN = "+")
                         colnames(tmpPropCi2) <- colnames(tmpPropCi1)
                         rownames(tmpPropCi2) <- rownames(tmpPropCi1)
-                        propensity.ci$ci1[[paste0("level", level * 100)]] <-
+                        propensity.ci$nonparametric[[paste0("level",
+                                                            level * 100)]] <-
                             t(tmpPropCi1)
-                        propensity.ci$ci2[[paste0("level", level * 100)]] <-
+                        propensity.ci$normal[[paste0("level", level * 100)]] <-
                             t(tmpPropCi2)
                     }
                 }
@@ -2416,6 +2419,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             bootSE <- sd(teEstimates)
             colnames(mtrEstimates) <- seq(ncol(mtrEstimates))
+            jstats <- unname(jstats)
             mtrSE  <- apply(mtrEstimates, 1, sd)
             if (!is.null(propEstimates)) {
                 propSE  <- apply(propEstimates, 1, sd)
@@ -2444,7 +2448,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 pLower <- (1 - level) / 2
                 pUpper <- 1 - (1 - level) / 2
                 probVec <- c(pLower, pUpper)
-                ## Conf. int. 1: quantile method (same as percentile method)
+                ## Conf. int. 1: quantile method (same as percentile
+                ## method; nonparametric)
                 assign(paste0("ci1", level * 100),
                        quantile(x = teEstimates,
                                 probs = probVec,
@@ -3436,7 +3441,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          min.g1 = audit$lpresult$ming1,
                                          max.g1 = audit$lpresult$maxg1),
                        propensity = pmodel,
-                       bounds = c(audit$min, audit$max),
+                       bounds = c(lower = audit$min,
+                                  upper = audit$max),
                        lp.result =  audit$lpresult,
                        lp.solver = lpsolver,
                        moments = nIndepMoments,
@@ -3462,7 +3468,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          maxg0 = audit$maxg0,
                                          ming1 = audit$ming1,
                                          maxg1 = audit$maxg1),
-                       bounds = c(audit$min, audit$max),
+                       bounds = c(lower = audit$min,
+                                  upper = audit$max),
                        lp.solver = lpsolver,
                        moments = nIndepMoments,
                        audit.grid = list(audit.x =
@@ -4317,6 +4324,11 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
                          moments, or adjust m0 and m1.")),
              call. = FALSE)
     }
+    ## Construct the names of the moments
+    tmpIvs <- paste0('iv', lapply(sset, function(x) x$ivspec))
+    tmpBetas <- lapply(sset, function(x) names(x$beta))
+    tmpRownames <- mapply(paste, tmpIvs, tmpBetas, sep = '.')
+    rm(tmpIvs, tmpBetas)
     ## Perform first step of GMM
     mm <- momentMatrix(sset, gn0, gn1, subsetList, n)
     mlist <- (seq(length(sset)) - 1) * (gn0 + gn1 + 1) + 1
@@ -4324,6 +4336,8 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
     altmean <- Matrix::Matrix(t(rep(1, nrow(mm)) %x% diag(length(sset))),
                               sparse = TRUE)
     xmat <- matrix(altmean %*% altmm / nrow(mm), ncol = (gn0 + gn1))
+    rownames(xmat) <- tmpRownames
+    rm(tmpRownames)
     if (qr(xmat)$rank < (gn0 + gn1)) {
         if (hasArg(nMoments)) {
             if (splines) {
@@ -4458,6 +4472,7 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
         }
     }
     moments <- ymat - xmat %*% theta
+    colnames(moments) <- 'criterion'
     ## Perform J test
     if ((length(sset) - length(colDrop)) > gn0 + gn1) {
         if (identity) {
