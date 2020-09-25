@@ -2415,6 +2415,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
             }
             bootSE <- sd(teEstimates)
+            colnames(mtrEstimates) <- seq(ncol(mtrEstimates))
             mtrSE  <- apply(mtrEstimates, 1, sd)
             if (!is.null(propEstimates)) {
                 propSE  <- apply(propEstimates, 1, sd)
