@@ -24,6 +24,8 @@ Joshua Shea and Alexander Torgovitsky
     Reports](#help-feature-requests-and-bug-reports)
   - [References](#references)
 
+[![DOI](https://zenodo.org/badge/136092207.svg)](https://zenodo.org/badge/latestdoi/136092207)
+
 ## Introduction
 
 Heckman and Vytlacil (2005) introduced the marginal treatment effect

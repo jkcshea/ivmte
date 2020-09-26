@@ -16,7 +16,7 @@ ivmte(data, target, late.from, late.to, late.X, genlate.lb, genlate.ub,
   point = FALSE, point.eyeweight = FALSE, bootstraps = 0,
   bootstraps.m, bootstraps.replace = TRUE, levels = c(0.99, 0.95, 0.9),
   ci.type = "backward", specification.test = TRUE, noisy = FALSE,
-  smallreturnlist = FALSE, seed = 12345, debug = FALSE)
+  smallreturnlist = FALSE, debug = FALSE)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -304,9 +304,6 @@ e.g. when performing the bootstrap.}
 \code{TRUE} to exclude large intermediary components
 (i.e. propensity score model, LP model, bootstrap iterations)
 from being included in the return list.}
-
-\item{seed}{integer, the seed that determines the random grid in
-the audit procedure.}
 
 \item{debug}{boolean, indicates whether or not the function should
 provide output when obtaining bounds. The option is only

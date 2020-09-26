@@ -31,6 +31,8 @@ require(gridExtra)
 require(splines2)
 ```
 
+[![DOI](https://zenodo.org/badge/136092207.svg)](https://zenodo.org/badge/latestdoi/136092207)
+
 ## Introduction
 
 @heckmanvytlacil2005e introduced the marginal treatment effect (MTE) to provide a choice-theoretic interpretation for the widely used instrumental variables model of @imbensangrist1994e.

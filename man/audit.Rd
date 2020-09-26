@@ -15,8 +15,7 @@ audit(data, uname, m0, m1, pm0, pm1, splinesobj, vars_mtr, terms_mtr0,
   mte.inc = FALSE, sset, gstar0, gstar1, orig.sset = NULL,
   orig.criterion = NULL, criterion.tol = 0, lpsolver, lpsolver.options,
   lpsolver.presolve, lpsolver.options.criterion, lpsolver.options.bounds,
-  smallreturnlist = FALSE, noisy = TRUE, seed = 12345,
-  debug = FALSE)
+  smallreturnlist = FALSE, noisy = TRUE, debug = FALSE)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -232,9 +231,6 @@ from being included in the return list.}
 then messages are provided throughout the estimation
 procedure. Set to \code{FALSE} to suppress all messages,
 e.g. when performing the bootstrap.}
-
-\item{seed}{integer, the seed that determines the random grid in
-the audit procedure.}
 
 \item{debug}{boolean, indicates whether or not the function should
 provide output when obtaining bounds. The option is only
