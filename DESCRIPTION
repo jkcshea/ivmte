@@ -1,6 +1,6 @@
 Package: ivmte
 Title: Instrumental Variables: Extrapolation by Marginal Treatment Effects
-Version: 1.2.0
+Version: 1.3.0
 Authors@R: c(person("Alexander",
 		    "Torgovitsky",
 		    email = "atorgovitsky@gmail.com",
