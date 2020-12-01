@@ -223,7 +223,7 @@ modelF$lb <- c(replicate(ncol(Aextra), 0),
 ## Find bounds with threshold
 minLate <- runLpSolveAPI(modelF, 'min', lpsolver.options)
 maxLate <- runLpSolveAPI(modelF, 'max', lpsolver.options)
-bound <- c(minLate$objval, maxLate$objval)
+bound <- c(lower = minLate$objval, upper = maxLate$objval)
 
 ##-------------------------
 ## Test bounds

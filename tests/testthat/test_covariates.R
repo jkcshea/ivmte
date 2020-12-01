@@ -401,7 +401,7 @@ model.f$lb <- c(replicate(14, 0), replicate(10, -Inf))
 ## Find bounds  with threshold
 min_genlate <- runLpSolveAPI(model.f, 'min', lpsolver.options)
 max_genlate <- runLpSolveAPI(model.f, 'max', lpsolver.options)
-bound <- c(min_genlate$objval, max_genlate$objval)
+bound <- c(lower = min_genlate$objval, upper = max_genlate$objval)
 
 ##-------------------------
 ## Test equivalence of LP problem and bounds

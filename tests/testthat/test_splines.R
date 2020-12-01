@@ -357,7 +357,7 @@ modelF$lb <- c(replicate(ncol(Aextra), 0),
 ## Find bounds with threshold
 minAtt <- runLpSolveAPI(modelF, 'min', lpsolver.options)
 maxAtt <- runLpSolveAPI(modelF, 'max', lpsolver.options)
-bound <- c(minAtt$objval, maxAtt$objval)
+bound <- c(lower = minAtt$objval, upper = maxAtt$objval)
 
 ##-------------------------
 ## Test bounds
