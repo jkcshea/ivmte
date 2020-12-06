@@ -947,7 +947,11 @@ combinemonobound <- function(bdA, monoA) {
 #'
 #' This is a wrapper function generating the matrices and vectors
 #' associated with the monotonicity and boundedness constraints
-#' declared by the user.
+#' declared by the user. Since this function generates all the
+#' components required for the shape constraints, it is also the
+#' function that performs the audit. That is, MTR coefficients are
+#' passed, then this function will verify whether they satisfy the
+#' shape constraints.
 #' @param pm0 A list of the monomials in the MTR for d = 0.
 #' @param pm1 A list of the monomials in the MTR for d = 1.
 #' @param support a matrix for the support of all variables that enter
