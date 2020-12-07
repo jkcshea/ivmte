@@ -184,9 +184,9 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         ## Generate informative colnumn names and row names indicating
         ## which rows correspond to which IV-like specifications, and
         ## which columns correspond to which MTR terms
-        colnames(A) <- c(c(rbind(paste0('slack', seq(sn), '-'),
-                                 paste0('slack', seq(sn), '+'))),
-                         colnames(A)[(2 * sn + 1) : ncol(A)])
+        ## colnames(A) <- c(c(rbind(paste0('slack', seq(sn), '-'),
+        ##                          paste0('slack', seq(sn), '+'))),
+        ##                  colnames(A)[(2 * sn + 1) : ncol(A)])
         tmpIvs <- paste0('iv', lapply(sset, function(x) x$ivspec))
         tmpBetas <- lapply(sset, function(x) names(x$beta))
         rownames(A) <- mapply(paste, tmpIvs, tmpBetas, sep = '.')
@@ -212,6 +212,13 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         mbA <- A
     }
     rm(A)
+    if (!direct) {
+        colnames(mbA) <- c(c(rbind(paste0('slack', seq(sn), '-'),
+                                   paste0('slack', seq(sn), '+'))),
+                           names(sset$s1$g0), names(sset$s1$g1))
+    } else {
+        colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1))
+    }
     ## Define bounds on parameters
     ub <- replicate(ncol(mbA), Inf)
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))

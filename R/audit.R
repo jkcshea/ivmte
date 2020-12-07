@@ -415,7 +415,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         lpEnv <- new.env()
         lpEnv$mbobj <- eval(monoboundAcall)
     }
-
     ## Setup LP problem
     lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
             lpsolver = lpsolver, direct = direct)

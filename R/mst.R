@@ -445,7 +445,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         envList <- list(m0 = environment(m0),
                         m1 = environment(m1),
                         parent = parent.frame())
-        if (hasArg(ivlike)) {
+        direct <- TRUE
+        if (hasArg(ivlike) && !is.null(ivlike)) {
+            direct <- FALSE
             envList$ivlike <- environment(ivlike)
         }
         envProp <- try(environment(propensity), silent = TRUE)
@@ -625,7 +627,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
         ## Convert ivlike formula into a list (i.e. a one-element list
         ## with one formula), which is a more robust framework
-        if (hasArg(ivlike)) { ## TESTING
+        if (!direct) {
             if (classFormula(ivlike)) {
                 ivlike <- c(ivlike)
             }
@@ -727,7 +729,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                               'components' argument becomes redundant."),
                         call. = FALSE)
             }
-            print('Convert subset into list---or do it directly below?.')
         }
         ## Check the subset input---of the three lists that are input,
         ## only this can be omitted by the user, in which case no
@@ -791,7 +792,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             ## Fill in any missing subset slots
             if (length(subset) > 1 && length(subset) != length_formula) {
-                if (hasArg(ivlike)) {
+                if (!direct) {
                     stop(gsub("\\s+", " ",
                               "Number of subset conditions not equal to
                        number of IV specifications.
@@ -875,7 +876,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
         }
         if (hasArg(outcome)) {
-            if (!hasArg(ivlike)) {
+            if (direct) {
                 outcomeStr <- deparse(substitute(outcome))
                 outcomeStr <- gsub("~", "", outcomeStr)
                 outcomeStr <- gsub("\\\"", "", outcomeStr)
@@ -1101,7 +1102,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
         }
         if (hasArg(point)) {
-            if (point == TRUE) {
+            if (point == TRUE && !direct) {
                 if (hasArg(m0.dec) | hasArg(m0.inc) |
                     hasArg(m1.dec) | hasArg(m1.inc) |
                     hasArg(mte.dec) | hasArg(mte.inc) |
@@ -1259,7 +1260,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         terms_mtr0       <- c()
         terms_mtr1       <- c()
         terms_components <- c()
-        if (hasArg(ivlike)) {
+        if (!direct) {
             if (classList(ivlike)) {
                 if (!min(unlist(lapply(ivlike, classFormula)))) {
                     stop(gsub("\\s+", " ",
@@ -1650,7 +1651,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## For the components, since they may be terms, we first collect
         ## all terms, and then break it down into variables.
-        if (hasArg(ivlike)) {
+        if (!direct) {
             vars_components <- NULL
             if (userComponents) {
                 for (comp in components) {
@@ -1698,11 +1699,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Collect all variables, and remove the variable name
         ## corresponding to the unobservable.
-        if (hasArg(ivlike)) allvars <- c(allvars, vars_components)
+        if (!direct) allvars <- c(allvars, vars_components)
         allvars <- unique(allvars)
         allvars <- allvars[allvars != uname]
         ## Fill in components list if necessary
-        if (hasArg(ivlike)) {
+        if (!direct) {
             comp_filler <- lapply(terms_formulas_x,
                                   function(x) as.character(unstring(x)))
             if (userComponents) {
@@ -1838,10 +1839,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                         'm0.inc', 'm1.dec', 'm1.inc',
                                         'mte.dec', 'mte.inc', 'link'))
         opList <- eval(opList)
-        if (hasArg(ivlike)) {
+        if (!direct) {
             opList$ivlike <- ivlike
             opList$components <- components
+        } else {
+            opList$outcome <- outcome
         }
+        if (hasArg(point)) opList$point <- point
         if (hasArg(subset)) opList$subset <- subset
         if (hasArg(propensity)) opList$propensity <- propensity
         if (hasArg(uname)) opList$uname <- uname
@@ -2976,6 +2980,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           smallreturnlist = FALSE,
                           debug = FALSE, environments) {
     call <- match.call(expand.dots = FALSE)
+    if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
+        direct <- TRUE
+    } else {
+        direct <- FALSE
+    }
     if (classFormula(ivlike)) ivlike <- c(ivlike)
     ## Character arguments will be converted to lowercase
     if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
@@ -3083,7 +3092,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                 pm0 = quote(pm0),
                                                 pm1 = quote(pm1)))
     }
-    if (!hasArg(ivlike)) {
+    if (direct) {
         gentargetcall <- modcall(gentargetcall,
                                  dropargs = 'point')
     }
@@ -3096,8 +3105,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
     if (noisy == TRUE) {
-        if (hasArg(ivlike)) cat("\nGenerating IV-like moments...\n")
-        if (!hasArg(ivlike)) cat("\nPerforming direct MTR regression...\n")
+        if (!direct) cat("\nGenerating IV-like moments...\n")
+        if (direct)  cat("\nPerforming direct MTR regression...\n")
     }
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
@@ -3191,7 +3200,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             ivlikeCounter <- ivlikeCounter + 1
         }
     } else {
-        if (hasArg(ivlike)) {
+        if (!direct) {
             stop(gsub("\\s+", " ",
                       "'ivlike' argument must either be a formula or a vector of
                   formulas."),
@@ -3237,37 +3246,42 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             drQ <- sum(drFit$resid^2)
             sset$s1$init.coef <- drFit$coef
             sset$s1$Q <- drQ
-            print("There is a warning message about the audit procedure nto being implemented if point is set to true. This message should NOT be returned if poitn is set to TRUE, but you find collinearities. Search for 'shape restrictions on m0 and m1 are ignored'.")
             ## If no collinearities, return the implied target parameter
-            if (!any(is.na(drFit$coefficients)) &&
-                ((hasArg(point) && point == TRUE) |
-                 !hasArg(point))) {
-                point.estimate <- sum(c(-gstar0, gstar1) * drFit$coef)
-                if (noisy == TRUE) {
-                    cat("\nPoint estimate of the target parameter: ",
-                        point.estimate, "\n\n", sep = "")
-                }
-                if (!smallreturnlist) {
-                    return(list(point.estimate = point.estimate,
-                                mtr.coef = drFit$coef,
-                                X = drX,
-                                Q = drQ,
-                                propensity = pmodel))
-                } else {
-                    output <- list(point.estimate = point.estimate,
-                                   mtr.coef = drFit$coef,
-                                   Q = drQ)
-                    if (all(class(pmodel) != "NULL")) {
-                        output$propensity.coef <- pmodel$coef
+            if (!any(is.na(drFit$coefficients))) {
+                if ((hasArg(point) && point == TRUE) |
+                    !hasArg(point)) {
+                    warning(gsub('\\s+', ' ',
+                                 'MTR is point identified via linear regression.
+                                  Shape constraints are ignored.'),
+                            call. = FALSE)
+                    point.estimate <- sum(c(-gstar0, gstar1) * drFit$coef)
+                    if (noisy == TRUE) {
+                        cat("\nPoint estimate of the target parameter: ",
+                            point.estimate, "\n\n", sep = "")
                     }
-                    return(output)
+                    if (!smallreturnlist) {
+                        return(list(point.estimate = point.estimate,
+                                    mtr.coef = drFit$coef,
+                                    X = drX,
+                                    Q = drQ,
+                                    propensity = pmodel))
+                    } else {
+                        output <- list(point.estimate = point.estimate,
+                                       mtr.coef = drFit$coef,
+                                       Q = drQ)
+                        if (all(class(pmodel) != "NULL")) {
+                            output$propensity.coef <- pmodel$coef
+                        }
+                        return(output)
+                    }
                 }
-            }
-            print('You need to check the large and small output when you have point identification.')
-            ## If there are collineariites, then function will move
-            ## onto the QCQP problem.
-            if (!hasArg(ivlike) && noisy) {
-                cat("    Test for point identification failed.\n")
+                print('You need to check the large and small output when you have point identification.')
+            } else {
+                ## If there are collineariites, then function will move
+                ## onto the QCQP problem.
+                if (direct && noisy) {
+                    cat("    MTR is not point identified.\n")
+                }
             }
         }
     }
@@ -3283,7 +3297,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     xterms = pm1$xterms)
     }
     if (smallreturnlist) pmodel <- pmodel$model
-    if (count.moments && hasArg(ivlike)) {
+    if (count.moments && !direct) {
         wmat <- NULL
         for (s in 1:length(sset)) {
             if (!is.null(subsetIndexList)) {
@@ -3331,7 +3345,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     splinesCheck <- !(all(is.null(splinesobj[[1]]$splineslist)) &&
         all(is.null(splinesobj[[2]]$splineslist)))
-    if (point == TRUE) {
+    if (!direct && point == TRUE) {
         ## Obtain GMM estimate
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
@@ -3633,6 +3647,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         }
     }
     if (!is.null(audit$spectest)) output$specification.test <- audit$spectest
+    if (direct) {
+        output$moments <- NULL
+        output$audit.criterion <- NULL
+    }
     return(output)
 }
 
@@ -4295,6 +4313,12 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
             }
             ## generate components of constraints
             if (means == TRUE) {
+                if (!is.null(gs0)) names(gs0) <- paste0('[m0]', names(gs0))
+                if (!is.null(gs1)) names(gs1) <- paste0('[m1]', names(gs1))
+                if (!is.null(gsSpline0)) names(gsSpline0) <-
+                                             paste0('[m0]', names(gsSpline0))
+                if (!is.null(gsSpline1)) names(gsSpline1) <-
+                                             paste0('[m1]', names(gsSpline1))
                 sset[[paste0("s", scount)]] <- list(ivspec = ivn,
                                                     beta = sest$beta[j],
                                                     g0 = c(gs0, gsSpline0),
@@ -4321,6 +4345,14 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                     (1 - dvec))
                 }
                 names(yvec) <- newsubset
+                if (!is.null(gs0)) colnames(gs0) <-
+                                       paste0('[m0]', colnames(gs0))
+                if (!is.null(gs1)) colnames(gs1) <-
+                                       paste0('[m1]', colnames(gs1))
+                if (!is.null(gsSpline0)) colnames(gsSpline0) <-
+                                             paste0('[m0]', colnames(gsSpline0))
+                if (!is.null(gsSpline1)) colnames(gsSpline1) <-
+                                             paste0('[m1]', colnames(gsSpline1))
                 sset[[paste0("s", scount)]] <- list(ivspec = ivn,
                                                     beta = sest$beta[j],
                                                     g0 = cbind(gs0, gsSpline0),
