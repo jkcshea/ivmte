@@ -3083,6 +3083,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                 pm0 = quote(pm0),
                                                 pm1 = quote(pm1)))
     }
+    if (!hasArg(ivlike)) {
+        gentargetcall <- modcall(gentargetcall,
+                                 dropargs = 'point')
+    }
     targetGammas <- eval(gentargetcall)
     rm(gentargetcall)
     gstar0 <- targetGammas$gstar0
@@ -3093,7 +3097,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ##---------------------------
     if (noisy == TRUE) {
         if (hasArg(ivlike)) cat("\nGenerating IV-like moments...\n")
-        if (!hasArg(ivlike)) cat("\nPreparing direct MTR regression...\n")
+        if (!hasArg(ivlike)) cat("\nPerforming direct MTR regression...\n")
     }
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
@@ -3222,22 +3226,51 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                               noisy = noisy,
                               ivn = 0)
             sset <- setobj$sset
+            sset$s1$ivspec <- NULL
+            sset$s1$beta <- NULL
             rm(setobj)
             ## Now perform the MTR regression and check for
             ## collinearities
             drY <- sset$s1$ys
             drX <- cbind(sset$s1$g0, sset$s1$g1)
             drFit <- lm.fit(x = drX, y = drY)
+            drQ <- sum(drFit$resid^2)
+            sset$s1$init.coef <- drFit$coef
+            sset$s1$Q <- drQ
+            print("There is a warning message about the audit procedure nto being implemented if point is set to true. This message should NOT be returned if poitn is set to TRUE, but you find collinearities. Search for 'shape restrictions on m0 and m1 are ignored'.")
             ## If no collinearities, return the implied target parameter
-            if (!any(is.na(drFit$coefficients))) {
-                targetEst <- sum(c(-gstar0, gstar1) * drFit$coef)
+            if (!any(is.na(drFit$coefficients)) &&
+                ((hasArg(point) && point == TRUE) |
+                 !hasArg(point))) {
+                point.estimate <- sum(c(-gstar0, gstar1) * drFit$coef)
+                if (noisy == TRUE) {
+                    cat("\nPoint estimate of the target parameter: ",
+                        point.estimate, "\n\n", sep = "")
+                }
+                if (!smallreturnlist) {
+                    return(list(point.estimate = point.estimate,
+                                mtr.coef = drFit$coef,
+                                X = drX,
+                                Q = drQ,
+                                propensity = pmodel))
+                } else {
+                    output <- list(point.estimate = point.estimate,
+                                   mtr.coef = drFit$coef,
+                                   Q = drQ)
+                    if (all(class(pmodel) != "NULL")) {
+                        output$propensity.coef <- pmodel$coef
+                    }
+                    return(output)
+                }
             }
-            print('You need to write the code to return the output when point identification is indeed possible.')
+            print('You need to check the large and small output when you have point identification.')
             ## If there are collineariites, then function will move
             ## onto the QCQP problem.
+            if (!hasArg(ivlike) && noisy) {
+                cat("    Test for point identification failed.\n")
+            }
         }
     }
-    stop('end of sest test')
     rm(sest, subset_index)
     if (!is.null(pm0)) {
         pm0 <- list(exporder = pm0$exporder,
@@ -4173,6 +4206,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                     ncomponents, scount, subset_index, means = TRUE,
                     yvar, dvar, noisy = TRUE, ivn = NULL,
                     redundant = NULL) {
+    direct <- !('betas' %in% names(sest))
     if (!hasArg(subset_index)) {
         subset_index <- NULL
         n <- nrow(data)
@@ -4181,7 +4215,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
     }
     for (j in 1:ncomponents) {
         if (! scount %in% redundant) {
-            if (noisy == TRUE) {
+            if (noisy == TRUE && !direct) {
                 cat("    Moment ", scount, "...\n", sep = "")
             }
             if (!is.null(pm0)) {
@@ -4269,16 +4303,23 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                     w1 = sweight1,
                                                     n = n)
             } else {
-                ## Now generate the vectors for Y * S(D, Z).
+                ## Now generate the vectors for Y * S(D, Z) (in the
+                ## case of GMM) or the vector of just Y (if using
+                ## direct regression)
                 if (!is.null(subset_index)) {
                     newsubset <- subset_index
                 } else {
                     newsubset <- seq(1, nrow(data))
                 }
                 yvec <- as.vector(data[newsubset, yvar])
-                dvec <- as.vector(data[newsubset, dvar])
-                yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] *
-                                (1 - dvec))
+                ## Determine whether GMM or direct regression ('betas'
+                ## will not be included in 'sest' if the direct
+                ## regression is implemented)
+                if ('betas' %in% names(sest)) {
+                    dvec <- as.vector(data[newsubset, dvar])
+                    yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] *
+                                    (1 - dvec))
+                }
                 names(yvec) <- newsubset
                 sset[[paste0("s", scount)]] <- list(ivspec = ivn,
                                                     beta = sest$beta[j],

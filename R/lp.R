@@ -25,10 +25,12 @@
 #' @param orig.sset list, only used for bootstraps. The list contains
 #'     the gamma moments for each element in the S-set, as well as the
 #'     IV-like coefficients.
-#' @param lpsolver string, name of the package used to solve the LP
-#'     problem.
 #' @param shape boolean, default set to TRUE. Switch to determine
 #'     whether or not to include shape restrictions in the LP problem.
+#' @param direct boolean, set to \code{TRUE} if the direct MTR
+#'     regression is used.
+#' @param lpsolver string, name of the package used to solve the LP
+#'     problem.
 #' @return A list of matrices and vectors necessary to define an LP
 #'     problem for Gurobi.
 #'
@@ -141,7 +143,7 @@
 #'
 #' @export
 lpSetup <- function(env, sset, orig.sset = NULL,
-                    lpsolver, shape = TRUE) {
+                    shape = TRUE, direct = FALSE, lpsolver) {
     ## Read in constraint grids and sequences
     lpsolver <- tolower(lpsolver)
     for (i in names(env$shapeSeq)) {
@@ -149,51 +151,58 @@ lpSetup <- function(env, sset, orig.sset = NULL,
             env$shapeSeq[[i]] <- NULL
         }
     }
-    ## Determine lengths
-    sn  <- length(sset)
-    gn0 <- length(sset$s1$g0)
-    gn1 <- length(sset$s1$g1)
-    ## Generate all vectors/matrices for LP optimization to minimize
-    ## observational equivalence
-    rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
-    if (!is.null(orig.sset)) {
-        ## Recenter RHS when bootstrapping
-        rhs <- rhs - unlist(lapply(orig.sset, function(x) x[["beta"]]))
-    }
-    sense <- replicate(sn, "=")
-    A <- NULL
-    scount <- 0
-    for (s in names(sset)) {
-        avec <- replicate(2 * sn, 0)
-        avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
-        ## Regarding c(-1, 1), the -1 is for w+, 1 is for w-
-        g0fill <- sset[[s]]$g0
-        g1fill <- sset[[s]]$g1
+    if (!direct) {
+        ## Determine lengths
+        sn  <- length(sset)
+        gn0 <- length(sset$s1$g0)
+        gn1 <- length(sset$s1$g1)
+        ## Generate all vectors/matrices for LP optimization to minimize
+        ## observational equivalence
+        rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
         if (!is.null(orig.sset)) {
-            ## Recenter gamma vectors when bootstrapping
-            g0fill <- g0fill - orig.sset[[s]]$g0
-            g1fill <- g1fill - orig.sset[[s]]$g1
+            ## Recenter RHS when bootstrapping
+            rhs <- rhs - unlist(lapply(orig.sset, function(x) x[["beta"]]))
         }
-        avec <- c(avec, g0fill, g1fill)
-        A <- rbind(A, avec)
-        scount <- scount + 1
+        sense <- replicate(sn, "=")
+        A <- NULL
+        scount <- 0
+        for (s in names(sset)) {
+            avec <- replicate(2 * sn, 0)
+            avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
+            ## Regarding c(-1, 1), the -1 is for w+, 1 is for w-
+            g0fill <- sset[[s]]$g0
+            g1fill <- sset[[s]]$g1
+            if (!is.null(orig.sset)) {
+                ## Recenter gamma vectors when bootstrapping
+                g0fill <- g0fill - orig.sset[[s]]$g0
+                g1fill <- g1fill - orig.sset[[s]]$g1
+            }
+            avec <- c(avec, g0fill, g1fill)
+            A <- rbind(A, avec)
+            scount <- scount + 1
+        }
+        ## Generate informative colnumn names and row names indicating
+        ## which rows correspond to which IV-like specifications, and
+        ## which columns correspond to which MTR terms
+        colnames(A) <- c(c(rbind(paste0('slack', seq(sn), '-'),
+                                 paste0('slack', seq(sn), '+'))),
+                         colnames(A)[(2 * sn + 1) : ncol(A)])
+        tmpIvs <- paste0('iv', lapply(sset, function(x) x$ivspec))
+        tmpBetas <- lapply(sset, function(x) names(x$beta))
+        rownames(A) <- mapply(paste, tmpIvs, tmpBetas, sep = '.')
+        rm(tmpIvs, tmpBetas)
+    } else {
+        sn <- 0
+        A <- NULL
+        sense <- NULL
+        rhs <- NULL
+        gn0 <- ncol(sset$s1$g0)
+        gn1 <- ncol(sset$s1$g1)
     }
-    ## Generate informative colnumn names and row names indicating
-    ## which rows correspond to which IV-like specifications, and
-    ## which columns correspond to which MTR terms
-    colnames(A) <- c(c(rbind(paste0('slack', seq(sn), '-'),
-                             paste0('slack', seq(sn), '+'))),
-                     colnames(A)[(2 * sn + 1) : ncol(A)])
-    tmpIvs <- paste0('iv', lapply(sset, function(x) x$ivspec))
-    tmpBetas <- lapply(sset, function(x) names(x$beta))
-    rownames(A) <- mapply(paste, tmpIvs, tmpBetas, sep = '.')
-    rm(tmpIvs, tmpBetas)
-    ## Define bounds on parameters
-    ub <- replicate(ncol(A), Inf)
-    lb <- c(replicate(sn * 2, 0), replicate(gn0 + gn1, -Inf))
     ## Add in additional constraints if included
     if (shape == TRUE) {
         mbA <- rbind(A, env$mbobj$mbA)
+        if (direct) colnames(mbA) <- colnames(env$mbobj$mbA)
         env$mbobj$mbA <- NULL
         sense <- c(sense, env$mbobj$mbs)
         env$mbobj$mbs <- NULL
@@ -203,6 +212,9 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         mbA <- A
     }
     rm(A)
+    ## Define bounds on parameters
+    ub <- replicate(ncol(mbA), Inf)
+    lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
     if (lpsolver %in% c("gurobi", "lpsolveapi")) {
         mbA <- Matrix::Matrix(mbA, sparse = TRUE)
     }
@@ -411,7 +423,9 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.factor, lpsolver,
                          setup = TRUE) {
     if (setup) {
         lpsolver <- tolower(lpsolver)
+        ## Update objective function
         env$lpobj$obj <- c(replicate(2 * env$lpobj$sn, 0), g0, g1)
+        ## Allow for slack in minimum criterion
         env$lpobj$rhs <- c(criterion.factor, env$lpobj$rhs)
         avec <- c(replicate(2 * env$lpobj$sn, 1),
                   replicate(env$lpobj$gn0 + env$lpobj$gn1, 0))
@@ -1264,4 +1278,103 @@ optionsCplexAPITol <- function(options) {
         }
     }
     return(audit.tol)
+}
+
+
+qpSetup <- function(env, sset, g0, g1, criterion.tol, qpsolver) {
+    ## Read in constraint grids and sequences
+    qpsolver <- tolower(qpsolver)
+    ## Construct the constraint vectors and matrices
+    drY <- sset$s1$ys
+    drX <- cbind(sset$s1$g0, sset$s1$g1)
+    drQ <- sset$s1$Q
+    qc <- list()
+    qc$q <- as.vector(-2 * t(drX) %*% drY)
+    qc$Qc <- t(drX) %*% drX
+    qc$rhs <- drQ * (1 + criterion.tol) - sum(drY^2)
+    ## Update the naming of the problem
+    env$lpobj$quadcon <- list(qc)
+    ## Add in the objective function
+    env$lpobj$obj <- c(g0, g1)
+}
+
+
+qpBound <- function(env, sset, solver,
+                    solver.options, noisy = FALSE,
+                    smallreturnlist = FALSE,
+                    debug = FALSE) {
+    print("Turn off noncovexity if using CPLEX")
+    solver <- tolower(solver)
+    ## Obtain lower and upper bounds
+    if (solver == "gurobi") {
+        if (debug & solver.options$outputflag == 1) {
+            cat("\nLower bound optimization statistics:\n")
+            cat("------------------------------------\n")
+        }
+        if (debug == TRUE){
+            env$lpobj$modelsense <- NULL
+            gurobi::gurobi_write(env$lpobj, "qpBound.mps")
+            model <- env$lpobj
+            save(model, file = "qpBound.Rdata")
+            rm(model)
+        }
+        env$lpobj$modelsense <- "min"
+        minresult <- runGurobi(env$lpobj, solver.options)
+        min <- minresult$objval
+        minstatus <- minresult$status
+        minoptx <- minresult$optx
+        if (debug & solver.options$outputflag == 1) {
+            cat("\nUpper bound optimization statistics:\n")
+            cat("------------------------------------\n")
+        }
+        env$lpobj$modelsense <- "max"
+        maxresult <- runGurobi(env$lpobj, solver.options)
+        max <- maxresult$objval
+        maxstatus <- maxresult$status
+        maxoptx <- maxresult$optx
+        if (debug) cat("\n")
+    } else if (solver == "cplexapi") {
+        minresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, solver.options)
+        min       <- minresult$objval
+        minoptx   <- minresult$optx
+        minstatus <- minresult$status
+        maxresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MAX, solver.options)
+        max       <- maxresult$objval
+        maxoptx   <- maxresult$optx
+        maxstatus <- maxresult$status
+    } else {
+        stop(gsub('\\s+', ' ',
+                  "Invalid QCQP solver. Option 'solver' must be either 'gurobi'
+                  or 'cplexapi'."))
+    }
+    env$lpobj$modelsense <- NULL
+    ## Return error codes, if any
+    if (maxstatus %in% c(2, 3, 4, 5) || minstatus %in% c(2, 3, 4, 5)) {
+        return(list(error = TRUE,
+                    maxstatus = maxstatus,
+                    minstatus = minstatus))
+    }
+    ming0 <- minoptx[1:ncol(sset$g0)]
+    ming1 <- minoptx[(ncol(sset$g0) + 1) : (ncol(sset$g0) + ncol(sset$g1))]
+    maxg0 <- maxoptx[1:ncol(sset$g0)]
+    maxg1 <- maxoptx[(ncol(sset$g0) + 1) : (ncol(sset$g0) + ncol(sset$g1))]
+    if (hasArg(sset)) {
+        names(ming0) <- colnames(sset$g0)
+        names(ming1) <- colnames(sset$g1)
+        names(maxg0) <- colnames(sset$g0)
+        names(maxg1) <- colnames(sset$g1)
+    }
+    output <- list(max = max,
+                   maxg0 = maxg0,
+                   maxg1 = maxg1,
+                   maxresult = maxresult,
+                   maxstatus = maxstatus,
+                   min = min,
+                   ming0 = ming0,
+                   ming1 = ming1,
+                   minresult = minresult,
+                   minstatus = minstatus,
+                   error = FALSE)
+    if (!smallreturnlist) output$model = env$lpobj
+    return(output)
 }
