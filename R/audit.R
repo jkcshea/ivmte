@@ -184,7 +184,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     lpsolver <- tolower(lpsolver)
     ## Determine if whether IV-like moments or direct MTR regression
     ## will be used.
-    direct <- ('Q' %in% names(sset$s1))
+    direct <- (length(sset) == 1 & 'Q' %in% names(sset$s1))
     ## Set the audit tolerance
     if (!hasArg(audit.tol)) {
         if (lpsolver == "gurobi") {

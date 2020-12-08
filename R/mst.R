@@ -1464,9 +1464,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Collect list of all terms used in propensity formula
         if (hasArg(propensity)) {
             if (classFormula(propensity)) {
+                vars_propensity <- all.vars(propensity)
                 if (length(propensity) == 3) {
                     ptreat <- all.vars(propensity)[1]
-                    vars_propensity <- all.vars(propensity)
                     if (hasArg(target) && target == "late") {
                         if (!all(late.Z %in% vars_propensity)) {
                             stop (gsub("\\s+", " ",
@@ -2733,6 +2733,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (exists("tmpOutput")) suppressWarnings(rm(tmpOutput))
             unlink(logName)
         }
+        ## Make sure temporary log files are delated
+        unlink(logName)
     })
 }
 
@@ -3265,7 +3267,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                  'MTR is point identified via linear regression.
                                   Shape constraints are ignored.'),
                             call. = FALSE)
-                    point.estimate <- sum(c(-gstar0, gstar1) * drFit$coef)
+                    point.estimate <- sum(c(gstar0, gstar1) * drFit$coef)
                     if (noisy == TRUE) {
                         cat("\nPoint estimate of the target parameter: ",
                             point.estimate, "\n\n", sep = "")
@@ -3286,7 +3288,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                         return(output)
                     }
                 }
-                print('You need to check the large and small output when you have point identification.')
             } else {
                 ## If there are collineariites, then function will move
                 ## onto the QCQP problem.
@@ -3481,8 +3482,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         codesStop <- c(0, 2, 5)
         codesExpand <- c(3, 4, 6, 7)
     } else {
-        codesStop <- c(0, 5)
-        codesExpand <- c(2, 3, 4, 6, 7)
+        codesStop <- c(0)
+        codesExpand <- c(2, 3, 4, 5, 6, 7)
     }
     while(autoExpand <= autoExpandMax) {
         audit <- eval(audit_call)
@@ -3630,6 +3631,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (lpsolver == "gurobi") lpsolver <- "Gurobi ('gurobi')"
     if (lpsolver == "lpsolveapi") lpsolver <- "lp_solve ('lpSolveAPI')"
     if (lpsolver == "cplexapi") lpsolver <- "CPLEX ('cplexAPI')"
+    if (direct) sset <- sset$s1
     if (!smallreturnlist) {
         output <- list(s.set  = sset,
                        gstar = list(g0 = gstar0,
@@ -3659,9 +3661,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
                                           m1 = splinesobj[[2]]$splinesdict))
     } else {
-        sset <- lapply(sset, function(x) {
-            x[c("ivspec", "beta", "g0", "g1")]
-        })
+        if (!direct) {
+            sset <- lapply(sset, function(x) {
+                x[c("ivspec", "beta", "g0", "g1")]
+            })
+        }
         output <- list(s.set  = sset,
                        gstar = list(g0 = gstar0,
                                     g1 = gstar1),
