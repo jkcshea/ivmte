@@ -1287,10 +1287,28 @@ optionsCplexAPITol <- function(options) {
     return(audit.tol)
 }
 
-
-qpSetup <- function(env, sset, g0, g1, criterion.tol, qpsolver) {
-    ## Read in constraint grids and sequences
-    qpsolver <- tolower(qpsolver)
+#' Constructing QCQP problem
+#'
+#' This function is only used when the direct MTR regression procedure
+#' is used. This function simply constructs the quadratic constraint,
+#' and adds it to the LP problem defined by the linear optimization problem
+#' for the bounds and the linear shape constraints.
+#'
+#' @param env environment containing the matrices defining the LP
+#'     problem.
+#' @param sset A list containing the covariats and outcome variable
+#'     for the direct MTR regression.
+#' @param g0 set of expectations for each terms of the MTR for the
+#'     control group.
+#' @param g1 set of expectations for each terms of the MTR for the
+#'     control group.
+#' @param criterion.tol non-negative scalar, determines how much the
+#'     quadratic constraint should be relaxed by. If set to 0, the
+#'     constraint is not relaxed at all.
+#' @return A list of matrices and vectors necessary to define an LP
+#'     problem for Gurobi.
+#' @export
+qpSetup <- function(env, sset, g0, g1, criterion.tol) {
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
@@ -1303,85 +1321,4 @@ qpSetup <- function(env, sset, g0, g1, criterion.tol, qpsolver) {
     env$lpobj$quadcon <- list(qc)
     ## Add in the objective function
     env$lpobj$obj <- c(g0, g1)
-}
-
-
-qpBound <- function(env, sset, solver,
-                    solver.options, noisy = FALSE,
-                    smallreturnlist = FALSE,
-                    debug = FALSE) {
-    print("Turn off noncovexity if using CPLEX")
-    solver <- tolower(solver)
-    ## Obtain lower and upper bounds
-    if (solver == "gurobi") {
-        if (debug & solver.options$outputflag == 1) {
-            cat("\nLower bound optimization statistics:\n")
-            cat("------------------------------------\n")
-        }
-        if (debug == TRUE){
-            env$lpobj$modelsense <- NULL
-            gurobi::gurobi_write(env$lpobj, "qpBound.mps")
-            model <- env$lpobj
-            save(model, file = "qpBound.Rdata")
-            rm(model)
-        }
-        env$lpobj$modelsense <- "min"
-        minresult <- runGurobi(env$lpobj, solver.options)
-        min <- minresult$objval
-        minstatus <- minresult$status
-        minoptx <- minresult$optx
-        if (debug & solver.options$outputflag == 1) {
-            cat("\nUpper bound optimization statistics:\n")
-            cat("------------------------------------\n")
-        }
-        env$lpobj$modelsense <- "max"
-        maxresult <- runGurobi(env$lpobj, solver.options)
-        max <- maxresult$objval
-        maxstatus <- maxresult$status
-        maxoptx <- maxresult$optx
-        if (debug) cat("\n")
-    } else if (solver == "cplexapi") {
-        minresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, solver.options)
-        min       <- minresult$objval
-        minoptx   <- minresult$optx
-        minstatus <- minresult$status
-        maxresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MAX, solver.options)
-        max       <- maxresult$objval
-        maxoptx   <- maxresult$optx
-        maxstatus <- maxresult$status
-    } else {
-        stop(gsub('\\s+', ' ',
-                  "Invalid QCQP solver. Option 'solver' must be either 'gurobi'
-                  or 'cplexapi'."))
-    }
-    env$lpobj$modelsense <- NULL
-    ## Return error codes, if any
-    if (maxstatus %in% c(2, 3, 4, 5) || minstatus %in% c(2, 3, 4, 5)) {
-        return(list(error = TRUE,
-                    maxstatus = maxstatus,
-                    minstatus = minstatus))
-    }
-    ming0 <- minoptx[1:ncol(sset$g0)]
-    ming1 <- minoptx[(ncol(sset$g0) + 1) : (ncol(sset$g0) + ncol(sset$g1))]
-    maxg0 <- maxoptx[1:ncol(sset$g0)]
-    maxg1 <- maxoptx[(ncol(sset$g0) + 1) : (ncol(sset$g0) + ncol(sset$g1))]
-    if (hasArg(sset)) {
-        names(ming0) <- colnames(sset$g0)
-        names(ming1) <- colnames(sset$g1)
-        names(maxg0) <- colnames(sset$g0)
-        names(maxg1) <- colnames(sset$g1)
-    }
-    output <- list(max = max,
-                   maxg0 = maxg0,
-                   maxg1 = maxg1,
-                   maxresult = maxresult,
-                   maxstatus = maxstatus,
-                   min = min,
-                   ming0 = ming0,
-                   ming1 = ming1,
-                   minresult = minresult,
-                   minstatus = minstatus,
-                   error = FALSE)
-    if (!smallreturnlist) output$model = env$lpobj
-    return(output)
 }

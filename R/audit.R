@@ -420,8 +420,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             lpsolver = lpsolver, direct = direct)
     ## Setup QCQP problem
     if (direct) qpSetup(env = lpEnv, sset = sset, g0 = gstar0, g1 = gstar1,
-                        criterion.tol = criterion.tol,
-                        qpsolver = lpsolver)
+                        criterion.tol = criterion.tol)
     ## Prepare LP messages
     ##
     ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible or
@@ -432,13 +431,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         consider exporting the LP model
                         and passing it to the LP solver
                         for more details.\n")
-    messageInf <- gsub("\\s+", " ",
-                       "Since a minimum criterion was found, the
+    if (!direct) {
+        messageInf <- gsub("\\s+", " ",
+                           "Since a minimum criterion was found, the
                         model should be feasible.
                         For more details, consider exporting the model
                         and passing it to the LP solver.\n")
-    messageInfUnb <- gsub("\\s+", " ",
-                          "Since a minimum criterion was found, the
+        messageInfUnb <- gsub("\\s+", " ",
+                              "Since a minimum criterion was found, the
                            model is most likely feasible but
                            unbounded. This can happen if
                            the initial grid is too small. Try
@@ -447,6 +447,29 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            indeed infeasible,
                            consider exporting the model and passing it
                            to the LP solver for more details.\n")
+    } else {
+        messageInf <- gsub("\\s+", " ",
+                           "Since the quadratic constraint is constructed
+                            without accounting for the shape constraints,
+                            infeasibility of the model may arise when the shape
+                            constraints are added in the audit procedure. Try
+                            increasing the 'criterion.tol' argument to relax the
+                            quadratic constraint.\n")
+        messageInfUnb <- gsub("\\s+", " ",
+                              "The solver may find the model to be infeasible
+                               or unbounded if the
+                               quadratic constraint is too restrictive
+                               (infeasible), or the the initial grid is too
+                               small (unbounded).
+                               Try increasing the parameters 'criterion.tol'
+                               to relax the quadratic constraint; or
+                               increasing the parameters 'initgrid.nx'
+                               and 'initgrid.nu' to better bound the problem.
+                               If the model is
+                               indeed infeasible,
+                               consider exporting the model and passing it
+                               to the LP solver for more details.\n")
+    }
     messageUnb <- gsub("\\s+", " ",
                        "A possible reason for unboundedness is that
                         the initial grid is too small. Try
@@ -654,7 +677,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                   rescaling.')))
                 bWarn <- paste(bWarn, messageOptInf)
             }
-            if (!is.null(bWarn)) warning(bWarn, call. = FALSE, immediate. = TRUE)
+            if (!is.null(bWarn)) warning(bWarn, call. = FALSE,
+                                         immediate. = TRUE)
         }
 
         ## Obtain bounds

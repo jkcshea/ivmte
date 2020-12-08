@@ -1294,9 +1294,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
             } else {
                 stop(gsub("\\s+", " ",
-                          "'ivlike' argument must either be
-                           a formula or a vector of
-                           formulas."), call. = FALSE)
+                          "'ivlike' argument must either be a formula, a vector
+                           of formulas, or NULL/not passed."), call. = FALSE)
             }
         } else {
             vars_y <- outcomeStr
@@ -1563,12 +1562,24 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                           estimated from the data), or a one-sided formula
                           containing a single variable on the RHS (where the
                           variable listed is included in the data, and
-                          corresponds to propensity scores.")),
+                          corresponds to propensity scores).")),
                          call. = FALSE)
                 }
             }
         } else {
-            ## Determine treatment variable
+            if (direct) {
+                stop(gsub("\\s+", " ",
+                          paste0("'propensity' argument must either be a
+                          two-sided formula (if the propensity score is to be
+                          estimated from the data), or a one-sided formula
+                          containing a single variable on the RHS (where the
+                          variable listed is included in the data, and
+                          corresponds to propensity scores).")),
+                     call. = FALSE)
+            }
+            ## If there is no propensity argument, then the propensity
+            ## function will have to be constructed. Firstd determine
+            ## treatment variable
             if (hasArg(treat)) {
                 treat <- treatStr
                 vars_propensity <- treat
@@ -3465,13 +3476,21 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     autoExpandMax <- 3
     newGrid.nu <- initgrid.nu
     newGrid.nx <- initgrid.nx
+    ## Select codes for reasons to stop or expand
+    if (!direct) {
+        codesStop <- c(0, 2, 5)
+        codesExpand <- c(3, 4, 6, 7)
+    } else {
+        codesStop <- c(0, 5)
+        codesExpand <- c(2, 3, 4, 6, 7)
+    }
     while(autoExpand <= autoExpandMax) {
         audit <- eval(audit_call)
         if (is.null(audit$error)) {
             autoExpand <- Inf
         }
         if (!is.null(audit$errorTypes)) {
-            if (any(c(0, 2, 5) %in% audit$errorTypes)) {
+            if (any(codesStop %in% audit$errorTypes)) {
                 stop(audit$error, call. = FALSE)
             }
             if (initgrid.nx == audit.nx && initgrid.nu == audit.nu) {
@@ -3479,28 +3498,39 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 errMessage2 <-
                     gsub("\\s+", " ",
                          "Automatic grid expansion is also not
-                                  possible.
-                                  Consider imposing additional shape
-                                  constraints, or increasing the size of the
-                                  initial grid for the audit.
-                                  In order to increase the size of the
-                                  initial grid, it will be
-                                  necessary to increase the size of the audit
-                                  grid.
-                                  This is because the initial grid must be a
-                                  subset of the audit grid, and this constraint
-                                  is currently binding.
-                                  In order to allow for automatic grid
-                                  expansion, make sure audit.nx > initgrid.nx
-                                  or audit.nu > initgrid.nu.")
+                          possible.
+                          Consider imposing additional shape
+                          constraints, or increasing the size of the
+                          initial grid for the audit.
+                          In order to increase the size of the
+                          initial grid, it will be
+                          necessary to increase the size of the audit
+                          grid.
+                          This is because the initial grid must be a
+                          subset of the audit grid, and this constraint
+                          is currently binding.
+                          In order to allow for automatic grid
+                          expansion, make sure audit.nx > initgrid.nx
+                          or audit.nu > initgrid.nu.")
                 stop(paste(errMessage1, "\n\n", errMessage2), call. = FALSE)
             }
-            if (any(c(3, 4, 6, 7) %in% audit$errorTypes)) {
+            if (any(codesExpand %in% audit$errorTypes)) {
                 tmpErrMessage <- NULL
+                if (2 %in% audit$errorTypes) {
+                        tmpErrMessage <-
+                            c(tmpErrMessage,
+                              'infeasible')
+                }
                 if (3 %in% audit$errorTypes) {
-                    tmpErrMessage <-
-                        c(tmpErrMessage,
-                          'infeasible or unbounded (most likely unbounded)')
+                    if (!direct) {
+                        tmpErrMessage <-
+                            c(tmpErrMessage,
+                              'infeasible or unbounded (most likely unbounded)')
+                    } else {
+                        tmpErrMessage <-
+                            c(tmpErrMessage,
+                              'infeasible or unbounded (most likely infeasible)')
+                    }
                 }
                 if (4 %in% audit$errorTypes) {
                     tmpErrMessage <-
@@ -3522,18 +3552,29 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             cat(paste0("    LP model was ",
                        tmpErrMessage, ".\n"))
             autoExpand <- autoExpand + 1
-            newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
-            newGrid.nx <- min(ceiling(newGrid.nx * 1.5), audit.nx)
-            cat("\n    Restarting audit with expanded initial grid.\n")
-            cat(paste0("    New settings: initgrid.nx = ",  newGrid.nx,
-                       ", initgrid.nu = ", newGrid.nu, "\n"))
-            audit_call <-
-                modcall(audit_call,
-                        dropargs = c("initgrid.nu", "initgrid.nx",
-                                     "audit.grid"),
-                        newargs = list(initgrid.nu = newGrid.nu,
-                                       initgrid.nx = newGrid.nx,
-                                       audit.grid = audit$audit.grid))
+
+            cat("\n    Restarting audit with new settings:\n")
+            if (any(c(3, 4, 6, 7) %in% audit$errorTypes)) {
+                newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
+                newGrid.nx <- min(ceiling(newGrid.nx * 1.5), audit.nx)
+                cat("    initgrid.nx = ", newGrid.nx, "\n")
+                cat("    initgrid.nu = ", newGrid.nu, "\n")
+                audit_call <-
+                    modcall(audit_call,
+                            dropargs = c("initgrid.nu", "initgrid.nx",
+                                         "audit.grid"),
+                            newargs = list(initgrid.nu = newGrid.nu,
+                                           initgrid.nx = newGrid.nx,
+                                           audit.grid = audit$audit.grid))
+            }
+            if (any(c(2, 3) %in% audit$errorTypes)) {
+                criterion.tol <- criterion.tol * 2
+                cat("    criterion.tol = ", criterion.tol, "\n")
+                audit_call <-
+                    modcall(audit_call,
+                            dropargs = c("criterion.tol"),
+                            newargs = list(criterion.tol = criterion.tol))
+            }
             if (newGrid.nu == audit.nu && newGrid.nx == audit.nx) {
                 autoExpand <- autoExpandMax
             }
