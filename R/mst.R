@@ -3719,7 +3719,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (!is.null(audit$spectest)) output$specification.test <- audit$spectest
     if (direct) {
         output$moments <- NULL
-        output$audit.criterion <- NULL
     }
     return(output)
 }

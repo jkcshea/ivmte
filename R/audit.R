@@ -1278,7 +1278,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 rm(addmte)
                 ## Move on to next iteration of the audit
                 audit_count <- audit_count + 1
-                lpSetupBound(env = lpEnv, setup = FALSE)
+                if (!direct) lpSetupBound(env = lpEnv, setup = FALSE)
             }
         } else {
             ## If no violations, then end the audit
@@ -1301,8 +1301,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                    lpresult = lpresult,
                    gridobj = list(audit.grid = audit.grid,
                                   violations = violateMat),
-                   auditcount = audit_count)
-    if (!direct) output$minobseq <- minobseq$obj
+                   auditcount = audit_count,
+                   minobseq = minobseq$obj)
+    if (direct) output$minobseq <- output$minobseq + lpEnv$ssy
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
         output$spectest = minobseqTest$obj
     }
