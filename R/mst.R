@@ -893,6 +893,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         call. = FALSE)
             }
         }
+        if (direct && !hasArg(outcome)) {
+            stop(gsub('\\s+', ' ',
+                      "If 'ivlike' is not passed, then a regression of the
+                       outcome variable on the MTR will be performed.
+                       Please provide the outcome variable in the
+                       'outcome 'argument."),
+                 call. = FALSE)
+        }
         if (hasArg(target)) {
             if (! target %in% c("ate", "att", "atu", "late", "genlate")) {
                 stop(gsub("\\s+", " ",
@@ -1854,7 +1862,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             opList$ivlike <- ivlike
             opList$components <- components
         } else {
-            opList$outcome <- outcome
+            opList$outcome <- vars_y
         }
         if (hasArg(point)) opList$point <- point
         if (hasArg(subset)) opList$subset <- subset
