@@ -86,7 +86,7 @@ propensity <- function(formula, data, link = "logit", late.Z,
                       variable on the RHS (where the variable listed is included
                       in the data, and corresponds to propensity scores.")))
         }
-        pname <- all.vars(formula)
+        pname <- all.vars(formula)        
         ## Check that the variable is indeed a propensity,
         ## i.e. bounded between 0 and 1
         phat <- data[[pname]]

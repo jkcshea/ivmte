@@ -106,7 +106,8 @@ utils::globalVariables("u")
 #'     use to define the constraints determining the treatment effect
 #'     bounds (alternatively, the moments determining the treatment
 #'     effect point estimate) can be selected in the argument
-#'     \code{components}.
+#'     \code{components}. If no argument is passed, then a linear
+#'     regression will be performed to estimate the MTR coefficients.
 #' @param components a list of vectors of the terms in the regression
 #'     specifications to include in the set of IV-like estimands. No
 #'     terms should be in quotes. To select the intercept term,
@@ -142,6 +143,8 @@ utils::globalVariables("u")
 #'     \code{'logit'}. Default is set to \code{'logit'}. The link
 #'     should be provided with quoation marks.
 #' @param treat variable name for treatment indicator. The name can be
+#'     provided with or without quotation marks.
+#' @param outcome variable name for outcome variable. The name can be
 #'     provided with or without quotation marks.
 #' @param lpsolver character, name of the linear programming package
 #'     in R used to obtain the bounds on the treatment effect. The
@@ -402,7 +405,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
                   m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
                   components, subset, propensity, link = 'logit',
-                  treat, lpsolver = NULL, lpsolver.options,
+                  treat, outcome, lpsolver = NULL, lpsolver.options,
                   lpsolver.presolve,
                   lpsolver.options.criterion, lpsolver.options.bounds,
                   criterion.tol = 0,
@@ -441,8 +444,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         call <- match.call(expand.dots = FALSE)
         envList <- list(m0 = environment(m0),
                         m1 = environment(m1),
-                        ivlike = environment(ivlike),
                         parent = parent.frame())
+        direct <- TRUE
+        if (hasArg(ivlike) && !is.null(ivlike)) {
+            direct <- FALSE
+            envList$ivlike <- environment(ivlike)
+        }
         envProp <- try(environment(propensity), silent = TRUE)
         if (class(envProp) != "environment") {
             envList$propensity <- parent.frame()
@@ -620,93 +627,108 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
         ## Convert ivlike formula into a list (i.e. a one-element list
         ## with one formula), which is a more robust framework
-        if (classFormula(ivlike)) {
-            ivlike <- c(ivlike)
-        }
-        ## Convert formula, components, and subset inputs into lists
-        length_formula <- length(ivlike)
-        userComponents <- FALSE
-        if (hasArg(components)) {
-            tmpComp <- deparse(substitute(components))
-            if (substr(tmpComp, 1, 2) != "l(" &&
-                substr(tmpComp, 1, 2) == "c(") {
-                stop(gsub("\\s+", " ",
-                          "The 'components' argument should be declared
-                       using 'l()' instead of 'c()'."),
-                     call. = FALSE)
+        if (!direct) {
+            if (classFormula(ivlike)) {
+                ivlike <- c(ivlike)
             }
-            if (!is.null(components)) {
-                if (length(components) > 1) {
-                    userComponents <- TRUE
+            ## Convert formula, components, and subset inputs into lists
+            length_formula <- length(ivlike)
+            userComponents <- FALSE
+            if (hasArg(components)) {
+                tmpComp <- deparse(substitute(components))
+                if (substr(tmpComp, 1, 2) != "l(" &&
+                    substr(tmpComp, 1, 2) == "c(") {
+                    stop(gsub("\\s+", " ",
+                              "The 'components' argument should be declared
+                       using 'l()' instead of 'c()'."),
+                       call. = FALSE)
                 }
-                if (length(components) == 1) {
-                    if (Reduce(paste, deparse(components)) != "list()"){
+                if (!is.null(components)) {
+                    if (length(components) > 1) {
                         userComponents <- TRUE
                     }
-                }
-            }
-        }
-        if (userComponents) {
-            length_components <- length(components)
-            if (length_formula == 1) {
-                ## When a single formula is provided, then the list of
-                ## components should be treated as a single vector of
-                ## components. The way in which the user declares the
-                ## components can be problematic. The function must figure
-                ## out if the components list is entered directly, or as a
-                ## variable.
-                componentsTmp <- gsub("\\s+", " ",
-                                      Reduce(paste,
-                                             deparse(substitute(components))))
-                if (substr(componentsTmp, 1, 2) == "l(") {
-                    components <- deparse(substitute(components))
-                    components <- gsub("\\s+", " ", Reduce(paste, components))
-                    if (substr(componentsTmp, 1, 4) != "l(c(") {
-                        internals <- substr(components, 3,
-                                            nchar(components) - 1)
-                        charList <- unique(unlist(strsplit(x = internals,
-                                                           split = "")))
-                        if (length(charList) == 2 &&
-                            all(charList == c(",", " "))) {
-                            internals <- ""
+                    if (length(components) == 1) {
+                        if (Reduce(paste, deparse(components)) != "list()"){
+                            userComponents <- TRUE
                         }
-                        components <- paste0("l(c(", internals, "))")
                     }
-                    components <- eval(parse(text = components))
-                    length_components <- 1
-                } else {
-                    components <- unlist(lapply(components, deparse))
-                    components <- gsub("\\s+", " ", Reduce(paste, components))
-                    if (substr(components, 1, 2) == "c(") {
-                        components <- paste0("l(", components, ")")
-                    } else {
-                        components <- paste0("l(c(", components, "))")
-                    }
-                    components <- eval(parse(text = components))
                 }
             }
-        } else {
-            length_components <- length_formula
-            components <- as.list(replicate(length_formula, ""))
-        }
-        if (length_formula > length_components & length_components > 0) {
-            warning(gsub("\\s+", " ",
-                         "List of components not the same length of list of
+            if (userComponents) {
+                length_components <- length(components)
+                if (length_formula == 1) {
+                    ## When a single formula is provided, then the list of
+                    ## components should be treated as a single vector of
+                    ## components. The way in which the user declares the
+                    ## components can be problematic. The function must figure
+                    ## out if the components list is entered directly, or as a
+                    ## variable.
+                    componentsTmp <-
+                        gsub("\\s+", " ",
+                             Reduce(paste,
+                                    deparse(substitute(components))))
+                    if (substr(componentsTmp, 1, 2) == "l(") {
+                        components <- deparse(substitute(components))
+                        components <-
+                            gsub("\\s+", " ", Reduce(paste, components))
+                        if (substr(componentsTmp, 1, 4) != "l(c(") {
+                            internals <- substr(components, 3,
+                                                nchar(components) - 1)
+                            charList <- unique(unlist(strsplit(x = internals,
+                                                               split = "")))
+                            if (length(charList) == 2 &&
+                                all(charList == c(",", " "))) {
+                                internals <- ""
+                            }
+                            components <- paste0("l(c(", internals, "))")
+                        }
+                        components <- eval(parse(text = components))
+                        length_components <- 1
+                    } else {
+                        components <- unlist(lapply(components, deparse))
+                        components <-
+                            gsub("\\s+", " ", Reduce(paste, components))
+                        if (substr(components, 1, 2) == "c(") {
+                            components <- paste0("l(", components, ")")
+                        } else {
+                            components <- paste0("l(c(", components, "))")
+                        }
+                        components <- eval(parse(text = components))
+                    }
+                }
+            } else {
+                length_components <- length_formula
+                components <- as.list(replicate(length_formula, ""))
+            }
+            if (length_formula > length_components & length_components > 0) {
+                warning(gsub("\\s+", " ",
+                             "List of components not the same length of list of
                          IV-like specifications: more specifications than
                          component vectors. Specifications without corresponding
                          component vectors will include all covariates when
                          constructing the S-set."),
-                    call. = FALSE)
-            components[(length(components) + 1) : length(ivlike)] <- ""
-        }
-        if (length_formula < length_components) {
-            warning(gsub("\\s+", " ",
-                         "List of components not the same length of list of
+                        call. = FALSE)
+                components[(length(components) + 1) : length(ivlike)] <- ""
+            }
+            if (length_formula < length_components) {
+                warning(gsub("\\s+", " ",
+                             "List of components not the same length of list of
                          IV-like specifications: more component vectors than
                          specifications. Component vectors without corresponding
                          specifications will be dropped."),
-                    call. = FALSE)
-            components <- components[1 : length(ivlike)]
+                        call. = FALSE)
+                components <- components[1 : length(ivlike)]
+            }
+        } else {
+            length_formula <- 1
+            if (hasArg(components)) {
+                warning(gsub("\\s+", " ",
+                             "If the 'ivlike' argument is not passed, then the
+                              estimation procedure no longer estimates IV-like
+                              moments and the
+                              'components' argument becomes redundant."),
+                        call. = FALSE)
+            }
         }
         ## Check the subset input---of the three lists that are input,
         ## only this can be omitted by the user, in which case no
@@ -770,21 +792,32 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             ## Fill in any missing subset slots
             if (length(subset) > 1 && length(subset) != length_formula) {
-                stop(gsub("\\s+", " ",
-                          "Number of subset conditions not equal to number of
-                       IV specifications. Either declare a single subset
+                if (!direct) {
+                    stop(gsub("\\s+", " ",
+                              "Number of subset conditions not equal to
+                       number of IV specifications.
+                       Either declare a single subset
                        condition to be applied to all IV specifications; or
                        declare a list of subset conditions, one for each IV
                        specificaiton. An empty element in the list of subset
                        conditions corresponds to using the full sample."),
-                     call. = FALSE)
+                       call. = FALSE)
+                } else {
+                    stop(gsub("\\s+", " ",
+                              "More than one subset condition provided.
+                               If no argument is passed for 'ivlike', then
+                               the estimation procedure performs a single
+                               linear regression to fit the data. Only one
+                               subset condition may therefore be passed."),
+                       call. = FALSE)
+                }
             }
             if (length(subset) == 1 && length_formula > 1) {
                 subset <- rep(subset, length_formula)
             }
             ## Check if all subseting conditions are logical
             nonLogicSubset <- NULL
-            for (i in 1:length(ivlike)) {
+            for (i in 1:length_formula) {
                 if (subset[[i]] == "") {
                     ssubset <- replicate(nrow(data), TRUE)
                 } else {
@@ -812,7 +845,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                               Specifications without corresponding subset
                               conditions will include all observations."),
                         call. = FALSE)
-                subset[length(subset) + 1 : length(ivlike)] <- ""
+                subset[(length(subset) + 1) : length_formula] <- ""
             }
             if(length(subset) > length_formula) {
                 warning(gsub("\\s+", " ",
@@ -822,7 +855,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                               Subset conditions without corresponding
                               specifications will be dropped."),
                         call. = FALSE)
-                subset <- subset[1 : length(ivlike)]
+                subset <- subset[1 : length_formula]
             }
         } else {
             ## if no subset input, then we construct it
@@ -840,6 +873,24 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (! treatStr %in% colnames(data)) {
                 stop("Declared treatment indicator not found in data",
                      call. = FALSE)
+            }
+        }
+        if (hasArg(outcome)) {
+            if (direct) {
+                outcomeStr <- deparse(substitute(outcome))
+                outcomeStr <- gsub("~", "", outcomeStr)
+                outcomeStr <- gsub("\\\"", "", outcomeStr)
+                if (! outcomeStr %in% colnames(data)) {
+                    stop("Declared outcome variable not found in data",
+                         call. = FALSE)
+                }
+            } else {
+                warning(gsub('\\s+', ' ',
+                             "If an argument is passed for 'ivlike', then
+                              the outcome variable will be inferred from the
+                              IV-like formulas, and the 'outcome' argument
+                              will be ignored."),
+                        call. = FALSE)
             }
         }
         if (hasArg(target)) {
@@ -1051,7 +1102,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
         }
         if (hasArg(point)) {
-            if (point == TRUE) {
+            if (point == TRUE && !direct) {
                 if (hasArg(m0.dec) | hasArg(m0.inc) |
                     hasArg(m1.dec) | hasArg(m1.inc) |
                     hasArg(mte.dec) | hasArg(mte.inc) |
@@ -1209,39 +1260,46 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         terms_mtr0       <- c()
         terms_mtr1       <- c()
         terms_components <- c()
-        if (classList(ivlike)) {
-            if (!min(unlist(lapply(ivlike, classFormula)))) {
-                stop(gsub("\\s+", " ",
-                          "Not all elements in list of formulas are specified
-                      correctly."), call. = FALSE)
-            } else {
-                vars_formulas_x <- unlist(lapply(ivlike,
-                                                 getXZ,
-                                                 inst = FALSE))
-                vars_formulas_z <- unlist(lapply(ivlike,
-                                                 getXZ,
-                                                 inst = TRUE))
-                vars_y <- unique(unlist(lapply(ivlike,
-                                               function(x) all.vars(x)[[1]])))
-                terms_formulas_x <- lapply(ivlike,
-                                           getXZ,
-                                           inst = FALSE,
-                                           terms = TRUE)
-                terms_formulas_z <- lapply(ivlike,
-                                           getXZ,
-                                           inst = TRUE,
-                                           terms = TRUE)
-                if (length(vars_y) > 1) {
+        if (!direct) {
+            if (classList(ivlike)) {
+                if (!min(unlist(lapply(ivlike, classFormula)))) {
                     stop(gsub("\\s+", " ",
-                              "Multiple response variables specified in list of
-                          IV-like specifications."),
-                         call. = FALSE)
+                              "Not all elements in list of formulas
+                               are specified correctly."), call. = FALSE)
+                } else {
+                    vars_formulas_x <- unlist(lapply(ivlike,
+                                                     getXZ,
+                                                     inst = FALSE))
+                    vars_formulas_z <- unlist(lapply(ivlike,
+                                                     getXZ,
+                                                     inst = TRUE))
+                    vars_y <-
+                        unique(unlist(lapply(ivlike,
+                                             function(x) all.vars(x)[[1]])))
+                    terms_formulas_x <- lapply(ivlike,
+                                               getXZ,
+                                               inst = FALSE,
+                                               terms = TRUE)
+                    terms_formulas_z <- lapply(ivlike,
+                                               getXZ,
+                                               inst = TRUE,
+                                               terms = TRUE)
+                    if (length(vars_y) > 1) {
+                        stop(gsub("\\s+", " ",
+                                  "Multiple response variables specified
+                                  in list of
+                                  IV-like specifications."),
+                                  call. = FALSE)
+                    }
                 }
+            } else {
+                stop(gsub("\\s+", " ",
+                          "'ivlike' argument must either be a formula, a vector
+                           of formulas, or NULL/not passed."), call. = FALSE)
             }
         } else {
-            stop(gsub("\\s+", " ",
-                      "'ivlike' argument must either be a formula or a vector of
-                  formulas."), call. = FALSE)
+            vars_y <- outcomeStr
+            rm(outcomeStr)
         }
         ## Collect list of all terms in subsetting condition
         if (hasArg(subset)) {
@@ -1406,9 +1464,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Collect list of all terms used in propensity formula
         if (hasArg(propensity)) {
             if (classFormula(propensity)) {
+                vars_propensity <- all.vars(propensity)
                 if (length(propensity) == 3) {
                     ptreat <- all.vars(propensity)[1]
-                    vars_propensity <- all.vars(propensity)
                     if (hasArg(target) && target == "late") {
                         if (!all(late.Z %in% vars_propensity)) {
                             stop (gsub("\\s+", " ",
@@ -1504,12 +1562,24 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                           estimated from the data), or a one-sided formula
                           containing a single variable on the RHS (where the
                           variable listed is included in the data, and
-                          corresponds to propensity scores.")),
+                          corresponds to propensity scores).")),
                          call. = FALSE)
                 }
             }
         } else {
-            ## Determine treatment variable
+            if (direct) {
+                stop(gsub("\\s+", " ",
+                          paste0("'propensity' argument must either be a
+                          two-sided formula (if the propensity score is to be
+                          estimated from the data), or a one-sided formula
+                          containing a single variable on the RHS (where the
+                          variable listed is included in the data, and
+                          corresponds to propensity scores).")),
+                     call. = FALSE)
+            }
+            ## If there is no propensity argument, then the propensity
+            ## function will have to be constructed. Firstd determine
+            ## treatment variable
             if (hasArg(treat)) {
                 treat <- treatStr
                 vars_propensity <- treat
@@ -1592,71 +1662,76 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## For the components, since they may be terms, we first collect
         ## all terms, and then break it down into variables.
-        vars_components <- NULL
-        if (userComponents) {
-            for (comp in components) {
-                compString <- try(gsub("\\s+", " ",
-                                       Reduce(paste, deparse(comp))),
-                                  silent = TRUE)
-                if (class(compString) != "try-error") {
-                    if (substr(compString, 1, 2) == "c(") {
-                        vars_components <- c(vars_components,
-                                             restring(comp,
-                                                      substitute = FALSE))
-                    } else {
-                        vars_components <- c(vars_components,
-                                             restring(comp,
-                                                      substitute = FALSE,
-                                                      command = ""))
+        if (!direct) {
+            vars_components <- NULL
+            if (userComponents) {
+                for (comp in components) {
+                    compString <- try(gsub("\\s+", " ",
+                                           Reduce(paste, deparse(comp))),
+                                      silent = TRUE)
+                    if (class(compString) != "try-error") {
+                        if (substr(compString, 1, 2) == "c(") {
+                            vars_components <- c(vars_components,
+                                                 restring(comp,
+                                                          substitute = FALSE))
+                        } else {
+                            vars_components <- c(vars_components,
+                                                 restring(comp,
+                                                          substitute = FALSE,
+                                                          command = ""))
+                        }
+                        ## Remove all factor value specifications
+                        vars_components <- strsplit(vars_components, ":")
+                        vars_components <-
+                            lapply(vars_components,
+                                   function(x) {
+                                       xTmp <- sapply(x,
+                                                      strsplit,
+                                                      split = " - ")
+                                       xTmp <- lapply(xTmp,
+                                                      function(x) x[1])
+                                       unlist(xTmp)
+                                   })
+                        vars_components <- unique(unlist(vars_components))
                     }
-                    ## Remove all factor value specifications
-                    vars_components <- strsplit(vars_components, ":")
-                    vars_components <-
-                        lapply(vars_components,
-                               function(x) {
-                                   xTmp <- sapply(x,
-                                                  strsplit,
-                                                  split = " - ")
-                                   xTmp <- lapply(xTmp,
-                                                  function(x) x[1])
-                                   unlist(xTmp)
-                               })
-                    vars_components <- unique(unlist(vars_components))
                 }
             }
+            vars_components <- vars_components[vars_components != '""']
+            ## Break component terms into variables.
+            vars_components_tmp <-
+                paste(".qqq ~",
+                      paste(vars_components[vars_components != "components"],
+                            collapse = " + "))
+            if (! "intercept" %in% vars_components) {
+                vars_components_tmp <- paste(vars_components_tmp, " - 1")
+            }
+            vars_components <- getXZ(as.formula(vars_components_tmp),
+                                     components = TRUE)
         }
-        vars_components <- vars_components[vars_components != '""']
-        ## Break component terms into variables.
-        vars_components_tmp <-
-            paste(".qqq ~",
-                  paste(vars_components[vars_components != "components"],
-                        collapse = " + "))
-        if (! "intercept" %in% vars_components) {
-            vars_components_tmp <- paste(vars_components_tmp, " - 1")
-        }
-        vars_components <- getXZ(as.formula(vars_components_tmp),
-                                 components = TRUE)
         ## Collect all variables, and remove the variable name
         ## corresponding to the unobservable.
-        allvars <- c(allvars, vars_components)
+        if (!direct) allvars <- c(allvars, vars_components)
         allvars <- unique(allvars)
         allvars <- allvars[allvars != uname]
         ## Fill in components list if necessary
-        comp_filler <- lapply(terms_formulas_x,
-                              function(x) as.character(unstring(x)))
-        if (userComponents) {
-            compMissing1 <- unlist(lapply(components, function(x) {
-                Reduce(paste, deparse(x)) == ""
-            }))
-            compMissing2 <- unlist(lapply(components, function(x) x == ""))
-            compMissing3 <- unlist(lapply(components, function(x) x == "c()"))
-            compMissing <- as.logical(compMissing1 + compMissing2 +
-                                      compMissing3)
-            if (sum(compMissing) > 0) {
-                components[compMissing] <- comp_filler[compMissing]
+        if (!direct) {
+            comp_filler <- lapply(terms_formulas_x,
+                                  function(x) as.character(unstring(x)))
+            if (userComponents) {
+                compMissing1 <- unlist(lapply(components, function(x) {
+                    Reduce(paste, deparse(x)) == ""
+                }))
+                compMissing2 <- unlist(lapply(components, function(x) x == ""))
+                compMissing3 <- unlist(lapply(components,
+                                              function(x) x == "c()"))
+                compMissing <- as.logical(compMissing1 + compMissing2 +
+                                          compMissing3)
+                if (sum(compMissing) > 0) {
+                    components[compMissing] <- comp_filler[compMissing]
+                }
+            } else {
+                components <- comp_filler
             }
-        } else {
-            components <- comp_filler
         }
         ## Check that all LATE variables are included in the propensity
         ## formula, if a propensity score formula is provided
@@ -1775,8 +1850,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                         'm0.inc', 'm1.dec', 'm1.inc',
                                         'mte.dec', 'mte.inc', 'link'))
         opList <- eval(opList)
-        opList$ivlike <- ivlike
-        opList$components <- components
+        if (!direct) {
+            opList$ivlike <- ivlike
+            opList$components <- components
+        } else {
+            opList$outcome <- outcome
+        }
+        if (hasArg(point)) opList$point <- point
         if (hasArg(subset)) opList$subset <- subset
         if (hasArg(propensity)) opList$propensity <- propensity
         if (hasArg(uname)) opList$uname <- uname
@@ -1797,7 +1877,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                              "bootstraps.replace",
                                              "subset",
                                              "levels", "ci.type",
-                                             "treat", "propensity",
+                                             "treat", "outcome",
+                                             "propensity",
                                              "components", "lpsolver",
                                              "target.weight0", "target.weight1",
                                              "target.knots0", "target.knots1",
@@ -2652,6 +2733,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (exists("tmpOutput")) suppressWarnings(rm(tmpOutput))
             unlink(logName)
         }
+        ## Make sure temporary log files are delated
+        unlink(logName)
     })
 }
 
@@ -2910,6 +2993,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           smallreturnlist = FALSE,
                           debug = FALSE, environments) {
     call <- match.call(expand.dots = FALSE)
+    if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
+        direct <- TRUE
+    } else {
+        direct <- FALSE
+    }
     if (classFormula(ivlike)) ivlike <- c(ivlike)
     ## Character arguments will be converted to lowercase
     if (hasArg(lpsolver)) lpsolver <- tolower(lpsolver)
@@ -3017,6 +3105,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                 pm0 = quote(pm0),
                                                 pm1 = quote(pm1)))
     }
+    if (direct) {
+        gentargetcall <- modcall(gentargetcall,
+                                 dropargs = 'point')
+    }
     targetGammas <- eval(gentargetcall)
     rm(gentargetcall)
     gstar0 <- targetGammas$gstar0
@@ -3026,7 +3118,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
     if (noisy == TRUE) {
-        cat("\nGenerating IV-like moments...\n")
+        if (!direct) cat("\nGenerating IV-like moments...\n")
+        if (direct)  cat("\nPerforming direct MTR regression...\n")
     }
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
@@ -3120,10 +3213,103 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             ivlikeCounter <- ivlikeCounter + 1
         }
     } else {
-        stop(gsub("\\s+", " ",
-                  "'ivlike' argument must either be a formula or a vector of
+        if (!direct) {
+            stop(gsub("\\s+", " ",
+                      "'ivlike' argument must either be a formula or a vector of
                   formulas."),
-             call. = FALSE)
+                 call. = FALSE)
+        } else {
+            ## Prepare direct MTR regresion approach.
+            if (subset[[1]] == "") {
+                ssubset <- replicate(nrow(data), TRUE)
+            } else {
+                ssubset <- subset[[1]]
+            }
+            subset_index <- rownames(data[eval(substitute(ssubset), data), ])
+            sw0 <- 1 / (1 - pmodel$phat)
+            sw1 <- 1 / pmodel$phat
+            sw0[data[[treat]] == 1] <- 0
+            sw1[data[[treat]] == 0] <- 0
+            sest <- list(sw0 = matrix(sw0[subset_index], ncol = 1),
+                         sw1 = matrix(sw1[subset_index], ncol = 1))
+            setobj <- genSSet(data = data,
+                              sset = sset,
+                              sest = sest,
+                              splinesobj = splinesobj,
+                              pmodobj = pmodel$phat[subset_index],
+                              pm0 = pm0,
+                              pm1 = pm1,
+                              ncomponents = 1,
+                              scount = scount,
+                              subset_index = subset_index,
+                              means = FALSE,
+                              yvar = vars_y,
+                              dvar = treat,
+                              noisy = noisy,
+                              ivn = 0)
+            sset <- setobj$sset
+            sset$s1$ivspec <- NULL
+            sset$s1$beta <- NULL
+            rm(setobj)
+            ## Now perform the MTR regression and check for
+            ## collinearities
+            drY <- sset$s1$ys
+            drX <- cbind(sset$s1$g0, sset$s1$g1)
+            drFit <- lm.fit(x = drX, y = drY)
+            drQ <- sum(drFit$resid^2)
+            sset$s1$init.coef <- drFit$coef
+            sset$s1$Q <- drQ
+            ## If no collinearities, return the implied target parameter
+            if (!any(is.na(drFit$coefficients))) {
+                if ((hasArg(point) && point == TRUE) |
+                    !hasArg(point)) {
+                    warning(gsub('\\s+', ' ',
+                                 'MTR is point identified via linear regression.
+                                  Shape constraints are ignored.'),
+                            call. = FALSE)
+                    point.estimate <- sum(c(gstar0, gstar1) * drFit$coef)
+                    if (noisy == TRUE) {
+                        cat("\nPoint estimate of the target parameter: ",
+                            point.estimate, "\n\n", sep = "")
+                    }
+                    if (!smallreturnlist) {
+                        return(list(point.estimate = point.estimate,
+                                    mtr.coef = drFit$coef,
+                                    X = drX,
+                                    Q = drQ,
+                                    propensity = pmodel))
+                    } else {
+                        output <- list(point.estimate = point.estimate,
+                                       mtr.coef = drFit$coef,
+                                       Q = drQ)
+                        if (all(class(pmodel) != "NULL")) {
+                            output$propensity.coef <- pmodel$coef
+                        }
+                        return(output)
+                    }
+                }
+            } else {
+                ## If there are collineariites, then function will move
+                ## onto the QCQP problem.
+                if (direct && noisy) {
+                    cat("    MTR is not point identified.\n")
+                }
+            }
+            if (!requireNamespace("gurobi", quietly = TRUE) &&
+                !requireNamespace("cplexAPI", quietly = TRUE)) {
+                stop(gsub('\\s+', ' ',
+                          "The MTR is not point identified by a
+                                       direct regression. However, partial
+                                       identification involves solving a
+                                       quadratically constrained quadratic
+                                       program.
+                                       Please install one of the
+                                       following linear programming packages:
+                                       gurobi (version 7.5-1 or later);
+                                       cplexAPI (version 1.3.3 or later)."),
+                     call. = FALSE)
+            }
+        }
     }
     rm(sest, subset_index)
     if (!is.null(pm0)) {
@@ -3137,7 +3323,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     xterms = pm1$xterms)
     }
     if (smallreturnlist) pmodel <- pmodel$model
-    if (count.moments) {
+    if (count.moments && !direct) {
         wmat <- NULL
         for (s in 1:length(sset)) {
             if (!is.null(subsetIndexList)) {
@@ -3185,7 +3371,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     splinesCheck <- !(all(is.null(splinesobj[[1]]$splineslist)) &&
         all(is.null(splinesobj[[2]]$splineslist)))
-    if (point == TRUE) {
+    if (!direct && point == TRUE) {
         ## Obtain GMM estimate
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
@@ -3305,13 +3491,21 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     autoExpandMax <- 3
     newGrid.nu <- initgrid.nu
     newGrid.nx <- initgrid.nx
+    ## Select codes for reasons to stop or expand
+    if (!direct) {
+        codesStop <- c(0, 2, 5)
+        codesExpand <- c(3, 4, 6, 7)
+    } else {
+        codesStop <- c(0)
+        codesExpand <- c(2, 3, 4, 5, 6, 7)
+    }
     while(autoExpand <= autoExpandMax) {
         audit <- eval(audit_call)
         if (is.null(audit$error)) {
             autoExpand <- Inf
         }
         if (!is.null(audit$errorTypes)) {
-            if (any(c(0, 2, 5) %in% audit$errorTypes)) {
+            if (any(codesStop %in% audit$errorTypes)) {
                 stop(audit$error, call. = FALSE)
             }
             if (initgrid.nx == audit.nx && initgrid.nu == audit.nu) {
@@ -3319,28 +3513,39 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 errMessage2 <-
                     gsub("\\s+", " ",
                          "Automatic grid expansion is also not
-                                  possible.
-                                  Consider imposing additional shape
-                                  constraints, or increasing the size of the
-                                  initial grid for the audit.
-                                  In order to increase the size of the
-                                  initial grid, it will be
-                                  necessary to increase the size of the audit
-                                  grid.
-                                  This is because the initial grid must be a
-                                  subset of the audit grid, and this constraint
-                                  is currently binding.
-                                  In order to allow for automatic grid
-                                  expansion, make sure audit.nx > initgrid.nx
-                                  or audit.nu > initgrid.nu.")
+                          possible.
+                          Consider imposing additional shape
+                          constraints, or increasing the size of the
+                          initial grid for the audit.
+                          In order to increase the size of the
+                          initial grid, it will be
+                          necessary to increase the size of the audit
+                          grid.
+                          This is because the initial grid must be a
+                          subset of the audit grid, and this constraint
+                          is currently binding.
+                          In order to allow for automatic grid
+                          expansion, make sure audit.nx > initgrid.nx
+                          or audit.nu > initgrid.nu.")
                 stop(paste(errMessage1, "\n\n", errMessage2), call. = FALSE)
             }
-            if (any(c(3, 4, 6, 7) %in% audit$errorTypes)) {
+            if (any(codesExpand %in% audit$errorTypes)) {
                 tmpErrMessage <- NULL
+                if (2 %in% audit$errorTypes) {
+                        tmpErrMessage <-
+                            c(tmpErrMessage,
+                              'infeasible')
+                }
                 if (3 %in% audit$errorTypes) {
-                    tmpErrMessage <-
-                        c(tmpErrMessage,
-                          'infeasible or unbounded (most likely unbounded)')
+                    if (!direct) {
+                        tmpErrMessage <-
+                            c(tmpErrMessage,
+                              'infeasible or unbounded (most likely unbounded)')
+                    } else {
+                        tmpErrMessage <-
+                            c(tmpErrMessage,
+                              'infeasible or unbounded (most likely infeasible)')
+                    }
                 }
                 if (4 %in% audit$errorTypes) {
                     tmpErrMessage <-
@@ -3362,18 +3567,29 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             cat(paste0("    LP model was ",
                        tmpErrMessage, ".\n"))
             autoExpand <- autoExpand + 1
-            newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
-            newGrid.nx <- min(ceiling(newGrid.nx * 1.5), audit.nx)
-            cat("\n    Restarting audit with expanded initial grid.\n")
-            cat(paste0("    New settings: initgrid.nx = ",  newGrid.nx,
-                       ", initgrid.nu = ", newGrid.nu, "\n"))
-            audit_call <-
-                modcall(audit_call,
-                        dropargs = c("initgrid.nu", "initgrid.nx",
-                                     "audit.grid"),
-                        newargs = list(initgrid.nu = newGrid.nu,
-                                       initgrid.nx = newGrid.nx,
-                                       audit.grid = audit$audit.grid))
+
+            cat("\n    Restarting audit with new settings:\n")
+            if (any(c(3, 4, 6, 7) %in% audit$errorTypes)) {
+                newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
+                newGrid.nx <- min(ceiling(newGrid.nx * 1.5), audit.nx)
+                cat("    initgrid.nx = ", newGrid.nx, "\n")
+                cat("    initgrid.nu = ", newGrid.nu, "\n")
+                audit_call <-
+                    modcall(audit_call,
+                            dropargs = c("initgrid.nu", "initgrid.nx",
+                                         "audit.grid"),
+                            newargs = list(initgrid.nu = newGrid.nu,
+                                           initgrid.nx = newGrid.nx,
+                                           audit.grid = audit$audit.grid))
+            }
+            if (any(c(2, 3) %in% audit$errorTypes)) {
+                criterion.tol <- criterion.tol * 2
+                cat("    criterion.tol = ", criterion.tol, "\n")
+                audit_call <-
+                    modcall(audit_call,
+                            dropargs = c("criterion.tol"),
+                            newargs = list(criterion.tol = criterion.tol))
+            }
             if (newGrid.nu == audit.nu && newGrid.nx == audit.nx) {
                 autoExpand <- autoExpandMax
             }
@@ -3429,6 +3645,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (lpsolver == "gurobi") lpsolver <- "Gurobi ('gurobi')"
     if (lpsolver == "lpsolveapi") lpsolver <- "lp_solve ('lpSolveAPI')"
     if (lpsolver == "cplexapi") lpsolver <- "CPLEX ('cplexAPI')"
+    if (direct) sset <- sset$s1
     if (!smallreturnlist) {
         output <- list(s.set  = sset,
                        gstar = list(g0 = gstar0,
@@ -3458,9 +3675,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
                                           m1 = splinesobj[[2]]$splinesdict))
     } else {
-        sset <- lapply(sset, function(x) {
-            x[c("ivspec", "beta", "g0", "g1")]
-        })
+        if (!direct) {
+            sset <- lapply(sset, function(x) {
+                x[c("ivspec", "beta", "g0", "g1")]
+            })
+        }
         output <- list(s.set  = sset,
                        gstar = list(g0 = gstar0,
                                     g1 = gstar1),
@@ -3487,6 +3706,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         }
     }
     if (!is.null(audit$spectest)) output$specification.test <- audit$spectest
+    if (direct) {
+        output$moments <- NULL
+        output$audit.criterion <- NULL
+    }
     return(output)
 }
 
@@ -4060,6 +4283,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                     ncomponents, scount, subset_index, means = TRUE,
                     yvar, dvar, noisy = TRUE, ivn = NULL,
                     redundant = NULL) {
+    direct <- !('betas' %in% names(sest))
     if (!hasArg(subset_index)) {
         subset_index <- NULL
         n <- nrow(data)
@@ -4068,7 +4292,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
     }
     for (j in 1:ncomponents) {
         if (! scount %in% redundant) {
-            if (noisy == TRUE) {
+            if (noisy == TRUE && !direct) {
                 cat("    Moment ", scount, "...\n", sep = "")
             }
             if (!is.null(pm0)) {
@@ -4148,6 +4372,12 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
             }
             ## generate components of constraints
             if (means == TRUE) {
+                if (!is.null(gs0)) names(gs0) <- paste0('[m0]', names(gs0))
+                if (!is.null(gs1)) names(gs1) <- paste0('[m1]', names(gs1))
+                if (!is.null(gsSpline0)) names(gsSpline0) <-
+                                             paste0('[m0]', names(gsSpline0))
+                if (!is.null(gsSpline1)) names(gsSpline1) <-
+                                             paste0('[m1]', names(gsSpline1))
                 sset[[paste0("s", scount)]] <- list(ivspec = ivn,
                                                     beta = sest$beta[j],
                                                     g0 = c(gs0, gsSpline0),
@@ -4156,17 +4386,32 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                                     w1 = sweight1,
                                                     n = n)
             } else {
-                ## Now generate the vectors for Y * S(D, Z).
+                ## Now generate the vectors for Y * S(D, Z) (in the
+                ## case of GMM) or the vector of just Y (if using
+                ## direct regression)
                 if (!is.null(subset_index)) {
                     newsubset <- subset_index
                 } else {
                     newsubset <- seq(1, nrow(data))
                 }
                 yvec <- as.vector(data[newsubset, yvar])
-                dvec <- as.vector(data[newsubset, dvar])
-                yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] *
-                                (1 - dvec))
+                ## Determine whether GMM or direct regression ('betas'
+                ## will not be included in 'sest' if the direct
+                ## regression is implemented)
+                if ('betas' %in% names(sest)) {
+                    dvec <- as.vector(data[newsubset, dvar])
+                    yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] *
+                                    (1 - dvec))
+                }
                 names(yvec) <- newsubset
+                if (!is.null(gs0)) colnames(gs0) <-
+                                       paste0('[m0]', colnames(gs0))
+                if (!is.null(gs1)) colnames(gs1) <-
+                                       paste0('[m1]', colnames(gs1))
+                if (!is.null(gsSpline0)) colnames(gsSpline0) <-
+                                             paste0('[m0]', colnames(gsSpline0))
+                if (!is.null(gsSpline1)) colnames(gsSpline1) <-
+                                             paste0('[m1]', colnames(gsSpline1))
                 sset[[paste0("s", scount)]] <- list(ivspec = ivn,
                                                     beta = sest$beta[j],
                                                     g0 = cbind(gs0, gsSpline0),

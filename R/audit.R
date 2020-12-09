@@ -182,6 +182,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   noisy = TRUE, debug = FALSE) {
     call  <- match.call()
     lpsolver <- tolower(lpsolver)
+    ## Determine if whether IV-like moments or direct MTR regression
+    ## will be used.
+    direct <- (length(sset) == 1 & 'Q' %in% names(sset$s1))
     ## Set the audit tolerance
     if (!hasArg(audit.tol)) {
         if (lpsolver == "gurobi") {
@@ -246,6 +249,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 lpsolver.options.bounds <- lpsolver.options.default
             }
         }
+        ## Turn off non-convex option if using direct regression
+        if (direct) lpsolver.options.bounds$nonconvex <- 0
     } else {
         if (lpsolver == "cplexapi") {
             if (hasArg(lpsolver.options)) {
@@ -331,7 +336,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         'mte.dec', 'mte.inc',
                         'pm0', 'pm1')
     if (audit_count == 1) {
-        sn <- length(sset)
+        if (!direct) sn <- length(sset)
+        if (direct) sn <- 0
         if (is.null(audit.grid)) {
             ## Generate the underlying X grid for the audit
             if (length(xvars) == 0) {
@@ -403,14 +409,18 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                  grid_index = grid_index,
                                                  uvec = uvec,
                                                  splinesobj = splinesobj,
-                                                 monov = monov))
+                                                 monov = monov,
+                                                 direct = direct))
+        ## Generate LP environment that is to be updated
         lpEnv <- new.env()
         lpEnv$mbobj <- eval(monoboundAcall)
     }
-    
-    ## Generate LP environment that is to be updated
+    ## Setup LP problem
     lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
-            lpsolver = lpsolver)
+            lpsolver = lpsolver, direct = direct)
+    ## Setup QCQP problem
+    if (direct) qpSetup(env = lpEnv, sset = sset, g0 = gstar0, g1 = gstar1,
+                        criterion.tol = criterion.tol)
     ## Prepare LP messages
     ##
     ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible or
@@ -421,13 +431,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         consider exporting the LP model
                         and passing it to the LP solver
                         for more details.\n")
-    messageInf <- gsub("\\s+", " ",
-                       "Since a minimum criterion was found, the
+    if (!direct) {
+        messageInf <- gsub("\\s+", " ",
+                           "Since a minimum criterion was found, the
                         model should be feasible.
                         For more details, consider exporting the model
                         and passing it to the LP solver.\n")
-    messageInfUnb <- gsub("\\s+", " ",
-                          "Since a minimum criterion was found, the
+        messageInfUnb <- gsub("\\s+", " ",
+                              "Since a minimum criterion was found, the
                            model is most likely feasible but
                            unbounded. This can happen if
                            the initial grid is too small. Try
@@ -436,6 +447,29 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            indeed infeasible,
                            consider exporting the model and passing it
                            to the LP solver for more details.\n")
+    } else {
+        messageInf <- gsub("\\s+", " ",
+                           "Since the quadratic constraint is constructed
+                            without accounting for the shape constraints,
+                            infeasibility of the model may arise when the shape
+                            constraints are added in the audit procedure. Try
+                            increasing the 'criterion.tol' argument to relax the
+                            quadratic constraint.\n")
+        messageInfUnb <- gsub("\\s+", " ",
+                              "The solver may find the model to be infeasible
+                               or unbounded if the
+                               quadratic constraint is too restrictive
+                               (infeasible), or the the initial grid is too
+                               small (unbounded).
+                               Try increasing the parameters 'criterion.tol'
+                               to relax the quadratic constraint; or
+                               increasing the parameters 'initgrid.nx'
+                               and 'initgrid.nu' to better bound the problem.
+                               If the model is
+                               indeed infeasible,
+                               consider exporting the model and passing it
+                               to the LP solver for more details.\n")
+    }
     messageUnb <- gsub("\\s+", " ",
                        "A possible reason for unboundedness is that
                         the initial grid is too small. Try
@@ -462,197 +496,204 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
-        lpSetupSolver(env = lpEnv, lpsolver = lpsolver)
-        lpSetupCriterion(env = lpEnv, sset = sset)
-        minobseq <- criterionMin(lpEnv, sset, lpsolver,
-                                 lpsolver.options.criterion, debug)
-        ## Try to diagnose cases where the solution is not
-        ## available. This could be due to infeasibility or numerical
-        ## issues. To deal with infeasibilty, the LP problem is solved
-        ## without any shape restrictions. We then check if any of the
-        ## lower and upper bounds are violated, which is a likely
-        ## cause for infeasible solutions.
-        if (minobseq$status %in% c(0, 2, 3, 4, 5)) {
-            origMinStatus <- minobseq$status
-            ## Stop if issues are numerical, or unbounded, or unknown.
-            if (origMinStatus == 0) {
-                errMess <-
-                    paste('No solution provided by the LP solver.',
-                          messageAlt)
-                stop(errMess, call. = FALSE)
-            }
-            if (origMinStatus == 4) {
-                errMess <-
-                    paste0('No solution since the model is unbounded.',
-                           messageUnb)
-                stop(errMess, call. = FALSE)
-            }
-            if (origMinStatus == 5) {
-                errMess <-
-                paste('No solution due to numerical issues.',
-                      messageNum)
-                stop(errMess, call. = FALSE)
-            }
-            ## Otherwise, continue and test for infeasibility.
-            rm(minobseq)
-            lpSetupInfeasible(lpEnv, sset)
-            if (lpsolver == "gurobi") {
-                if (debug & lpsolver.options.criterion$outputflag == 1) {
-                    cat("Infeasibility diagnosis optimization statistics:\n")
-                    cat("------------------------------------------------\n")
+        if (!direct) {
+            lpSetupSolver(env = lpEnv, lpsolver = lpsolver)
+            lpSetupCriterion(env = lpEnv, sset = sset)
+            minobseq <- criterionMin(lpEnv, sset, lpsolver,
+                                     lpsolver.options.criterion, debug)
+            ## Try to diagnose cases where the solution is not
+            ## available. This could be due to infeasibility or numerical
+            ## issues. To deal with infeasibilty, the LP problem is solved
+            ## without any shape restrictions. We then check if any of the
+            ## lower and upper bounds are violated, which is a likely
+            ## cause for infeasible solutions.
+            if (minobseq$status %in% c(0, 2, 3, 4, 5)) {
+                origMinStatus <- minobseq$status
+                ## Stop if issues are numerical, or unbounded, or unknown.
+                if (origMinStatus == 0) {
+                    errMess <-
+                        paste('No solution provided by the LP solver.',
+                              messageAlt)
+                    stop(errMess, call. = FALSE)
                 }
-            }
-            minobseqAlt <- criterionMin(env = lpEnv,
-                                        sset = sset,
-                                        lpsolver = lpsolver,
-                                        lpsolver.options =
-                                            lpsolver.options.criterion)
-            solVec <- minobseqAlt$x
-            ## Test for violation
-            negatepos <- which(lpEnv$mbobj$mbs == ">=")
-            violateDiff <- lpEnv$mbobj$mbA %*% solVec - lpEnv$mbobj$mbrhs
-            violateDiff[negatepos] <- -violateDiff[negatepos]
-            violatevec <- as.vector(violateDiff > audit.tol)
-            violatepos <- which(violatevec == TRUE)
-            violateType <- sapply(violatepos, function(x) {
-                if (x %in% lpEnv$mbobj$lb0seq) {
-                    if (m0.lb.default == TRUE) {
-                        return(paste0("m0.lb = ", round(m0.lb, 6),
-                                      " (min. observed outcome by default)"))
-                    } else {
-                        return(paste0("m0.lb = ", round(m0.lb, 6)))
+                if (origMinStatus == 4) {
+                    errMess <-
+                        paste0('No solution since the model is unbounded.',
+                               messageUnb)
+                    stop(errMess, call. = FALSE)
+                }
+                if (origMinStatus == 5) {
+                    errMess <-
+                        paste('No solution due to numerical issues.',
+                              messageNum)
+                    stop(errMess, call. = FALSE)
+                }
+                ## Otherwise, continue and test for infeasibility.
+                rm(minobseq)
+                lpSetupInfeasible(lpEnv, sset)
+                if (lpsolver == "gurobi") {
+                    if (debug & lpsolver.options.criterion$outputflag == 1) {
+                        cat("Infeasibility diagnosis optimization statistics:\n")
+                        cat("------------------------------------------------\n")
                     }
                 }
-                if (x %in% lpEnv$mbobj$lb1seq) {
-                    if (m1.lb.default == TRUE) {
-                        return(paste0("m1.lb = ", round(m1.lb, 6),
-                                      " (min. observed outcome by default)"))
-                    } else {
-                        return(paste0("m1.lb = ", round(m1.lb, 6)))
+                minobseqAlt <- criterionMin(env = lpEnv,
+                                            sset = sset,
+                                            lpsolver = lpsolver,
+                                            lpsolver.options =
+                                                lpsolver.options.criterion)
+                solVec <- minobseqAlt$x
+                ## Test for violation
+                negatepos <- which(lpEnv$mbobj$mbs == ">=")
+                violateDiff <- lpEnv$mbobj$mbA %*% solVec - lpEnv$mbobj$mbrhs
+                violateDiff[negatepos] <- -violateDiff[negatepos]
+                violatevec <- as.vector(violateDiff > audit.tol)
+                violatepos <- which(violatevec == TRUE)
+                violateType <- sapply(violatepos, function(x) {
+                    if (x %in% lpEnv$mbobj$lb0seq) {
+                        if (m0.lb.default == TRUE) {
+                            return(paste0("m0.lb = ", round(m0.lb, 6),
+                                          " (min. observed outcome by default)"))
+                        } else {
+                            return(paste0("m0.lb = ", round(m0.lb, 6)))
+                        }
                     }
-                }
-                if (x %in% lpEnv$mbobj$lbteseq) {
-                    if (mte.lb.default == TRUE) {
-                        return(paste0("mte.lb = ", round(mte.lb, 6),
-                                      " (min. treatment effect 6by default)"))
-                    } else {
-                        return(paste0("mte.lb = ", round(mte.lb, 6)))
+                    if (x %in% lpEnv$mbobj$lb1seq) {
+                        if (m1.lb.default == TRUE) {
+                            return(paste0("m1.lb = ", round(m1.lb, 6),
+                                          " (min. observed outcome by default)"))
+                        } else {
+                            return(paste0("m1.lb = ", round(m1.lb, 6)))
+                        }
                     }
-                }
-                if (x %in% lpEnv$mbobj$ub0seq) {
-                    if (m0.ub.default == TRUE) {
-                        return(paste0("m0.ub = ", round(m0.ub, 6),
-                                      " (max. observed outcome by default)"))
-                    } else {
-                        return(paste0("m0.ub = ", round(m0.ub, 6)))
+                    if (x %in% lpEnv$mbobj$lbteseq) {
+                        if (mte.lb.default == TRUE) {
+                            return(paste0("mte.lb = ", round(mte.lb, 6),
+                                          " (min. treatment effect 6by default)"))
+                        } else {
+                            return(paste0("mte.lb = ", round(mte.lb, 6)))
+                        }
                     }
-                }
-                if (x %in% lpEnv$mbobj$ub1seq) {
-                    if (m1.ub.default == TRUE) {
-                        return(paste0("m1.ub = ", round(m1.ub, 6),
-                                      " (max. observed outcome by default)"))
-                    } else {
-                        return(paste0("m1.ub = ", round(m1.ub, 6)))
+                    if (x %in% lpEnv$mbobj$ub0seq) {
+                        if (m0.ub.default == TRUE) {
+                            return(paste0("m0.ub = ", round(m0.ub, 6),
+                                          " (max. observed outcome by default)"))
+                        } else {
+                            return(paste0("m0.ub = ", round(m0.ub, 6)))
+                        }
                     }
-                }
-                if (x %in% lpEnv$mbobj$ubteseq) {
-                    if (mte.ub.default == TRUE) {
-                        return(paste0("mte.ub = ", round(mte.ub, 6),
-                                      " (max. treatment effect by default)"))
-                    } else {
-                        return(paste0("mte.ub = ", round(mte.ub, 6)))
+                    if (x %in% lpEnv$mbobj$ub1seq) {
+                        if (m1.ub.default == TRUE) {
+                            return(paste0("m1.ub = ", round(m1.ub, 6),
+                                          " (max. observed outcome by default)"))
+                        } else {
+                            return(paste0("m1.ub = ", round(m1.ub, 6)))
+                        }
                     }
-                }
-                if (x %in% lpEnv$mbobj$mono0seq) {
-                    if (m0.inc == TRUE) return("m0.inc = TRUE")
-                    if (m0.dec == TRUE) return("m0.dec = TRUE")
-                }
-                if (x %in% lpEnv$mbobj$mono1seq) {
-                    if (m1.inc == TRUE) return("m1.inc = TRUE")
-                    if (m1.dec == TRUE) return("m1.dec = TRUE")
-                }
-                if (x %in% lpEnv$mbobj$monomteseq) {
-                    if (mte.inc == TRUE) return("mte.inc = TRUE")
-                    if (mte.dec == TRUE) return("mte.dec = TRUE")
-                }
-            })
-            messageInfDiag <-
-                gsub('\\s+', ' ',
-                     paste0("The model should only be infeasible if the implied
-                            parameter space is empty. The likely cause of an
-                            empty parameter space is incoherent shape
+                    if (x %in% lpEnv$mbobj$ubteseq) {
+                        if (mte.ub.default == TRUE) {
+                            return(paste0("mte.ub = ", round(mte.ub, 6),
+                                          " (max. treatment effect by default)"))
+                        } else {
+                            return(paste0("mte.ub = ", round(mte.ub, 6)))
+                        }
+                    }
+                    if (x %in% lpEnv$mbobj$mono0seq) {
+                        if (m0.inc == TRUE) return("m0.inc = TRUE")
+                        if (m0.dec == TRUE) return("m0.dec = TRUE")
+                    }
+                    if (x %in% lpEnv$mbobj$mono1seq) {
+                        if (m1.inc == TRUE) return("m1.inc = TRUE")
+                        if (m1.dec == TRUE) return("m1.dec = TRUE")
+                    }
+                    if (x %in% lpEnv$mbobj$monomteseq) {
+                        if (mte.inc == TRUE) return("mte.inc = TRUE")
+                        if (mte.dec == TRUE) return("mte.dec = TRUE")
+                    }
+                })
+                messageInfDiag <-
+                    gsub('\\s+', ' ',
+                         paste0("The model should only be infeasible if the
+                            implied parameter space is empty. The likely cause
+                            of an empty parameter space is incoherent shape
                             restrictions. For example, ",
                             paste(unique(violateType), collapse = ", "),
                             " are all set simultaneously. Try changing the
                             shape constraints on the MTR functions.\n"))
-            messageUnbDiag <- gsub('\\s+', ' ',
-                                   "The model may be unbounded if
+                messageUnbDiag <- gsub('\\s+', ' ',
+                                       "The model may be unbounded if
                                    the initial grid is too small. Try
                                    increasing the parameters 'initgrid.nx'
                                    and 'initgrid.nu'.\n")
-            if (origMinStatus == 2) {
-                stop(gsub("\\s+", " ",
-                          paste("No solution since the LP solver proved the
+                if (origMinStatus == 2) {
+                    stop(gsub("\\s+", " ",
+                              paste("No solution since the LP solver proved the
                                  model was infeasible.",
-                                messageInfDiag)),
-                     call. = FALSE)
-            }
-            if (origMinStatus == 3) {
-                stop(gsub("\\s+", " ",
-                          paste("No solution since the LP solver proved the
+                                 messageInfDiag)),
+                         call. = FALSE)
+                }
+                if (origMinStatus == 3) {
+                    stop(gsub("\\s+", " ",
+                              paste("No solution since the LP solver proved the
                                  model was infeasible or unbounded.",
-                                messageInfDiag, messageUnbDiag)),
-                     call. = FALSE)
+                                 messageInfDiag, messageUnbDiag)),
+                         call. = FALSE)
+                }
             }
-        }
-        if (noisy) {
-            cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
-                sep = "")
-        }
-        ## Perform specification test
-        if (!is.null(orig.sset) & !is.null(orig.criterion)) {
-            lpSetupCriterionBoot(lpEnv, sset, orig.sset,
-                                 orig.criterion, criterion.tol, setup = TRUE)
-            minobseqTest <- criterionMin(lpEnv, sset, lpsolver,
-                                         lpsolver.options.criterion)
-            lpSetupCriterionBoot(lpEnv, sset, orig.sset,
-                                 orig.criterion, criterion.tol, setup = FALSE)
-        }
-        ## Provide warnings if solutions are suboptimal.
-        bWarn <- NULL
-        if (minobseq$status == 6) {
-            bWarn <-
-                paste(bWarn,
-                      gsub("\\s+", " ",
-                           paste('The LP solver was unable to satisfy
+            if (noisy) {
+                cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
+                    sep = "")
+            }
+            ## Perform specification test
+            if (!is.null(orig.sset) & !is.null(orig.criterion)) {
+                lpSetupCriterionBoot(lpEnv, sset, orig.sset,
+                                     orig.criterion, criterion.tol,
+                                     setup = TRUE)
+                minobseqTest <- criterionMin(lpEnv, sset, lpsolver,
+                                             lpsolver.options.criterion)
+                lpSetupCriterionBoot(lpEnv, sset, orig.sset,
+                                     orig.criterion, criterion.tol,
+                                     setup = FALSE)
+            }
+            ## Provide warnings if solutions are suboptimal.
+            bWarn <- NULL
+            if (minobseq$status == 6) {
+                bWarn <-
+                    paste(bWarn,
+                          gsub("\\s+", " ",
+                               paste('The LP solver was unable to satisfy
                                the optimality tolerance when
                                minimizing the criterion, so a suboptimal
                                solution is returned.')))
-            bWarn <- paste(bWarn, messageSub)
-        }
-        if (minobseq$status == 7) {
-            bWarn <-
-                paste(bWarn,
-                      gsub("\\s+", " ",
-                           paste('The solution to the problem of
+                bWarn <- paste(bWarn, messageSub)
+            }
+            if (minobseq$status == 7) {
+                bWarn <-
+                    paste(bWarn,
+                          gsub("\\s+", " ",
+                               paste('The solution to the problem of
                                   minimizing the criterion
                                   is optimal, but infeasible after
                                   rescaling.')))
-            bWarn <- paste(bWarn, messageOptInf)
+                bWarn <- paste(bWarn, messageOptInf)
+            }
+            if (!is.null(bWarn)) warning(bWarn, call. = FALSE,
+                                         immediate. = TRUE)
         }
-        if (!is.null(bWarn)) warning(bWarn, call. = FALSE, immediate. = TRUE)
 
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
         }
-        lpSetupBound(env = lpEnv,
-                     g0 = gstar0,
-                     g1 = gstar1,
-                     sset = sset,
-                     criterion.factor = minobseq$obj * (1 + criterion.tol),
-                     lpsolver = lpsolver,
-                     setup = TRUE)
+        if (!direct) {
+            lpSetupBound(env = lpEnv,
+                         g0 = gstar0,
+                         g1 = gstar1,
+                         sset = sset,
+                         criterion.factor = minobseq$obj * (1 + criterion.tol),
+                         lpsolver = lpsolver,
+                         setup = TRUE)
+        }
         lpresult <- bound(env = lpEnv,
                           sset = sset,
                           lpsolver = lpsolver,
@@ -778,7 +819,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            lpresult$maxstatus))
         if (existsolution == FALSE) existsolution <- TRUE
         prevbound <- c(lpresult$min, lpresult$max)
-        ## Test for violations for minimization problem
+
+        ## Test for violations of shape constraints when obtaining the bounds
         monoboundAcall <- modcall(call,
                                   newcall = genmonoboundA,
                                   keepargs = monoboundAlist,
@@ -800,7 +842,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                      lpresult$maxg0,
                                                  solution.m1.max =
                                                      lpresult$maxg1,
-                                                 audit.tol = audit.tol))
+                                                 audit.tol = audit.tol,
+                                                 direct = direct))
         auditObj <- eval(monoboundAcall)
         ## Combine the violation matrices
         violateMat <- NULL
@@ -1022,13 +1065,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 }
                 if (!is.null(addm0)) {
                     ## Update the constraint matrix
+                    if (!direct) addCol <- length(sset$s1$g1)
+                    if (direct) addCol <- ncol(sset$s1$g1)
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A,
                               cbind(matrix(0, nrow = nrow(addm0),
                                            ncol = 2 * sn),
                                     addm0,
                                     matrix(0, nrow = nrow(addm0),
-                                           ncol = length(sset$s1$g1))))
+                                           ncol = addCol)))
+                    rm(addCol)
                     ## Update the contraint sequences
                     lpEnv$mbobj$lb0seq <- c(lpEnv$mbobj$lb0seq,
                                             addlb0seq + nShapeConstraints)
@@ -1103,13 +1149,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 }
                 if (!is.null(addm1)) {
                     ## Update the constraint matrix
+                    if (!direct) addCol <- length(sset$s1$g0)
+                    if (direct) addCol <- ncol(sset$s1$g0)
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A,
                               cbind(matrix(0, nrow = nrow(addm1),
                                            ncol = 2 * sn),
                                     matrix(0, nrow = nrow(addm1),
-                                           ncol = length(sset$s1$g0)),
+                                           ncol = addCol),
                                     addm1))
+                    rm(addCol)
                     ## Update the contraint sequences
                     lpEnv$mbobj$lb1seq <- c(lpEnv$mbobj$lb1seq,
                                             addlb1seq + nShapeConstraints)
@@ -1233,10 +1282,10 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     output <- list(max = lpresult$max,
                    min = lpresult$min,
                    lpresult = lpresult,
-                   minobseq = minobseq$obj,
                    gridobj = list(audit.grid = audit.grid,
                                   violations = violateMat),
                    auditcount = audit_count)
+    if (!direct) output$minobseq <- minobseq$obj
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
         output$spectest = minobseqTest$obj
     }
