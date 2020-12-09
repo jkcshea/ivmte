@@ -130,7 +130,8 @@
 #'              g0 = targetGamma$gstar0,
 #'              g1 = targetGamma$gstar1,
 #'              sset = sSet,
-#'              criterion.factor = 0,
+#'              criterion.tol = 0,
+#'              criterion.min = 0,
 #'              lpsolver = "lpsolveapi")
 #' ## Declare any LP solver options as a list.
 #' lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
@@ -412,11 +413,12 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #'     object is only used to determine the names of terms. If it is
 #'     no submitted, then no names are provided to the solution
 #'     vector.
-#' @param criterion.factor overall multiplicative factor for how much
+#' @param criterion.tol additional multiplicative factor for how much
 #'     more the solution is permitted to violate observational
-#'     equivalence of the IV-like estimands,
-#'     i.e. \code{criterion.factor} will multiply \code{minobseq}
-#'     directly.
+#'     equivalence of the IV-like estimands, i.e. \code{1 +
+#'     criterion.tol} will multiply \code{criterion.min} directly.
+#' @param criterion.min minimum criterion, i.e. minimum deviation from
+#'     observational equivalence while satisfying shape constraints.
 #' @param lpsolver string, name of the package used to solve the LP
 #'     problem.
 #' @param setup boolean. If \code{TRUE}, the function will modify the
@@ -426,14 +428,14 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
 #' @export
-lpSetupBound <- function(env, g0, g1, sset, criterion.factor, lpsolver,
-                         setup = TRUE) {
+lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
+                         lpsolver, setup = TRUE) {
     if (setup) {
         lpsolver <- tolower(lpsolver)
         ## Update objective function
         env$lpobj$obj <- c(replicate(2 * env$lpobj$sn, 0), g0, g1)
         ## Allow for slack in minimum criterion
-        env$lpobj$rhs <- c(criterion.factor, env$lpobj$rhs)
+        env$lpobj$rhs <- c(criterion.min * (1 + criterion.tol), env$lpobj$rhs)
         avec <- c(replicate(2 * env$lpobj$sn, 1),
                   replicate(env$lpobj$gn0 + env$lpobj$gn1, 0))
         env$lpobj$A <- rbind(avec, env$lpobj$A)
@@ -817,7 +819,8 @@ criterionMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'              g0 = targetGamma$gstar0,
 #'              g1 = targetGamma$gstar1,
 #'              sset = sSet,
-#'              criterion.factor = 0,
+#'              criterion.tol = 0,
+#'              criterion.min = 0,
 #'              lpsolver = "lpsolveapi")
 #' ## Declare any LP solver options as a list.
 #' lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
@@ -1321,7 +1324,7 @@ optionsCplexAPITol <- function(options) {
 #' @return A list of matrices and vectors necessary to define an LP
 #'     problem for Gurobi.
 #' @export
-qpSetup <- function(env, sset, g0, g1, criterion.tol) {
+qpSetup <- function(env, sset) {
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
@@ -1329,9 +1332,57 @@ qpSetup <- function(env, sset, g0, g1, criterion.tol) {
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY)
     qc$Qc <- t(drX) %*% drX
-    qc$rhs <- drSSR * (1 + criterion.tol) - sum(drY^2)
-    ## Update the naming of the problem
-    env$lpobj$quadcon <- list(qc)
-    ## Add in the objective function
+    qc$sense <- '<'
+    ## Store the quadratic component
+    env$quad <- qc
+    ## Store the SSY
+    env$ssy <- sum(drY^2)
+}
+
+#' Configure QCQP problem to find minimum criterion
+#'
+#' This function sets up the objective function for minimizing the
+#' criterion. The QCQP model must be passed as an environment variable,
+#' under the entry \code{$lpobj}. See \code{\link{qpSetup}}.
+#' @param env The LP environment
+#' @param sset List of IV-like estimates and the corresponding gamma
+#'     terms.
+#' @return Nothing, as this modifies an environment variable to save
+#'     memory.
+#' @export
+qpSetupCriterion <- function(env) {
+    env$lpobj$obj <- env$quad$q
+    env$lpobj$Q <- env$quad$Qc
+    env$lpobj$modelsense <- 'min'
+}
+
+#' Constructing QCQP problem for bounding
+#'
+#' This function is only used when the direct MTR regression procedure
+#' is used. This function simply constructs the quadratic constraint,
+#' and adds it to the LP problem defined by the linear optimization problem
+#' for the bounds and the linear shape constraints.
+#'
+#' @param env environment containing the matrices defining the LP
+#'     problem.
+#' @param g0 set of expectations for each terms of the MTR for the
+#'     control group.
+#' @param g1 set of expectations for each terms of the MTR for the
+#'     control group.
+#' @param criterion.tol non-negative scalar, determines how much the
+#'     quadratic constraint should be relaxed by. If set to 0, the
+#'     constraint is not relaxed at all.
+#' @param criterion.min minimum of (SSR - SSY) of a linear regression
+#'     with shape constraints.
+#' @return A list of matrices and vectors necessary to define an LP
+#'     problem for Gurobi.
+#' @export
+qpSetupBound <- function(env, g0, g1, criterion.tol, criterion.min) {
     env$lpobj$obj <- c(g0, g1)
+    env$lpobj$Q <- NULL
+    ## Add in the quadratic constraint, accounting for how
+    ## criterion.min excludes the SSY.
+    env$quad$rhs <- env$ssy * criterion.tol +
+        criterion.min * (1 + criterion.tol)
+    env$lpobj$quadcon <- list(env$quad)
 }

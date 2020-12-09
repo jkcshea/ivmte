@@ -250,7 +250,10 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             }
         }
         ## Turn off non-convex option if using direct regression
-        if (direct) lpsolver.options.bounds$nonconvex <- 0
+        if (direct) {
+            lpsolver.options.criterion$nonconvex <- 0
+            lpsolver.options.bounds$nonconvex <- 0
+        }
     } else {
         if (lpsolver == "cplexapi") {
             if (hasArg(lpsolver.options)) {
@@ -419,8 +422,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
             lpsolver = lpsolver, direct = direct)
     ## Setup QCQP problem
-    if (direct) qpSetup(env = lpEnv, sset = sset, g0 = gstar0, g1 = gstar1,
-                        criterion.tol = criterion.tol)
+    if (direct) qpSetup(env = lpEnv, sset = sset)
     ## Prepare LP messages
     ##
     ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible or
@@ -496,17 +498,25 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
+        lpSetupSolver(env = lpEnv, lpsolver = lpsolver)
         if (!direct) {
-            lpSetupSolver(env = lpEnv, lpsolver = lpsolver)
             lpSetupCriterion(env = lpEnv, sset = sset)
-            minobseq <- criterionMin(lpEnv, sset, lpsolver,
-                                     lpsolver.options.criterion, debug)
-            ## Try to diagnose cases where the solution is not
-            ## available. This could be due to infeasibility or numerical
-            ## issues. To deal with infeasibilty, the LP problem is solved
-            ## without any shape restrictions. We then check if any of the
-            ## lower and upper bounds are violated, which is a likely
-            ## cause for infeasible solutions.
+        } else {
+            qpSetupCriterion(env = lpEnv)
+        }
+        minobseq <- criterionMin(lpEnv, sset, lpsolver,
+                                 lpsolver.options.criterion, debug)
+        ## Try to diagnose cases where the solution is not
+        ## available. This could be due to infeasibility or numerical
+        ## issues. To deal with infeasibilty, the LP problem is solved
+        ## without any shape restrictions. We then check if any of the
+        ## lower and upper bounds are violated, which is a likely
+        ## cause for infeasible solutions.
+        ##
+        ## Note this is not done for QCQP, since removing the shape
+        ## constraint just gives you back the OLS problem. There are
+        ## also no equality constraints in the QCQP.
+        if (!direct) {
             if (minobseq$status %in% c(0, 2, 3, 4, 5)) {
                 origMinStatus <- minobseq$status
                 ## Stop if issues are numerical, or unbounded, or unknown.
@@ -690,9 +700,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                          g0 = gstar0,
                          g1 = gstar1,
                          sset = sset,
-                         criterion.factor = minobseq$obj * (1 + criterion.tol),
+                         criterion.tol = criterion.tol,
+                         criterion.min = minobseq$obj,
                          lpsolver = lpsolver,
                          setup = TRUE)
+        } else {
+            qpSetupBound(env = lpEnv,
+                         g0 = gstar0,
+                         g1 = gstar1,
+                         criterion.tol = criterion.tol,
+                         criterion.min = minobseq$obj)
         }
         lpresult <- bound(env = lpEnv,
                           sset = sset,
