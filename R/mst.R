@@ -3549,8 +3549,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                         tmpErrMessage <-
                             c(tmpErrMessage,
                               gsub('\\s+', ' ',
-                                   'was infeasible or unbounded
-                                    (most likely infeasible)'))
+                                   'was infeasible or unbounded'))
                     }
                 }
                 if (4 %in% audit$errorTypes) {

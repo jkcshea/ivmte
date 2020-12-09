@@ -6,10 +6,10 @@ if (requireNamespace("gurobi", quietly = TRUE)) {
     ## Generate data
     dtm <- ivmte:::gendistMosquito()
 
-    ## -----------------------------------------------------------------------------
+    ## -------------------------------------------------------------------------
     ## Test point identified case
-    ## -----------------------------------------------------------------------------
-
+    ## -------------------------------------------------------------------------
+    
     results <- ivmte(data = dtm,
                      propensity = d ~ 0 + factor(z),
                      m0 = ~ 1 + u + I(u^2),
@@ -30,23 +30,26 @@ if (requireNamespace("gurobi", quietly = TRUE)) {
         expect_equal(results$point.estimate, true.ate)
     })
 
-    ## -----------------------------------------------------------------------------
+    ## -------------------------------------------------------------------------
     ## Test misspecified partially identified case
-    ## -----------------------------------------------------------------------------
+    ## -------------------------------------------------------------------------
 
+    criterion.tol <- 0.5
+    dtm$x <- 1
     resultsAlt <- ivmte(data = dtm,
                         propensity = d ~ 0 + factor(z),
-                        m0 = ~ 1 + I(u^2),
-                        m1 = ~ 1 + I(u^2),
-                        point = FALSE,
-                        criterion.tol = 4,
-                        target = "ate",
-                        treat = 'd',
+                        m0 = ~ 1 + u + I(u^2),
+                        m1 = ~ 1 + u + I(u^2) + x,
+                        point = TRUE,
+                        criterion.tol = criterion.tol,
+                        target = 'ate',
                         outcome = 'ey',
                         initgrid.nu = 3,
                         audit.nu = 3,
                         m0.inc = TRUE,
+                        m1.inc = TRUE,
                         noisy = TRUE)
+
 
     ## Construct design matrix
     dVec <- dtm$d
@@ -70,58 +73,73 @@ if (requireNamespace("gurobi", quietly = TRUE)) {
         expect_equal(unname(results$mtr.coef), unname(fullFit$coef))
     })
 
-    ## Now perform regression using misspecified model and ensure that the
-    ## coefficients and SSR match with those of the function
-    misX <- fullX[, -c(2, 5)]
-    misFit <- lm.fit(x = misX, y = fullY)
-    misQ <- sum(misFit$resid^2)
-    test_that("Verify direct regressions match", {
-        expect_equal(unname(resultsAlt$s.set$init.coef), unname(misFit$coef))
-        expect_equal(resultsAlt$s.set$Q, misQ)
-    })
+    ## Now perform regression using misspecified collinear model.
+    misX <- cbind(fullX, dVec)
 
-    ## Now perform the audit using the full grid, as specified in the call
-    ## above.
+    ## Now generate the shape constraints.
     uGrid <- seq(0, 1, 0.25)
-    misQuad <- function(u) {
-        c(1, u^2)
+    evalQuad <- function(u) {
+        c(1, u, u^2)
+    }
+    evalColQuad <- function(u) {
+        c(1, u, u^2, 1)
     }
     ## Construct base matrices for boundedness
-    A0 <- A1 <- t(sapply(uGrid, misQuad))
-    A <- rbind(cbind(A0, matrix(0, ncol = 2, nrow = 5)),
-               cbind(matrix(0, ncol = 2, nrow = 5), A1))
+    A0 <- t(sapply(uGrid, evalQuad))
+    A1 <- t(sapply(uGrid, evalColQuad))
+    A <- rbind(cbind(A0, matrix(0, ncol = 4, nrow = 5)),
+               cbind(matrix(0, ncol = 3, nrow = 5), A1))
     ## Duplicate base matrices: one for lb, another for ub
     A <- rbind(A, A)
     ## Construct the monotonicity constraint matrices
     monoA0 <- A0[-1, ] - A0[-5, ]
-    monoA <- cbind(monoA0, matrix(0, ncol = 2, nrow = 4))
+    monoA0 <- cbind(monoA0, matrix(0, ncol = 4, nrow = 4))
+    monoA1 <- A1[-1, ] - A1[-5, ]
+    monoA1 <- cbind(matrix(0, ncol = 3, nrow = 4), monoA1)
     ## Combine all constraint matrices together
-    A <- rbind(A, monoA)
+    A <- rbind(A, monoA0, monoA1)
     ## Define the sense and rhs vectors
-    sense <- c(rep('>=', 10), rep('<=', 10), rep('>=', 4))
-    rhs <- c(rep(min(fullY), 10), rep(max(fullY), 10), rep(0, 4))
-    ## Construct target parameter MTR vector
-    tau <- c(-(monoIntegral(1, 0) - monoIntegral(0, 0)),
-             -(monoIntegral(1, 2) - monoIntegral(0, 2)),
-             (monoIntegral(1, 0) - monoIntegral(0, 0)),
-             (monoIntegral(1, 2) - monoIntegral(0, 2)))
-    ## Now define quadratic constraints
+    sense <- c(rep('>=', 10), rep('<=', 10), rep('>=', 8))
+    rhs <- c(rep(min(fullY), 10), rep(max(fullY), 10), rep(0, 8))
+
+    ## Now define quadratic components
     yy <- sum(fullY^2)
-    q <- -2 * t(misX) %*% fullY
+    q <- as.vector(-2 * t(misX) %*% fullY)
     Q <- t(misX) %*% misX
-    ## Now construct the object for gurobi
+
+    ## Now construct the object for gurobi to obtain minimum criterion
     model <- list()
-    model$obj <- tau
+    model$obj <- q
+    model$Q <- Q
     model$A <- A
     model$sense <- sense
     model$rhs <- rhs
-    model$lb <- rep(-Inf, 4)
-    model$ub <- rep(Inf, 4)
+    model$lb <- rep(-Inf, 7)
+    model$ub <- rep(Inf, 7)
+    model$modelsense <- 'min'
+    ## Obtain minimum criterion
+    minobseq <- gurobi(model, list(nonconvex = 0))
+
+    ## Construct target parameter MTR vector
+    tau <- c(-(monoIntegral(1, 0) - monoIntegral(0, 0)),
+             -(monoIntegral(1, 1) - monoIntegral(0, 1)),
+             -(monoIntegral(1, 2) - monoIntegral(0, 2)),
+             (monoIntegral(1, 0) - monoIntegral(0, 0)),
+             (monoIntegral(1, 1) - monoIntegral(0, 1)),
+             (monoIntegral(1, 2) - monoIntegral(0, 2)),
+             1)
+
+    ## Now add the quadratic constraint to the model and prepare for
+    ## estimating bounds.
     qc <- list()
-    qc$q <- as.vector(q)
+    qc$q <- q
     qc$Qc <- Q
-    qc$rhs <- misQ * (1 + 32) - yy
+    qc$sense <- '<'
+    qc$rhs <- minobseq$objval * (1 + criterion.tol) + yy * criterion.tol
     model$quadcon <- list(qc)
+    model$Q <- NULL
+    model$obj <- tau
+
     ## Optimize
     model$modelsense <- 'min'
     qpMin <- gurobi::gurobi(model, list(nonconvex = 0))
@@ -133,6 +151,8 @@ if (requireNamespace("gurobi", quietly = TRUE)) {
 
     ## Now check that bounds and MTR coefficients match
     test_that("Verify bounds and MTR coefficient estimates", {
+        expect_equal(unname(c(resultsAlt$gstar$g0, resultsAlt$gstar$g1)),
+                     tau)
         expect_equal(unname(resultsAlt$bounds), bounds)
         expect_equal(unname(c(resultsAlt$gstar.coef$min.g0,
                               resultsAlt$gstar.coef$min.g1)),
