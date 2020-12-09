@@ -3295,6 +3295,20 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     cat("    MTR is not point identified.\n")
                 }
             }
+            if (!requireNamespace("gurobi", quietly = TRUE) &&
+                !requireNamespace("cplexAPI", quietly = TRUE)) {
+                stop(gsub('\\s+', ' ',
+                          "The MTR is not point identified by a
+                                       direct regression. However, partial
+                                       identification involves solving a
+                                       quadratically constrained quadratic
+                                       program.
+                                       Please install one of the
+                                       following linear programming packages:
+                                       gurobi (version 7.5-1 or later);
+                                       cplexAPI (version 1.3.3 or later)."),
+                     call. = FALSE)
+            }
         }
     }
     rm(sest, subset_index)
