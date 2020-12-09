@@ -3256,9 +3256,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             drY <- sset$s1$ys
             drX <- cbind(sset$s1$g0, sset$s1$g1)
             drFit <- lm.fit(x = drX, y = drY)
-            drQ <- sum(drFit$resid^2)
+            drSSR <- sum(drFit$resid^2)
             sset$s1$init.coef <- drFit$coef
-            sset$s1$Q <- drQ
+            sset$s1$SSR <- drSSR
             ## If no collinearities, return the implied target parameter
             if (!any(is.na(drFit$coefficients))) {
                 if ((hasArg(point) && point == TRUE) |
@@ -3276,12 +3276,12 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                         return(list(point.estimate = point.estimate,
                                     mtr.coef = drFit$coef,
                                     X = drX,
-                                    Q = drQ,
+                                    SSR = drSSR,
                                     propensity = pmodel))
                     } else {
                         output <- list(point.estimate = point.estimate,
                                        mtr.coef = drFit$coef,
-                                       Q = drQ)
+                                       SSR = drSSR)
                         if (all(class(pmodel) != "NULL")) {
                             output$propensity.coef <- pmodel$coef
                         }
@@ -3362,7 +3362,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     }
     if (!is.null(point.redundant)) point.redundant <- 0
     ## If bootstrapping, check that length of sset is equivalent in
-    ## length to that of the original sset if bootstrapping
+    ## length to that of the original sset if bootstrapping. If not,
+    ## then the function ends. The wrapper function will respond by
+    ## drawing a new bootstrap sample and re-estimating.
     if (!is.null(orig.sset)) {
         if (length(sset) != length(orig.sset)) {
             return("collinearity causing S-set to differ from original sample")
@@ -3534,23 +3536,28 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 if (2 %in% audit$errorTypes) {
                         tmpErrMessage <-
                             c(tmpErrMessage,
-                              'infeasible')
+                              'was infeasible')
                 }
                 if (3 %in% audit$errorTypes) {
                     if (!direct) {
                         tmpErrMessage <-
                             c(tmpErrMessage,
-                              'infeasible or unbounded (most likely unbounded)')
+                              'was infeasible or unbounded (most likely unbounded)')
                     } else {
                         tmpErrMessage <-
                             c(tmpErrMessage,
-                              'infeasible or unbounded (most likely infeasible)')
+                              'was infeasible or unbounded (most likely infeasible)')
                     }
                 }
                 if (4 %in% audit$errorTypes) {
                     tmpErrMessage <-
                         c(tmpErrMessage,
-                          'unbounded')
+                          'was unbounded')
+                }
+                if (5 %in% audit$errorTypes) {
+                    tmpErrMessage <-
+                        c(tmpErrMessage,
+                          'resulted in numerical issues')
                 }
                 ## if (6 %in% audit$errorTypes) {
                 ##     tmpErrMessage <-
@@ -3564,7 +3571,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 ## }
             }
             tmpErrMessage <- paste(tmpErrMessage, collapse = "; ")
-            cat(paste0("    LP model was ",
+            cat(paste0("    LP model ",
                        tmpErrMessage, ".\n"))
             autoExpand <- autoExpand + 1
 
@@ -3582,7 +3589,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                            initgrid.nx = newGrid.nx,
                                            audit.grid = audit$audit.grid))
             }
-            if (any(c(2, 3) %in% audit$errorTypes)) {
+            if (any(c(2, 3, 5) %in% audit$errorTypes)) {
                 criterion.tol <- criterion.tol * 2
                 cat("    criterion.tol = ", criterion.tol, "\n")
                 audit_call <-

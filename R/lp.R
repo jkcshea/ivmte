@@ -1325,11 +1325,11 @@ qpSetup <- function(env, sset, g0, g1, criterion.tol) {
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
-    drQ <- sset$s1$Q
+    drSSR <- sset$s1$SSR
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY)
     qc$Qc <- t(drX) %*% drX
-    qc$rhs <- drQ * (1 + criterion.tol) - sum(drY^2)
+    qc$rhs <- drSSR * (1 + criterion.tol) - sum(drY^2)
     ## Update the naming of the problem
     env$lpobj$quadcon <- list(qc)
     ## Add in the objective function
