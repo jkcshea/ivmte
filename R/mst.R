@@ -3663,10 +3663,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (lpsolver == "gurobi") lpsolver <- "Gurobi ('gurobi')"
     if (lpsolver == "lpsolveapi") lpsolver <- "lp_solve ('lpSolveAPI')"
     if (lpsolver == "cplexapi") lpsolver <- "CPLEX ('cplexAPI')"
-    if (direct) sset <- sset$s1
     if (!smallreturnlist) {
-        output <- list(s.set  = sset,
-                       gstar = list(g0 = gstar0,
+        output <- list(gstar = list(g0 = gstar0,
                                     g1 = gstar1,
                                  n = targetGammas$n),
                        gstar.weights = list(w0 = targetGammas$w0,
@@ -3691,15 +3689,20 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
-                                          m1 = splinesobj[[2]]$splinesdict))
+                                           m1 = splinesobj[[2]]$splinesdict))
+        if (!direct) output$s.set <- sset
+        if (direct) {
+            output$X <- cbind(sset$s1$g0, sset$s1$g1)
+            output$init.SSR <- sset$s1$SSR
+            output$init.gstar.coef <- sset$s1$init.coef
+        }
     } else {
         if (!direct) {
             sset <- lapply(sset, function(x) {
                 x[c("ivspec", "beta", "g0", "g1")]
             })
         }
-        output <- list(s.set  = sset,
-                       gstar = list(g0 = gstar0,
+        output <- list(gstar = list(g0 = gstar0,
                                     g1 = gstar1),
                        gstar.coef = list(ming0 = audit$ming0,
                                          maxg0 = audit$maxg0,
@@ -3718,7 +3721,12 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
-                                          m1 = splinesobj[[2]]$splinesdict))
+                                           m1 = splinesobj[[2]]$splinesdict))
+        if (!direct) output$s.set <- sset
+        if (direct) {
+            output$init.SSR <- sset$s1$SSR
+            output$init.gstar.coef <- sset$s1$init.coef
+        }
         if (all(class(pmodel$model) != "NULL")) {
             output$propensity.coef <- pmodel$model$coef
         }
