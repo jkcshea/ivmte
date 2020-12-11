@@ -1295,6 +1295,32 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         violateMat$group.name <- NULL
         violateMat$pos <- NULL
     }
+    ## Clean up status codes
+    for (type in c('minstatus', 'maxstatus')) {
+        if (lpsolver == 'gurobi') {
+            if (lpresult[[type]] == 1) lpresult[[type]] <- 'OPTIMAL (2)'
+            if (lpresult[[type]] == 2) lpresult[[type]] <- 'INFEASIBLE (3)'
+            if (lpresult[[type]] == 3) lpresult[[type]] <- 'INF_OR_UNBD (4)'
+            if (lpresult[[type]] == 4) lpresult[[type]] <- 'UNBOUNDED (5)'
+            if (lpresult[[type]] == 5) lpresult[[type]] <- 'NUMERIC (12)'
+            if (lpresult[[type]] == 6) lpresult[[type]] <- 'SUBOPTIMAL (13)'
+        }
+        if (lpsolver == 'cplexapi') {
+            if (lpresult[[type]] == 1) lpresult[[type]] <- 'CPX_STAT_OPTIMAL (1)'
+            if (lpresult[[type]] == 2) lpresult[[type]] <- 'CPX_STAT_INFEASIBLE (3)'
+            if (lpresult[[type]] == 3) lpresult[[type]] <- 'CPX_STAT_INForUNBD (4)'
+            if (lpresult[[type]] == 4) lpresult[[type]] <- 'CPX_STAT_UNBOUNDED (2)'
+            if (lpresult[[type]] == 6) lpresult[[type]] <- 'CPX_STAT_NUM_BEST (6)'
+            if (lpresult[[type]] == 7) lpresult[[type]] <- 'CPX_STAT_OPTIMAL_INFEAS (5)'
+        }
+        if (lpsolver == 'lpsolveapi') {
+            if (lpresult[[type]] == 1) lpresult[[type]] <- 'Optimal (0)'
+            if (lpresult[[type]] == 2) lpresult[[type]] <- 'Infeasible (2)'
+            if (lpresult[[type]] == 4) lpresult[[type]] <- 'Unbounded (3)'
+            if (lpresult[[type]] == 5) lpresult[[type]] <- 'Numerical failure (5)'
+            if (lpresult[[type]] == 6) lpresult[[type]] <- 'Sub-optimal (1)'
+        }
+    }
     ## Return output
     output <- list(max = lpresult$max,
                    min = lpresult$min,
