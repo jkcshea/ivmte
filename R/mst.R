@@ -1938,6 +1938,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## identified.
         if (direct) {
             origEstimate <- eval(estimateCall)
+            specification.test <- FALSE
             if ('point.estimate' %in% names(origEstimate))  point <- TRUE
             if (!'point.estimate' %in% names(origEstimate)) point <- FALSE
         }
@@ -2002,14 +2003,16 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             modcall(estimateCall,
                                     dropargs = c("data", "noisy",
                                                  "audit.grid",
-                                                 "count.moments"),
+                                                 "count.moments", "point"),
                                     newargs = list(data = quote(bdata),
                                                    noisy = FALSE,
                                                    audit.grid = audit.grid,
                                                    orig.sset = origSset,
                                                    orig.criterion =
                                                        origCriterion,
-                                                   count.moments = FALSE))
+                                                   count.moments = FALSE,
+                                                   point = FALSE,
+                                                   bootstrap = TRUE))
                         bootEstimate <- try(eval(bootCall), silent = TRUE)
                         if (is.list(bootEstimate)) {
                             tmpSuccess <- TRUE
@@ -2017,6 +2020,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             if (specification.test) {
                                 output$specification.test <-
                                     bootEstimate$specification.test
+                            }
+                            if (direct) {
+                                output$audit.criterion <-
+                                    bootEstimate$audit.criterion
                             }
                             if (!"propensity.coef" %in% names(bootEstimate) &&
                                 (class(bootEstimate$propensity$model)[1] == "lm"
@@ -2088,6 +2095,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             bootCriterion <- c(bootCriterion,
                                                bootEstimate$specification.test)
                         }
+                        if (direct) {
+                            bootCriterion <- c(bootCriterion,
+                                               bootEstimate$audit.criterion)
+                        }
                         propEstimates <-
                             cbind(propEstimates,
                                   bootEstimate$propensity.coef)
@@ -2114,6 +2125,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                 lapply(bootEstimate,
                                                        function(x) {
                                                            x$specification.test
+                                                       }))
+                    }
+                    if (direct) {
+                        bootCriterion <- Reduce(rbind,
+                                                lapply(bootEstimate,
+                                                       function(x) {
+                                                           x$audit.criterion
                                                        }))
                     }
                     propEstimates <- Reduce(cbind,
@@ -2206,7 +2224,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         probVec <- c(pLower, pUpper)
                         tmpPropCi1 <- apply(propEstimates, 1, quantile,
                                             probs = probVec,
-                                            type = 1)
+                                            type = 1,
+                                            na.rm = TRUE)
                         tmpPropCi2 <- sweep(x = tcrossprod(c(qnorm(pLower),
                                                              qnorm(pUpper)),
                                                            propSE), MARGIN = 2,
@@ -2286,6 +2305,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 if (!is.null(propEstimates)) {
                     output$propensity.se <- propSE
                     output$propensity.ci  <- propensity.ci
+                }
+                if (direct) {
+                    output$audit.criterion.bootstraps <- bootCriterion
                 }
                 output$call.options <- opList
                 output <- output[sort(names(output))]
@@ -2396,7 +2418,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     ## The following code is used to obtain the point estimate.
                     bootCall <-
                         modcall(estimateCall,
-                                dropargs = c("data", "noisy"),
+                                dropargs = c("data", "noisy", "point"),
                                 newargs =
                                     list(data = quote(bdata),
                                          noisy = FALSE,
@@ -2404,6 +2426,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                              origEstimate$moments$criterion,
                                          point.redundant =
                                              origEstimate$redundant,
+                                         point = TRUE,
                                          bootstrap = TRUE))
                     bootEstimate <- try(eval(bootCall), silent = TRUE)
                     if (is.list(bootEstimate)) {
@@ -2568,7 +2591,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     assign(paste0("propci1", level * 100),
                            apply(propEstimates, 1, quantile,
                                  probs = probVec,
-                                 type = 1))
+                                 type = 1,
+                                 na.rm = TRUE))
                 }
                 ## Conf. int. 2: percentile method using Z statistics
                 tmpCi2 <- origEstimate$point.estimate +
@@ -3327,12 +3351,13 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 ## the estimate from the original sample was point
                 ## identified, then it is unnecssary to solve the
                 ## QCQP.
-                if (bootstrap) return(gsub('\\s+', ' ',
-                                           'Failed point identification in
-                                            bootstrap, although target
-                                            parameter is point identified in
-                                            the original sample.'),
-                                      call. = FALSE)
+                if (bootstrap & point) return(gsub('\\s+', ' ',
+                                                   'Failed point identification
+                                                    bootstrap, although target
+                                                    parameter is point
+                                                    identified in the original
+                                                    sample.'),
+                                              call. = FALSE)
                 ## Move on to the QCQP problem
                 if (direct && noisy) {
                     cat("    MTR is not point identified.\n")
