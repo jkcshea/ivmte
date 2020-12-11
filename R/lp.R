@@ -434,9 +434,6 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
         lpsolver <- tolower(lpsolver)
         ## Update objective function
         env$lpobj$obj <- c(replicate(2 * env$lpobj$sn, 0), g0, g1)
-        print('g0 and g1 in bound()')
-        print(g0)
-        print(g1)
         ## Allow for slack in minimum criterion
         env$lpobj$rhs <- c(criterion.min * (1 + criterion.tol), env$lpobj$rhs)
         avec <- c(replicate(2 * env$lpobj$sn, 1),
