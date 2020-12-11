@@ -1932,8 +1932,18 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
         }
         ## Estimate bounds
-        if (point == FALSE) {
+        ##
+        ## If the direct MTR regression is performed, then it must
+        ## first be determined whether the target parameter is point
+        ## identified.
+        if (direct) {
             origEstimate <- eval(estimateCall)
+            if ('point.estimate' %in% names(origEstimate))  point <- TRUE
+            if (!'point.estimate' %in% names(origEstimate)) point <- FALSE
+        }
+        ## Now estimate the bounds.
+        if (point == FALSE) {
+            if (!direct) origEstimate <- eval(estimateCall)
             ## Estimate bounds without resampling
             if (bootstraps == 0) {
                 output <- origEstimate
@@ -2284,7 +2294,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Point estimate without resampling
         if (point == TRUE & bootstraps == 0) {
-            origEstimate <- eval(estimateCall)
+            if (!direct) origEstimate <- eval(estimateCall)
             output <- origEstimate
             output$call.options = opList
             output <- output[sort(names(output))]
@@ -2292,11 +2302,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Point estimate with resampling
         if (point == TRUE & bootstraps > 0) {
-            origEstimate <- eval(estimateCall)
+            if (!direct) origEstimate <- eval(estimateCall)
             teEstimates  <- NULL
             mtrEstimates <- NULL
             propEstimates <- NULL
             jstats <- NULL
+            SSRs <- NULL
             b <- 1
             bootFailN <- 0
             bootFailNote <- ""
@@ -2392,7 +2403,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                          point.center =
                                              origEstimate$moments$criterion,
                                          point.redundant =
-                                             origEstimate$redundant))
+                                             origEstimate$redundant,
+                                         bootstrap = TRUE))
                     bootEstimate <- try(eval(bootCall), silent = TRUE)
                     if (is.list(bootEstimate)) {
                         tmpSuccess <- TRUE
@@ -2408,6 +2420,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         if (!is.null(bootEstimate$j.test)) {
                             output$jstat <- bootEstimate$j.test[1]
                         }
+                        if (!is.null(bootEstimate$SSR)) output$SSR <-
+                                                            bootEstimate$SSR
                         if (noisy) {
                             cat("    Point estimate:",
                                 fmtResult(bootEstimate$point.estimate),
@@ -2453,6 +2467,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     propEstimates <- cbind(propEstimates,
                                            bootEstimate$propensity.coef)
                     jstats <- c(jstats, bootEstimate$jstat)
+                    SSRs <- c(SSRs, bootEstimate$SSR)
                     bootFailIndex <- c(bootFailIndex,
                                        bootEstimate$bootFailN)
                     missingFactors <- c(missingFactors,
@@ -2480,6 +2495,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                if (is.null(x$jstat)) NULL
                                                if (!is.null(x$jstat)) x$jstat
                                            }))
+                SSRs <- Reduce(c, lapply(bootEstimate,
+                                         function(x) x$SSR))
                 bootFailIndex <- Reduce(c, lapply(bootEstimate,
                                                   function(x) x$bootFailN))
                 missingFactors <-
@@ -2628,9 +2645,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             output3 <- list(p.value = pvalue,
                             bootstraps = bootstraps,
-                            bootstraps.failed = bootFailN,
-                            j.test = jtest,
-                            j.test.bootstraps = jstats)
+                            bootstraps.failed = bootFailN)
+            if (!direct) {
+                output3$j.test <- jtest
+                output3$j.test.bootstraps <- jstats
+            }
+            if (direct) {
+                output3$SSR.bootstraps <- SSRs
+            }
             if ("j.test" %in% names(output1) &&
                 "j.test" %in% names(output3)) {
                 output1$j.test <- NULL
@@ -2938,6 +2960,8 @@ checkU <- function(formula, uname) {
 #'     J-statistic.
 #' @param point.redundant vector of integers indicating which
 #'     components in the S-set are redundant.
+#' @param bootstrap.direct boolean, indicates whether the estimate is
+#'     for the bootstrap.
 #' @param count.moments boolean, indicate if number of linearly
 #'     independent moments should be counted.
 #' @param orig.sset list, only used for bootstraps. The list contains
@@ -2993,6 +3017,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           point = FALSE,
                           point.eyeweight = FALSE,
                           point.center = NULL, point.redundant = NULL,
+                          bootstrap = FALSE,
                           count.moments = TRUE,
                           orig.sset = NULL,
                           orig.criterion = NULL, vars_y,
@@ -3297,8 +3322,18 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     }
                 }
             } else {
-                ## If there are collineariites, then function will move
-                ## onto the QCQP problem.
+                ## If there are collineariites, then function will
+                ## move onto the QCQP problem. But for bootstraps, if
+                ## the estimate from the original sample was point
+                ## identified, then it is unnecssary to solve the
+                ## QCQP.
+                if (bootstrap) return(gsub('\\s+', ' ',
+                                           'Failed point identification in
+                                            bootstrap, although target
+                                            parameter is point identified in
+                                            the original sample.'),
+                                      call. = FALSE)
+                ## Move on to the QCQP problem
                 if (direct && noisy) {
                     cat("    MTR is not point identified.\n")
                 }
