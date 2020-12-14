@@ -1333,6 +1333,7 @@ qpSetup <- function(env, sset) {
     qc$q <- as.vector(-2 * t(drX) %*% drY)
     qc$Qc <- t(drX) %*% drX
     qc$sense <- '<'
+    qc$name <- 'SSR'
     ## Store the quadratic component
     env$quad <- qc
     ## Store the SSY
@@ -1374,15 +1375,27 @@ qpSetupCriterion <- function(env) {
 #'     constraint is not relaxed at all.
 #' @param criterion.min minimum of (SSR - SSY) of a linear regression
 #'     with shape constraints.
+#' @param setup boolean, set to \code{TRUE} if the QP problem should
+#'     be set up for solving the bounds, which includes the quadratic
+#'     constraint. Set to \code{FALSE} if the quadratic constraint
+#'     should be removed.
 #' @return A list of matrices and vectors necessary to define an LP
 #'     problem for Gurobi.
 #' @export
-qpSetupBound <- function(env, g0, g1, criterion.tol, criterion.min) {
-    env$lpobj$obj <- c(g0, g1)
-    env$lpobj$Q <- NULL
-    ## Add in the quadratic constraint, accounting for how
-    ## criterion.min excludes the SSY.
-    env$quad$rhs <- env$ssy * criterion.tol +
-        criterion.min * (1 + criterion.tol)
-    env$lpobj$quadcon <- list(env$quad)
+qpSetupBound <- function(env, g0, g1, criterion.tol, criterion.min,
+                         setup = TRUE) {
+    if (setup) {
+        ## Prepare objective
+        env$lpobj$obj <- c(g0, g1)
+        env$lpobj$Q <- NULL
+        ## Add in the quadratic constraint, accounting for how
+        ## criterion.min excludes the SSY.
+        env$quad$rhs <- env$ssy * criterion.tol +
+            criterion.min * (1 + criterion.tol)
+        env$lpobj$quadcon <- list(env$quad)
+    } else {
+        env$lpobj$obj <- NULL
+        env$quad$rhs <- NULL
+        env$lpobj$quadcon <- NULL
+    }
 }

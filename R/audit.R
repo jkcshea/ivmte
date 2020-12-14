@@ -1279,6 +1279,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 ## Move on to next iteration of the audit
                 audit_count <- audit_count + 1
                 if (!direct) lpSetupBound(env = lpEnv, setup = FALSE)
+                if (direct)  qpSetupBound(env = lpEnv, setup = FALSE)
             }
         } else {
             ## If no violations, then end the audit
