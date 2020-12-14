@@ -29,7 +29,7 @@
 #'     whether or not to include shape restrictions in the LP problem.
 #' @param direct boolean, set to \code{TRUE} if the direct MTR
 #'     regression is used.
-#' @param lpsolver string, name of the package used to solve the LP
+#' @param solver string, name of the package used to solve the LP
 #'     problem.
 #' @return A list of matrices and vectors necessary to define an LP
 #'     problem for Gurobi.
@@ -124,7 +124,7 @@
 #' ## that is suitable for the LP solver.
 #' lpSetup(env = lpEnv,
 #'         sset = sSet,
-#'         lpsolver = "lpsolveapi")
+#'         solver = "lpsolveapi")
 #' ## Setup LP model so that it is solving for the bounds.
 #' lpSetupBound(env = lpEnv,
 #'              g0 = targetGamma$gstar0,
@@ -132,21 +132,21 @@
 #'              sset = sSet,
 #'              criterion.tol = 0,
 #'              criterion.min = 0,
-#'              lpsolver = "lpsolveapi")
+#'              solver = "lpsolveapi")
 #' ## Declare any LP solver options as a list.
 #' lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
 #' ## Obtain the bounds.
 #' bounds <- bound(env = lpEnv,
 #'                 sset = sSet,
-#'                 lpsolver = "lpsolveapi",
-#'                 lpsolver.options = lpOptions)
+#'                 solver = "lpsolveapi",
+#'                 solver.options = lpOptions)
 #' cat("The bounds are [",  bounds$min, ",", bounds$max, "].\n")
 #'
 #' @export
 lpSetup <- function(env, sset, orig.sset = NULL,
-                    shape = TRUE, direct = FALSE, lpsolver) {
+                    shape = TRUE, direct = FALSE, solver) {
     ## Read in constraint grids and sequences
-    lpsolver <- tolower(lpsolver)
+    solver <- tolower(solver)
     for (i in names(env$shapeSeq)) {
         if (length(env$shapeSeq[[i]]) == 0) {
             env$shapeSeq[[i]] <- NULL
@@ -223,7 +223,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ## Define bounds on parameters
     ub <- replicate(ncol(mbA), Inf)
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
-    if (lpsolver %in% c("gurobi", "lpsolveapi")) {
+    if (solver %in% c("gurobi", "lpsolveapi")) {
         mbA <- Matrix::Matrix(mbA, sparse = TRUE)
     }
     env$lpobj <- list(rhs = rhs,
@@ -291,12 +291,12 @@ lpSetupCriterion <- function(env, sset) {
 #' specific solvers. The LP model must be passed as an environment
 #' variable, under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
 #' @param env The LP environment
-#' @param lpsolver Character, the LP solver.
+#' @param solver Character, the LP solver.
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
 #' @export
-lpSetupSolver <- function(env, lpsolver) {
-    if (lpsolver == "cplexapi") {
+lpSetupSolver <- function(env, solver) {
+    if (solver == "cplexapi") {
         env$lpobj$sense[env$lpobj$sense == "<"]  <- "L"
         env$lpobj$sense[env$lpobj$sense == "<="] <- "L"
         env$lpobj$sense[env$lpobj$sense == ">"]  <- "G"
@@ -306,7 +306,7 @@ lpSetupSolver <- function(env, lpsolver) {
         env$lpobj$ub[env$lpobj$ub == Inf] <- cplexAPI::CPX_INFBOUND
         env$lpobj$lb[env$lpobj$lb == -Inf] <- -cplexAPI::CPX_INFBOUND
     }
-    if (lpsolver == "lpsolveapi") {
+    if (solver == "lpsolveapi") {
         env$lpobj$sense[env$lpobj$sense == "<"]  <- "<="
         env$lpobj$sense[env$lpobj$sense == ">"]  <- ">="
         env$lpobj$sense[env$lpobj$sense == "=="] <- "="
@@ -419,7 +419,7 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #'     criterion.tol} will multiply \code{criterion.min} directly.
 #' @param criterion.min minimum criterion, i.e. minimum deviation from
 #'     observational equivalence while satisfying shape constraints.
-#' @param lpsolver string, name of the package used to solve the LP
+#' @param solver string, name of the package used to solve the LP
 #'     problem.
 #' @param setup boolean. If \code{TRUE}, the function will modify the
 #'     LP environment so that the LP solver can obtain the bounds. If
@@ -429,9 +429,9 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #'     memory.
 #' @export
 lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
-                         lpsolver, setup = TRUE) {
+                         solver, setup = TRUE) {
     if (setup) {
-        lpsolver <- tolower(lpsolver)
+        solver <- tolower(solver)
         ## Update objective function
         env$lpobj$obj <- c(replicate(2 * env$lpobj$sn, 0), g0, g1)
         ## Allow for slack in minimum criterion
@@ -504,10 +504,10 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
             rm(tmpInc)
         }
         ## Adjust syntax for LP solver.
-        if (lpsolver %in% c("gurobi", "lpsolveapi")) {
+        if (solver %in% c("gurobi", "lpsolveapi")) {
             env$lpobj$sense <- c("<=", env$lpobj$sense)
         }
-        if (lpsolver == "cplexapi") {
+        if (solver == "cplexapi") {
             env$lpobj$sense <- c("L", env$lpobj$sense)
         }
     } else {
@@ -528,13 +528,13 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #'     problem.
 #' @param sset A list of IV-like estimates and the corresponding gamma
 #'     terms.
-#' @param lpsolver string, name of the package used to solve the LP
+#' @param solver string, name of the package used to solve the LP
 #'     problem.
-#' @param lpsolver.options list, each item of the list should
+#' @param solver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver selected.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
-#'     applied when \code{lpsolver = 'gurobi'}. The output provided is
+#'     applied when \code{solver = 'gurobi'}. The output provided is
 #'     the same as what the Gurobi API would send to the console.
 #' @return A list including the minimum violation of observational
 #'     equivalence, the solution to the LP problem, and the status of
@@ -630,7 +630,7 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #' ## that is suitable for the LP solver.
 #' lpSetup(env = lpEnv,
 #'         sset = sSet,
-#'         lpsolver = "lpsolveapi")
+#'         solver = "lpsolveapi")
 #' ## Setup LP model so that it will minimize the criterion
 #' lpSetupCriterion(env = lpEnv,
 #'                 sset = sSet)
@@ -639,16 +639,16 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #' ## Minimize the criterion.
 #' obseqMin <- criterionMin(env = lpEnv,
 #'                          sset = sSet,
-#'                          lpsolver = "lpsolveapi",
-#'                          lpsolver.options = lpOptions)
+#'                          solver = "lpsolveapi",
+#'                          solver.options = lpOptions)
 #' obseqMin
 #' cat("The minimum criterion is",  obseqMin$obj, "\n")
 #'
 #' @export
-criterionMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
-    lpsolver <- tolower(lpsolver)
-    if (lpsolver == "gurobi") {
-        if (debug & lpsolver.options$outputflag == 1) {
+criterionMin <- function(env, sset, solver, solver.options, debug = FALSE) {
+    solver <- tolower(solver)
+    if (solver == "gurobi") {
+        if (debug & solver.options$outputflag == 1) {
             cat("\nMinimum criterion optimization statistics:\n")
             cat("------------------------------------------\n")
         }
@@ -659,24 +659,24 @@ criterionMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
             save(model, file = "lpCriterion.Rdata")
             rm(model)
         }
-        result   <- runGurobi(env$lpobj, lpsolver.options)
+        result   <- runGurobi(env$lpobj, solver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
         if (debug) cat("\n")
-    } else if (lpsolver == "cplexapi") {
-        result   <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, lpsolver.options)
+    } else if (solver == "cplexapi") {
+        result   <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, solver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
-    } else if (lpsolver == "lpsolveapi") {
-        result   <- runLpSolveAPI(env$lpobj, 'min', lpsolver.options)
+    } else if (solver == "lpsolveapi") {
+        result   <- runLpSolveAPI(env$lpobj, 'min', solver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
     } else {
         stop(gsub('\\s+', ' ',
-                  "Invalid LP solver. Option 'lpsolver' must be either 'gurobi',
+                  "Invalid LP solver. Option 'solver' must be either 'gurobi',
                   'cplexapi', or 'lpsolveapi'."))
     }
     ## provide nicer output
@@ -708,15 +708,15 @@ criterionMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'     vector.
 #' @param noisy boolean, set to \code{TRUE} if optimization results
 #'     should be displayed.
-#' @param lpsolver string, name of the package used to solve the LP
+#' @param solver string, name of the package used to solve the LP
 #'     problem.
-#' @param lpsolver.options list, each item of the list should
+#' @param solver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver selected.
 #' @param smallreturnlist boolean, set to \code{TRUE} if the LP model
 #'     should not be returned.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
-#'     applied when \code{lpsolver = 'gurobi'}. The output provided is
+#'     applied when \code{solver = 'gurobi'}. The output provided is
 #'     the same as what the Gurobi API would send to the console.
 #' @return a list containing the bounds on the treatment effect; the
 #'     coefficients on each term in the MTR associated with the upper
@@ -813,7 +813,7 @@ criterionMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #' ## that is suitable for the LP solver.
 #' lpSetup(env = lpEnv,
 #'         sset = sSet,
-#'         lpsolver = "lpsolveapi")
+#'         solver = "lpsolveapi")
 #' ## Setup LP model so that it is solving for the bounds.
 #' lpSetupBound(env = lpEnv,
 #'              g0 = targetGamma$gstar0,
@@ -821,25 +821,25 @@ criterionMin <- function(env, sset, lpsolver, lpsolver.options, debug = FALSE) {
 #'              sset = sSet,
 #'              criterion.tol = 0,
 #'              criterion.min = 0,
-#'              lpsolver = "lpsolveapi")
+#'              solver = "lpsolveapi")
 #' ## Declare any LP solver options as a list.
 #' lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
 #' ## Obtain the bounds.
 #' bounds <- bound(env = lpEnv,
 #'                 sset = sSet,
-#'                 lpsolver = "lpsolveapi",
-#'                 lpsolver.options = lpOptions)
+#'                 solver = "lpsolveapi",
+#'                 solver.options = lpOptions)
 #' cat("The bounds are [",  bounds$min, ",", bounds$max, "].\n")
 #'
 #' @export
-bound <- function(env, sset, lpsolver,
-                  lpsolver.options, noisy = FALSE,
+bound <- function(env, sset, solver,
+                  solver.options, noisy = FALSE,
                   smallreturnlist = FALSE,
                   debug = FALSE) {
-    lpsolver <- tolower(lpsolver)
+    solver <- tolower(solver)
     ## Obtain lower and upper bounds
-    if (lpsolver == "gurobi") {
-        if (debug & lpsolver.options$outputflag == 1) {
+    if (solver == "gurobi") {
+        if (debug & solver.options$outputflag == 1) {
             cat("\nLower bound optimization statistics:\n")
             cat("------------------------------------\n")
         }
@@ -851,41 +851,41 @@ bound <- function(env, sset, lpsolver,
             rm(model)
         }
         env$lpobj$modelsense <- "min"
-        minresult <- runGurobi(env$lpobj, lpsolver.options)
+        minresult <- runGurobi(env$lpobj, solver.options)
         min <- minresult$objval
         minstatus <- minresult$status
         minoptx <- minresult$optx
-        if (debug & lpsolver.options$outputflag == 1) {
+        if (debug & solver.options$outputflag == 1) {
             cat("\nUpper bound optimization statistics:\n")
             cat("------------------------------------\n")
         }
         env$lpobj$modelsense <- "max"
-        maxresult <- runGurobi(env$lpobj, lpsolver.options)
+        maxresult <- runGurobi(env$lpobj, solver.options)
         max <- maxresult$objval
         maxstatus <- maxresult$status
         maxoptx <- maxresult$optx
         if (debug) cat("\n")
-    } else if (lpsolver == "cplexapi") {
-        minresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, lpsolver.options)
+    } else if (solver == "cplexapi") {
+        minresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, solver.options)
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
-        maxresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MAX, lpsolver.options)
+        maxresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MAX, solver.options)
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
-    } else if (lpsolver == "lpsolveapi") {
-        minresult <- runLpSolveAPI(env$lpobj, 'min', lpsolver.options)
+    } else if (solver == "lpsolveapi") {
+        minresult <- runLpSolveAPI(env$lpobj, 'min', solver.options)
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
-        maxresult <- runLpSolveAPI(env$lpobj, 'max', lpsolver.options)
+        maxresult <- runLpSolveAPI(env$lpobj, 'max', solver.options)
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
     } else {
         stop(gsub('\\s+', ' ',
-                  "Invalid LP solver. Option 'lpsolver' must be either 'gurobi',
+                  "Invalid LP solver. Option 'solver' must be either 'gurobi',
                   'cplexapi', or 'lpsolveapi'."))
     }
     env$lpobj$modelsense <- NULL
@@ -947,13 +947,13 @@ bound <- function(env, sset, lpsolver,
 #' additional error code labels.
 #' @param lpobj list of matrices and vectors defining the linear
 #'     programming problem.
-#' @param lpsolver.options list, each item of the list should
+#' @param solver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver selected.
 #' @return a list of the output from Gurobi. This includes the
 #'     objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization) .
-runGurobi <- function(lpobj, lpsolver.options) {
-    result <- gurobi::gurobi(lpobj, lpsolver.options)
+runGurobi <- function(lpobj, solver.options) {
+    result <- gurobi::gurobi(lpobj, solver.options)
     status <- 0
     if (result$status == "OPTIMAL") status <- 1
     if (result$status == "INFEASIBLE") status <- 2
@@ -979,19 +979,19 @@ runGurobi <- function(lpobj, lpsolver.options) {
 #'     programming problem.
 #' @param lpdir input either CPX_MAX or CPX_MIN, which sets the LP
 #'     problem as a maximization or minimization problem.
-#' @param lpsolver.options list, each item of the list should
+#' @param solver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver selected.
 #' @return a list of the output from CPLEX. This includes the
 #'     objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization).
-runCplexAPI <- function(lpobj, lpdir, lpsolver.options) {
+runCplexAPI <- function(lpobj, lpdir, solver.options) {
     ## Declare environment and set options
     env  <- cplexAPI::openEnvCPLEX()
     prob <- cplexAPI::initProbCPLEX(env)
     cplexAPI::chgProbNameCPLEX(env, prob, "sample")
-    if (!is.null(lpsolver.options)) {
-        for(i in seq(length(lpsolver.options))) {
-            eval(parse(text = lpsolver.options[[i]]))
+    if (!is.null(solver.options)) {
+        for(i in seq(length(solver.options))) {
+            eval(parse(text = solver.options[[i]]))
         }
     }
     ## Declare LP prblem
@@ -1053,12 +1053,12 @@ runCplexAPI <- function(lpobj, lpdir, lpsolver.options) {
 #'     programming problem.
 #' @param modelsense input either 'max' or 'min' which sets the LP
 #'     problem as a maximization or minimization problem.
-#' @param lpsolver.options list, each item of the list should
+#' @param solver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver selected.
 #' @return a list of the output from \code{lpSolveAPI}. This includes
 #'     the objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization).
-runLpSolveAPI <- function(lpobj, modelsense, lpsolver.options) {
+runLpSolveAPI <- function(lpobj, modelsense, solver.options) {
     lpmodel <- lpSolveAPI::make.lp(nrow(lpobj$A), ncol(lpobj$A))
     for (j in 1:ncol(lpobj$A)) {
         lpSolveAPI::set.column(lprec = lpmodel,
@@ -1077,8 +1077,8 @@ runLpSolveAPI <- function(lpobj, modelsense, lpsolver.options) {
                           obj = lpobj$obj)
     lpSolveAPI::lp.control(lprec = lpmodel,
                            sense = modelsense)
-    if (!is.null(lpsolver.options)) {
-        eval(lpsolver.options)
+    if (!is.null(solver.options)) {
+        eval(solver.options)
     }
     lpSolveAPI::set.bounds(lprec = lpmodel,
                            lower = lpobj$lb,
@@ -1111,7 +1111,7 @@ magnitude <- function(x) {
 #' Function to parse options for Gurobi
 #'
 #' This function constructs a list of options to be parsed when
-#' \code{lpsolver} is set to \code{Gurobi}. This function really
+#' \code{solver} is set to \code{Gurobi}. This function really
 #' implements some default values, and accounts for the \code{debug}
 #' option.
 #' @param options list. The list should be structured the same way as
@@ -1121,7 +1121,7 @@ magnitude <- function(x) {
 #'     set the option to.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
-#'     applied when \code{lpsolver = 'gurobi'}. The output provided is
+#'     applied when \code{solver = 'gurobi'}. The output provided is
 #'     the same as what the Gurobi API would send to the console.
 #' @return list, the set of options declared by the user, including
 #'     some additional default values (if not assigned by the user)
@@ -1147,7 +1147,7 @@ optionsGurobi <- function(options, debug) {
 #' Function to parse options for lp_solve
 #'
 #' This function constructs a list of options to be parsed when
-#' \code{lpsolver} is set to \code{lpsolveapi}. The options permitted
+#' \code{solver} is set to \code{lpsolveapi}. The options permitted
 #' are those that can be set via \code{lpSolveAPI::lp.control}, and
 #' should be passed as a named list (e.g. \code{list(epslevel =
 #' "tight")}).
@@ -1172,7 +1172,7 @@ optionsLpSolveAPI <- function(options) {
 #' Function to parse options for CPLEX
 #'
 #' This function constructs a list of options to be parsed when
-#' \code{lpsolver} is set to \code{cplexapi}.
+#' \code{solver} is set to \code{cplexapi}.
 #' @param options list. The name of each item must be the name of the
 #'     function to set the option, and is case sensitive. The value
 #'     assigned to each item is the value to set the option to. The
@@ -1234,7 +1234,7 @@ optionsCplexAPI <- function(options) {
 
 #' Function to parse a single set of options for CPLEX
 #'
-#' This function constructs a string to be parsed when \code{lpsolver}
+#' This function constructs a string to be parsed when \code{solver}
 #' is set to \code{cplexapi}.
 #' @param name string, name of the \code{cplexapi} function to call to
 #'     implement the option.

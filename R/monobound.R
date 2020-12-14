@@ -86,10 +86,10 @@ gengrid <- function(index, xsupport, usupport, uname) {
 #'     constraints.
 #' @param audit.tol feasibility tolerance when performing the
 #'     audit. By default to set to be equal to the Gurobi
-#'     (\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+#'     (\code{solver = "gurobi"}) and CPLEX (\code{solver =
 #'     "cplexapi"}) feasibility toleraence, which is set to
 #'     \code{1e-06} by default.  If the LP solver is lp_solve
-#'     (\code{lpsolver = "lpsolveapi"}), this parameter is set to
+#'     (\code{solver = "lpsolveapi"}), this parameter is set to
 #'     \code{1e-06} by default. This parameter should only be changed
 #'     if the feasibility tolerance of the LP solver is changed, or if
 #'     numerical issues result in discrepancies between the LP
@@ -487,10 +487,10 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
 #'     constraints.
 #' @param audit.tol feasibility tolerance when performing the
 #'     audit. By default to set to be equal to the Gurobi
-#'     (\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+#'     (\code{solver = "gurobi"}) and CPLEX (\code{solver =
 #'     "cplexapi"}) feasibility toleraence, which is set to
 #'     \code{1e-06} by default.  If the LP solver is lp_solve
-#'     (\code{lpsolver = "lpsolveapi"}), this parameter is set to
+#'     (\code{solver = "lpsolveapi"}), this parameter is set to
 #'     \code{1e-06} by default. This parameter should only be changed
 #'     if the feasibility tolerance of the LP solver is changed, or if
 #'     numerical issues result in discrepancies between the LP
@@ -1040,10 +1040,10 @@ combinemonobound <- function(bdA, monoA) {
 #'     constraints.
 #' @param audit.tol feasibility tolerance when performing the
 #'     audit. By default to set to be equal to the Gurobi
-#'     (\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+#'     (\code{solver = "gurobi"}) and CPLEX (\code{solver =
 #'     "cplexapi"}) feasibility toleraence, which is set to
 #'     \code{1e-06} by default.  If the LP solver is lp_solve
-#'     (\code{lpsolver = "lpsolveapi"}), this parameter is set to
+#'     (\code{solver = "lpsolveapi"}), this parameter is set to
 #'     \code{1e-06} by default. This parameter should only be changed
 #'     if the feasibility tolerance of the LP solver is changed, or if
 #'     numerical issues result in discrepancies between the LP
