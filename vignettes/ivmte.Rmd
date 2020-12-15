@@ -187,7 +187,7 @@ results <- ivmte(data = AE,
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex,
+                 propensity = morekids ~ samesex + yob,
                  noisy = TRUE)
 ```
 Here's what these required parameters refer to:
@@ -207,7 +207,7 @@ results <- ivmte(data = AE,
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex, 
+                 propensity = morekids ~ samesex + yob,
                  noisy = TRUE)
 ```
 
@@ -227,7 +227,7 @@ results <- ivmte(data = AE,
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex,
+                 propensity = morekids ~ samesex + yob,
                  noisy = FALSE)
 results
 cat(results$messages, sep = "\n")
@@ -248,7 +248,7 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + I(u^2) + yob + u*yob,
              m1 = ~ u + I(u^2) + I(u^3) + yob + u*yob,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex + yob)
 r <- do.call(ivmte, args)
 r
 ```
@@ -303,7 +303,7 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + uSplines(degree = 1, knots = c(.2, .4, .6, .8)) + yob,
              m1 = ~ uSplines(degree = 2, knots = c(.1, .3, .5, .7))*yob,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex + yob)
 r <- do.call(ivmte, args)
 r
 ```
@@ -334,7 +334,7 @@ args <- list(data = AE,
              m1.inc = TRUE,
              m0.inc = TRUE,
              mte.dec = TRUE,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex + yob)
 r <- do.call(ivmte, args)
 r
 ```
@@ -373,7 +373,7 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + I(u^2) + yob + u*yob,
              m1 = ~ u + I(u^2) + I(u^3) + yob + u*yob,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex + yob)
 r <- do.call(ivmte, args)
 r
 args[["target"]] <- "ate"
@@ -561,7 +561,7 @@ For more information, see the discussions in @mogstadsantostorgovitsky2018e and 
 One can tell `ivmte` to only include certain moments and not others by passing the `components` option.
 This option expects a list of the same length as the list passed to `ivlike`.
 Each component of the list is itself a list that contains the variable names for the coefficients to be included from that formula.
-The list should be declared using the `l` function, which is a generalization of the `list` function. 
+The list should be declared using the `l` function, which is a generalization of the `list` function.
 The `l` function allows the user to list variables and expressions without having to enclose them by quotation marks.
 For example, the following includes the coefficients on the intercept and `x` from the first formula, the coefficient on `d` from the second formula, and all coefficients in the third formula.
 
@@ -653,7 +653,7 @@ r <- ivmte(data = AE,
            m0 = ~ u + yob,
            m1 = ~ u + yob,
            ivlike = worked ~ morekids + samesex + morekids*samesex,
-           propensity = morekids ~ samesex,
+           propensity = morekids ~ samesex + yob,
            bootstraps = 50)
 summary(r)
 ```
@@ -680,11 +680,11 @@ bootstraps <- data.frame(type = rep(c('lb', 'ub'), each = 50),
                          value = c(r$bounds.bootstraps[, 1],
                                    r$bounds.bootstraps[, 2]))
 ggplot(data = bootstraps,
-       aes(x = value, color = type, fill = type)) + 
-    geom_histogram(position = "dodge", alpha = 0.5, binwidth = 0.05) + 
+       aes(x = value, color = type, fill = type)) +
+    geom_histogram(position = "dodge", alpha = 0.5, binwidth = 0.05) +
     geom_vline(xintercept = r$bounds[1],
                linetype = "dashed", size = 1.5, color = "orange") +
-    geom_vline(xintercept = r$bounds[2], 
+    geom_vline(xintercept = r$bounds[2],
                linetype = "dashed", size = 1.5, color = "lightskyblue") +
     ## Labeling options
     labs(x = "Bound",
