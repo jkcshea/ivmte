@@ -272,7 +272,7 @@ results <- ivmte(data = AE,
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex,
+                 propensity = morekids ~ samesex + yob,
                  noisy = TRUE)
 ```
 
@@ -297,7 +297,7 @@ results <- ivmte(data = AE,
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex, 
+                 propensity = morekids ~ samesex + yob,
                  noisy = TRUE)
 #> 
 #> LP solver: Gurobi ('gurobi')
@@ -324,7 +324,7 @@ results <- ivmte(data = AE,
 #>     Violations: 0
 #>     Audit finished.
 #> 
-#> Bounds on the target parameter: [-0.09835591, -0.08285941]
+#> Bounds on the target parameter: [-0.1028836, -0.07818869]
 ```
 
 When `noisy = TRUE`, the `ivmte` function indicates its progress in
@@ -346,11 +346,11 @@ results <- ivmte(data = AE,
                  m0 = ~ u + yob,
                  m1 = ~ u + yob,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
-                 propensity = morekids ~ samesex,
+                 propensity = morekids ~ samesex + yob,
                  noisy = FALSE)
 results
 #> 
-#> Bounds on the target parameter: [-0.09835591, -0.08285941]
+#> Bounds on the target parameter: [-0.1028836, -0.07818869]
 #> Audit terminated successfully after 1 round
 cat(results$messages, sep = "\n")
 #> 
@@ -378,7 +378,7 @@ cat(results$messages, sep = "\n")
 #>     Violations: 0
 #>     Audit finished.
 #> 
-#> Bounds on the target parameter: [-0.09835591, -0.08285941]
+#> Bounds on the target parameter: [-0.1028836, -0.07818869]
 ```
 
 ### Specifying the MTR Functions
@@ -398,12 +398,12 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + I(u^2) + yob + u*yob,
              m1 = ~ u + I(u^2) + I(u^3) + yob + u*yob,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex + yob)
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.2987098, 0.1289499]
-#> Audit terminated successfully after 1 round
+#> Bounds on the target parameter: [-0.2950822, 0.1254494]
+#> Audit terminated successfully after 2 rounds
 ```
 
 A restriction that we make for computational purposes is that `u` can
@@ -429,8 +429,8 @@ args[["uname"]] <- "v"
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.2987098, 0.1289499]
-#> Audit terminated successfully after 1 round
+#> Bounds on the target parameter: [-0.2950822, 0.1254494]
+#> Audit terminated successfully after 2 rounds
 ```
 
 There are some limitations regarding the use of factor variables. For
@@ -449,7 +449,7 @@ args[["m1"]] <- ~ u + (yob == 55) + (yob == 60)
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.09835591, -0.08285941]
+#> Bounds on the target parameter: [-0.1028836, -0.07818869]
 #> Audit terminated successfully after 1 round
 ```
 
@@ -464,11 +464,11 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + uSplines(degree = 1, knots = c(.2, .4, .6, .8)) + yob,
              m1 = ~ uSplines(degree = 2, knots = c(.1, .3, .5, .7))*yob,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex + yob)
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.4655487, 0.3252209]
+#> Bounds on the target parameter: [-0.4545814, 0.3117817]
 #> Audit terminated successfully after 2 rounds
 ```
 
@@ -513,12 +513,12 @@ args <- list(data = AE,
              m1.inc = TRUE,
              m0.inc = TRUE,
              mte.dec = TRUE,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex + yob)
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.09250779, 0.090854]
-#> Audit terminated successfully after 3 rounds
+#> Bounds on the target parameter: [-0.09769381, 0.09247149]
+#> Audit terminated successfully after 1 round
 ```
 
 #### The Audit Procedure
@@ -579,17 +579,17 @@ args <- list(data = AE,
              target = "att",
              m0 = ~ u + I(u^2) + yob + u*yob,
              m1 = ~ u + I(u^2) + I(u^3) + yob + u*yob,
-             propensity = morekids ~ samesex)
+             propensity = morekids ~ samesex + yob)
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.2987098, 0.1289499]
-#> Audit terminated successfully after 1 round
+#> Bounds on the target parameter: [-0.2950822, 0.1254494]
+#> Audit terminated successfully after 2 rounds
 args[["target"]] <- "ate"
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.3800976, 0.2003928]
+#> Bounds on the target parameter: [-0.375778, 0.1957841]
 #> Audit terminated successfully after 1 round
 ```
 
@@ -973,11 +973,11 @@ r <- ivmte(data = AE,
            m0 = ~ u + yob,
            m1 = ~ u + yob,
            ivlike = worked ~ morekids + samesex + morekids*samesex,
-           propensity = morekids ~ samesex,
+           propensity = morekids ~ samesex + yob,
            bootstraps = 50)
 summary(r)
 #> 
-#> Bounds on the target parameter: [-0.09835591, -0.08285941]
+#> Bounds on the target parameter: [-0.1028836, -0.07818869]
 #> Audit terminated successfully after 1 round 
 #> MTR coefficients: 6 
 #> Independent/total moments: 4/4 
@@ -985,10 +985,10 @@ summary(r)
 #> LP solver: Gurobi ('gurobi')
 #> 
 #> Bootstrapped confidence intervals (backward):
-#>     90%: [-0.2013432, -0.01624443]
-#>     95%: [-0.2185989, -0.003729633]
-#>     99%: [-0.2300391, 0.0006812143]
-#> p-value: 0.04
+#>     90%: [-0.1767266, 0.01163401]
+#>     95%: [-0.1877661, 0.0125208]
+#>     99%: [-0.1879194, 0.05562988]
+#> p-value: 0.16
 #> Number of bootstraps: 50
 ```
 
@@ -1011,16 +1011,16 @@ backward confidence regions are stored under `$bounds.ci`.
 ``` r
 r$bounds.ci
 #> $backward
-#>      lb.backward   ub.backward
-#> 0.9   -0.2013432 -0.0162444309
-#> 0.95  -0.2185989 -0.0037296334
-#> 0.99  -0.2300391  0.0006812143
+#>      lb.backward ub.backward
+#> 0.9   -0.1767266  0.01163401
+#> 0.95  -0.1877661  0.01252080
+#> 0.99  -0.1879194  0.05562988
 #> 
 #> $forward
 #>      lb.forward   ub.forward
-#> 0.9  -0.1600080 -0.002993087
-#> 0.95 -0.1694774  0.022998745
-#> 0.99 -0.1961220  0.057292430
+#> 0.9  -0.2013875 -0.010580678
+#> 0.95 -0.2021541 -0.007122401
+#> 0.99 -0.2473285 -0.002190831
 ```
 
 The bootstrapped bounds are returned and stored in
@@ -1029,13 +1029,13 @@ estimates.
 
 ``` r
 head(r$bounds.bootstrap)
-#>             [,1]        [,2]
-#> [1,] -0.10572194 -0.09980704
-#> [2,] -0.23003914 -0.22301125
-#> [3,] -0.08073144 -0.05201160
-#> [4,] -0.13106416 -0.10112969
-#> [5,] -0.10425035 -0.09464221
-#> [6,] -0.16136608 -0.15024411
+#>          lower       upper
+#> 1 -0.176726565 -0.13140944
+#> 2 -0.079414585 -0.04838939
+#> 3 -0.004379649  0.01163401
+#> 4 -0.126917750 -0.09350509
+#> 5 -0.110911453 -0.09289715
+#> 6 -0.101183496 -0.08202556
 ```
 
 The dashed lines in the figure below indicate the bounds obtained from
@@ -1064,10 +1064,10 @@ summary(r)
 #> Independent/total moments: 4/4 
 #> 
 #> Bootstrapped confidence intervals (nonparametric):
-#>     90%: [-0.1869028, -0.02510774]
-#>     95%: [-0.2077314, -0.02507778]
-#>     99%: [-0.227466, 0.0001054838]
-#> p-value: 0.08
+#>     90%: [-0.1521216, -0.02213206]
+#>     95%: [-0.1595378, -0.01554401]
+#>     99%: [-0.2023271, -0.002062735]
+#> p-value: 0.02
 #> Number of bootstraps: 50
 ```
 
@@ -1172,8 +1172,8 @@ the treatment effect, which are stored in `r$gstar.coef$min.g0`
 
 ``` r
 r$gstar.coef$min.g0
-#>  u0S1.1:1  u0S1.2:1  u0S1.3:1  u0S1.4:1  u0S1.5:1 
-#> 0.4769580 0.5492969 0.5474110 0.5541465 0.7422579
+#> [m0]u0S1.1:1 [m0]u0S1.2:1 [m0]u0S1.3:1 [m0]u0S1.4:1 [m0]u0S1.5:1 
+#>    0.5134872    0.5116697    0.5855789    0.5855789    0.6036146
 ```
 
   - The first three characters of each variable name, `u0S`, indicate
