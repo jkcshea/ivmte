@@ -424,9 +424,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     }
     ## Setup LP problem
     lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
-            solver = solver, direct = direct)
+            solver = solver, direct = direct, rescale = rescale)
     ## Setup QCQP problem
-    if (direct) qpSetup(env = lpEnv, sset = sset)
+    if (direct) qpSetup(env = lpEnv, sset = sset, rescale = rescale)
     ## Prepare LP messages
     ##
     ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible or
@@ -713,7 +713,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                          g0 = gstar0,
                          g1 = gstar1,
                          criterion.tol = criterion.tol,
-                         criterion.min = minobseq$obj)
+                         criterion.min = minobseq$obj,
+                         rescale = rescale)
         }
         lpresult <- bound(env = lpEnv,
                           sset = sset,
@@ -1183,8 +1184,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                            ncol = addCol),
                                     addm1)
                     if (rescale) tmpMat <- cbind(0, tmpMat)
-                    print('tmpMat for m1')
-                    print(tmpMat)
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A, tmpMat)
                     rm(addCol, tmpMat)

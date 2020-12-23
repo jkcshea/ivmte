@@ -1383,7 +1383,8 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$ssy <- sum(drY^2)
     ## TESTING ------------
     ## Store the difference between max and min
-    env$maxMinusMin <- colDiff
+    if (rescale) env$maxMinusMin <- colDiff
+    ## END OF TEST --------
 }
 
 #' Configure QCQP problem to find minimum criterion

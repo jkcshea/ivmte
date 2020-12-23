@@ -220,6 +220,9 @@ utils::globalVariables("u")
 #'     if the feasibility tolerance of the LP solver is changed, or if
 #'     numerical issues result in discrepancies between the LP
 #'     solver's feasibility check and the audit.
+#' @param rescale boolean, set to \code{TRUE} if the MTR components
+#'     should be rescaled to improve stability in the LP/QP/QCP
+#'     optimization.
 #' @param point boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if it is believed that the treatment effects are
 #'     point identified. If set to \code{TRUE}, a two-step GMM
@@ -423,7 +426,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
-                  audit.tol,
+                  audit.tol, rescale = TRUE,
                   point = FALSE, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
@@ -3134,6 +3137,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           initgrid.nu = 20, audit.nx = 2500,
                           audit.nu = 25, audit.add = 100,
                           audit.max = 25, audit.tol, audit.grid = NULL,
+                          rescale = TRUE,
                           point = FALSE,
                           point.eyeweight = FALSE,
                           point.center = NULL, point.redundant = NULL,
@@ -3596,7 +3600,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "initgrid.nu", "initgrid.nx",
                     "audit.nx", "audit.nu", "audit.add",
                     "audit.max", "audit.tol",
-                    "audit.grid",
+                    "audit.grid", "rescale",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
