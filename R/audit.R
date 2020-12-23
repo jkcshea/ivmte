@@ -509,7 +509,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             qpSetupCriterion(env = lpEnv)
         }
         minobseq <- criterionMin(lpEnv, sset, solver,
-                                 solver.options.criterion, debug)
+                                 solver.options.criterion, rescale,
+                                 debug)
         ## Try to diagnose cases where the solution is not
         ## available. This could be due to infeasibility or numerical
         ## issues. To deal with infeasibilty, the LP problem is solved
@@ -693,8 +694,27 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             }
             if (!is.null(bWarn)) warning(bWarn, call. = FALSE,
                                          immediate. = TRUE)
+        } else {
+            if (noisy) {
+                cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
+                    sep = "")
+            }
         }
 
+        ## TESTING ---------------------
+        print('minobseq results')
+        print(minobseq)
+        if (rescale) {
+            print('rescaled solutions')
+            print(minobseq$x)
+            print('sum of rescaled solutions, minus constant')
+            print(sum(minobseq$x[-1]))
+            print('unscaled solutions')
+            print(minobseq$x / c(1, lpEnv$maxMinusMin))
+        }
+        stop()
+        ## END TESTING -----------------
+        
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")

@@ -249,6 +249,8 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         mbA <- rbind(c(-1, colMin / colDiff), mbA)
         sense <- c('=', sense)
         rhs <- c(0, rhs)
+        print('head of mbA')
+        print(head(mbA))
     }
     ## END TESTING -----------------------------
     ## Convert into sparse matrix
@@ -674,7 +676,8 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #' cat("The minimum criterion is",  obseqMin$obj, "\n")
 #'
 #' @export
-criterionMin <- function(env, sset, solver, solver.options, debug = FALSE) {
+criterionMin <- function(env, sset, solver, solver.options, rescale,
+                         debug = FALSE) {
     solver <- tolower(solver)
     if (solver == "gurobi") {
         if (debug & solver.options$outputflag == 1) {
@@ -708,17 +711,30 @@ criterionMin <- function(env, sset, solver, solver.options, debug = FALSE) {
                   "Invalid LP solver. Option 'solver' must be either 'gurobi',
                   'cplexapi', or 'lpsolveapi'."))
     }
-    ## provide nicer output
-    g0sol <- optx[(2 * env$lpobj$sn + 1) : (2 * env$lpobj$sn + env$lpobj$gn0)]
-    g1sol <- optx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
-                  (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
-    names(g0sol) <- names(sset$gstar$g0)
-    names(g1sol) <- names(sset$gstar$g1)
-    return(list(obj = obseqmin,
-                x = optx,
-                g0 = g0sol,
-                g1 = g1sol,
-                status = status))
+    ## Provide nicer output
+    if (!rescale) {
+        g0sol <- optx[(2 * env$lpobj$sn + 1) :
+                      (2 * env$lpobj$sn + env$lpobj$gn0)]
+        g1sol <- optx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
+                      (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+        names(g0sol) <- names(sset$gstar$g0)
+        names(g1sol) <- names(sset$gstar$g1)
+    } else {
+        rescaleInt <- optx[(2 * env$lpobj$sn + 1)]
+        g0sol <- optx[(2 * env$lpobj$sn + 2) :
+                      (2 * env$lpobj$sn + env$lpobj$gn0 + 1)]
+        g1sol <- optx[(2 * env$lpobj$sn + env$lpobj$gn0 + 2) :
+                      (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1 + 1)]
+        names(g0sol) <- names(sset$gstar$g0)
+        names(g1sol) <- names(sset$gstar$g1)
+    }
+    output <- list(obj = obseqmin,
+                   x = optx,
+                   g0 = g0sol,
+                   g1 = g1sol,
+                   status = status)
+    if (rescale) output$rescaleInt <- rescaleInt
+    return(output)
     ## Object 'result' will not be returned---unnecessary, and very
     ## memory intensive.
 }
