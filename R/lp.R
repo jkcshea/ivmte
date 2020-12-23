@@ -29,6 +29,9 @@
 #'     whether or not to include shape restrictions in the LP problem.
 #' @param direct boolean, set to \code{TRUE} if the direct MTR
 #'     regression is used.
+#' @param rescale boolean, set to \code{TRUE} if the MTR components
+#'     should be rescaled to improve stability in the LP/QP/QCP
+#'     optimization.
 #' @param solver string, name of the package used to solve the LP
 #'     problem.
 #' @return A list of matrices and vectors necessary to define an LP
@@ -144,7 +147,8 @@
 #'
 #' @export
 lpSetup <- function(env, sset, orig.sset = NULL,
-                    shape = TRUE, direct = FALSE, solver) {
+                    shape = TRUE, direct = FALSE, rescale = TRUE,
+                    solver) {
     ## Read in constraint grids and sequences
     solver <- tolower(solver)
     for (i in names(env$shapeSeq)) {
@@ -223,6 +227,31 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ## Define bounds on parameters
     ub <- replicate(ncol(mbA), Inf)
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
+    ## TESTING ---------------------------------
+    if (direct && rescale) {
+        colMin <- apply(X = cbind(sset$s1$g0, sset$s1$g1),
+                        MARGIN = 2,
+                        min)
+        colMax <- apply(X = cbind(sset$s1$g0, sset$s1$g1),
+                        MARGIN = 2,
+                        max)
+        colDiff <- colMax - colMin
+        mbA <- sweep(x = mbA,
+                     MARGIN = 2,
+                     STATS = colDiff,
+                     FUN = '/')
+        mbA <- cbind(0, mbA)
+        colnames(mbA)[1] <- 'rescaledInt'
+        ub <- c(Inf, ub)
+        lb <- c(-Inf, lb)
+        ## Add additional equality constraint for the new rescaled
+        ## intercept
+        mbA <- rbind(c(-1, colMin / colDiff), mbA)
+        sense <- c('=', sense)
+        rhs <- c(0, rhs)
+    }
+    ## END TESTING -----------------------------
+    ## Convert into sparse matrix
     if (solver %in% c("gurobi", "lpsolveapi")) {
         mbA <- Matrix::Matrix(mbA, sparse = TRUE)
     }
@@ -1314,20 +1343,34 @@ optionsCplexAPITol <- function(options) {
 #'     problem.
 #' @param sset A list containing the covariats and outcome variable
 #'     for the direct MTR regression.
-#' @param g0 set of expectations for each terms of the MTR for the
-#'     control group.
-#' @param g1 set of expectations for each terms of the MTR for the
-#'     control group.
-#' @param criterion.tol non-negative scalar, determines how much the
-#'     quadratic constraint should be relaxed by. If set to 0, the
-#'     constraint is not relaxed at all.
-#' @return A list of matrices and vectors necessary to define an LP
-#'     problem for Gurobi.
+#' @param rescale boolean, set to \code{TRUE} if the MTR components
+#'     should be rescaled to improve stability in the LP/QP/QCP
+#'     optimization.
 #' @export
-qpSetup <- function(env, sset) {
+qpSetup <- function(env, sset, rescale = TRUE) {
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
+    ## TESTING ---------------
+    if (rescale) {
+        colMin <- apply(X = drX,
+                        MARGIN = 2,
+                        min)
+        colMax <- apply(X = drX,
+                        MARGIN = 2,
+                        max)
+        colDiff <- colMax - colMin
+        drX <- sweep(x = drX,
+                      MARGIN = 2,
+                      STATS = colMin,
+                      FUN = '-')
+        drX <- sweep(x = drX,
+                      MARGIN = 2,
+                      STATS = colDiff,
+                      FUN = '/')
+        drX <- cbind(1, drX)
+    }
+    ## END OF TEST --------------------------
     drSSR <- sset$s1$SSR
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY)
@@ -1338,6 +1381,9 @@ qpSetup <- function(env, sset) {
     env$quad <- qc
     ## Store the SSY
     env$ssy <- sum(drY^2)
+    ## TESTING ------------
+    ## Store the difference between max and min
+    env$maxMinusMin <- colDiff
 }
 
 #' Configure QCQP problem to find minimum criterion
@@ -1375,6 +1421,9 @@ qpSetupCriterion <- function(env) {
 #'     constraint is not relaxed at all.
 #' @param criterion.min minimum of (SSR - SSY) of a linear regression
 #'     with shape constraints.
+#' @param rescale boolean, set to \code{TRUE} if the MTR components
+#'     should be rescaled to improve stability in the LP/QP/QCP
+#'     optimization.
 #' @param setup boolean, set to \code{TRUE} if the QP problem should
 #'     be set up for solving the bounds, which includes the quadratic
 #'     constraint. Set to \code{FALSE} if the quadratic constraint
@@ -1383,10 +1432,14 @@ qpSetupCriterion <- function(env) {
 #'     problem for Gurobi.
 #' @export
 qpSetupBound <- function(env, g0, g1, criterion.tol, criterion.min,
+                         rescale = TRUE,
                          setup = TRUE) {
     if (setup) {
         ## Prepare objective
         env$lpobj$obj <- c(g0, g1)
+        if (rescale) {
+            env$lpobj$obj <- c(0, env$lpobj$obj)
+        }
         env$lpobj$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
         ## criterion.min excludes the SSY.

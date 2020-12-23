@@ -50,6 +50,9 @@
 #' @param orig.criterion numeric, only used for bootstraps. The scalar
 #'     corresponds to the minimum observational equivalence criterion
 #'     from the original sample.
+#' @param rescale boolean, set to \code{TRUE} if the MTR components
+#'     should be rescaled to improve stability in the LP/QP/QCP
+#'     optimization.
 #'
 #' @inheritParams ivmteEstimate
 #'
@@ -178,6 +181,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   criterion.tol = 0,
                   solver, solver.options, solver.presolve,
                   solver.options.criterion, solver.options.bounds,
+                  rescale = TRUE,
                   smallreturnlist = FALSE,
                   noisy = TRUE, debug = FALSE) {
     call  <- match.call()
@@ -1001,6 +1005,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         include ", nrow(violateMat),
                                     " additional ", ps, "...")), "\n", sep = "")
                 }
+                print(violateMat)
                 types <- unique(violateMat$type)
                 addm0 <- NULL
                 addm1 <- NULL
@@ -1084,14 +1089,18 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     ## Update the constraint matrix
                     if (!direct) addCol <- length(sset$s1$g1)
                     if (direct) addCol <- ncol(sset$s1$g1)
-                    lpEnv$lpobj$A <-
-                        rbind(lpEnv$lpobj$A,
-                              cbind(matrix(0, nrow = nrow(addm0),
+                    tmpMat <- cbind(matrix(0, nrow = nrow(addm0),
                                            ncol = 2 * sn),
                                     addm0,
                                     matrix(0, nrow = nrow(addm0),
-                                           ncol = addCol)))
-                    rm(addCol)
+                                           ncol = addCol))
+                    if (rescale) tmpMat <- cbind(0, tmpMat)
+                    print('tmpMat for m0')
+                    print(tmpMat)
+                    lpEnv$lpobj$A <- rbind(lpEnv$lpobj$A, tmpMat)
+                    print('dim A')
+                    print(dim(lpEnv$lpobj$A))
+                    rm(addCol, tmpMat)
                     ## Update the contraint sequences
                     lpEnv$mbobj$lb0seq <- c(lpEnv$mbobj$lb0seq,
                                             addlb0seq + nShapeConstraints)
@@ -1168,14 +1177,17 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     ## Update the constraint matrix
                     if (!direct) addCol <- length(sset$s1$g0)
                     if (direct) addCol <- ncol(sset$s1$g0)
-                    lpEnv$lpobj$A <-
-                        rbind(lpEnv$lpobj$A,
-                              cbind(matrix(0, nrow = nrow(addm1),
+                    tmpMat <- cbind(matrix(0, nrow = nrow(addm1),
                                            ncol = 2 * sn),
                                     matrix(0, nrow = nrow(addm1),
                                            ncol = addCol),
-                                    addm1))
-                    rm(addCol)
+                                    addm1)
+                    if (rescale) tmpMat <- cbind(0, tmpMat)
+                    print('tmpMat for m1')
+                    print(tmpMat)
+                    lpEnv$lpobj$A <-
+                        rbind(lpEnv$lpobj$A, tmpMat)
+                    rm(addCol, tmpMat)
                     ## Update the contraint sequences
                     lpEnv$mbobj$lb1seq <- c(lpEnv$mbobj$lb1seq,
                                             addlb1seq + nShapeConstraints)
@@ -1250,11 +1262,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 }
                 if (!is.null(addmte)) {
                     ## Update the constraint matrix
-                    lpEnv$lpobj$A <-
-                        rbind(lpEnv$lpobj$A,
-                              cbind(matrix(0, nrow = nrow(addmte),
+                    tmpMat <- cbind(matrix(0, nrow = nrow(addmte),
                                            ncol = 2 * sn),
-                                    addmte))
+                                    addmte)
+                    if (rescale) tmpMat <- cbind(0, tmpMat)
+                    lpEnv$lpobj$A <-
+                        rbind(lpEnv$lpobj$A, tmpMat)
+                    rm(tmpMat)
                     ## Update the contraint sequences
                     lpEnv$mbobj$lbteseq <- c(lpEnv$mbobj$lbteseq,
                                              addlbteseq + nShapeConstraints)
