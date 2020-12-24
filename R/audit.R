@@ -705,16 +705,20 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         print('minobseq results')
         print(minobseq)
         if (rescale) {
-            print('rescaled solutions')
-            print(minobseq$x)
-            print('sum of rescaled solutions, minus constant')
-            print(sum(minobseq$x[-1]))
+            ## print('rescaled solutions')
+            ## print(minobseq$x)
+            ## print('sum of rescaled solutions, minus constant')
+            ## print(sum(minobseq$x[-1]))
             print('unscaled solutions')
             print(minobseq$x / c(1, lpEnv$maxMinusMin))
+            print('sum of unscaled solutions (after undoing rescale)')
+            print(sum((minobseq$x / c(1, lpEnv$maxMinusMin))[-1]))
+        } else {
+            print('sum of unscaled solutions')
+            print(sum(minobseq$x))
         }
-        stop()
         ## END TESTING -----------------
-        
+
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
@@ -742,7 +746,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                           solver.options = solver.options.bounds,
                           noisy = noisy,
                           smallreturnlist = smallreturnlist,
+                          rescale = rescale,
                           debug = debug)
+        print('This is the LP bounds')
+        print(c(lpresult$min, lpresult$max))
+        print(lpresult$ming0)
+        print(lpresult$ming1)
+        print(lpresult$maxg0)
+        print(lpresult$maxg1)
         if (lpresult$error == TRUE) {
             errMess <- NULL
             errTypes <- NULL
@@ -1115,7 +1126,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                     addm0,
                                     matrix(0, nrow = nrow(addm0),
                                            ncol = addCol))
-                    if (rescale) tmpMat <- cbind(0, tmpMat)
+                    if (rescale) {
+                        tmpMat <- sweep(x = tmpMat,
+                                        MARGIN = 2,
+                                        STATS = lpEnv$maxMinusMin,
+                                        FUN = '/')
+                        tmpMat <- cbind(0, tmpMat)
+                    }
                     print('tmpMat for m0')
                     print(tmpMat)
                     lpEnv$lpobj$A <- rbind(lpEnv$lpobj$A, tmpMat)
@@ -1203,7 +1220,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                     matrix(0, nrow = nrow(addm1),
                                            ncol = addCol),
                                     addm1)
-                    if (rescale) tmpMat <- cbind(0, tmpMat)
+                    if (rescale) {
+                        tmpMat <- sweep(x = tmpMat,
+                                        MARGIN = 2,
+                                        STATS = lpEnv$maxMinusMin,
+                                        FUN = '/')
+                        tmpMat <- cbind(0, tmpMat)
+                    }
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A, tmpMat)
                     rm(addCol, tmpMat)
@@ -1284,7 +1307,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     tmpMat <- cbind(matrix(0, nrow = nrow(addmte),
                                            ncol = 2 * sn),
                                     addmte)
-                    if (rescale) tmpMat <- cbind(0, tmpMat)
+                    if (rescale) {
+                        tmpMat <- sweep(x = tmpMat,
+                                        MARGIN = 2,
+                                        STATS = lpEnv$maxMinusMin,
+                                        FUN = '/')
+                        tmpMat <- cbind(0, tmpMat)
+                    }
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A, tmpMat)
                     rm(tmpMat)

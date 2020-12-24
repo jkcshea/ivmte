@@ -249,8 +249,8 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         mbA <- rbind(c(-1, colMin / colDiff), mbA)
         sense <- c('=', sense)
         rhs <- c(0, rhs)
-        print('head of mbA')
-        print(head(mbA))
+        ## print('head of mbA')
+        ## print(head(mbA))
     }
     ## END TESTING -----------------------------
     ## Convert into sparse matrix
@@ -722,9 +722,11 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
     } else {
         rescaleInt <- optx[(2 * env$lpobj$sn + 1)]
         g0sol <- optx[(2 * env$lpobj$sn + 2) :
-                      (2 * env$lpobj$sn + env$lpobj$gn0 + 1)]
+                      (2 * env$lpobj$sn + env$lpobj$gn0 + 1)] /
+            env$maxMinusMin[1:env$lpobj$gn0]
         g1sol <- optx[(2 * env$lpobj$sn + env$lpobj$gn0 + 2) :
-                      (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1 + 1)]
+                      (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1 + 1)] /
+            env$maxMinusMin[(env$lpobj$gn0 + 1):(env$lpobj$gn0 + env$lpobj$gn1)]
         names(g0sol) <- names(sset$gstar$g0)
         names(g1sol) <- names(sset$gstar$g1)
     }
@@ -759,6 +761,9 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
 #'     correspond to an option specific to the LP solver selected.
 #' @param smallreturnlist boolean, set to \code{TRUE} if the LP model
 #'     should not be returned.
+#' @param rescale boolean, set to \code{TRUE} if the MTR components
+#'     should be rescaled to improve stability in the LP/QP/QCP
+#'     optimization.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{solver = 'gurobi'}. The output provided is
@@ -880,6 +885,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
 bound <- function(env, sset, solver,
                   solver.options, noisy = FALSE,
                   smallreturnlist = FALSE,
+                  rescale = TRUE,
                   debug = FALSE) {
     solver <- tolower(solver)
     ## Obtain lower and upper bounds
@@ -940,14 +946,31 @@ bound <- function(env, sset, solver,
                     maxstatus = maxstatus,
                     minstatus = minstatus))
     }
-    ming0 <- minoptx[(2 * env$lpobj$sn + 1) :
-                     (2 * env$lpobj$sn + env$lpobj$gn0)]
-    ming1 <- minoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
-                     (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
-    maxg0 <- maxoptx[(2 * env$lpobj$sn + 1) :
-                     (2 * env$lpobj$sn + env$lpobj$gn0)]
-    maxg1 <- maxoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
-                     (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+    if (!rescale) {
+        ming0 <- minoptx[(2 * env$lpobj$sn + 1) :
+                         (2 * env$lpobj$sn + env$lpobj$gn0)]
+        ming1 <- minoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
+                         (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+        maxg0 <- maxoptx[(2 * env$lpobj$sn + 1) :
+                         (2 * env$lpobj$sn + env$lpobj$gn0)]
+        maxg1 <- maxoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
+                         (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+    } else {
+        ming0 <- minoptx[(2 * env$lpobj$sn + 2) :
+                         (2 * env$lpobj$sn + env$lpobj$gn0 + 1)] /
+            env$maxMinusMin[1:env$lpobj$gn0]
+        ming1 <- minoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 2) :
+                         (2 * env$lpobj$sn +
+                          env$lpobj$gn0 + env$lpobj$gn1 + 1)] /
+            env$maxMinusMin[(env$lpobj$gn0 + 1):(env$lpobj$gn0 + env$lpobj$gn1)]
+        maxg0 <- maxoptx[(2 * env$lpobj$sn + 2) :
+                         (2 * env$lpobj$sn + env$lpobj$gn0 + 1)] /
+            env$maxMinusMin[1:env$lpobj$gn0]
+        maxg1 <- maxoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 2) :
+                         (2 * env$lpobj$sn +
+                          env$lpobj$gn0 + env$lpobj$gn1 + 1)] /
+            env$maxMinusMin[(env$lpobj$gn0 + 1):(env$lpobj$gn0 + env$lpobj$gn1)]
+    }
     if (hasArg(sset)) {
         names(ming0) <- names(sset$s1$g0)
         names(ming1) <- names(sset$s1$g1)
@@ -1379,7 +1402,7 @@ qpSetup <- function(env, sset, rescale = TRUE) {
         drX <- sweep(x = drX,
                       MARGIN = 2,
                       STATS = colMin,
-                      FUN = '-')
+                     FUN = '-')
         drX <- sweep(x = drX,
                       MARGIN = 2,
                       STATS = colDiff,
@@ -1455,7 +1478,7 @@ qpSetupBound <- function(env, g0, g1, criterion.tol, criterion.min,
         ## Prepare objective
         env$lpobj$obj <- c(g0, g1)
         if (rescale) {
-            env$lpobj$obj <- c(0, env$lpobj$obj)
+            env$lpobj$obj <- c(0, env$lpobj$obj / env$maxMinusMin)
         }
         env$lpobj$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
