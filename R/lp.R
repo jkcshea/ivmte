@@ -1386,6 +1386,7 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
+    drN <- length(drY)
     if (rescale) {
         colMin <- apply(X = drX,
                         MARGIN = 2,
@@ -1406,14 +1407,15 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     }
     drSSR <- sset$s1$SSR
     qc <- list()
-    qc$q <- as.vector(-2 * t(drX) %*% drY)
-    qc$Qc <- t(drX) %*% drX
+    qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
+    qc$Qc <- t(drX) %*% drX / drN
     qc$sense <- '<'
     qc$name <- 'SSR'
     ## Store the quadratic component
     env$quad <- qc
     ## Store the SSY
     env$ssy <- sum(drY^2)
+    env$drN <- drN
     ## Store the difference between max and min
     if (rescale) env$maxMinusMin <- colDiff
 }
@@ -1475,8 +1477,8 @@ qpSetupBound <- function(env, g0, g1, criterion.tol, criterion.min,
         env$lpobj$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
         ## criterion.min excludes the SSY.
-        env$quad$rhs <- env$ssy * criterion.tol +
-            criterion.min * (1 + criterion.tol)
+        env$quad$rhs <- (env$ssy / env$drN) * criterion.tol +
+                         criterion.min * (1 + criterion.tol)
         env$lpobj$quadcon <- list(env$quad)
     } else {
         env$lpobj$obj <- NULL
