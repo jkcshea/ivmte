@@ -701,24 +701,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             }
         }
 
-        ## TESTING ---------------------
-        print('minobseq results')
-        print(minobseq)
-        if (rescale) {
-            ## print('rescaled solutions')
-            ## print(minobseq$x)
-            ## print('sum of rescaled solutions, minus constant')
-            ## print(sum(minobseq$x[-1]))
-            print('unscaled solutions')
-            print(minobseq$x / c(1, lpEnv$maxMinusMin))
-            print('sum of unscaled solutions (after undoing rescale)')
-            print(sum((minobseq$x / c(1, lpEnv$maxMinusMin))[-1]))
-        } else {
-            print('sum of unscaled solutions')
-            print(sum(minobseq$x))
-        }
-        ## END TESTING -----------------
-
         ## Obtain bounds
         if (noisy) {
             cat("    Obtaining bounds...\n")
@@ -748,12 +730,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                           smallreturnlist = smallreturnlist,
                           rescale = rescale,
                           debug = debug)
-        print('This is the LP bounds')
-        print(c(lpresult$min, lpresult$max))
-        print(lpresult$ming0)
-        print(lpresult$ming1)
-        print(lpresult$maxg0)
-        print(lpresult$maxg1)
         if (lpresult$error == TRUE) {
             errMess <- NULL
             errTypes <- NULL
@@ -1037,7 +1013,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         include ", nrow(violateMat),
                                     " additional ", ps, "...")), "\n", sep = "")
                 }
-                print(violateMat)
                 types <- unique(violateMat$type)
                 addm0 <- NULL
                 addm1 <- NULL
@@ -1133,11 +1108,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                         tmpMat <- cbind(0, tmpMat)
                     }
-                    print('tmpMat for m0')
-                    print(tmpMat)
                     lpEnv$lpobj$A <- rbind(lpEnv$lpobj$A, tmpMat)
-                    print('dim A')
-                    print(dim(lpEnv$lpobj$A))
                     rm(addCol, tmpMat)
                     ## Update the contraint sequences
                     lpEnv$mbobj$lb0seq <- c(lpEnv$mbobj$lb0seq,

@@ -227,7 +227,6 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ## Define bounds on parameters
     ub <- replicate(ncol(mbA), Inf)
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
-    ## TESTING ---------------------------------
     if (direct && rescale) {
         colMin <- apply(X = cbind(sset$s1$g0, sset$s1$g1),
                         MARGIN = 2,
@@ -249,10 +248,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         mbA <- rbind(c(-1, colMin / colDiff), mbA)
         sense <- c('=', sense)
         rhs <- c(0, rhs)
-        ## print('head of mbA')
-        ## print(head(mbA))
     }
-    ## END TESTING -----------------------------
     ## Convert into sparse matrix
     if (solver %in% c("gurobi", "lpsolveapi")) {
         mbA <- Matrix::Matrix(mbA, sparse = TRUE)
@@ -1390,7 +1386,6 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
-    ## TESTING ---------------
     if (rescale) {
         colMin <- apply(X = drX,
                         MARGIN = 2,
@@ -1409,7 +1404,6 @@ qpSetup <- function(env, sset, rescale = TRUE) {
                       FUN = '/')
         drX <- cbind(1, drX)
     }
-    ## END OF TEST --------------------------
     drSSR <- sset$s1$SSR
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY)
@@ -1420,10 +1414,8 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$quad <- qc
     ## Store the SSY
     env$ssy <- sum(drY^2)
-    ## TESTING ------------
     ## Store the difference between max and min
     if (rescale) env$maxMinusMin <- colDiff
-    ## END OF TEST --------
 }
 
 #' Configure QCQP problem to find minimum criterion
