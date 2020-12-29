@@ -1323,6 +1323,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                       point identification, and will be ignored when
                       point = FALSE."), call. = FALSE)
         }
+        if (hasArg(point.eyeweight) && direct) {
+            warning(gsub("\\s+", " ",
+                         "Argument 'point.eyeweight' is only used for
+                      point identification when IV-like estimands are
+                      provided through the 'ivlike' argument, and will be
+                      ignored."), call. = FALSE)
+        }
 
         ##---------------------------
         ## 4. Restrict data to complete observations
