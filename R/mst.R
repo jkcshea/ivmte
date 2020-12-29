@@ -426,7 +426,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
-                  audit.tol, rescale = TRUE,
+                  audit.tol, rescale = FALSE,
                   point = FALSE, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
@@ -464,6 +464,15 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (hasArg(ivlike) && !is.null(ivlike)) {
             direct <- FALSE
             envList$ivlike <- environment(ivlike)
+        }
+        if (!direct) {
+            if (rescale) {
+                warning(gsub('\\s+', ' ',
+                             "The 'rescale' option is currently ignored
+                              unless a direct regression is performed."),
+                        call. = FALSE)
+            }
+            rescale <- FALSE
         }
         envProp <- try(environment(propensity), silent = TRUE)
         if (class(envProp) != "environment") {
@@ -1963,6 +1972,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                              "lpsolver.presolve",
                                              "lpsolver.options.criterion",
                                              "lpsolver.options.bounds",
+                                             "rescale",
                                              "target.weight0", "target.weight1",
                                              "target.knots0", "target.knots1",
                                              "late.Z", "late.to", "late.from",
@@ -1982,6 +1992,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                data = quote(data),
                                                subset = quote(subset),
                                                solver = quote(solver),
+                                               rescale = rescale,
                                                noisy = TRUE,
                                                vars_y = quote(vars_y),
                                                vars_mtr = quote(vars_mtr),
