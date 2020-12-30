@@ -228,6 +228,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ub <- replicate(ncol(mbA), Inf)
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
     if (direct && rescale) {
+        ## Rescale linear constraints
         colMin <- apply(X = cbind(sset$s1$g0, sset$s1$g1),
                         MARGIN = 2,
                         min)
@@ -1484,5 +1485,43 @@ qpSetupBound <- function(env, g0, g1, criterion.tol, criterion.min,
         env$lpobj$obj <- NULL
         env$quad$rhs <- NULL
         env$lpobj$quadcon <- NULL
+    }
+}
+
+#' Configure QP environment for diagnostics
+#'
+#' This function separates the shape constraints from the QP
+#' environment. That way, the model can be solved without any shape
+#' constraints, which is the primary cause of infeasibility. This is
+#' done in order to check which shape constraints are causing the
+#' model to be infeasible. The QP model must be passed as an
+#' environment variable, under the entry \code{$lpobj}. See
+#' \code{\link{lpSetup}}.
+#' @param env The LP environment
+#' @param rescale boolean, set to \code{TRUE} if the MTR components
+#'     should be rescaled to improve stability in the LP/QP/QCP
+#'     optimization.
+#' @return Nothing, as this modifies an environment variable to save
+#'     memory.
+#' @export
+qpSetupInfeasible <- function(env, rescale) {
+    if (!rescale) {
+        ## Separate shape constraint objects
+        env$mbobj$mbA <- env$lpobj$A
+        env$mbobj$mbrhs <- env$lpobj$rhs
+        env$mbobj$mbsense <- env$lpobj$rhs
+        ## Reduce lpobjects so they do not contain any shape constraints
+        env$lpobj$A <- matrix(0, nrow = 1, ncol = ncol(env$mbobj$mbA))
+        env$lpobj$rhs <- 0
+        env$lpobj$sense <- '='
+    } else {
+        ## Separate shape constraint objects
+        env$mbobj$mbA <- env$lpobj$A[-1, ]
+        env$mbobj$mbrhs <- env$lpobj$rhs[-1]
+        env$mbobj$mbsense <- env$lpobj$rhs[-1]
+        ## Reduce lpobjects so they do not contain any shape constraints
+        env$lpobj$A <- matrix(env$lpobj$A[1, ], nrow = 1)
+        env$lpobj$rhs <- env$lpobj$rhs[1]
+        env$lpobj$sense <- env$lpobj$rhs[1]
     }
 }

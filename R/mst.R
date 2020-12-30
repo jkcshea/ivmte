@@ -1244,8 +1244,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             noshape = FALSE ## indicator for whether shape restrictions declared
             if (!((audit.nu %% 1 == 0) & audit.nu >= 0)) {
                 stop(gsub("\\s+", " ",
-                          "'audit.nu' must be an integer than or equal to 0
-                       (end points 0 and 1 are always included)."),
+                          "'audit.nu' must be an integer
+                          greater than or equal to 0
+                          (end points 0 and 1 are always included)."),
                      call. = FALSE)
             }
             if ((hasArg(m0.dec) && !is.logical(m0.dec)) |
@@ -1272,8 +1273,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
         } else {
             noshape = TRUE
-            if (!((audit.nu %% 1 == 0) & audit.nu > 0)) {
-                stop("'audit.nu' must be an integer greater than or equal to 1.",
+            if (!((audit.nu %% 1 == 0) & audit.nu >= 0)) {
+                stop(gsub("\\s+", " ",
+                          "'audit.nu' must be an integer
+                          greater than or equal to 0
+                          (end points 0 and 1 are always included)."),
                      call. = FALSE)
             }
         }
@@ -3430,32 +3434,78 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             ## collinearities
             drY <- sset$s1$ys
             drX <- cbind(sset$s1$g0, sset$s1$g1)
-            drFit <- lm.fit(x = drX, y = drY)
-            drSSR <- sum(drFit$resid^2)
-            sset$s1$init.coef <- drFit$coef
+            if (!rescale) {
+                drFit <- lm.fit(x = drX, y = drY)
+                drCoef <- drFit$coef
+                drSSR <- sum(drFit$resid^2)
+                collinear <- any(is.na(drFit$coefficients))
+            } else {
+                collinear <- qr(drX)$rank != ncol(drX)
+                if (!collinear) {
+                    colMin <- apply(X = drX,
+                                    MARGIN = 2,
+                                    min)
+                    colMax <- apply(X = drX,
+                                    MARGIN = 2,
+                                    max)
+                    colDiff <- colMax - colMin
+                    resX <- sweep(x = drX,
+                                  MARGIN = 2,
+                                  STATS = colMin,
+                                  FUN = '-')
+                    resX <- sweep(x = resX,
+                                  MARGIN = 2,
+                                  STATS = colDiff,
+                                  FUN = '/')
+                    resX <- cbind(1, resX)
+                    ## Now optimize
+                    drN <- length(drY)
+                    model <- list()
+                    model$Q <- t(resX) %*% resX / drN
+                    model$obj <- as.vector(-2 * t(resX) %*% drY) / drN
+                    model$A <- matrix(c(-1, colMin / colDiff), nrow = 1)
+                    model$sense <- '='
+                    model$rhs <- 0
+                    model$lb <- rep(-Inf, times = ncol(resX))
+                    model$ub <- rep(Inf, times = ncol(resX))
+                    model$modelsense <- 'min'
+                    if (!debug) {
+                        drFit <- gurobi::gurobi(model,
+                                                list(outputflag = 0))
+                    } else {
+                        cat("\nDirect regression optimization statistics:\n")
+                        cat("------------------------------------------\n")
+                        drFit <- gurobi::gurobi(model,
+                                                list(outputflag = 1))
+                    }
+                    drCoef <- drFit$x[-1] / colDiff
+                    drSSR <- sum((drY - drX %*% drCoef)^2)
+                }
+            }
+            sset$s1$init.coef <- drCoef
             sset$s1$SSR <- drSSR
             ## If no collinearities, return the implied target parameter
-            if (!any(is.na(drFit$coefficients))) {
+            if (!collinear) {
                 if ((hasArg(point) && point == TRUE) |
                     !hasArg(point)) {
                     warning(gsub('\\s+', ' ',
                                  'MTR is point identified via linear regression.
                                   Shape constraints are ignored.'),
                             call. = FALSE)
-                    point.estimate <- sum(c(gstar0, gstar1) * drFit$coef)
+                    point.estimate <- sum(c(gstar0, gstar1) * drCoef)
                     if (noisy == TRUE) {
                         cat("\nPoint estimate of the target parameter: ",
                             point.estimate, "\n\n", sep = "")
                     }
                     if (!smallreturnlist) {
                         return(list(point.estimate = point.estimate,
-                                    mtr.coef = drFit$coef,
+                                    mtr.coef = drCoef,
                                     X = drX,
                                     SSR = drSSR,
                                     propensity = pmodel))
                     } else {
                         output <- list(point.estimate = point.estimate,
-                                       mtr.coef = drFit$coef,
+                                       mtr.coef = drCoef,
                                        SSR = drSSR)
                         if (all(class(pmodel) != "NULL")) {
                             output$propensity.coef <- pmodel$coef
