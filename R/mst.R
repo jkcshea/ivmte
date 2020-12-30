@@ -3441,46 +3441,44 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 collinear <- any(is.na(drFit$coefficients))
             } else {
                 collinear <- qr(drX)$rank != ncol(drX)
-                if (!collinear) {
-                    colMin <- apply(X = drX,
-                                    MARGIN = 2,
-                                    min)
-                    colMax <- apply(X = drX,
-                                    MARGIN = 2,
-                                    max)
-                    colDiff <- colMax - colMin
-                    resX <- sweep(x = drX,
-                                  MARGIN = 2,
-                                  STATS = colMin,
-                                  FUN = '-')
-                    resX <- sweep(x = resX,
-                                  MARGIN = 2,
-                                  STATS = colDiff,
-                                  FUN = '/')
-                    resX <- cbind(1, resX)
-                    ## Now optimize
-                    drN <- length(drY)
-                    model <- list()
-                    model$Q <- t(resX) %*% resX / drN
-                    model$obj <- as.vector(-2 * t(resX) %*% drY) / drN
-                    model$A <- matrix(c(-1, colMin / colDiff), nrow = 1)
-                    model$sense <- '='
-                    model$rhs <- 0
-                    model$lb <- rep(-Inf, times = ncol(resX))
-                    model$ub <- rep(Inf, times = ncol(resX))
-                    model$modelsense <- 'min'
-                    if (!debug) {
-                        drFit <- gurobi::gurobi(model,
-                                                list(outputflag = 0))
-                    } else {
-                        cat("\nDirect regression optimization statistics:\n")
-                        cat("------------------------------------------\n")
-                        drFit <- gurobi::gurobi(model,
-                                                list(outputflag = 1))
-                    }
-                    drCoef <- drFit$x[-1] / colDiff
-                    drSSR <- sum((drY - drX %*% drCoef)^2)
+                colMin <- apply(X = drX,
+                                MARGIN = 2,
+                                min)
+                colMax <- apply(X = drX,
+                                MARGIN = 2,
+                                max)
+                colDiff <- colMax - colMin
+                resX <- sweep(x = drX,
+                              MARGIN = 2,
+                              STATS = colMin,
+                              FUN = '-')
+                resX <- sweep(x = resX,
+                              MARGIN = 2,
+                              STATS = colDiff,
+                              FUN = '/')
+                resX <- cbind(1, resX)
+                ## Now optimize
+                drN <- length(drY)
+                model <- list()
+                model$Q <- t(resX) %*% resX / drN
+                model$obj <- as.vector(-2 * t(resX) %*% drY) / drN
+                model$A <- matrix(c(-1, colMin / colDiff), nrow = 1)
+                model$sense <- '='
+                model$rhs <- 0
+                model$lb <- rep(-Inf, times = ncol(resX))
+                model$ub <- rep(Inf, times = ncol(resX))
+                model$modelsense <- 'min'
+                if (!debug) {
+                    drFit <- gurobi::gurobi(model,
+                                            list(outputflag = 0))
+                } else {
+                    cat("\nDirect regression optimization statistics:\n")
+                    cat("------------------------------------------\n")
+                    drFit <- gurobi::gurobi(model,
+                                            list(outputflag = 1))
                 }
+                drCoef <- drFit$x[-1] / colDiff
+                drSSR <- sum((drY - drX %*% drCoef)^2)
             }
             sset$s1$init.coef <- drCoef
             sset$s1$SSR <- drSSR
