@@ -3440,45 +3440,195 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 drSSR <- sum(drFit$resid^2)
                 collinear <- any(is.na(drFit$coefficients))
             } else {
-                collinear <- qr(drX)$rank != ncol(drX)
-                colMin <- apply(X = drX,
-                                MARGIN = 2,
-                                min)
-                colMax <- apply(X = drX,
-                                MARGIN = 2,
-                                max)
-                colDiff <- colMax - colMin
-                resX <- sweep(x = drX,
-                              MARGIN = 2,
-                              STATS = colMin,
-                              FUN = '-')
-                resX <- sweep(x = resX,
-                              MARGIN = 2,
-                              STATS = colDiff,
-                              FUN = '/')
-                resX <- cbind(1, resX)
-                ## Now optimize
-                drN <- length(drY)
-                model <- list()
-                model$Q <- t(resX) %*% resX / drN
-                model$obj <- as.vector(-2 * t(resX) %*% drY) / drN
-                model$A <- matrix(c(-1, colMin / colDiff), nrow = 1)
-                model$sense <- '='
-                model$rhs <- 0
-                model$lb <- rep(-Inf, times = ncol(resX))
-                model$ub <- rep(Inf, times = ncol(resX))
-                model$modelsense <- 'min'
-                if (!debug) {
-                    drFit <- gurobi::gurobi(model,
-                                            list(outputflag = 0))
-                } else {
-                    cat("\nDirect regression optimization statistics:\n")
-                    cat("------------------------------------------\n")
-                    drFit <- gurobi::gurobi(model,
-                                            list(outputflag = 1))
+                gn0 <- ncol(sset$s1$g0)
+                gn1 <- ncol(sset$s1$g1)
+                m0int <- '[m0](Intercept)' %in% colnames(sset$s1$g0)
+                m1int <- '[m1](Intercept)' %in% colnames(sset$s1$g1)
+                tmpDr0 <- sset$s1$g0
+                if (!'[m0](Intercept)' %in% colnames(sset$s1$g0)) {
+                    tmpDr0 <- cbind(1 - data[subset_index, treat],
+                                    tmpDr0)
+                    colnames(tmpDr0)[1] <- '[m0](Intercept)'
                 }
-                drCoef <- drFit$x[-1] / colDiff
-                drSSR <- sum((drY - drX %*% drCoef)^2)
+                tmpDr1 <- sset$s1$g1
+                if (!'[m1](Intercept)' %in% colnames(sset$s1$g1)) {
+                    tmpDr1 <- cbind(data[subset_index, treat],
+                                    tmpDr1)
+                    colnames(tmpDr1)[1] <- '[m1](Intercept)'
+                }
+                ## Rescale covariates by traetment status
+                dVec <- data[subset_index, treat]
+                colMin0 <- apply(X = tmpDr0[as.logical(1 - dVec), ],
+                                 MARGIN = 2,
+                                 min)
+                colMax0 <- apply(X = tmpDr0[as.logical(1 - dVec), ],
+                                 MARGIN = 2,
+                                 max)
+                colDiff0 <- colMax0 - colMin0
+                colMin1 <- apply(X = tmpDr1[as.logical(dVec), ],
+                                 MARGIN = 2,
+                                 min)
+                colMax1 <- apply(X = tmpDr1[as.logical(dVec), ],
+                                 MARGIN = 2,
+                                 max)
+                colDiff1 <- colMax1 - colMin1
+                ## Check variances for odd cases of collinearity
+                colVar0 <- apply(X = tmpDr0[as.logical(1 - dVec), ],
+                                 MARGIN = 2,
+                                 var)
+                colVar1 <- apply(X = tmpDr1[as.logical(dVec), ],
+                                 MARGIN = 2,
+                                 var)
+                noVar <- NULL
+                varCheck0 <- sapply(colVar0, FUN = function(x) {
+                    x > 0 && x < 1e-10
+                })
+                varCheck1 <- sapply(colVar1, FUN = function(x) {
+                    x > 0 && x < 1e-10
+                })
+                if (any(varCheck0[-1])) {
+                    cons0 <- names(colVar0[-1])[varCheck0[-1]]
+                    noVar <- c(noVar, cons0)
+                }
+                if (any(varCheck1[-1])) {
+                    cons1 <- names(colVar1[-1])[varCheck1[-1]]
+                    noVar <- c(noVar, cons1)
+                }
+                if (!is.null(noVar)) {
+                    warning(gsub('\\s+', ' ',
+                              paste0('The following terms in the MTR have
+                                     minimal variance, and can lead to erroneous
+                                     estimates: ',
+                                     paste(noVar, collapse = ', '),
+                                     '.')),
+                         call. = FALSE, immediate. = TRUE)
+                }
+                ## Now construct rescaled matrix
+                resX0 <- sweep(x = tmpDr0[as.logical(1 - dVec), ],
+                               MARGIN = 2,
+                               STATS = c(0, colMin0[-1]),
+                               FUN = '-')
+                resX0 <- sweep(x = resX0,
+                               MARGIN = 2,
+                               STATS = c(1, colDiff0[-1]),
+                               FUN = '/')
+                resX0[, 1] <- 1
+                resX0 <- cbind(resX0,
+                               matrix(0, nrow = nrow(resX0),
+                                      ncol = ncol(tmpDr1)))
+                resX1 <- sweep(x = tmpDr1[as.logical(dVec), ],
+                               MARGIN = 2,
+                               STATS = c(0, colMin1[-1]),
+                               FUN = '-')
+                resX1 <- sweep(x = resX1,
+                               MARGIN = 2,
+                               STATS = c(1, colDiff1[-1]),
+                               FUN = '/')
+                resX1[, 1] <- 1
+                resX1 <- cbind(matrix(0, nrow = nrow(resX1),
+                                      ncol = ncol(tmpDr0)),
+                               resX1)
+                resX <- matrix(NA, nrow = nrow(tmpDr0),
+                               ncol = ncol(tmpDr0) + ncol(tmpDr1))
+                resX[as.logical(1 - dVec), ] <- resX0
+                resX[as.logical(dVec), ] <- resX1
+                colnames(resX) <- c(colnames(tmpDr0), colnames(tmpDr1))
+                rm(resX0, resX1)
+                if (m0int && m1int) {
+                    drFit <- lm.fit(x = resX, y = drY)
+                    drSSR <- sum(drFit$resid^2)
+                    collinear <- any(is.na(drFit$coefficients))
+                    ## Reconstruct the coefficients
+                    drCoef <- drFit$coef / c(1, colDiff0[-1], 1, colDiff1[-1])
+                    drCoef[1] <- drCoef[1] - sum((drCoef[2:gn0] * colMin0[-1]),
+                                                 na.rm = TRUE)
+                    drCoef[gn0 + 1] <- drCoef[gn0 + 1] -
+                        sum((drCoef[(gn0 + 2):(gn0 + gn1)] * colMin1[-1]),
+                            na.rm = TRUE)
+                    collinear <- qr(resX)$rank < ncol(resX)
+                } else {
+                    collinear <- qr(resX)$rank < ncol(resX)
+                    ## If intercepts are missing, then linear
+                    ## constraints on the new intercept must be put in
+                    ## place.
+                    drN <- length(drY)
+                    model <- list()
+                    model$Q <- t(resX) %*% resX / drN
+                    model$obj <- as.vector(-2 * t(resX) %*% drY) / drN
+                    A <- NULL
+                    sense <- NULL
+                    rhs <- NULL
+                    if (!m0int) {
+                        aTmp <- c(colMin0 / colDiff0,
+                                  rep(0, times = ncol(resX) - length(colMin0)))
+                        aTmp[1] <- -1
+                        aTmp <- matrix(aTmp, nrow = 1)
+                        rownames(aTmp) <- '[m0](Intercept)'
+                        A <- rbind(A, aTmp)
+                        sense <- c(sense, '=')
+                        rhs <- c(rhs, 0)
+                        rm(aTmp)
+                    }
+                    if (!m1int) {
+                        aTmp <- c(rep(0, times = ncol(resX) - length(colMin1)),
+                                  colMin1 / colDiff1)
+                        aTmp[length(aTmp) - gn1] <- -1
+                        aTmp <- matrix(aTmp, nrow = 1)
+                        rownames(aTmp) <- '[m1](Intercept)'
+                        A <- rbind(A, aTmp)
+                        sense <- c(sense, '=')
+                        rhs <- c(rhs, 0)
+                        rm(aTmp)
+                    }
+                    colnames(A) <- colnames(resX)
+                    model$A <- A
+                    model$sense <- sense
+                    model$rhs <- rhs
+                    model$lb <- rep(-Inf, times = ncol(resX))
+                    model$ub <- rep(Inf, times = ncol(resX))
+                    model$modelsense <- 'min'
+                    ## Now optimize subject to constraints on the intercepts
+                    if (!debug) {
+                        drFit <- gurobi::gurobi(model,
+                                                list(outputflag = 0))
+                    } else {
+                        cat("\nDirect regression optimization statistics:\n")
+                        cat("------------------------------------------\n")
+                        drFit <- gurobi::gurobi(model,
+                                                list(outputflag = 1))
+                    }
+                    ## Reconstruct the coefficients and determine SSR
+                    drCoef <- NULL
+                    tmpCoef <- drFit$x
+                    if (!m0int) {
+                        drCoef <- c(drCoef, tmpCoef[2:(gn0 + 1)] / colDiff0[-1])
+                    } else {
+                        tmpInt0 <- tmpCoef[1] -
+                            sum((tmpCoef[2:gn0] *
+                                 colMin0[-1]) /
+                                colDiff0[-1], na.rm = TRUE)
+                        drCoef <- c(drCoef, tmpInt0,
+                                    tmpCoef[2:gn0] / colDiff0[-1])
+                        rm(tmpInt0)
+                    }
+                    if (!m1int) {
+                        drCoef <- c(drCoef,
+                                    tmpCoef[(ncol(A) - gn1 + 1):ncol(A)] /
+                                    colDiff1[-1])
+                    } else {
+                        tmpInt1 <- tmpCoef[ncol(A) - gn1 + 1] -
+                            sum((tmpCoef[(ncol(A) - gn1 + 2):ncol(A)] *
+                                 colMin1[-1]) /
+                                colDiff1[-1], na.rm = TRUE)
+                        drCoef <- c(drCoef, tmpInt1,
+                                    tmpCoef[(ncol(A) - gn1 + 2):ncol(A)] /
+                                    colDiff1[-1])
+                        rm(tmpInt1)
+                    }
+                    rm(tmpCoef)
+                    names(drCoef) <- colnames(drX)
+                    drSSR <- sum((drY - drX %*% drCoef)^2)
+                }
             }
             sset$s1$init.coef <- drCoef
             sset$s1$SSR <- drSSR
