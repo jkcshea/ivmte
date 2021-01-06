@@ -3434,11 +3434,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             ## collinearities
             drY <- sset$s1$ys
             drX <- cbind(sset$s1$g0, sset$s1$g1)
+            drFit <- lm.fit(x = drX, y = drY)
+            collinear <- any(is.na(drFit$coefficients))
             if (!rescale) {
-                drFit <- lm.fit(x = drX, y = drY)
                 drCoef <- drFit$coef
                 drSSR <- sum(drFit$resid^2)
-                collinear <- any(is.na(drFit$coefficients))
             } else {
                 gn0 <- ncol(sset$s1$g0)
                 gn1 <- ncol(sset$s1$g1)
@@ -3472,7 +3472,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                  MARGIN = 2,
                                  max)
                 colDiff1 <- colMax1 - colMin1
-                ## Check variances for odd cases of collinearity
+                ## Check variances for odd cases where the variation
+                ## of a variable is minimal.
                 colVar0 <- apply(X = tmpDr0[as.logical(1 - dVec), ],
                                  MARGIN = 2,
                                  var)
@@ -3534,10 +3535,14 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 resX[as.logical(dVec), ] <- resX1
                 colnames(resX) <- c(colnames(tmpDr0), colnames(tmpDr1))
                 rm(resX0, resX1)
+                ## Perform the regression, regardless of whether there
+                ## are intercepts or not. If it is point identified
+                ## without restrictions, then it should also be point
+                ## identified with restrictions. This is done to
+                ## correctly detect for collinerity.
                 if (m0int && m1int) {
                     drFit <- lm.fit(x = resX, y = drY)
                     drSSR <- sum(drFit$resid^2)
-                    collinear <- any(is.na(drFit$coefficients))
                     ## Reconstruct the coefficients
                     drCoef <- drFit$coef / c(1, colDiff0[-1], 1, colDiff1[-1])
                     drCoef[1] <- drCoef[1] - sum((drCoef[2:gn0] * colMin0[-1]),
@@ -3545,9 +3550,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     drCoef[gn0 + 1] <- drCoef[gn0 + 1] -
                         sum((drCoef[(gn0 + 2):(gn0 + gn1)] * colMin1[-1]),
                             na.rm = TRUE)
-                    collinear <- qr(resX)$rank < ncol(resX)
                 } else {
-                    collinear <- qr(resX)$rank < ncol(resX)
                     ## If intercepts are missing, then linear
                     ## constraints on the new intercept must be put in
                     ## place.
