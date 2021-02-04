@@ -229,34 +229,19 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
     if (direct && rescale) {
         ## Rescale linear constraints
-        colMin <- apply(X = cbind(sset$s1$g0, sset$s1$g1),
-                        MARGIN = 2,
-                        min)
-        colMax <- apply(X = cbind(sset$s1$g0, sset$s1$g1),
-                        MARGIN = 2,
-                        max)
-        colDiff <- colMax - colMin
+        colNorms0 <- apply(sset$s1$g0, MARGIN = 2, function(x) sqrt(sum(x^2)))
+        colNorms1 <- apply(sset$s1$g1, MARGIN = 2, function(x) sqrt(sum(x^2)))
+        colNorms <- c(colNorms0, colNorms1)
+        rm(colNorms0, colNorms1)
         mbA <- sweep(x = mbA,
                      MARGIN = 2,
-                     STATS = colDiff,
+                     STATS = colNorms,
                      FUN = '/')
-        mbA <- cbind(0, mbA)
-        colnames(mbA)[1] <- 'rescaledInt'
-        ub <- c(Inf, ub)
-        lb <- c(-Inf, lb)
-        ## Add additional equality constraint for the new rescaled
-        ## intercept
-        mbA <- rbind(c(-1, colMin / colDiff), mbA)
-        sense <- c('=', sense)
-        rhs <- c(0, rhs)
+        env$colNorms <- colNorms
     }
     ## Convert into sparse matrix
     if (solver %in% c("gurobi", "lpsolveapi")) {
         mbA <- Matrix::Matrix(mbA, sparse = TRUE)
-    }
-    ## Separate out inequality and equality constraints for lsei
-    if (solver == "lsei") {
-        print(sense)
     }
     env$lpobj <- list(rhs = rhs,
                       sense = sense,
@@ -344,9 +329,13 @@ lpSetupSolver <- function(env, solver) {
         env$lpobj$sense[env$lpobj$sense == "=="] <- "="
     }
     if (solver == "lsei") {
-        print(names(env))
-        print(names(env$lpobj))
-        stop('end of test')
+        ## Rewrite inequality constraints so that they are of the form
+        ## Ax >= b.
+        env$lpobj$A[which(env$lpobj$sense == '<=')] <-
+            -env$lpobj$A[which(env$lpobj$sense == '<=')]
+        env$lpobj$rhs[which(env$lpobj$sense == '<=')] <-
+            -env$lpobj$rhs[which(env$lpobj$sense == '<=')]
+        env$lpobj$sense[which(env$lpobj$sense == '<=')] <- '>='
     }
 }
 
@@ -713,13 +702,18 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
         optx     <- result$optx
         status   <- result$status
     } else if (solver == "lsei") {
-        
-        
+        result <- lsei::lsei(a = env$drX, b = env$drY,
+                             e = env$lpobj$A, f = env$lpobj$rhs)
+        obseqmin <- sum((env$drY - env$drX %*% result)^2) - sum(env$drY^2)
+        obseqmin <- obseqmin / env$drN
     } else {
         stop(gsub('\\s+', ' ',
                   "Invalid LP solver. Option 'solver' must be either 'gurobi',
                   'cplexapi', or 'lpsolveapi'."))
     }
+    print(result)
+    print(obseqmin)
+    stop('CONTINUE FROM ABOVE, FOR LSEI')
     ## Provide nicer output
     if (!rescale) {
         g0sol <- optx[(2 * env$lpobj$sn + 1) :
@@ -1402,24 +1396,8 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     drN <- length(drY)
     print('RESCALING BY drN IS DANGEROUS---SLIGHT NUMERICAL IMPRECISION CAN RESULT IN MINIMUM CRITERION THAT DONT MAKE SENSE, I.E. NEGATIVE CRITERION')
     if (rescale) {
-        colMin <- apply(X = drX,
-                        MARGIN = 2,
-                        min)
-        colMax <- apply(X = drX,
-                        MARGIN = 2,
-                        max)
-        colDiff <- colMax - colMin
-        drX <- sweep(x = drX,
-                      MARGIN = 2,
-                      STATS = colMin,
-                     FUN = '-')
-        drX <- sweep(x = drX,
-                      MARGIN = 2,
-                      STATS = colDiff,
-                      FUN = '/')
-        drX <- cbind(1, drX)
+        drX <- sweep(x = drX, MARGIN = 2, STATS = env$colNorms, FUN = '/')
     }
-    drSSR <- sset$s1$SSR
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
     qc$Qc <- t(drX) %*% drX / drN
@@ -1429,9 +1407,10 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$quad <- qc
     ## Store the SSY
     env$ssy <- sum(drY^2)
+    ## Store the regression matrices
+    env$drY <- drY
+    env$drX <- drX
     env$drN <- drN
-    ## Store the difference between max and min
-    if (rescale) env$maxMinusMin <- colDiff
 }
 
 #' Configure QCQP problem to find minimum criterion

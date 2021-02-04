@@ -3440,103 +3440,27 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             drY <- sset$s1$ys
             drX <- cbind(sset$s1$g0, sset$s1$g1)
             drN <- length(drY)
-            drFit <- lm.fit(x = drX, y = drY)
-            collinear <- any(is.na(drFit$coefficients))
             if (!rescale) {
+                drFit <- lm.fit(x = drX, y = drY)
+                collinear <- any(is.na(drFit$coefficients))
                 drCoef <- drFit$coef
                 drSSR <- sum(drFit$resid^2)
             } else {
                 dVec <- data[subset_index, treat]
                 gn0 <- ncol(sset$s1$g0)
                 gn1 <- ncol(sset$s1$g1)
-                m0int <- '[m0](Intercept)' %in% colnames(sset$s1$g0)
-                m1int <- '[m1](Intercept)' %in% colnames(sset$s1$g1)
-                rescaleObj <- rescaleX(sset, dVec, drY, drN)
-                resX <- rescaleObj$resX
-                colDiff0 <- rescaleObj$colDiff0
-                colDiff1 <- rescaleObj$colDiff1
-                ## Perform the regression, regardless of whether there
-                ## are intercepts or not. If it is point identified
-                ## without restrictions, then it should also be point
-                ## identified with restrictions. This is done to
-                ## correctly detect for collinerity.
-                if (m0int && m1int) {
-                    drFit <- lm.fit(x = resX, y = drY)
-                    drSSR <- sum(drFit$resid^2)
-                    ## Reconstruct the coefficients
-                    drCoef <- drFit$coef / c(1, colDiff0[-1], 1, colDiff1[-1])
-                    drCoef[1] <- drCoef[1] - sum((drCoef[2:gn0] * colMin0[-1]),
-                                                 na.rm = TRUE)
-                    drCoef[gn0 + 1] <- drCoef[gn0 + 1] -
-                        sum((drCoef[(gn0 + 2):(gn0 + gn1)] * colMin1[-1]),
-                            na.rm = TRUE)
-                } else {
-                    ## If intercepts are missing, then linear
-                    ## constraints on the new intercept must be put in
-                    ## place.
-                    model <- rescaleObj$model
-                    A <- model$A
-                    ## Now optimize subject to constraints on the intercepts
-                    if (!testing) {
-                        if (!debug) {
-                            drFit <- gurobi::gurobi(model,
-                                                    list(outputflag = 0))
-                        } else {
-                            cat("\nDirect regression optimization statistics:\n")
-                            cat("------------------------------------------\n")
-                            drFit <- gurobi::gurobi(model,
-                                                    list(outputflag = 1))
-                            save(resX, model, file = "lpRescaleDirect.Rdata")
-                        }
-                    } else {
-                        drFit <- lsei::lsei(a = resX,
-                                            b = drY,
-                                            c = model$A,
-                                            d = model$rhs)
-                    }
-                    print('gurobi')
-                    print(drFit)
-                    print('lsei')
-                    lsei::lsei(a = resX,
-                               b = drY,
-                               c = model$A,
-                               d = model$rhs)
-                    ## Reconstruct the coefficients and determine SSR
-                    drCoef <- NULL
-                    if (!testing) {
-                        tmpCoef <- drFit$x
-                    } else {
-                        tmpCoef <- drFit
-                    }
-                    if (!m0int) {
-                        drCoef <- c(drCoef, tmpCoef[2:(gn0 + 1)] / colDiff0[-1])
-                    } else {
-                        tmpInt0 <- tmpCoef[1] -
-                            sum((tmpCoef[2:gn0] *
-                                 colMin0[-1]) /
-                                colDiff0[-1], na.rm = TRUE)
-                        drCoef <- c(drCoef, tmpInt0,
-                                    tmpCoef[2:gn0] / colDiff0[-1])
-                        rm(tmpInt0)
-                    }
-                    if (!m1int) {
-                        drCoef <- c(drCoef,
-                                    tmpCoef[(ncol(A) - gn1 + 1):ncol(A)] /
-                                    colDiff1[-1])
-                    } else {
-                        tmpInt1 <- tmpCoef[ncol(A) - gn1 + 1] -
-                            sum((tmpCoef[(ncol(A) - gn1 + 2):ncol(A)] *
-                                 colMin1[-1]) /
-                                colDiff1[-1], na.rm = TRUE)
-                        drCoef <- c(drCoef, tmpInt1,
-                                    tmpCoef[(ncol(A) - gn1 + 2):ncol(A)] /
-                                    colDiff1[-1])
-                        rm(tmpInt1)
-                    }
-                    rm(tmpCoef)
-                    names(drCoef) <- colnames(drX)
-                    drSSR <- sum((drY - drX %*% drCoef)^2)
-                }
+                colNorms <- apply(drX, MARGIN = 2, function(x) sqrt(sum(x^2)))
+                resX <- sweep(x = drX, MARGIN = 2, STATS = colNorms, FUN = '/')
+                ## Perform the regression. If the MTR is point
+                ## identified without restrictions, then it should
+                ## also be point identified with restrictions. This is
+                ## done to correctly detect for collinerity.
+                drFit <- lm.fit(x = resX, y = drY)
+                collinear <- any(is.na(drFit$coefficients))
+                drSSR <- sum(drFit$resid^2)
+                ## Reconstruct the coefficients
+                drCoef <- drFit$coef / colNorms
+                print('doing the rescale')
             }
             sset$s1$init.coef <- drCoef
             sset$s1$SSR <- drSSR
@@ -5467,4 +5391,3 @@ summary.ivmte <- function(object, ...) {
     }
     cat("\n")
 }
-
