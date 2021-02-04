@@ -254,6 +254,10 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     if (solver %in% c("gurobi", "lpsolveapi")) {
         mbA <- Matrix::Matrix(mbA, sparse = TRUE)
     }
+    ## Separate out inequality and equality constraints for lsei
+    if (solver == "lsei") {
+        print(sense)
+    }
     env$lpobj <- list(rhs = rhs,
                       sense = sense,
                       A = mbA,
@@ -338,6 +342,11 @@ lpSetupSolver <- function(env, solver) {
         env$lpobj$sense[env$lpobj$sense == "<"]  <- "<="
         env$lpobj$sense[env$lpobj$sense == ">"]  <- ">="
         env$lpobj$sense[env$lpobj$sense == "=="] <- "="
+    }
+    if (solver == "lsei") {
+        print(names(env))
+        print(names(env$lpobj))
+        stop('end of test')
     }
 }
 
@@ -703,6 +712,9 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
+    } else if (solver == "lsei") {
+        
+        
     } else {
         stop(gsub('\\s+', ' ',
                   "Invalid LP solver. Option 'solver' must be either 'gurobi',
@@ -1388,6 +1400,7 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
     drN <- length(drY)
+    print('RESCALING BY drN IS DANGEROUS---SLIGHT NUMERICAL IMPRECISION CAN RESULT IN MINIMUM CRITERION THAT DONT MAKE SENSE, I.E. NEGATIVE CRITERION')
     if (rescale) {
         colMin <- apply(X = drX,
                         MARGIN = 2,

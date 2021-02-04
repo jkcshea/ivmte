@@ -433,7 +433,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
                   specification.test = TRUE,
                   noisy = FALSE,
-                  smallreturnlist = FALSE, debug = FALSE) {
+                  smallreturnlist = FALSE, debug = FALSE, testing = FALSE) {
+    ## TESTING --------------------
+    if (testing) print('THIS IS A TEST OF LSEI AND SCS!.')
+    if (!testing) print('THIS IS A TEST OF LSEI AND GUROBI')
+    ## END TESTING ----------------
     ## Try-catch is implemented to deal with sinking of
     ## output. Specifically, if the function ends prematurely, the
     ## sink can still be reset at the 'finally' segment.
@@ -3170,7 +3174,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                           splinesobj, noisy = TRUE,
                           smallreturnlist = FALSE,
-                          debug = FALSE, environments) {
+                          debug = FALSE, environments,
+                          testing) {
     call <- match.call(expand.dots = FALSE)
     if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
         direct <- TRUE
@@ -3434,107 +3439,22 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             ## collinearities
             drY <- sset$s1$ys
             drX <- cbind(sset$s1$g0, sset$s1$g1)
+            drN <- length(drY)
             drFit <- lm.fit(x = drX, y = drY)
             collinear <- any(is.na(drFit$coefficients))
             if (!rescale) {
                 drCoef <- drFit$coef
                 drSSR <- sum(drFit$resid^2)
             } else {
+                dVec <- data[subset_index, treat]
                 gn0 <- ncol(sset$s1$g0)
                 gn1 <- ncol(sset$s1$g1)
                 m0int <- '[m0](Intercept)' %in% colnames(sset$s1$g0)
                 m1int <- '[m1](Intercept)' %in% colnames(sset$s1$g1)
-                tmpDr0 <- sset$s1$g0
-                if (!'[m0](Intercept)' %in% colnames(sset$s1$g0)) {
-                    tmpDr0 <- cbind(1 - data[subset_index, treat],
-                                    tmpDr0)
-                    colnames(tmpDr0)[1] <- '[m0](Intercept)'
-                }
-                tmpDr1 <- sset$s1$g1
-                if (!'[m1](Intercept)' %in% colnames(sset$s1$g1)) {
-                    tmpDr1 <- cbind(data[subset_index, treat],
-                                    tmpDr1)
-                    colnames(tmpDr1)[1] <- '[m1](Intercept)'
-                }
-                ## Rescale covariates by traetment status
-                dVec <- data[subset_index, treat]
-                colMin0 <- apply(X = tmpDr0[as.logical(1 - dVec), ],
-                                 MARGIN = 2,
-                                 min)
-                colMax0 <- apply(X = tmpDr0[as.logical(1 - dVec), ],
-                                 MARGIN = 2,
-                                 max)
-                colDiff0 <- colMax0 - colMin0
-                colMin1 <- apply(X = tmpDr1[as.logical(dVec), ],
-                                 MARGIN = 2,
-                                 min)
-                colMax1 <- apply(X = tmpDr1[as.logical(dVec), ],
-                                 MARGIN = 2,
-                                 max)
-                colDiff1 <- colMax1 - colMin1
-                ## Check variances for odd cases where the variation
-                ## of a variable is minimal.
-                colVar0 <- apply(X = tmpDr0[as.logical(1 - dVec), ],
-                                 MARGIN = 2,
-                                 var)
-                colVar1 <- apply(X = tmpDr1[as.logical(dVec), ],
-                                 MARGIN = 2,
-                                 var)
-                noVar <- NULL
-                varCheck0 <- sapply(colVar0, FUN = function(x) {
-                    x > 0 && x < 1e-10
-                })
-                varCheck1 <- sapply(colVar1, FUN = function(x) {
-                    x > 0 && x < 1e-10
-                })
-                if (any(varCheck0[-1])) {
-                    cons0 <- names(colVar0[-1])[varCheck0[-1]]
-                    noVar <- c(noVar, cons0)
-                }
-                if (any(varCheck1[-1])) {
-                    cons1 <- names(colVar1[-1])[varCheck1[-1]]
-                    noVar <- c(noVar, cons1)
-                }
-                if (!is.null(noVar)) {
-                    warning(gsub('\\s+', ' ',
-                              paste0('The following terms in the MTR have
-                                     minimal variance, and can lead to erroneous
-                                     estimates: ',
-                                     paste(noVar, collapse = ', '),
-                                     '.')),
-                         call. = FALSE, immediate. = TRUE)
-                }
-                ## Now construct rescaled matrix
-                resX0 <- sweep(x = tmpDr0[as.logical(1 - dVec), ],
-                               MARGIN = 2,
-                               STATS = c(0, colMin0[-1]),
-                               FUN = '-')
-                resX0 <- sweep(x = resX0,
-                               MARGIN = 2,
-                               STATS = c(1, colDiff0[-1]),
-                               FUN = '/')
-                resX0[, 1] <- 1
-                resX0 <- cbind(resX0,
-                               matrix(0, nrow = nrow(resX0),
-                                      ncol = ncol(tmpDr1)))
-                resX1 <- sweep(x = tmpDr1[as.logical(dVec), ],
-                               MARGIN = 2,
-                               STATS = c(0, colMin1[-1]),
-                               FUN = '-')
-                resX1 <- sweep(x = resX1,
-                               MARGIN = 2,
-                               STATS = c(1, colDiff1[-1]),
-                               FUN = '/')
-                resX1[, 1] <- 1
-                resX1 <- cbind(matrix(0, nrow = nrow(resX1),
-                                      ncol = ncol(tmpDr0)),
-                               resX1)
-                resX <- matrix(NA, nrow = nrow(tmpDr0),
-                               ncol = ncol(tmpDr0) + ncol(tmpDr1))
-                resX[as.logical(1 - dVec), ] <- resX0
-                resX[as.logical(dVec), ] <- resX1
-                colnames(resX) <- c(colnames(tmpDr0), colnames(tmpDr1))
-                rm(resX0, resX1)
+                rescaleObj <- rescaleX(sset, dVec, drY, drN)
+                resX <- rescaleObj$resX
+                colDiff0 <- rescaleObj$colDiff0
+                colDiff1 <- rescaleObj$colDiff1
                 ## Perform the regression, regardless of whether there
                 ## are intercepts or not. If it is point identified
                 ## without restrictions, then it should also be point
@@ -3554,55 +3474,40 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     ## If intercepts are missing, then linear
                     ## constraints on the new intercept must be put in
                     ## place.
-                    drN <- length(drY)
-                    model <- list()
-                    model$Q <- t(resX) %*% resX / drN
-                    model$obj <- as.vector(-2 * t(resX) %*% drY) / drN
-                    A <- NULL
-                    sense <- NULL
-                    rhs <- NULL
-                    if (!m0int) {
-                        aTmp <- c(colMin0 / colDiff0,
-                                  rep(0, times = ncol(resX) - length(colMin0)))
-                        aTmp[1] <- -1
-                        aTmp <- matrix(aTmp, nrow = 1)
-                        rownames(aTmp) <- '[m0](Intercept)'
-                        A <- rbind(A, aTmp)
-                        sense <- c(sense, '=')
-                        rhs <- c(rhs, 0)
-                        rm(aTmp)
-                    }
-                    if (!m1int) {
-                        aTmp <- c(rep(0, times = ncol(resX) - length(colMin1)),
-                                  colMin1 / colDiff1)
-                        aTmp[length(aTmp) - gn1] <- -1
-                        aTmp <- matrix(aTmp, nrow = 1)
-                        rownames(aTmp) <- '[m1](Intercept)'
-                        A <- rbind(A, aTmp)
-                        sense <- c(sense, '=')
-                        rhs <- c(rhs, 0)
-                        rm(aTmp)
-                    }
-                    colnames(A) <- colnames(resX)
-                    model$A <- A
-                    model$sense <- sense
-                    model$rhs <- rhs
-                    model$lb <- rep(-Inf, times = ncol(resX))
-                    model$ub <- rep(Inf, times = ncol(resX))
-                    model$modelsense <- 'min'
+                    model <- rescaleObj$model
+                    A <- model$A
                     ## Now optimize subject to constraints on the intercepts
-                    if (!debug) {
-                        drFit <- gurobi::gurobi(model,
-                                                list(outputflag = 0))
+                    if (!testing) {
+                        if (!debug) {
+                            drFit <- gurobi::gurobi(model,
+                                                    list(outputflag = 0))
+                        } else {
+                            cat("\nDirect regression optimization statistics:\n")
+                            cat("------------------------------------------\n")
+                            drFit <- gurobi::gurobi(model,
+                                                    list(outputflag = 1))
+                            save(resX, model, file = "lpRescaleDirect.Rdata")
+                        }
                     } else {
-                        cat("\nDirect regression optimization statistics:\n")
-                        cat("------------------------------------------\n")
-                        drFit <- gurobi::gurobi(model,
-                                                list(outputflag = 1))
+                        drFit <- lsei::lsei(a = resX,
+                                            b = drY,
+                                            c = model$A,
+                                            d = model$rhs)
                     }
+                    print('gurobi')
+                    print(drFit)
+                    print('lsei')
+                    lsei::lsei(a = resX,
+                               b = drY,
+                               c = model$A,
+                               d = model$rhs)
                     ## Reconstruct the coefficients and determine SSR
                     drCoef <- NULL
-                    tmpCoef <- drFit$x
+                    if (!testing) {
+                        tmpCoef <- drFit$x
+                    } else {
+                        tmpCoef <- drFit
+                    }
                     if (!m0int) {
                         drCoef <- c(drCoef, tmpCoef[2:(gn0 + 1)] / colDiff0[-1])
                     } else {
@@ -3844,7 +3749,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          sset = quote(sset),
                                          gstar0 = quote(gstar0),
                                          gstar1 = quote(gstar1),
-                                         solver = quote(solver)))
+                                         solver = quote(solver),
+                                         testing = testing)) ## TESTING
     ## Impose default upper and lower bounds on m0 and m1
     if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
         maxy <- max(data[, vars_y])
@@ -5217,6 +5123,152 @@ momentMatrix <- function(sset, gn0, gn1, subsetList = NULL, n = NULL) {
     return(momentMatrix)
 }
 
+#' Function to implement rescaling procedure
+#'
+#' This function rescales the matrix of covariates used in the direct
+#' regression to improve the conditioning number and the stability of
+#' the estimation procedure.
+#'
+#' @param sset a list of lists constructed from the function
+#'     \link{genSSet}. In the case of a direct regression, 'sset'
+#'     contains only one inner list. This list contains the gamma
+#'     moment at the individual level.
+rescaleX <- function(sset, dVec, drY, drN, shape.constraint = FALSE) {
+    gn0 <- ncol(sset$s1$g0)
+    gn1 <- ncol(sset$s1$g1)
+    m0int <- '[m0](Intercept)' %in% colnames(sset$s1$g0)
+    m1int <- '[m1](Intercept)' %in% colnames(sset$s1$g1)
+    tmpDr0 <- sset$s1$g0
+    if (!'[m0](Intercept)' %in% colnames(sset$s1$g0)) {
+        tmpDr0 <- cbind(1 - dVec,
+                        tmpDr0)
+        colnames(tmpDr0)[1] <- '[m0](Intercept)'
+    }
+    tmpDr1 <- sset$s1$g1
+    if (!'[m1](Intercept)' %in% colnames(sset$s1$g1)) {
+        tmpDr1 <- cbind(dVec, tmpDr1)
+        colnames(tmpDr1)[1] <- '[m1](Intercept)'
+    }
+    ## Rescale covariates by treatment status
+    colMin0 <- apply(X = tmpDr0[as.logical(1 - dVec), ],
+                     MARGIN = 2,
+                     min)
+    colMax0 <- apply(X = tmpDr0[as.logical(1 - dVec), ],
+                     MARGIN = 2,
+                     max)
+    colDiff0 <- colMax0 - colMin0
+    colMin1 <- apply(X = tmpDr1[as.logical(dVec), ],
+                     MARGIN = 2,
+                     min)
+    colMax1 <- apply(X = tmpDr1[as.logical(dVec), ],
+                     MARGIN = 2,
+                     max)
+    colDiff1 <- colMax1 - colMin1
+    ## Check variances for odd cases where the variation
+    ## of a variable is minimal.
+    colVar0 <- apply(X = tmpDr0[as.logical(1 - dVec), ],
+                     MARGIN = 2,
+                     var)
+    colVar1 <- apply(X = tmpDr1[as.logical(dVec), ],
+                     MARGIN = 2,
+                     var)
+    noVar <- NULL
+    varCheck0 <- sapply(colVar0, FUN = function(x) {
+        x > 0 && x < 1e-10
+    })
+    varCheck1 <- sapply(colVar1, FUN = function(x) {
+        x > 0 && x < 1e-10
+    })
+    if (any(varCheck0[-1])) {
+        cons0 <- names(colVar0[-1])[varCheck0[-1]]
+        noVar <- c(noVar, cons0)
+    }
+    if (any(varCheck1[-1])) {
+        cons1 <- names(colVar1[-1])[varCheck1[-1]]
+        noVar <- c(noVar, cons1)
+    }
+    if (!is.null(noVar)) {
+        warning(gsub('\\s+', ' ',
+                     paste0('The following terms in the MTR have
+                                     minimal variance, and can lead to erroneous
+                                     estimates: ',
+                            paste(noVar, collapse = ', '),
+                            '.')),
+                call. = FALSE, immediate. = TRUE)
+    }
+    ## Now construct rescaled matrix
+    resX0 <- sweep(x = tmpDr0[as.logical(1 - dVec), ],
+                   MARGIN = 2,
+                   STATS = c(0, colMin0[-1]),
+                   FUN = '-')
+    resX0 <- sweep(x = resX0,
+                   MARGIN = 2,
+                   STATS = c(1, colDiff0[-1]),
+                   FUN = '/')
+    resX0[, 1] <- 1
+    resX0 <- cbind(resX0,
+                   matrix(0, nrow = nrow(resX0),
+                          ncol = ncol(tmpDr1)))
+    resX1 <- sweep(x = tmpDr1[as.logical(dVec), ],
+                   MARGIN = 2,
+                   STATS = c(0, colMin1[-1]),
+                   FUN = '-')
+    resX1 <- sweep(x = resX1,
+                   MARGIN = 2,
+                   STATS = c(1, colDiff1[-1]),
+                   FUN = '/')
+    resX1[, 1] <- 1
+    resX1 <- cbind(matrix(0, nrow = nrow(resX1),
+                          ncol = ncol(tmpDr0)),
+                   resX1)
+    resX <- matrix(NA, nrow = nrow(tmpDr0),
+                   ncol = ncol(tmpDr0) + ncol(tmpDr1))
+    resX[as.logical(1 - dVec), ] <- resX0
+    resX[as.logical(dVec), ] <- resX1
+    colnames(resX) <- c(colnames(tmpDr0), colnames(tmpDr1))
+    rm(resX0, resX1)
+    ## Construct the QP model
+    model <- list()
+    model$Q <- t(resX) %*% resX / drN
+    model$obj <- as.vector(-2 * t(resX) %*% drY) / drN
+    A <- NULL
+    sense <- NULL
+    rhs <- NULL
+    if (!m0int) {
+        aTmp <- c(colMin0 / colDiff0,
+                  rep(0, times = ncol(resX) - length(colMin0)))
+        aTmp[1] <- -1
+        aTmp <- matrix(aTmp, nrow = 1)
+        rownames(aTmp) <- '[m0](Intercept)'
+        A <- rbind(A, aTmp)
+        sense <- c(sense, '=')
+        rhs <- c(rhs, 0)
+        rm(aTmp)
+    }
+    if (!m1int) {
+        aTmp <- c(rep(0, times = ncol(resX) - length(colMin1)),
+                  colMin1 / colDiff1)
+        aTmp[length(aTmp) - gn1] <- -1
+        aTmp <- matrix(aTmp, nrow = 1)
+        rownames(aTmp) <- '[m1](Intercept)'
+        A <- rbind(A, aTmp)
+        sense <- c(sense, '=')
+        rhs <- c(rhs, 0)
+        rm(aTmp)
+    }
+    colnames(A) <- colnames(resX)
+    model$A <- A
+    model$sense <- sense
+    model$rhs <- rhs
+    model$lb <- rep(-Inf, times = ncol(resX))
+    model$ub <- rep(Inf, times = ncol(resX))
+    model$modelsense <- 'min'
+    return(list(resX = resX,
+                model = model,
+                colDiff0 = colDiff0,
+                colDiff1 = colDiff1))
+}
+
 #' Format result for display
 #'
 #' This function simply takes a number and formats it for being
@@ -5415,3 +5467,4 @@ summary.ivmte <- function(object, ...) {
     }
     cat("\n")
 }
+

@@ -183,7 +183,11 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   solver.options.criterion, solver.options.bounds,
                   rescale = TRUE,
                   smallreturnlist = FALSE,
-                  noisy = TRUE, debug = FALSE) {
+                  noisy = TRUE, debug = FALSE,
+                  testing) {
+    ## TESTING ----------------------
+    if (testing) solver <- "lsei"
+    ## END TESTING -----------------
     call  <- match.call()
     solver <- tolower(solver)
     ## Determine if whether IV-like moments or direct MTR regression
@@ -664,6 +668,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 sep = "")
         }
         if (direct && noisy) {
+            print('lpEnv$drN')
+            print(lpEnv$drN)
+            print('minobseq')
+            print(minobseq$obj)
+            print('ssy')
+            print(lpEnv$ssy)
             cat("    Minimum criterion: ",
                 fmtResult(minobseq$obj * lpEnv$drN + lpEnv$ssy),
                 "\n",
