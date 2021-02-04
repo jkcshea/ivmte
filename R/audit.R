@@ -502,10 +502,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            Tolerance parameters for the LP solver
                            can also be passed through the argument
                            'solver.options'.\n")
+    ## Set up how much to scale the solutions from the minimum
+    ## criterion to construct the box constraints. If any of those
+    ## constraints are binding, then the audit is restarted.
+    criterion.scale <- 2
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
+        print('get rid of testing code below!')
+        if (testing == TRUE) solver <- 'lsei'
         lpSetupSolver(env = lpEnv, solver = solver)
         if (!direct) {
             lpSetupCriterion(env = lpEnv, sset = sset)
@@ -554,7 +560,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 qpSetupInfeasible(lpEnv, rescale)
             }
             if (solver == "gurobi") {
-                if (debug & solver.options.criterion$outputflag == 1) {
+                if (debug && solver.options.criterion$outputflag == 1) {
                     cat("Infeasibility diagnosis optimization statistics:\n")
                     cat("------------------------------------------------\n")
                 }
@@ -716,6 +722,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                      immediate. = TRUE)
 
         ## Obtain bounds
+        ## testing -------------------------------------
+        print('remove this testing code')
+        if (testing) {
+            solver <- 'gurobi'
+            audit.tol <- 1e-06
+            solver.options.bounds <- list(dualreductions = 1,
+                                          FeasibilityTol = 1e-06,
+                                          outputflag = 1)
+        }
+        ## end testing ---------------------------------
         if (noisy) {
             cat("    Obtaining bounds...\n")
         }
@@ -732,6 +748,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             qpSetupBound(env = lpEnv,
                          g0 = gstar0,
                          g1 = gstar1,
+                         criterion.coef = minobseq$x,
+                         criterion.scale = criterion.scale,
                          criterion.tol = criterion.tol,
                          criterion.min = minobseq$obj,
                          rescale = rescale)
@@ -860,6 +878,21 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
         optstatus <- min(c(lpresult$minstatus,
                            lpresult$maxstatus))
+        ## Testing -----------------------
+        ## Check if box constraints are binding
+        print(cbind(solVecMin, solVecMax,
+                    lpEnv$lpobj$lb / lpEnv$colNorms,
+                    lpEnv$lpobj$ub / lpEnv$colNorms))
+        solVecMinCheckLb <- abs(solVecMin - lpEnv$lpobj$lb) < criterion.tol
+        solVecMinCheckLb <- abs(solVecMin - lpEnv$lpobj$ub) < criterion.tol
+        solVecMaxCheckLb <- abs(solVecMax - lpEnv$lpobj$lb) < criterion.tol
+        solVecMaxCheckLb <- abs(solVecMax - lpEnv$lpobj$ub) < criterion.tol
+        if (any(solVecMinCheckLb, solVecMinCheckUb,
+                solVecMaxCheckLb, solVecMaxCheckUb)) {
+            criterion.scale <- criterion.scale + 1
+            next
+        }
+        ## End esting ---------------------
         if (existsolution == FALSE) existsolution <- TRUE
         prevbound <- c(lpresult$min, lpresult$max)
 
@@ -1118,9 +1151,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (rescale) {
                         tmpMat <- sweep(x = tmpMat,
                                         MARGIN = 2,
-                                        STATS = lpEnv$maxMinusMin,
+                                        STATS = lpEnv$colNorms,
                                         FUN = '/')
-                        tmpMat <- cbind(0, tmpMat)
                     }
                     lpEnv$lpobj$A <- rbind(lpEnv$lpobj$A, tmpMat)
                     rm(addCol, tmpMat)
@@ -1208,9 +1240,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (rescale) {
                         tmpMat <- sweep(x = tmpMat,
                                         MARGIN = 2,
-                                        STATS = lpEnv$maxMinusMin,
+                                        STATS = lpEnv$colNorms,
                                         FUN = '/')
-                        tmpMat <- cbind(0, tmpMat)
                     }
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A, tmpMat)
@@ -1295,9 +1326,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (rescale) {
                         tmpMat <- sweep(x = tmpMat,
                                         MARGIN = 2,
-                                        STATS = lpEnv$maxMinusMin,
+                                        STATS = lpEnv$colNorms,
                                         FUN = '/')
-                        tmpMat <- cbind(0, tmpMat)
                     }
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A, tmpMat)

@@ -675,7 +675,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
                          debug = FALSE) {
     solver <- tolower(solver)
     if (solver == "gurobi") {
-        if (debug & solver.options$outputflag == 1) {
+        if (debug && solver.options$outputflag == 1) {
             cat("\nMinimum criterion optimization statistics:\n")
             cat("------------------------------------------\n")
         }
@@ -704,44 +704,39 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
     } else if (solver == "lsei") {
         result <- lsei::lsei(a = env$drX, b = env$drY,
                              e = env$lpobj$A, f = env$lpobj$rhs)
-        obseqmin <- sum((env$drY - env$drX %*% result)^2) - sum(env$drY^2)
-        obseqmin <- obseqmin / env$drN
+        if (is.numeric(result)) {
+            obseqmin <- sum((env$drY - env$drX %*% result)^2) - sum(env$drY^2)
+            obseqmin <- obseqmin / env$drN
+            optx <- result
+            status <- 1
+        } else {
+            obseqmin <- NA
+            optx <- NA
+            status <- 0
+        }
     } else {
         stop(gsub('\\s+', ' ',
                   "Invalid LP solver. Option 'solver' must be either 'gurobi',
                   'cplexapi', or 'lpsolveapi'."))
     }
-    print(result)
-    print(obseqmin)
-    stop('CONTINUE FROM ABOVE, FOR LSEI')
     ## Provide nicer output
-    if (!rescale) {
-        g0sol <- optx[(2 * env$lpobj$sn + 1) :
-                      (2 * env$lpobj$sn + env$lpobj$gn0)]
-        g1sol <- optx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
-                      (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
-        names(g0sol) <- names(sset$gstar$g0)
-        names(g1sol) <- names(sset$gstar$g1)
-    } else {
-        rescaleInt <- optx[(2 * env$lpobj$sn + 1)]
-        g0sol <- optx[(2 * env$lpobj$sn + 2) :
-                      (2 * env$lpobj$sn + env$lpobj$gn0 + 1)] /
-            env$maxMinusMin[1:env$lpobj$gn0]
-        g1sol <- optx[(2 * env$lpobj$sn + env$lpobj$gn0 + 2) :
-                      (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1 + 1)] /
-            env$maxMinusMin[(env$lpobj$gn0 + 1):(env$lpobj$gn0 + env$lpobj$gn1)]
-        names(g0sol) <- names(sset$gstar$g0)
-        names(g1sol) <- names(sset$gstar$g1)
+    g0sol <- optx[(2 * env$lpobj$sn + 1) :
+                  (2 * env$lpobj$sn + env$lpobj$gn0)]
+    g1sol <- optx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
+                  (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+    names(g0sol) <- names(sset$gstar$g0)
+    names(g1sol) <- names(sset$gstar$g1)
+    if (rescale) {
+        g0sol <- g0sol / env$colNorms[1:ncol(sset$s1$g0)]
+        g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
+                                      (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
     }
     output <- list(obj = obseqmin,
                    x = optx,
                    g0 = g0sol,
                    g1 = g1sol,
                    status = status)
-    if (rescale) output$rescaleInt <- rescaleInt
     return(output)
-    ## Object 'result' will not be returned---unnecessary, and very
-    ## memory intensive.
 }
 
 #' Obtaining TE bounds
@@ -893,7 +888,7 @@ bound <- function(env, sset, solver,
     solver <- tolower(solver)
     ## Obtain lower and upper bounds
     if (solver == "gurobi") {
-        if (debug & solver.options$outputflag == 1) {
+        if (debug && solver.options$outputflag == 1) {
             cat("\nLower bound optimization statistics:\n")
             cat("------------------------------------\n")
         }
@@ -909,7 +904,7 @@ bound <- function(env, sset, solver,
         min <- minresult$objval
         minstatus <- minresult$status
         minoptx <- minresult$optx
-        if (debug & solver.options$outputflag == 1) {
+        if (debug && solver.options$outputflag == 1) {
             cat("\nUpper bound optimization statistics:\n")
             cat("------------------------------------\n")
         }
@@ -949,30 +944,21 @@ bound <- function(env, sset, solver,
                     maxstatus = maxstatus,
                     minstatus = minstatus))
     }
-    if (!rescale) {
-        ming0 <- minoptx[(2 * env$lpobj$sn + 1) :
-                         (2 * env$lpobj$sn + env$lpobj$gn0)]
-        ming1 <- minoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
-                         (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
-        maxg0 <- maxoptx[(2 * env$lpobj$sn + 1) :
-                         (2 * env$lpobj$sn + env$lpobj$gn0)]
-        maxg1 <- maxoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
-                         (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
-    } else {
-        ming0 <- minoptx[(2 * env$lpobj$sn + 2) :
-                         (2 * env$lpobj$sn + env$lpobj$gn0 + 1)] /
-            env$maxMinusMin[1:env$lpobj$gn0]
-        ming1 <- minoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 2) :
-                         (2 * env$lpobj$sn +
-                          env$lpobj$gn0 + env$lpobj$gn1 + 1)] /
-            env$maxMinusMin[(env$lpobj$gn0 + 1):(env$lpobj$gn0 + env$lpobj$gn1)]
-        maxg0 <- maxoptx[(2 * env$lpobj$sn + 2) :
-                         (2 * env$lpobj$sn + env$lpobj$gn0 + 1)] /
-            env$maxMinusMin[1:env$lpobj$gn0]
-        maxg1 <- maxoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 2) :
-                         (2 * env$lpobj$sn +
-                          env$lpobj$gn0 + env$lpobj$gn1 + 1)] /
-            env$maxMinusMin[(env$lpobj$gn0 + 1):(env$lpobj$gn0 + env$lpobj$gn1)]
+    ming0 <- minoptx[(2 * env$lpobj$sn + 1) :
+                     (2 * env$lpobj$sn + env$lpobj$gn0)]
+    ming1 <- minoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
+                     (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+    maxg0 <- maxoptx[(2 * env$lpobj$sn + 1) :
+                     (2 * env$lpobj$sn + env$lpobj$gn0)]
+    maxg1 <- maxoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
+                     (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+    if (rescale) {
+        ming0 <- ming0 / env$colNorms[1:ncol(sset$s1$g0)]
+        ming1 <- ming1 / env$colNorms[(ncol(sset$s1$g0) + 1):
+                                      (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
+        maxg0 <- maxg0 / env$colNorms[1:ncol(sset$s1$g0)]
+        maxg1 <- maxg1 / env$colNorms[(ncol(sset$s1$g0) + 1):
+                                      (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
     }
     if (hasArg(sset)) {
         names(ming0) <- names(sset$s1$g0)
@@ -1411,6 +1397,7 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$drY <- drY
     env$drX <- drX
     env$drN <- drN
+    print('ADD BOX CONSTRAINTS!')
 }
 
 #' Configure QCQP problem to find minimum criterion
@@ -1443,6 +1430,16 @@ qpSetupCriterion <- function(env) {
 #'     control group.
 #' @param g1 set of expectations for each terms of the MTR for the
 #'     control group.
+#' @param criterion.coef vector of MTR coefficient estimates from
+#'     minimizing the criterion. This is used to impose box
+#'     constraints to improve stability. Specifically, the box
+#'     constraints will be centered around \code{criterion.coef}. The
+#'     size of the box is determined by \code{criterion.coef.scale}
+#' @param criterion.coef.scale a scalar that determines the size of
+#'     the box constraint. Specifically, \code{abs(criterion.coef) *
+#'     criterion.coef.scale} is added and subtracted from
+#'     \code{criterion.coef} to obtain the upper and lower bounds of
+#'     the box constraint.
 #' @param criterion.tol non-negative scalar, determines how much the
 #'     quadratic constraint should be relaxed by. If set to 0, the
 #'     constraint is not relaxed at all.
@@ -1458,14 +1455,17 @@ qpSetupCriterion <- function(env) {
 #' @return A list of matrices and vectors necessary to define an LP
 #'     problem for Gurobi.
 #' @export
-qpSetupBound <- function(env, g0, g1, criterion.tol, criterion.min,
+qpSetupBound <- function(env, g0, g1, criterion.coef,
+                         criterion.coef.scale = 2,
+                         criterion.tol,
+                         criterion.min,
                          rescale = TRUE,
                          setup = TRUE) {
     if (setup) {
         ## Prepare objective
         env$lpobj$obj <- c(g0, g1)
         if (rescale) {
-            env$lpobj$obj <- c(0, env$lpobj$obj / env$maxMinusMin)
+            env$lpobj$obj <- env$lpobj$obj / env$colNorms
         }
         env$lpobj$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
@@ -1473,6 +1473,11 @@ qpSetupBound <- function(env, g0, g1, criterion.tol, criterion.min,
         env$quad$rhs <- (env$ssy / env$drN) * criterion.tol +
                          criterion.min * (1 + criterion.tol)
         env$lpobj$quadcon <- list(env$quad)
+        ## Add in the box constraints
+        env$lpobj$ub <- criterion.coef +
+            abs(criterion.coef) * criterion.coef.scale
+        env$lpobj$lb <- criterion.coef -
+            abs(criterion.coef) * criterion.coef.scale
     } else {
         env$lpobj$obj <- NULL
         env$quad$rhs <- NULL
@@ -1497,23 +1502,12 @@ qpSetupBound <- function(env, g0, g1, criterion.tol, criterion.min,
 #'     memory.
 #' @export
 qpSetupInfeasible <- function(env, rescale) {
-    if (!rescale) {
-        ## Separate shape constraint objects
-        env$mbobj$mbA <- env$lpobj$A
-        env$mbobj$mbrhs <- env$lpobj$rhs
-        env$mbobj$mbsense <- env$lpobj$rhs
-        ## Reduce lpobjects so they do not contain any shape constraints
-        env$lpobj$A <- matrix(0, nrow = 1, ncol = ncol(env$mbobj$mbA))
-        env$lpobj$rhs <- 0
-        env$lpobj$sense <- '='
-    } else {
-        ## Separate shape constraint objects
-        env$mbobj$mbA <- env$lpobj$A[-1, ]
-        env$mbobj$mbrhs <- env$lpobj$rhs[-1]
-        env$mbobj$mbsense <- env$lpobj$rhs[-1]
-        ## Reduce lpobjects so they do not contain any shape constraints
-        env$lpobj$A <- matrix(env$lpobj$A[1, ], nrow = 1)
-        env$lpobj$rhs <- env$lpobj$rhs[1]
-        env$lpobj$sense <- env$lpobj$rhs[1]
-    }
+    ## Separate shape constraint objects
+    env$mbobj$mbA <- env$lpobj$A
+    env$mbobj$mbrhs <- env$lpobj$rhs
+    env$mbobj$mbsense <- env$lpobj$rhs
+    ## Reduce lpobjects so they do not contain any shape constraints
+    env$lpobj$A <- matrix(0, nrow = 1, ncol = ncol(env$mbobj$mbA))
+    env$lpobj$rhs <- 0
+    env$lpobj$sense <- '='
 }
