@@ -433,10 +433,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
                   specification.test = TRUE,
                   noisy = FALSE,
-                  smallreturnlist = FALSE, debug = FALSE, testing = FALSE) {
+                  smallreturnlist = FALSE, debug = FALSE, box = FALSE,
+                  lsei = FALSE) {
     ## TESTING --------------------
-    if (testing) print('THIS IS A TEST OF LSEI AND SCS!.')
-    if (!testing) print('THIS IS A TEST OF LSEI AND GUROBI')
+    if (box) print('THIS IS A TEST OF BOX CONSTRAINTS.')
     ## END TESTING ----------------
     ## Try-catch is implemented to deal with sinking of
     ## output. Specifically, if the function ends prematurely, the
@@ -3175,7 +3175,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           splinesobj, noisy = TRUE,
                           smallreturnlist = FALSE,
                           debug = FALSE, environments,
-                          testing) {
+                          box, lsei) {
     call <- match.call(expand.dots = FALSE)
     if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
         direct <- TRUE
@@ -3460,7 +3460,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 drSSR <- sum(drFit$resid^2)
                 ## Reconstruct the coefficients
                 drCoef <- drFit$coef / colNorms
-                print('doing the rescale')
             }
             sset$s1$init.coef <- drCoef
             sset$s1$SSR <- drSSR
@@ -3674,7 +3673,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          gstar0 = quote(gstar0),
                                          gstar1 = quote(gstar1),
                                          solver = quote(solver),
-                                         testing = testing)) ## TESTING
+                                         box = box, ## TESTING
+                                         lsei = lsei)) ## TESTING
     ## Impose default upper and lower bounds on m0 and m1
     if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
         maxy <- max(data[, vars_y])
@@ -3794,7 +3794,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             cat(paste0("    LP model ",
                        tmpErrMessage, ".\n"))
             autoExpand <- autoExpand + 1
-
             cat("\n    Restarting audit with new settings:\n")
             if (any(c(3, 4, 6, 7) %in% audit$errorTypes)) {
                 newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
@@ -3810,7 +3809,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                            audit.grid = audit$audit.grid))
             }
             if (any(c(2, 3, 5) %in% audit$errorTypes)) {
-                criterion.tol <- criterion.tol * 2
+                if (criterion.tol > 0)  {
+                    criterion.tol <- criterion.tol * 2
+                } else {
+                    criterion.tol <- 0.05
+                }
                 cat("    criterion.tol = ", criterion.tol, "\n")
                 audit_call <-
                     modcall(audit_call,
@@ -3897,6 +3900,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          violations = audit$gridobj$violations),
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
+                       audit.criterion.status = audit$minobseq.status,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
                                            m1 = splinesobj[[2]]$splinesdict))
         if (!direct) output$s.set <- sset
@@ -3929,6 +3933,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                              audit$gridobj$audit.grid$noX),
                        audit.count = audit$auditcount,
                        audit.criterion = audit$minobseq,
+                       audit.criterion.status = audit$minobseq.status,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
                                            m1 = splinesobj[[2]]$splinesdict))
         if (!direct) output$s.set <- sset

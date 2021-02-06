@@ -331,8 +331,8 @@ lpSetupSolver <- function(env, solver) {
     if (solver == "lsei") {
         ## Rewrite inequality constraints so that they are of the form
         ## Ax >= b.
-        env$lpobj$A[which(env$lpobj$sense == '<=')] <-
-            -env$lpobj$A[which(env$lpobj$sense == '<=')]
+        env$lpobj$A[which(env$lpobj$sense == '<='), ] <-
+            -env$lpobj$A[which(env$lpobj$sense == '<='), ]
         env$lpobj$rhs[which(env$lpobj$sense == '<=')] <-
             -env$lpobj$rhs[which(env$lpobj$sense == '<=')]
         env$lpobj$sense[which(env$lpobj$sense == '<=')] <- '>='
@@ -703,9 +703,9 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
         status   <- result$status
     } else if (solver == "lsei") {
         result <- lsei::lsei(a = env$drX, b = env$drY,
-                             e = env$lpobj$A, f = env$lpobj$rhs)
+                             e = as.matrix(env$lpobj$A), f = env$lpobj$rhs)
         if (is.numeric(result)) {
-            obseqmin <- sum((env$drY - env$drX %*% result)^2) - sum(env$drY^2)
+            obseqmin <- sum((env$drY - env$drX %*% result)^2) - env$ssy
             obseqmin <- obseqmin / env$drN
             optx <- result
             status <- 1
@@ -1386,7 +1386,7 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     }
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
-    qc$Qc <- t(drX) %*% drX / drN
+    qc$Qc <- Matrix::Matrix(t(drX) %*% drX / drN, sparse = TRUE)
     qc$sense <- '<'
     qc$name <- 'SSR'
     ## Store the quadratic component
@@ -1397,7 +1397,6 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$drY <- drY
     env$drX <- drX
     env$drN <- drN
-    print('ADD BOX CONSTRAINTS!')
 }
 
 #' Configure QCQP problem to find minimum criterion
@@ -1434,10 +1433,10 @@ qpSetupCriterion <- function(env) {
 #'     minimizing the criterion. This is used to impose box
 #'     constraints to improve stability. Specifically, the box
 #'     constraints will be centered around \code{criterion.coef}. The
-#'     size of the box is determined by \code{criterion.coef.scale}
-#' @param criterion.coef.scale a scalar that determines the size of
+#'     size of the box is determined by \code{criterion.box.scale}
+#' @param criterion.box.scale a scalar that determines the size of
 #'     the box constraint. Specifically, \code{abs(criterion.coef) *
-#'     criterion.coef.scale} is added and subtracted from
+#'     criterion.box.scale} is added and subtracted from
 #'     \code{criterion.coef} to obtain the upper and lower bounds of
 #'     the box constraint.
 #' @param criterion.tol non-negative scalar, determines how much the
@@ -1456,7 +1455,7 @@ qpSetupCriterion <- function(env) {
 #'     problem for Gurobi.
 #' @export
 qpSetupBound <- function(env, g0, g1, criterion.coef,
-                         criterion.coef.scale = 2,
+                         criterion.box.scale = 2,
                          criterion.tol,
                          criterion.min,
                          rescale = TRUE,
@@ -1475,9 +1474,9 @@ qpSetupBound <- function(env, g0, g1, criterion.coef,
         env$lpobj$quadcon <- list(env$quad)
         ## Add in the box constraints
         env$lpobj$ub <- criterion.coef +
-            abs(criterion.coef) * criterion.coef.scale
+            abs(criterion.coef) * criterion.box.scale
         env$lpobj$lb <- criterion.coef -
-            abs(criterion.coef) * criterion.coef.scale
+            abs(criterion.coef) * criterion.box.scale
     } else {
         env$lpobj$obj <- NULL
         env$quad$rhs <- NULL

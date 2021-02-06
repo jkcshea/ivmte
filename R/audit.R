@@ -184,10 +184,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   rescale = TRUE,
                   smallreturnlist = FALSE,
                   noisy = TRUE, debug = FALSE,
-                  testing) {
-    ## TESTING ----------------------
-    if (testing) solver <- "lsei"
-    ## END TESTING -----------------
+                  box, ## DELETE THIS TESTING ARGUMENT
+                  lsei ## DELETE THIS TESTING ARGUMENT
+                  ) {
+    print("What's in the box")
+    print(box)
+    print("using lsei?")
+    print(lsei)
     call  <- match.call()
     solver <- tolower(solver)
     ## Determine if whether IV-like moments or direct MTR regression
@@ -505,22 +508,38 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     ## Set up how much to scale the solutions from the minimum
     ## criterion to construct the box constraints. If any of those
     ## constraints are binding, then the audit is restarted.
-    criterion.scale <- 2
+    if (box) {
+        print('box constrain implemented')
+        criterion.box.scale <- 10
+    } else {
+        print('NO box constrain implemented')
+        criterion.box.scale <- Inf
+    }
     while (audit_count <= audit.max) {
+        ## TESTNIG -------------------------
+        if (lsei) solver <- 'lsei'
+        ## End TESTING ---------------------
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
-        print('get rid of testing code below!')
-        if (testing == TRUE) solver <- 'lsei'
         lpSetupSolver(env = lpEnv, solver = solver)
         if (!direct) {
             lpSetupCriterion(env = lpEnv, sset = sset)
         } else {
             qpSetupCriterion(env = lpEnv)
         }
-        minobseq <- criterionMin(lpEnv, sset, solver,
-                                 solver.options.criterion, rescale,
-                                 debug)
+        if (!direct) {
+            minobseq <- criterionMin(lpEnv, sset, solver,
+                                     solver.options.criterion, rescale,
+                                     debug)
+        } else {
+            ## minobseq <- criterionMin(lpEnv, sset, 'lsei',
+            ##                          NULL, rescale,
+            ##                          FALSE)
+            minobseq <- criterionMin(lpEnv, sset, solver,
+                                     solver.options.criterion, rescale,
+                                     debug)
+        }
         ## Try to diagnose cases where the solution is not
         ## available. This could be due to infeasibility or numerical
         ## issues. To deal with infeasibilty, the LP problem is solved
@@ -674,12 +693,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 sep = "")
         }
         if (direct && noisy) {
-            print('lpEnv$drN')
-            print(lpEnv$drN)
-            print('minobseq')
-            print(minobseq$obj)
-            print('ssy')
-            print(lpEnv$ssy)
             cat("    Minimum criterion: ",
                 fmtResult(minobseq$obj * lpEnv$drN + lpEnv$ssy),
                 "\n",
@@ -722,16 +735,11 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                      immediate. = TRUE)
 
         ## Obtain bounds
-        ## testing -------------------------------------
-        print('remove this testing code')
-        if (testing) {
-            solver <- 'gurobi'
-            audit.tol <- 1e-06
-            solver.options.bounds <- list(dualreductions = 1,
-                                          FeasibilityTol = 1e-06,
-                                          outputflag = 1)
-        }
-        ## end testing ---------------------------------
+        ## TESTING ------------------
+        solver <- 'gurobi'
+        print("Box constraint scale")
+        print(criterion.box.scale)
+        ## End testing ----------------
         if (noisy) {
             cat("    Obtaining bounds...\n")
         }
@@ -749,7 +757,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                          g0 = gstar0,
                          g1 = gstar1,
                          criterion.coef = minobseq$x,
-                         criterion.scale = criterion.scale,
+                         criterion.box.scale = criterion.box.scale,
                          criterion.tol = criterion.tol,
                          criterion.min = minobseq$obj,
                          rescale = rescale)
@@ -880,16 +888,29 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            lpresult$maxstatus))
         ## Testing -----------------------
         ## Check if box constraints are binding
-        print(cbind(solVecMin, solVecMax,
-                    lpEnv$lpobj$lb / lpEnv$colNorms,
-                    lpEnv$lpobj$ub / lpEnv$colNorms))
-        solVecMinCheckLb <- abs(solVecMin - lpEnv$lpobj$lb) < criterion.tol
-        solVecMinCheckLb <- abs(solVecMin - lpEnv$lpobj$ub) < criterion.tol
-        solVecMaxCheckLb <- abs(solVecMax - lpEnv$lpobj$lb) < criterion.tol
-        solVecMaxCheckLb <- abs(solVecMax - lpEnv$lpobj$ub) < criterion.tol
+        if (!rescale) {
+            solVecMinCheckLb <- abs(solVecMin - lpEnv$lpobj$lb) < audit.tol
+            solVecMinCheckUb <- abs(solVecMin - lpEnv$lpobj$ub) < audit.tol
+            solVecMaxCheckLb <- abs(solVecMax - lpEnv$lpobj$lb) < audit.tol
+            solVecMaxCheckUb <- abs(solVecMax - lpEnv$lpobj$ub) < audit.tol
+        } else {
+            solVecMinCheckLb <- abs(solVecMin - lpEnv$lpobj$lb /
+                                    lpEnv$colNorms) < audit.tol
+            solVecMinCheckUb <- abs(solVecMin - lpEnv$lpobj$ub /
+                                    lpEnv$colNorms) < audit.tol
+            solVecMaxCheckLb <- abs(solVecMax - lpEnv$lpobj$lb /
+                                    lpEnv$colNorms) < audit.tol
+            solVecMaxCheckUb <- abs(solVecMax - lpEnv$lpobj$ub /
+                                    lpEnv$colNorms) < audit.tol
+        }
         if (any(solVecMinCheckLb, solVecMinCheckUb,
                 solVecMaxCheckLb, solVecMaxCheckUb)) {
-            criterion.scale <- criterion.scale + 1
+            criterion.box.scale <- criterion.box.scale * 2
+            cat("   ",
+                gsub('\\s+', ' ',
+                     'Box constraints were binding.
+                      Expanding box constraints...'),
+                '\n')
             next
         }
         ## End esting ---------------------
@@ -1406,6 +1427,37 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             if (lpresult[[type]] == 6) lpresult[[type]] <- 'Sub-optimal (1)'
         }
     }
+    ## Clean up criterion status codes
+    if (solver == 'gurobi') {
+        if (minobseq$status == 1) minobseq$status <- 'OPTIMAL (2)'
+        if (minobseq$status == 2) minobseq$status <- 'INFEASIBLE (3)'
+        if (minobseq$status == 3) minobseq$status <- 'INF_OR_UNBD (4)'
+        if (minobseq$status == 4) minobseq$status <- 'UNBOUNDED (5)'
+        if (minobseq$status == 5) minobseq$status <- 'NUMERIC (12)'
+        if (minobseq$status == 6) minobseq$status <- 'SUBOPTIMAL (13)'
+    }
+    if (solver == 'cplexapi') {
+        if (minobseq$status == 1) minobseq$status <-
+                                      'CPX_STAT_OPTIMAL (1)'
+        if (minobseq$status == 2) minobseq$status <-
+                                      'CPX_STAT_INFEASIBLE (3)'
+        if (minobseq$status == 3) minobseq$status <-
+                                      'CPX_STAT_INForUNBD (4)'
+        if (minobseq$status == 4) minobseq$status <-
+                                      'CPX_STAT_UNBOUNDED (2)'
+        if (minobseq$status == 6) minobseq$status <-
+                                      'CPX_STAT_NUM_BEST (6)'
+        if (minobseq$status == 7) minobseq$status <-
+                                      'CPX_STAT_OPTIMAL_INFEAS (5)'
+    }
+    if (solver == 'lpsolveapi') {
+        if (minobseq$status == 1) minobseq$status <- 'Optimal (0)'
+        if (minobseq$status == 2) minobseq$status <- 'Infeasible (2)'
+        if (minobseq$status == 4) minobseq$status <- 'Unbounded (3)'
+        if (minobseq$status == 5) minobseq$status <-
+                                      'Numerical failure (5)'
+        if (minobseq$status == 6) minobseq$status <- 'Sub-optimal (1)'
+    }
     ## Return output
     output <- list(max = lpresult$max,
                    min = lpresult$min,
@@ -1413,7 +1465,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                    gridobj = list(audit.grid = audit.grid,
                                   violations = violateMat),
                    auditcount = audit_count,
-                   minobseq = minobseq$obj)
+                   minobseq = minobseq$obj,
+                   minobseq.status = minobseq$status)
     if (direct) output$minobseq <- output$minobseq + lpEnv$ssy
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
         output$spectest = minobseqTest$obj
