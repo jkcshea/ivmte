@@ -1177,7 +1177,8 @@ runMosek <- function(lpobj, modelsense, solver.options) {
     prob$A <- lpobj$A
     prob$c <- lpobj$obj
     prob$sense <- modelsense
-    result <- Rmosek::mosek(prob)
+    result <- Rmosek::mosek(prob, list(verbose = 0))
+    print('SET UP MOSEK OPTIONS')
     response <- result$response$code
     if (response != 0) {
         objval <- NA
@@ -1589,4 +1590,25 @@ qpSetupInfeasible <- function(env, rescale) {
     env$lpobj$A <- matrix(0, nrow = 1, ncol = ncol(env$mbobj$mbA))
     env$lpobj$rhs <- 0
     env$lpobj$sense <- '='
+}
+
+matrixTriplets <- function(mat) {
+    dim <- dim(mat)
+    sparseList <- apply(mat, 2, function(x) {
+        pos <- which(x != 0)
+        vals <- x[x != 0]
+        return(list(pos = pos,
+                    vals = vals))
+    })
+    columnIndex <- Reduce(c, lapply(seq(1:length(sparseList)),
+                                    FUN = function(x) {
+                                        n <- length(sparseList[[x]]$pos)
+                                        if (n > 0) return(rep(x, times = n))
+                                    }))
+    rowIndex <- Reduce(c, lapply(sparseList, function(x) x$pos))
+    values <- Reduce(c, lapply(sparseList, function(x) x$vals))
+    return(list(columns = columnIndex,
+                rows = rowIndex,
+                values = values,
+                dim = dim))
 }
