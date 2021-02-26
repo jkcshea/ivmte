@@ -185,12 +185,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   smallreturnlist = FALSE,
                   noisy = TRUE, debug = FALSE,
                   box, ## DELETE THIS TESTING ARGUMENT
-                  lsei ## DELETE THIS TESTING ARGUMENT
+                  fix.criterion ## DELETE THIS ARGUMENT
                   ) {
-    print("What's in the box")
-    print(box)
-    print("using lsei?")
-    print(lsei)
     call  <- match.call()
     solver <- tolower(solver)
     ## Determine if whether IV-like moments or direct MTR regression
@@ -509,16 +505,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     ## criterion to construct the box constraints. If any of those
     ## constraints are binding, then the audit is restarted.
     if (box) {
-        print('box constrain implemented')
+        ## print('box constrain implemented')
         criterion.box.scale <- 10
     } else {
-        print('NO box constrain implemented')
+        ## print('NO box constrain implemented')
         criterion.box.scale <- Inf
+        ## criterion.box.scale <- -4 ## Use this to generate an error in the bound
     }
     while (audit_count <= audit.max) {
-        ## TESTNIG -------------------------
-        if (lsei) solver <- 'lsei'
-        ## End TESTING ---------------------
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
@@ -533,42 +527,49 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                      solver.options.criterion, rescale,
                                      debug)
         } else {
-            ## minobseq <- criterionMin(lpEnv, sset, 'lsei',
-            ##                          NULL, rescale,
-            ##                          FALSE)
             minobseq <- criterionMin(lpEnv, sset, solver,
                                      solver.options.criterion, rescale,
                                      debug)
+            if (!is.null(fix.criterion)) {
+                minobseq$obj <- fix.criterion
+            }
         }
+        ## print("Minobsq solution")
+        ## tmpMinobseqSol <- minobseq$x
+        ## names(tmpMinobseqSol) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1))
+        ## print(tmpMinobseqSol)
+
         ## Try to diagnose cases where the solution is not
         ## available. This could be due to infeasibility or numerical
         ## issues. To deal with infeasibilty, the LP problem is solved
         ## without any shape restrictions. We then check if any of the
         ## lower and upper bounds are violated, which is a likely
         ## cause for infeasible solutions.
-        ##
-        ## Note this is not done for QCQP, since removing the shape
-        ## constraint just gives you back the OLS problem. There are
-        ## also no equality constraints in the QCQP.
         if (minobseq$status %in% c(0, 2, 3, 4, 5)) {
             origMinStatus <- minobseq$status
             ## Stop if issues are numerical, or unbounded, or unknown.
             if (origMinStatus == 0) {
                 errMess <-
-                    paste('No solution provided by the LP solver.',
-                          messageAlt)
+                    gsub('\\s+', ' ',
+                         paste('No solution provided by the LP solver when
+                               minimizing the criterion.',
+                               messageAlt))
                 stop(errMess, call. = FALSE)
             }
             if (origMinStatus == 4) {
                 errMess <-
-                    paste0('No solution since the model is unbounded.',
-                           messageUnb)
+                    gsub('\\s+', ' ',
+                         paste0('No solution to minimizing the criterion
+                                since the model is unbounded.',
+                                messageUnb))
                 stop(errMess, call. = FALSE)
             }
             if (origMinStatus == 5) {
                 errMess <-
-                    paste('No solution due to numerical issues.',
-                          messageNum)
+                    gsub('\\s+', ' ',
+                         paste('No solution to minimizing the criterion
+                         due to numerical issues.',
+                         messageNum))
                 stop(errMess, call. = FALSE)
             }
             ## Otherwise, continue and test for infeasibility.
@@ -736,182 +737,207 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
 
         ## Obtain bounds
         ## TESTING ------------------
-        solver <- 'gurobi'
-        print("Box constraint scale")
-        print(criterion.box.scale)
+        ## solver <- 'gurobi'
+        ## print("Box constraint scale")
+        ## print(criterion.box.scale)
         ## End testing ----------------
         if (noisy) {
             cat("    Obtaining bounds...\n")
         }
-        if (!direct) {
-            lpSetupBound(env = lpEnv,
-                         g0 = gstar0,
-                         g1 = gstar1,
-                         sset = sset,
-                         criterion.tol = criterion.tol,
-                         criterion.min = minobseq$obj,
-                         solver = solver,
-                         setup = TRUE)
-        } else {
-            qpSetupBound(env = lpEnv,
-                         g0 = gstar0,
-                         g1 = gstar1,
-                         criterion.coef = minobseq$x,
-                         criterion.box.scale = criterion.box.scale,
-                         criterion.tol = criterion.tol,
-                         criterion.min = minobseq$obj,
-                         rescale = rescale)
-        }
-        lpresult <- bound(env = lpEnv,
-                          sset = sset,
-                          solver = solver,
-                          solver.options = solver.options.bounds,
-                          noisy = noisy,
-                          smallreturnlist = smallreturnlist,
-                          rescale = rescale,
-                          debug = debug)
-        if (lpresult$error == TRUE) {
-            errMess <- NULL
-            errTypes <- NULL
+        boxBinding <- TRUE
+        while (boxBinding) {
+            if (!direct) {
+                boxBinding <- FALSE
+                lpSetupBound(env = lpEnv,
+                             g0 = gstar0,
+                             g1 = gstar1,
+                             sset = sset,
+                             criterion.tol = criterion.tol,
+                             criterion.min = minobseq$obj,
+                             solver = solver,
+                             setup = TRUE)
+            } else {
+                qpSetupBound(env = lpEnv,
+                             g0 = gstar0,
+                             g1 = gstar1,
+                             criterion.coef = minobseq$x,
+                             criterion.box.scale = criterion.box.scale,
+                             criterion.tol = criterion.tol,
+                             criterion.min = minobseq$obj,
+                             rescale = rescale)
+            }
+            ## lpEnv$lpobj$ub <- Inf
+            ## lpEnv$lpobj$lb <- -Inf
+            lpresult <- bound(env = lpEnv,
+                              sset = sset,
+                              solver = solver,
+                              solver.options = solver.options.bounds,
+                              noisy = noisy,
+                              smallreturnlist = smallreturnlist,
+                              rescale = rescale,
+                              debug = debug)
+            ## print("Bound solutions")
+            ## print(rbind(c(lpresult$ming0, lpresult$ming1),
+            ##             c(lpresult$maxg0, lpresult$maxg1)))
+            ## print("Estimated bounds")
+            ## print(paste0("[",
+            ##              round(lpresult$min, digits = 5), ", ",
+            ##              round(lpresult$max, digits = 5), "]"))
+            if (lpresult$error == TRUE) {
+                errMess <- NULL
+                errTypes <- NULL
+                for (type in c('min', 'max')) {
+                    tmpName <- paste0(type, 'status')
+                    if (type == 'min') tmpType <- 'minimization'
+                    if (type == 'max') tmpType <- 'maximization'
+                    if (lpresult[[tmpName]] == 0) {
+                        errMess <-
+                            paste(errMess,
+                                  gsub('\\s+', ' ',
+                                       paste('The LP solver did not provide a
+                                     solution for the', tmpType,
+                                     'problem.')))
+                    }
+                    if (lpresult[[tmpName]] == 2) {
+                        errMess <-
+                            paste(errMess,
+                                  gsub('\\s+', ' ',
+                                       paste('The', tmpType, 'problem was proven
+                                          to be infeasible.')))
+                    }
+                    if (lpresult[[tmpName]] == 3) {
+                        errMess <-
+                            paste(errMess,
+                                  gsub('\\s+', ' ',
+                                       paste('The', tmpType,
+                                             'problem was proven to be
+                                          infeasible or unbounded.')))
+                    }
+                    if (lpresult[[tmpName]] == 4) {
+                        errMess <-
+                            paste(errMess,
+                                  gsub('\\s+', ' ',
+                                       paste('The', tmpType,
+                                             'problem was proven to be
+                                          unbounded.')))
+                    }
+                    if (lpresult[[tmpName]] == 5) {
+                        errMess <-
+                            paste(errMess,
+                                  gsub('\\s+', ' ',
+                                       paste('The', tmpType,
+                                             'problem resulted in
+                                          numerical issues.')))
+                    }
+                    errTypes <- c(errTypes, lpresult[[tmpName]])
+                }
+                ## Include explanation
+                origErrTypes <- sort(unique(errTypes))
+                errTypes <- sort(unique(errTypes))
+                if (length(errTypes) == 2 &&
+                    errTypes[1] == 2 && errTypes[2] == 3) errTypes <- 3
+                for (et in errTypes) {
+                    if (et == 0) {
+                        errMess <- paste(errMess, messageAlt)
+                    }
+                    if (et == 2) {
+                        errMess <- paste(errMess, messageInf)
+                    }
+                    if (et == 3) {
+                        errMess <- paste(errMess, messageInfUnb)
+                    }
+                    if (et == 4) {
+                        errMess <- paste(errMess, messageUnb)
+                    }
+                    if (et == 5) {
+                        errMess <- paste(errMess, messageNum)
+                    }
+                }
+                return(list(error = errMess,
+                            errorTypes = origErrTypes,
+                            min = lpresult$min,
+                            max = lpresult$max,
+                            status.min = lpresult$minstatus,
+                            status.max = lpresult$maxstatus,
+                            audit.criterion = minobseq$obj * lpEnv$drN +
+                                lpEnv$ssy,
+                            audit.criterion.raw = minobseq$obj,
+                            audit.criterion.status = minobseq$status,
+                            audit.grid = audit.grid))
+            }
+            ## Provide warnings if solutions are suboptimal.
+            bWarn <- NULL
+            bWarnTypes <- NULL
             for (type in c('min', 'max')) {
                 tmpName <- paste0(type, 'status')
                 if (type == 'min') tmpType <- 'minimization'
                 if (type == 'max') tmpType <- 'maximization'
-                if (lpresult[[tmpName]] == 0) {
-                    errMess <-
-                        paste(errMess,
-                              gsub('\\s+', ' ',
-                                   paste('The LP solver did not provide a
-                                     solution for the', tmpType,
-                                     'problem.')))
-                }
-                if (lpresult[[tmpName]] == 2) {
-                    errMess <-
-                        paste(errMess,
-                              gsub('\\s+', ' ',
-                                   paste('The', tmpType, 'problem was proven
-                                          to be infeasible.')))
-                }
-                if (lpresult[[tmpName]] == 3) {
-                    errMess <-
-                        paste(errMess,
-                              gsub('\\s+', ' ',
-                                   paste('The', tmpType,
-                                         'problem was proven to be
-                                          infeasible or unbounded.')))
-                }
-                if (lpresult[[tmpName]] == 4) {
-                    errMess <-
-                        paste(errMess,
-                              gsub('\\s+', ' ',
-                                   paste('The', tmpType,
-                                         'problem was proven to be
-                                          unbounded.')))
-                }
-                if (lpresult[[tmpName]] == 5) {
-                    errMess <-
-                        paste(errMess,
-                              gsub('\\s+', ' ',
-                                   paste('The', tmpType,
-                                         'problem resulted in
-                                          numerical issues.')))
-                }
-                errTypes <- c(errTypes, lpresult[[tmpName]])
-            }
-            ## Include explanation
-            origErrTypes <- sort(unique(errTypes))
-            errTypes <- sort(unique(errTypes))
-            if (length(errTypes) == 2 &&
-                errTypes[1] == 2 && errTypes[2] == 3) errTypes <- 3
-            for (et in errTypes) {
-                if (et == 0) {
-                    errMess <- paste(errMess, messageAlt)
-                }
-                if (et == 2) {
-                    errMess <- paste(errMess, messageInf)
-                }
-                if (et == 3) {
-                    errMess <- paste(errMess, messageInfUnb)
-                }
-                if (et == 4) {
-                    errMess <- paste(errMess, messageUnb)
-                }
-                if (et == 5) {
-                    errMess <- paste(errMess, messageNum)
-                }
-            }
-            return(list(error = errMess,
-                        errorTypes = origErrTypes,
-                        audit.grid = audit.grid))
-        }
-        ## Provide warnings if solutions are suboptimal.
-        bWarn <- NULL
-        bWarnTypes <- NULL
-        for (type in c('min', 'max')) {
-            tmpName <- paste0(type, 'status')
-            if (type == 'min') tmpType <- 'minimization'
-            if (type == 'max') tmpType <- 'maximization'
-            if (lpresult[[tmpName]] == 6) {
-                bWarn <-
-                    paste(bWarn,
-                          gsub("\\s+", " ",
-                               paste('The LP solver was unable to satisfy
+                if (lpresult[[tmpName]] == 6) {
+                    bWarn <-
+                        paste(bWarn,
+                              gsub("\\s+", " ",
+                                   paste('The LP solver was unable to satisfy
                                the optimality tolerance for the',
                                tmpType, 'problem, so a suboptimal
                                solution is returned.')))
-            }
-            if (lpresult[[tmpName]] == 7) {
-                bWarn <-
-                    paste(bWarn,
-                          gsub("\\s+", " ",
-                               paste('The solution to the',
-                                     tmpType, 'problem is optimal,
+                }
+                if (lpresult[[tmpName]] == 7) {
+                    bWarn <-
+                        paste(bWarn,
+                              gsub("\\s+", " ",
+                                   paste('The solution to the',
+                                         tmpType, 'problem is optimal,
                                      but infeasible after rescaling.')))
+                }
+                bWarnTypes <- c(bWarnTypes,
+                                lpresult[[tmpName]])
             }
-            bWarnTypes <- c(bWarnTypes,
-                            lpresult[[tmpName]])
-        }
-        bWarnTypes <- sort(unique(bWarnTypes))
-        for (wt in bWarnTypes) {
-            if (wt == 6) {
-                bWarn <- paste(bWarn, messageSub)
+            bWarnTypes <- sort(unique(bWarnTypes))
+            for (wt in bWarnTypes) {
+                if (wt == 6) {
+                    bWarn <- paste(bWarn, messageSub)
+                }
+                if (wt == 7) {
+                    bWarn <- paste(bWarn, messageOptInf)
+                }
             }
-            if (wt == 7) {
-                bWarn <- paste(bWarn, messageOptInf)
-            }
-        }
-        if (!is.null(bWarn)) warning(bWarn, call. = FALSE, immediate. = TRUE)
-        ## Save results
-        solVecMin <- c(lpresult$ming0, lpresult$ming1)
-        solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
-        optstatus <- min(c(lpresult$minstatus,
-                           lpresult$maxstatus))
-        ## Testing -----------------------
-        ## Check if box constraints are binding
-        if (!rescale) {
-            solVecMinCheckLb <- abs(solVecMin - lpEnv$lpobj$lb) < audit.tol
-            solVecMinCheckUb <- abs(solVecMin - lpEnv$lpobj$ub) < audit.tol
-            solVecMaxCheckLb <- abs(solVecMax - lpEnv$lpobj$lb) < audit.tol
-            solVecMaxCheckUb <- abs(solVecMax - lpEnv$lpobj$ub) < audit.tol
-        } else {
-            solVecMinCheckLb <- abs(solVecMin - lpEnv$lpobj$lb /
-                                    lpEnv$colNorms) < audit.tol
-            solVecMinCheckUb <- abs(solVecMin - lpEnv$lpobj$ub /
-                                    lpEnv$colNorms) < audit.tol
-            solVecMaxCheckLb <- abs(solVecMax - lpEnv$lpobj$lb /
-                                    lpEnv$colNorms) < audit.tol
-            solVecMaxCheckUb <- abs(solVecMax - lpEnv$lpobj$ub /
-                                    lpEnv$colNorms) < audit.tol
-        }
-        if (any(solVecMinCheckLb, solVecMinCheckUb,
-                solVecMaxCheckLb, solVecMaxCheckUb)) {
-            criterion.box.scale <- criterion.box.scale * 2
-            cat("   ",
-                gsub('\\s+', ' ',
-                     'Box constraints were binding.
+            if (!is.null(bWarn)) warning(bWarn, call. = FALSE, immediate. = TRUE)
+            ## Save results
+            solVecMin <- c(lpresult$ming0, lpresult$ming1)
+            solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
+            optstatus <- min(c(lpresult$minstatus,
+                               lpresult$maxstatus))
+            ## Testing -----------------------
+            ## Check if box constraints are binding
+            if (direct) {
+                if (!rescale) {
+                    solVecMinCheckLb <- abs(solVecMin - lpEnv$lpobj$lb) < audit.tol
+                    solVecMinCheckUb <- abs(solVecMin - lpEnv$lpobj$ub) < audit.tol
+                    solVecMaxCheckLb <- abs(solVecMax - lpEnv$lpobj$lb) < audit.tol
+                    solVecMaxCheckUb <- abs(solVecMax - lpEnv$lpobj$ub) < audit.tol
+                } else {
+                    solVecMinCheckLb <- abs(solVecMin - lpEnv$lpobj$lb /
+                                            lpEnv$colNorms) < audit.tol
+                    solVecMinCheckUb <- abs(solVecMin - lpEnv$lpobj$ub /
+                                            lpEnv$colNorms) < audit.tol
+                    solVecMaxCheckLb <- abs(solVecMax - lpEnv$lpobj$lb /
+                                            lpEnv$colNorms) < audit.tol
+                    solVecMaxCheckUb <- abs(solVecMax - lpEnv$lpobj$ub /
+                                            lpEnv$colNorms) < audit.tol
+                }
+                if (any(solVecMinCheckLb, solVecMinCheckUb,
+                        solVecMaxCheckLb, solVecMaxCheckUb)) {
+                    criterion.box.scale <- criterion.box.scale * 2
+                    qpSetupBound(env = lpEnv, setup = FALSE)
+                    cat("   ",
+                        gsub('\\s+', ' ',
+                             'Box constraints were binding.
                       Expanding box constraints...'),
-                '\n')
-            next
+                      '\n')
+                } else {
+                    boxBinding <- FALSE
+                }
+            }
         }
         ## End esting ---------------------
         if (existsolution == FALSE) existsolution <- TRUE
@@ -1176,6 +1202,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     lpEnv$lpobj$A <- rbind(lpEnv$lpobj$A, tmpMat)
+                    ## print('add m0')
+                    ## print(tmpMat)
                     rm(addCol, tmpMat)
                     ## Update the contraint sequences
                     lpEnv$mbobj$lb0seq <- c(lpEnv$mbobj$lb0seq,
@@ -1266,6 +1294,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     }
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A, tmpMat)
+                    ## print('add m1')
+                    ## print(tmpMat)
                     rm(addCol, tmpMat)
                     ## Update the contraint sequences
                     lpEnv$mbobj$lb1seq <- c(lpEnv$mbobj$lb1seq,
@@ -1352,6 +1382,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     }
                     lpEnv$lpobj$A <-
                         rbind(lpEnv$lpobj$A, tmpMat)
+                    ## print('add mte')
+                    ## print(tmpMat)
                     rm(tmpMat)
                     ## Update the contraint sequences
                     lpEnv$mbobj$lbteseq <- c(lpEnv$mbobj$lbteseq,
@@ -1395,69 +1427,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         violateMat$pos <- NULL
     }
     ## Clean up status codes
-    for (type in c('minstatus', 'maxstatus')) {
-        if (solver == 'gurobi') {
-            if (lpresult[[type]] == 1) lpresult[[type]] <- 'OPTIMAL (2)'
-            if (lpresult[[type]] == 2) lpresult[[type]] <- 'INFEASIBLE (3)'
-            if (lpresult[[type]] == 3) lpresult[[type]] <- 'INF_OR_UNBD (4)'
-            if (lpresult[[type]] == 4) lpresult[[type]] <- 'UNBOUNDED (5)'
-            if (lpresult[[type]] == 5) lpresult[[type]] <- 'NUMERIC (12)'
-            if (lpresult[[type]] == 6) lpresult[[type]] <- 'SUBOPTIMAL (13)'
-        }
-        if (solver == 'cplexapi') {
-            if (lpresult[[type]] == 1) lpresult[[type]] <-
-                                           'CPX_STAT_OPTIMAL (1)'
-            if (lpresult[[type]] == 2) lpresult[[type]] <-
-                                           'CPX_STAT_INFEASIBLE (3)'
-            if (lpresult[[type]] == 3) lpresult[[type]] <-
-                                           'CPX_STAT_INForUNBD (4)'
-            if (lpresult[[type]] == 4) lpresult[[type]] <-
-                                           'CPX_STAT_UNBOUNDED (2)'
-            if (lpresult[[type]] == 6) lpresult[[type]] <-
-                                           'CPX_STAT_NUM_BEST (6)'
-            if (lpresult[[type]] == 7) lpresult[[type]] <-
-                                           'CPX_STAT_OPTIMAL_INFEAS (5)'
-        }
-        if (solver == 'lpsolveapi') {
-            if (lpresult[[type]] == 1) lpresult[[type]] <- 'Optimal (0)'
-            if (lpresult[[type]] == 2) lpresult[[type]] <- 'Infeasible (2)'
-            if (lpresult[[type]] == 4) lpresult[[type]] <- 'Unbounded (3)'
-            if (lpresult[[type]] == 5) lpresult[[type]] <-
-                                           'Numerical failure (5)'
-            if (lpresult[[type]] == 6) lpresult[[type]] <- 'Sub-optimal (1)'
-        }
-    }
-    ## Clean up criterion status codes
-    if (solver == 'gurobi') {
-        if (minobseq$status == 1) minobseq$status <- 'OPTIMAL (2)'
-        if (minobseq$status == 2) minobseq$status <- 'INFEASIBLE (3)'
-        if (minobseq$status == 3) minobseq$status <- 'INF_OR_UNBD (4)'
-        if (minobseq$status == 4) minobseq$status <- 'UNBOUNDED (5)'
-        if (minobseq$status == 5) minobseq$status <- 'NUMERIC (12)'
-        if (minobseq$status == 6) minobseq$status <- 'SUBOPTIMAL (13)'
-    }
-    if (solver == 'cplexapi') {
-        if (minobseq$status == 1) minobseq$status <-
-                                      'CPX_STAT_OPTIMAL (1)'
-        if (minobseq$status == 2) minobseq$status <-
-                                      'CPX_STAT_INFEASIBLE (3)'
-        if (minobseq$status == 3) minobseq$status <-
-                                      'CPX_STAT_INForUNBD (4)'
-        if (minobseq$status == 4) minobseq$status <-
-                                      'CPX_STAT_UNBOUNDED (2)'
-        if (minobseq$status == 6) minobseq$status <-
-                                      'CPX_STAT_NUM_BEST (6)'
-        if (minobseq$status == 7) minobseq$status <-
-                                      'CPX_STAT_OPTIMAL_INFEAS (5)'
-    }
-    if (solver == 'lpsolveapi') {
-        if (minobseq$status == 1) minobseq$status <- 'Optimal (0)'
-        if (minobseq$status == 2) minobseq$status <- 'Infeasible (2)'
-        if (minobseq$status == 4) minobseq$status <- 'Unbounded (3)'
-        if (minobseq$status == 5) minobseq$status <-
-                                      'Numerical failure (5)'
-        if (minobseq$status == 6) minobseq$status <- 'Sub-optimal (1)'
-    }
+    lpresult[['minstatus']] <- statusString(lpresult[['minstatus']], solver)
+    lpresult[['maxstatus']] <- statusString(lpresult[['maxstatus']], solver)
+    minobseq$status <- statusString(minobseq$status, solver)
     ## Return output
     output <- list(max = lpresult$max,
                    min = lpresult$min,
@@ -1467,7 +1439,10 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                    auditcount = audit_count,
                    minobseq = minobseq$obj,
                    minobseq.status = minobseq$status)
-    if (direct) output$minobseq <- output$minobseq + lpEnv$ssy
+    if (direct) {
+        output$minobseq <- output$minobseq * lpEnv$drN + lpEnv$ssy
+        output$minobseq.raw <- minobseq$obj
+    }
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
         output$spectest = minobseqTest$obj
     }
@@ -1612,3 +1587,53 @@ rhalton <- function(n, base = 2) {
     }
     return(output)
 }
+
+#' Convert status code to string
+#'
+#' This function returns the status code specific to a solver.
+#'
+#' @param status Status code.
+#' @param solver Name of solver, either 'gurobi', 'cplexapi', or
+#'     'lpsolveapi'.
+#' @return Status specific to solver, e.g. 'OPTIMAL (2)'.
+statusString <- function(status, solver) {
+    if (solver == 'gurobi') {
+        if (status == 1) statusStr <- 'OPTIMAL (2)'
+        if (status == 2) statusStr <- 'INFEASIBLE (3)'
+        if (status == 3) statusStr <- 'INF_OR_UNBD (4)'
+        if (status == 4) statusStr <- 'UNBOUNDED (5)'
+        if (status == 5) statusStr <- 'NUMERIC (12)'
+        if (status == 6) statusStr <- 'SUBOPTIMAL (13)'
+    }
+    if (solver == 'cplexapi') {
+        if (status == 1) statusStr <-
+                             'CPX_STAT_OPTIMAL (1)'
+        if (status == 2) statusStr <-
+                             'CPX_STAT_INFEASIBLE (3)'
+        if (status == 3) statusStr <-
+                             'CPX_STAT_INForUNBD (4)'
+        if (status == 4) statusStr <-
+                             'CPX_STAT_UNBOUNDED (2)'
+        if (status == 6) statusStr <-
+                             'CPX_STAT_NUM_BEST (6)'
+        if (status == 7) statusStr <-
+                             'CPX_STAT_OPTIMAL_INFEAS (5)'
+    }
+    if (solver == 'lpsolveapi') {
+        if (status == 1) statusStr <- 'Optimal (0)'
+        if (status == 2) statusStr <- 'Infeasible (2)'
+        if (status == 4) statusStr <- 'Unbounded (3)'
+        if (status == 5) statusStr <-
+                             'Numerical failure (5)'
+        if (status == 6) statusStr <- 'Sub-optimal (1)'
+    }
+    if (solver == 'rmosek') {
+        if (status == 1) statusStr <- 'OPTIMAL'
+        if (status == 4) statusStr <- 'DUAL_INFEASIBLE_CER'
+        if (status == 2) statusStr <- 'PRIMAL_INFEASIBLE_CER'
+        if (status == 5) statusStr <- 'UNKNOWN'
+    }
+    if (status == 0) statusStr <- 'Unknown error'
+    return(statusStr)
+}
+

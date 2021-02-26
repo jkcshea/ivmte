@@ -300,6 +300,11 @@ lpSetupCriterion <- function(env, sset) {
     ## observational equivalence
     env$lpobj$obj <- c(replicate(sn * 2, 1),
                        replicate(gn0 + gn1, 0))
+    ## Testing ---------
+    tmpModel <- env$lpobj
+    save(tmpModel, file = 'rawModel.Rdata')
+    ## stop('end of test')
+    ## -----------------
 }
 
 #' Configure LP environment to be compatible with solvers
@@ -327,15 +332,6 @@ lpSetupSolver <- function(env, solver) {
         env$lpobj$sense[env$lpobj$sense == "<"]  <- "<="
         env$lpobj$sense[env$lpobj$sense == ">"]  <- ">="
         env$lpobj$sense[env$lpobj$sense == "=="] <- "="
-    }
-    if (solver == "lsei") {
-        ## Rewrite inequality constraints so that they are of the form
-        ## Ax >= b.
-        env$lpobj$A[which(env$lpobj$sense == '<='), ] <-
-            -env$lpobj$A[which(env$lpobj$sense == '<='), ]
-        env$lpobj$rhs[which(env$lpobj$sense == '<=')] <-
-            -env$lpobj$rhs[which(env$lpobj$sense == '<=')]
-        env$lpobj$sense[which(env$lpobj$sense == '<=')] <- '>='
     }
 }
 
@@ -673,6 +669,14 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #' @export
 criterionMin <- function(env, sset, solver, solver.options, rescale,
                          debug = FALSE) {
+    print('check criterion constraints')
+    if (nrow(env$lpobj$A) > 25) {
+        print(env$lpobj$A[20:25, ])
+    }
+    if (nrow(env$lpobj$A) > 30) {
+        print(env$lpobj$A[26:30, ])
+    }
+
     solver <- tolower(solver)
     if (solver == "gurobi") {
         if (debug && solver.options$outputflag == 1) {
@@ -701,23 +705,15 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
-    } else if (solver == "lsei") {
-        result <- lsei::lsei(a = env$drX, b = env$drY,
-                             e = as.matrix(env$lpobj$A), f = env$lpobj$rhs)
-        if (is.numeric(result)) {
-            obseqmin <- sum((env$drY - env$drX %*% result)^2) - env$ssy
-            obseqmin <- obseqmin / env$drN
-            optx <- result
-            status <- 1
-        } else {
-            obseqmin <- NA
-            optx <- NA
-            status <- 0
-        }
+    } else if (solver == 'rmosek') {
+        result   <- runMosek(env$lpobj, 'min')
+        obseqmin <- result$objval
+        optx     <- result$optx
+        status   <- result$status        
     } else {
         stop(gsub('\\s+', ' ',
                   "Invalid LP solver. Option 'solver' must be either 'gurobi',
-                  'cplexapi', or 'lpsolveapi'."))
+                  'cplexapi', 'rmosek', or 'lpsolveapi'."))
     }
     ## Provide nicer output
     g0sol <- optx[(2 * env$lpobj$sn + 1) :
@@ -883,7 +879,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
 bound <- function(env, sset, solver,
                   solver.options, noisy = FALSE,
                   smallreturnlist = FALSE,
-                  rescale = TRUE,
+                  rescale = FALSE,
                   debug = FALSE) {
     solver <- tolower(solver)
     ## Obtain lower and upper bounds
@@ -932,16 +928,27 @@ bound <- function(env, sset, solver,
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
+    } else if (solver == 'rmosek') {
+        minresult <- runMosek(env$lpobj, 'min')
+        min       <- minresult$objval
+        minoptx   <- minresult$optx
+        minstatus <- minresult$status
+        maxresult <- runMosek(env$lpobj, 'max')
+        max       <- maxresult$objval
+        maxoptx   <- maxresult$optx
+        maxstatus <- maxresult$status
     } else {
         stop(gsub('\\s+', ' ',
                   "Invalid LP solver. Option 'solver' must be either 'gurobi',
-                  'cplexapi', or 'lpsolveapi'."))
+                  'cplexapi', 'rmosek', or 'lpsolveapi'."))
     }
     env$lpobj$modelsense <- NULL
     ## Return error codes, if any
     if (maxstatus %in% c(2, 3, 4, 5) || minstatus %in% c(2, 3, 4, 5)) {
         return(list(error = TRUE,
+                    max = max,
                     maxstatus = maxstatus,
+                    min = min,
                     minstatus = minstatus))
     }
     ming0 <- minoptx[(2 * env$lpobj$sn + 1) :
@@ -991,6 +998,9 @@ bound <- function(env, sset, solver,
                    minresult = minresult,
                    minstatus = minstatus,
                    error = FALSE)
+    if (rescale) {
+        output$norms <- env$colNorms
+    }
     if (!smallreturnlist) output$model = env$lpobj
     return(output)
 }
@@ -1150,6 +1160,62 @@ runLpSolveAPI <- function(lpobj, modelsense, solver.options) {
     return(list(objval = lpSolveAPI::get.objective(lpmodel),
                 optx   = lpSolveAPI::get.variables(lpmodel),
                 status = status))
+}
+
+runMosek <- function(lpobj, modelsense, solver.options) {
+    prob <- list()
+    ## Constraint lower and upper bounds
+    tmpSense <- lpobj$sense
+    tmpBlc <- lpobj$rhs
+    tmpBuc <- lpobj$rhs
+    tmpBuc[which(tmpSense == '>=')] <- Inf
+    tmpBlc[which(tmpSense == '<=')] <- -Inf
+    prob$bc <- rbind(blc = tmpBlc,
+                     buc = tmpBuc)
+    prob$bx <- rbind(blx = lpobj$lb,
+                     bux = lpobj$ub)
+    prob$A <- lpobj$A
+    prob$c <- lpobj$obj
+    prob$sense <- modelsense
+    result <- Rmosek::mosek(prob)
+    response <- result$response$code
+    if (response != 0) {
+        objval <- NA
+        optx <- NA
+        responsecode <- results$response$msg
+        solutionstatus <- NA
+        problemstatus <- NA
+    } else {
+        if (!is.null(result$sol$itr$xc)) {
+            optx <- result$sol$itr$xx
+            solutionstatus <- result$sol$itr$solsta
+            problemstatus <- result$sol$itr$prosta
+        } else {
+            optx <- result$sol$bas$xx
+            solutionstatus <- result$sol$bas$solsta
+            problemstatus <- result$sol$bas$prosta
+        }
+        if (solutionstatus == 'OPTIMAL') {
+            status <- 1
+        } else if (solutionstatus == 'DUAL_INFEASIBLE_CER') {
+            status <- 4
+        } else if (solutionstatus == 'PRIMAL_INFEASIBLE_CER') {
+            status <- 2
+        } else if (solutionstatus == 'UNKNOWN') {
+            status <- 5
+        } else {
+            status <- 0
+        }
+        if (!is.null(optx)) {
+            objval <- sum(optx * lpobj$obj)
+        }
+    }
+    return(list(objval = objval,
+                optx = optx,
+                response = response,
+                status = status,
+                solutionstatus = solutionstatus,
+                problemstatus = problemstatus))
 }
 
 #' Check magnitude of real number
@@ -1414,6 +1480,8 @@ qpSetupCriterion <- function(env) {
     env$lpobj$obj <- env$quad$q
     env$lpobj$Q <- env$quad$Qc
     env$lpobj$modelsense <- 'min'
+    env$lpobj$ub <- rep(Inf, times = length(env$quad$q))
+    env$lpobj$lb <- rep(-Inf, times = length(env$quad$q))
 }
 
 #' Constructing QCQP problem for bounding
@@ -1458,7 +1526,7 @@ qpSetupBound <- function(env, g0, g1, criterion.coef,
                          criterion.box.scale = 2,
                          criterion.tol,
                          criterion.min,
-                         rescale = TRUE,
+                         rescale = FALSE,
                          setup = TRUE) {
     if (setup) {
         ## Prepare objective
@@ -1470,17 +1538,29 @@ qpSetupBound <- function(env, g0, g1, criterion.coef,
         ## Add in the quadratic constraint, accounting for how
         ## criterion.min excludes the SSY.
         env$quad$rhs <- (env$ssy / env$drN) * criterion.tol +
-                         criterion.min * (1 + criterion.tol)
+            criterion.min * (1 + criterion.tol)
+        ## TESTING ---------------------
+        ## env$quad$rhs <- env$quad$rhs * 0.1
+        ## END TESTING -----------------
         env$lpobj$quadcon <- list(env$quad)
         ## Add in the box constraints
+        tmpBand <- abs(criterion.coef)
+        tmpBand[which(tmpBand < 1)]  <-  1
         env$lpobj$ub <- criterion.coef +
-            abs(criterion.coef) * criterion.box.scale
+            tmpBand * criterion.box.scale
         env$lpobj$lb <- criterion.coef -
-            abs(criterion.coef) * criterion.box.scale
+            tmpBand * criterion.box.scale
+        tmpBox <- rbind(env$lpobj$lb, env$lpobj$ub)
+        rownames(tmpBox) <- c('min', 'max')
+        colnames(tmpBox) <- names(env$lpobj$obj)
+        ## print('Box constraints')
+        ## print(tmpBox)
     } else {
         env$lpobj$obj <- NULL
         env$quad$rhs <- NULL
         env$lpobj$quadcon <- NULL
+        env$lpobj$ub <- NULL
+        env$lpobj$lb <- NULL
     }
 }
 

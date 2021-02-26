@@ -148,7 +148,7 @@ utils::globalVariables("u")
 #'     provided with or without quotation marks.
 #' @param solver character, name of the linear programming package in
 #'     R used to obtain the bounds on the treatment effect. The
-#'     function supports \code{'gurobi'}, \code{'cplexapi'},
+#'     function supports \code{'gurobi'}, \code{'cplexapi'}, \code{rmosek},
 #'     \code{'lpsolveapi'}. The name of the solver should be provided
 #'     with quotation marks.
 #' @param solver.options list, each item of the list should correspond
@@ -433,11 +433,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
                   specification.test = TRUE,
                   noisy = FALSE,
-                  smallreturnlist = FALSE, debug = FALSE, box = FALSE,
-                  lsei = FALSE) {
-    ## TESTING --------------------
-    if (box) print('THIS IS A TEST OF BOX CONSTRAINTS.')
-    ## END TESTING ----------------
+                  smallreturnlist = FALSE, debug = FALSE,
+                  box = FALSE,
+                  fix.criterion = NULL) {
     ## Try-catch is implemented to deal with sinking of
     ## output. Specifically, if the function ends prematurely, the
     ## sink can still be reset at the 'finally' segment.
@@ -532,18 +530,22 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 solver <- "lpSolveAPI"
             } else if (requireNamespace("cplexAPI", quietly = TRUE)) {
                 solver <- "cplexAPI"
+            } else if (requireNamespace("Rmosek", quietly = TRUE)) {
+                solver <- "Rmosek"
             } else {
                 stop(gsub("\\s+", " ",
                           "Please install one of the following packages required
                       for estimation:
                       gurobi (version 7.5-1 or later);
                       cplexAPI (version 1.3.3 or later);
+                      Rmosek (version 9.2.38 or later);
                       lpSolveAPI (version 5.5.2.0 or later)."),
                      call. = FALSE)
             }
         }
         if (! solver %in% c("gurobi",
                             "cplexapi",
+                            "rmosek",
                             "lpsolveapi")) {
             stop(gsub("\\s+", " ",
                       paste0("Estimator is incompatible with linear
@@ -552,6 +554,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              following linear programming packages instead:
                              gurobi (version 7.5-1 or later);
                              cplexAPI (version 1.3.3 or later);
+                             Rmosek (version 9.2.38 or later);
                              lpSolveAPI (version 5.5.2.0 or later).")),
                  call. = FALSE)
         }
@@ -2075,6 +2078,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 output <- origEstimate
                 output$call.options <- opList
                 output <- output[sort(names(output))]
+                ## TESTING ----------------------------
+                if ('errorTypes' %in% names(output)) {
+                    return(output)
+                }
+                ## END TESTING ------------------------
                 class(output) <- "ivmte"
             } else {
                 ## Obtain audit grid from original estimate
@@ -3175,7 +3183,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           splinesobj, noisy = TRUE,
                           smallreturnlist = FALSE,
                           debug = FALSE, environments,
-                          box, lsei) {
+                          box, fix.criterion = NULL) {
     call <- match.call(expand.dots = FALSE)
     if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
         direct <- TRUE
@@ -3195,14 +3203,16 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (noisy == TRUE && hasArg(solver)) {
         if (solver == "gurobi") cat("\nLP solver: Gurobi ('gurobi')\n\n")
         if (solver == "cplexapi") cat("\nLP solver: CPLEX ('cplexAPI')\n\n")
+        if (solver == "rmosek") cat("\nLP solver: Mosek ('Rmosek')\n\n")
         if (solver == "lpsolveapi") {
             cat("\nLP solver: lp_solve ('lpSolveAPI')\n\n")
             warning(gsub("\\s+", " ",
                      "The R package 'lpSolveAPI' interfaces with 'lp_solve',
                       which is outdated and potentially unreliable. It is
                       recommended to use commercial solvers
-                      Gurobi (solver = 'gurobi')
-                      or CPLEX (solver = 'cplexAPI') instead.
+                      Gurobi (solver = 'gurobi'),
+                      CPLEX (solver = 'cplexAPI'), or Mosek
+                      (solver = 'Rmosek') instead.
                       Free academic licenses can be obtained for these
                       commercial solvers."),
                 "\n", call. = FALSE, immediate. = TRUE)
@@ -3511,7 +3521,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 }
             }
             if (!requireNamespace("gurobi", quietly = TRUE) &&
-                !requireNamespace("cplexAPI", quietly = TRUE)) {
+                !requireNamespace("rmosek", quietly = TRUE)) {
                 stop(gsub('\\s+', ' ',
                           "The MTR is not point identified by a
                                        direct regression. However, partial
@@ -3519,9 +3529,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                        quadratically constrained quadratic
                                        program.
                                        Please install one of the
-                                       following linear programming packages:
+                                       following optimization packages:
                                        gurobi (version 7.5-1 or later);
-                                       cplexAPI (version 1.3.3 or later)."),
+                                       Rmosek (version 9.2.38 or later)."),
                      call. = FALSE)
             }
         }
@@ -3674,7 +3684,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          gstar1 = quote(gstar1),
                                          solver = quote(solver),
                                          box = box, ## TESTING
-                                         lsei = lsei)) ## TESTING
+                                         fix.criterion = fix.criterion)) ## TESTING
     ## Impose default upper and lower bounds on m0 and m1
     if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
         maxy <- max(data[, vars_y])
@@ -3794,6 +3804,24 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             cat(paste0("    LP model ",
                        tmpErrMessage, ".\n"))
             autoExpand <- autoExpand + 1
+            ## TESTING -------------------------
+            if (any(c(2, 3, 5) %in% audit$errorTypes)) {
+                tmp <- NULL
+                for (i in 1:length(audit$errorTypes)) {
+                    tmp <- c(tmp, statusString(audit$errorTypes[[i]],
+                                               solver))
+                }
+                audit$errorTypes <- tmp
+                audit$audit.criterion.status <-
+                    statusString(audit$audit.criterion.status,
+                                 solver)
+                audit$status.min <- statusString(audit$status.min,
+                                                 solver)
+                audit$status.max <- statusString(audit$status.max,
+                                                 solver)
+                return(audit)
+            }
+            ## END TESTING ---------------------
             cat("\n    Restarting audit with new settings:\n")
             if (any(c(3, 4, 6, 7) %in% audit$errorTypes)) {
                 newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
@@ -3875,6 +3903,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (solver == "gurobi") solver <- "Gurobi ('gurobi')"
     if (solver == "lpsolveapi") solver <- "lp_solve ('lpSolveAPI')"
     if (solver == "cplexapi") solver <- "CPLEX ('cplexAPI')"
+    if (solver == "rmosek") solver <- "Mosek ('Rmosek')"
     if (!smallreturnlist) {
         output <- list(gstar = list(g0 = gstar0,
                                     g1 = gstar1,
@@ -3906,8 +3935,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         if (!direct) output$s.set <- sset
         if (direct) {
             output$X <- cbind(sset$s1$g0, sset$s1$g1)
+            output$Y <- sset$s1$ys
             output$init.SSR <- sset$s1$SSR
             output$init.gstar.coef <- sset$s1$init.coef
+            output$audit.criterion.raw <- audit$minobseq.raw
         }
     } else {
         if (!direct) {
@@ -5293,8 +5324,9 @@ summary.ivmte <- function(object, ...) {
                      "The R package 'lpSolveAPI' interfaces with 'lp_solve',
                       which is outdated and potentially unreliable.  It is
                       recommended to use commercial solvers
-                      Gurobi (solver = 'gurobi')
-                      or CPLEX (solver = 'cplexAPI') instead.
+                      Gurobi (solver = 'gurobi'),
+                      CPLEX (solver = 'cplexAPI'), or
+                      Mosek (solver = 'Rmosek') instead.
                       Free academic licenses can be obtained for these
                       commercial solvers."),
                 "\n", call. = FALSE)
