@@ -3756,6 +3756,25 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           In order to allow for automatic grid
                           expansion, make sure audit.nx > initgrid.nx
                           or audit.nu > initgrid.nu.")
+                ## TESTING -------------------------
+                if (any(c(2, 3, 5, 9) %in% audit$errorTypes)) {
+                    print('You should make this permanent')
+                    tmp <- NULL
+                    for (i in 1:length(audit$errorTypes)) {
+                        tmp <- c(tmp, statusString(audit$errorTypes[[i]],
+                                                   solver))
+                    }
+                    audit$errorTypes <- tmp
+                    audit$audit.criterion.status <-
+                        statusString(audit$audit.criterion.status,
+                                     solver)
+                    audit$status.min <- statusString(audit$status.min,
+                                                     solver)
+                    audit$status.max <- statusString(audit$status.max,
+                                                     solver)
+                    return(audit)
+                }
+                ## END TESTING ---------------------
                 stop(paste(errMessage1, "\n\n", errMessage2), call. = FALSE)
             }
             if (any(codesExpand %in% audit$errorTypes)) {
@@ -3799,13 +3818,14 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 ##         c(tmpErrMessage,
                 ##           'optimal but infeasible after rescaling')
                 ## }
+                tmpErrMessage <- paste(tmpErrMessage, collapse = "; ")
+                cat(paste0("    LP model ",
+                           tmpErrMessage, ".\n"))
+                autoExpand <- autoExpand + 1
             }
-            tmpErrMessage <- paste(tmpErrMessage, collapse = "; ")
-            cat(paste0("    LP model ",
-                       tmpErrMessage, ".\n"))
-            autoExpand <- autoExpand + 1
             ## TESTING -------------------------
-            if (any(c(2, 3, 5) %in% audit$errorTypes)) {
+            if (any(c(2, 3, 5, 9) %in% audit$errorTypes)) {
+                print('You should make this permanent')
                 tmp <- NULL
                 for (i in 1:length(audit$errorTypes)) {
                     tmp <- c(tmp, statusString(audit$errorTypes[[i]],
@@ -3875,6 +3895,25 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                    "\ninitgrid.nu = ", newGrid.nu,
                    "\naudit.nx = ", audit.nx,
                    "\naudit.nu = ", audit.nu)
+        ## TESTING -------------------------
+        if (any(c(2, 3, 5, 9) %in% audit$errorTypes)) {
+            print('You should make this permanent')
+            tmp <- NULL
+            for (i in 1:length(audit$errorTypes)) {
+                tmp <- c(tmp, statusString(audit$errorTypes[[i]],
+                                           solver))
+            }
+            audit$errorTypes <- tmp
+            audit$audit.criterion.status <-
+                statusString(audit$audit.criterion.status,
+                             solver)
+            audit$status.min <- statusString(audit$status.min,
+                                             solver)
+            audit$status.max <- statusString(audit$status.max,
+                                             solver)
+            return(audit)
+        }
+        ## END TESTING ---------------------
         stop(paste(errMessage1, "\n\n", errMessage2), call. = FALSE)
     }
     if (noisy) {

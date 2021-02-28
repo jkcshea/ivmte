@@ -944,7 +944,7 @@ bound <- function(env, sset, solver,
     }
     env$lpobj$modelsense <- NULL
     ## Return error codes, if any
-    if (maxstatus %in% c(2, 3, 4, 5) || minstatus %in% c(2, 3, 4, 5)) {
+    if (maxstatus %in% c(2, 3, 4, 5, 9) || minstatus %in% c(2, 3, 4, 5, 9)) {
         return(list(error = TRUE,
                     max = max,
                     maxstatus = maxstatus,
@@ -1181,6 +1181,30 @@ runLpSolveAPI <- function(lpobj, modelsense, solver.options) {
 #'     status (status of \code{1} indicates successful optimization).
 runMosek <- function(lpobj, modelsense, solver.options) {
     qcp <- !is.null(lpobj$Q)
+    qcqp <- !is.null(lpobj$quadcon)
+    if (qcqp) {
+        ## Construct the transformation matrix
+        Qc <- lpobj$quadcon[[1]]$Qc * 2
+        QdList <- eigen(Qc, symmetric = TRUE)
+        Qd <- diag(sqrt(round(QdList$values, 12))) %*% t(QdList$vectors)
+        ## Update the old linear constraints to include the new variables
+        nvars <- length(lpobj$obj)
+        QSlack1 <- c(rep(0, times = nvars), c(1, 0), rep(0, times = nvars))
+        QSlack2 <- c(lpobj$quadcon[[1]]$q, 0, 1, rep(0, times = nvars))
+        lpobj$A <- rbind(cbind(lpobj$A, Matrix::Matrix(0, nrow = nrow(lpobj$A),
+                                                       ncol = nvars + 2)),
+                         QSlack1,
+                         QSlack2,
+                         cbind(Qd,
+                               Matrix::Matrix(0, nrow = nvars, ncol = 2),
+                               -diag(nvars)))
+        lpobj$rhs <- c(lpobj$rhs, 1, lpobj$quadcon[[1]]$rhs, rep(0, nvars))
+        lpobj$sense <- c(lpobj$sense, '=', '=', rep('=', nvars))
+        lpobj$ub <- c(lpobj$ub, 1, Inf, rep(Inf, nvars))
+        lpobj$lb <- c(lpobj$lb, 1, 0, rep(-Inf, nvars))
+        ## Update objective to include new variables
+        lpobj$obj <- c(lpobj$obj, rep(0, nvars + 2))
+    }
     prob <- list()
     tmpSense <- lpobj$sense
     tmpBlc <- lpobj$rhs
@@ -1200,14 +1224,20 @@ runMosek <- function(lpobj, modelsense, solver.options) {
         prob$qobj$j <- tripletQ$columns
         prob$qobj$v <- tripletQ$values * 2
     }
-    result <- Rmosek::mosek(prob, list(verbose = 10))
-    print(result)
+    if (qcqp) {
+        ## Declare conic constraints
+        prob$cones <- matrix(list(), nrow = 2, ncol = 1)
+        rownames(prob$cones) <- c('type', 'sub')
+        prob$cones[, 1] <- list('RQUAD', seq((nvars + 1), (2 * nvars + 2)))
+    }
+    result <- Rmosek::mosek(prob, list(verbose = 0))
     print('SET UP MOSEK OPTIONS')
     response <- result$response$code
-    if (response != 0) {
+    if (is.null(result$sol)) {
         objval <- NA
         optx <- NA
-        responsecode <- results$response$msg
+        responsecode <- result$response$msg
+        status <- 0
         solutionstatus <- NA
         problemstatus <- NA
     } else {
@@ -1227,9 +1257,17 @@ runMosek <- function(lpobj, modelsense, solver.options) {
         } else if (solutionstatus == 'PRIMAL_INFEASIBLE_CER') {
             status <- 2
         } else if (solutionstatus == 'UNKNOWN') {
-            status <- 5
-        } else {
-            status <- 0
+            if (response == 0) {
+                status <- 8
+            } else if (response == 10000) {
+                status <- 10
+            } else if (response == 10006) {
+                status <- 6
+            } else if (response == 10025) {
+                status <- 5
+            } else {
+                status <- 0
+            }
         }
         if (!is.null(optx)) {
             if (!qcp) {
@@ -1238,10 +1276,13 @@ runMosek <- function(lpobj, modelsense, solver.options) {
                 objval <- t(optx) %*% lpobj$Q %*% optx +
                     t(optx) %*% lpobj$obj
             }
+            if (qcqp) {
+                optx <- optx[1:nvars]
+            }
         }
     }
-    return(list(objval = objval,
-                optx = optx,
+    return(list(objval = as.numeric(objval),
+                optx = as.vector(optx),
                 response = response,
                 status = status,
                 solutionstatus = solutionstatus,

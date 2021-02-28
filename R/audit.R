@@ -214,6 +214,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 audit.tol <- 1e-06
             }
         }
+        if (solver == 'rmosek') {
+            audit.tol <- 1e-06
+        }
         if (solver == "lpsolveapi") {
             audit.tol <- 1e-06
         }
@@ -432,9 +435,10 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     if (direct) qpSetup(env = lpEnv, sset = sset, rescale = rescale)
     ## Prepare LP messages
     ##
-    ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible or
-    ## unbounded; 4-unbounded; 5-numerical error; 6-suboptimal;
-    ## 7-optimal but infeasible after rescaling.
+    ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible
+    ## or unbounded; 4-unbounded; 5-numerical error; 6-suboptimal;
+    ## 7-optimal but infeasible after rescaling; 8-unknown but with a
+    ## solution (only for Mosek)
     messageAlt <- gsub("\\s+", " ",
                        "If the LP solver does not return a solution,
                         consider exporting the LP model
@@ -732,6 +736,26 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                   rescaling.')))
             bWarn <- paste(bWarn, messageOptInf)
         }
+        if (minobseq$status == 8) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste("The solution status (e.g. 'OPTIMAL')
+                                  to the problem of
+                                  minimizing the criterion
+                                  is unknown---Rmosek provided a solution
+                                  but did not provide a status.")))
+            bWarn <- paste(bWarn, messageOptInf)
+        }
+        if (minobseq$status == 10) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste("Minimizing the criterion was terminated
+                                  by Rmosek because the maximum iteration limit
+                                  was reached.")))
+            bWarn <- paste(bWarn, messageOptInf)
+        }
         if (!is.null(bWarn)) warning(bWarn, call. = FALSE,
                                      immediate. = TRUE)
 
@@ -853,6 +877,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         errMess <- paste(errMess, messageNum)
                     }
                 }
+                if (9 %in% errTypes) {
+                    errMess <- gsub('\\s+', ' ',
+                                    "The matrix defining the quadratic
+                                  constraint is not positive definite.
+                                  The QCQP problem may not be written
+                                  as a SOCP problem, as required by Rmosek.
+                                  Try setting solver to 'gurobi' instead.")
+                }
                 return(list(error = errMess,
                             errorTypes = origErrTypes,
                             min = lpresult$min,
@@ -888,6 +920,22 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                    paste('The solution to the',
                                          tmpType, 'problem is optimal,
                                      but infeasible after rescaling.')))
+                }
+                if (lpresult[[tmpName]] == 8) {
+                    bWarn <-
+                        paste(bWarn,
+                              gsub("\\s+", " ",
+                                   paste("Rmosek did not provide a solution
+                                          status (e.g. 'OPTIMAL') to the",
+                                          tmpType, 'problem.')))
+                }
+                if (lpresult[[tmpName]] == 10) {
+                    bWarn <-
+                        paste(bWarn,
+                              gsub("\\s+", " ",
+                                   paste("Rmosek terminated the",
+                                         tmpType, 'problem because the
+                                         iteration limit was reached.')))
                 }
                 bWarnTypes <- c(bWarnTypes,
                                 lpresult[[tmpName]])
@@ -1631,9 +1679,12 @@ statusString <- function(status, solver) {
         if (status == 1) statusStr <- 'OPTIMAL'
         if (status == 4) statusStr <- 'DUAL_INFEASIBLE_CER'
         if (status == 2) statusStr <- 'PRIMAL_INFEASIBLE_CER'
-        if (status == 5) statusStr <- 'UNKNOWN'
+        if (status == 5) statusStr <- 'NUMERICAL_PROBLEM (10025)'
+        if (status == 6) statusStr <- 'STALL (10006)'
+        if (status == 8) statusStr <- 'UNKNOWN'
+        if (status == 9) statusStr <- 'QUAD. MATRIX NOT PD'
+        if (status == 10) statusStr <- 'MAX_ITERATIONS (10000)'
     }
     if (status == 0) statusStr <- 'Unknown error'
     return(statusStr)
 }
-
