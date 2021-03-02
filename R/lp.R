@@ -1519,7 +1519,11 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     drN <- length(drY)
     print('RESCALING BY drN IS DANGEROUS---SLIGHT NUMERICAL IMPRECISION CAN RESULT IN MINIMUM CRITERION THAT DONT MAKE SENSE, I.E. NEGATIVE CRITERION')
     if (rescale) {
+        print('X before scaling')
+        print(summary(drX))
         drX <- sweep(x = drX, MARGIN = 2, STATS = env$colNorms, FUN = '/')
+        print('X after scaling')
+        print(summary(drX))
     }
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY) / drN

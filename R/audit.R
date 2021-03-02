@@ -438,7 +438,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible
     ## or unbounded; 4-unbounded; 5-numerical error; 6-suboptimal;
     ## 7-optimal but infeasible after rescaling; 8-unknown but with a
-    ## solution (only for Mosek)
+    ## solution (only for Mosek); 10-maximum iterations reached (only
+    ## for Mosek).
     messageAlt <- gsub("\\s+", " ",
                        "If the LP solver does not return a solution,
                         consider exporting the LP model
@@ -808,6 +809,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             ##              round(lpresult$min, digits = 5), ", ",
             ##              round(lpresult$max, digits = 5), "]"))
             if (lpresult$error == TRUE) {
+                print('i am here with an error')
                 errMess <- NULL
                 errTypes <- NULL
                 for (type in c('min', 'max')) {
@@ -877,14 +879,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         errMess <- paste(errMess, messageNum)
                     }
                 }
-                if (9 %in% errTypes) {
-                    errMess <- gsub('\\s+', ' ',
-                                    "The matrix defining the quadratic
-                                  constraint is not positive definite.
-                                  The QCQP problem may not be written
-                                  as a SOCP problem, as required by Rmosek.
-                                  Try setting solver to 'gurobi' instead.")
-                }
                 return(list(error = errMess,
                             errorTypes = origErrTypes,
                             min = lpresult$min,
@@ -895,6 +889,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                 lpEnv$ssy,
                             audit.criterion.raw = minobseq$obj,
                             audit.criterion.status = minobseq$status,
+                            audit.count = audit_count - 1,
                             audit.grid = audit.grid))
             }
             ## Provide warnings if solutions are suboptimal.
@@ -1682,7 +1677,6 @@ statusString <- function(status, solver) {
         if (status == 5) statusStr <- 'NUMERICAL_PROBLEM (10025)'
         if (status == 6) statusStr <- 'STALL (10006)'
         if (status == 8) statusStr <- 'UNKNOWN'
-        if (status == 9) statusStr <- 'QUAD. MATRIX NOT PD'
         if (status == 10) statusStr <- 'MAX_ITERATIONS (10000)'
     }
     if (status == 0) statusStr <- 'Unknown error'
