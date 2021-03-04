@@ -2943,8 +2943,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Make sure temporary log files are delated
         unlink(logName)
         ## And return output
-        if (!noisy) return(output)
-        if (noisy) return(invisible(output))
+        if (exists('output')) {
+            if (!noisy) return(output)
+            if (noisy) return(invisible(output))
+        }
     })
 }
 
