@@ -706,6 +706,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
+        if (debug) cat("\n")
     } else {
         stop(gsub('\\s+', ' ',
                   "Invalid LP solver. Option 'solver' must be either 'gurobi',
@@ -940,6 +941,7 @@ bound <- function(env, sset, solver,
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
+        if (debug) cat("\n")
     } else {
         stop(gsub('\\s+', ' ',
                   "Invalid LP solver. Option 'solver' must be either 'gurobi',
