@@ -427,7 +427,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
-                  audit.tol, rescale = TRUE,
+                  audit.tol, rescale,
                   point = FALSE, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
@@ -467,13 +467,15 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             envList$ivlike <- environment(ivlike)
         }
         if (!direct) {
-            if (rescale) {
+            if (hasArg(rescale)) {
                 warning(gsub('\\s+', ' ',
                              "The 'rescale' option is currently ignored
                               unless a direct regression is performed."),
                         call. = FALSE)
             }
             rescale <- FALSE
+        } else {
+            if (!hasArg(rescale)) rescale <- TRUE
         }
         envProp <- try(environment(propensity), silent = TRUE)
         if (class(envProp) != "environment") {
