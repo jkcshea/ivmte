@@ -3777,7 +3777,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           expansion, make sure audit.nx > initgrid.nx
                           or audit.nu > initgrid.nu.")
                 if (any(c(2, 3, 5) %in% audit$errorTypes)) {
-                    print('You should make this permanent')
                     tmp <- NULL
                     for (i in 1:length(audit$errorTypes)) {
                         tmp <- c(tmp, statusString(audit$errorTypes[[i]],
@@ -3911,7 +3910,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                    "\naudit.nx = ", audit.nx,
                    "\naudit.nu = ", audit.nu)
         if (any(c(2, 3, 5) %in% audit$errorTypes)) {
-            print('You should make this permanent')
             tmp <- NULL
             for (i in 1:length(audit$errorTypes)) {
                 tmp <- c(tmp, statusString(audit$errorTypes[[i]],
