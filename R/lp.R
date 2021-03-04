@@ -669,14 +669,6 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #' @export
 criterionMin <- function(env, sset, solver, solver.options, rescale,
                          debug = FALSE) {
-    print('check criterion constraints')
-    if (nrow(env$lpobj$A) > 25) {
-        print(env$lpobj$A[20:25, ])
-    }
-    if (nrow(env$lpobj$A) > 30) {
-        print(env$lpobj$A[26:30, ])
-    }
-
     solver <- tolower(solver)
     if (solver == "gurobi") {
         if (debug && solver.options$outputflag == 1) {
@@ -706,7 +698,11 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
         optx     <- result$optx
         status   <- result$status
     } else if (solver == 'rmosek') {
-        result   <- runMosek(env$lpobj, 'min')
+        if (debug && solver.options$verbose == 10) {
+            cat("\nMinimum criterion optimization statistics:\n")
+            cat("------------------------------------------\n")
+        }
+        result   <- runMosek(env$lpobj, 'min', solver.options, debug)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
@@ -889,7 +885,6 @@ bound <- function(env, sset, solver,
             cat("------------------------------------\n")
         }
         if (debug == TRUE){
-            env$lpobj$modelsense <- NULL
             gurobi::gurobi_write(env$lpobj, "lpBound.mps")
             model <- env$lpobj
             save(model, file = "lpBound.Rdata")
@@ -929,11 +924,19 @@ bound <- function(env, sset, solver,
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
     } else if (solver == 'rmosek') {
-        minresult <- runMosek(env$lpobj, 'min')
+        if (debug && solver.options$verbose == 10) {
+            cat("\nLower bound optimization statistics:\n")
+            cat("------------------------------------\n")
+        }
+        minresult <- runMosek(env$lpobj, 'min', solver.options, debug)
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
-        maxresult <- runMosek(env$lpobj, 'max')
+        if (debug && solver.options$verbose == 10) {
+            cat("\nUpper bound optimization statistics:\n")
+            cat("------------------------------------\n")
+        }
+        maxresult <- runMosek(env$lpobj, 'max', solver.options)
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
@@ -1001,7 +1004,13 @@ bound <- function(env, sset, solver,
     if (rescale) {
         output$norms <- env$colNorms
     }
-    if (!smallreturnlist) output$model = env$lpobj
+    if (!smallreturnlist) {
+        if (solver != 'rmosek') output$model = env$lpobj
+        if (solver == 'rmosek') {
+            output$model <- minresult$prob
+            output$model$sense <- NULL
+        }
+    }
     return(output)
 }
 
@@ -1179,7 +1188,7 @@ runLpSolveAPI <- function(lpobj, modelsense, solver.options) {
 #' @return a list of the output from \code{lpSolveAPI}. This includes
 #'     the objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization).
-runMosek <- function(lpobj, modelsense, solver.options) {
+runMosek <- function(lpobj, modelsense, solver.options, debug = FALSE) {
     qcp <- !is.null(lpobj$Q)
     qcqp <- !is.null(lpobj$quadcon)
     if (qcqp) {
@@ -1230,8 +1239,24 @@ runMosek <- function(lpobj, modelsense, solver.options) {
         rownames(prob$cones) <- c('type', 'sub')
         prob$cones[, 1] <- list('RQUAD', seq((nvars + 1), (2 * nvars + 2)))
     }
-    result <- Rmosek::mosek(prob, list(verbose = 0))
-    print('SET UP MOSEK OPTIONS')
+    ## Include options
+    if ('dparam' %in% names(solver.options)) {
+        prob$dparam <- solver.options$dparam
+        solver.options$dparam <- NULL
+    }
+    ## Export model if debugging
+    if (debug == TRUE){
+        if (qcp) {
+            Rmosek::mosek_write(prob, "lpCriterion.mps", solver.options)
+            save(prob, file = "lpCriterion.Rdata")
+        }
+        if (qcqp) {
+            Rmosek::mosek_write(prob, "lpBound.mps", solver.options)
+            save(prob, file = "lpBound.Rdata")
+        }
+    }
+    ## Estimate
+    result <- Rmosek::mosek(prob, solver.options)
     response <- result$response$code
     if (is.null(result$sol)) {
         objval <- NA
@@ -1286,7 +1311,8 @@ runMosek <- function(lpobj, modelsense, solver.options) {
                 response = response,
                 status = status,
                 solutionstatus = solutionstatus,
-                problemstatus = problemstatus))
+                problemstatus = problemstatus,
+                prob = prob))
 }
 
 #' Check magnitude of real number
@@ -1314,8 +1340,7 @@ magnitude <- function(x) {
 #'     case sensitive. The value assigned to each item is the value to
 #'     set the option to.
 #' @param debug boolean, indicates whether or not the function should
-#'     provide output when obtaining bounds. The option is only
-#'     applied when \code{solver = 'gurobi'}. The output provided is
+#'     provide output when obtaining bounds. The output provided is
 #'     the same as what the Gurobi API would send to the console.
 #' @return list, the set of options declared by the user, including
 #'     some additional default values (if not assigned by the user)
@@ -1334,6 +1359,35 @@ optionsGurobi <- function(options, debug) {
     }
     if (! "presolve" %in% names(options)) {
         options$presolve <- 1
+    }
+    return(options)
+}
+
+#' Function to parse options for Gurobi
+#'
+#' This function constructs a list of options to be parsed when
+#' \code{solver} is set to \code{Rmosek}. This function really
+#' implements the default feasibility tolerances.
+#' @param options list. Each set of options should be passed as a
+#'     list, with the name of each entry being the name of the class
+#'     of options. For example, options for double parameters should
+#'     be contained in the entry\code{dparam = list(BASIS_TOL_X = 1e-06)}.
+#' @param debug boolean, indicates whether or not the function should
+#'     provide output when obtaining bounds. The output provided is
+#'     the same as what Mosek would send to the console.
+#' @return list, the set of options declared by the user, including
+#'     some additional default values.
+#' @export
+optionsRmosek <- function(options, debug) {
+    if (is.null(options$dparam$ANA_SOL_INFEAS_TOL)) {
+        options$dparam$ANA_SOL_INFEAS_TOL <- 1e-06
+    }
+    if (is.null(options$dparam$BASIS_TOL_X)) {
+        options$dparam$BASIS_TOL_X <- 1e-06
+    }
+    if (is.null(options$verbose)) {
+        if (debug) options$verbose <- 10
+        if (!debug) options$verbose <- 0
     }
     return(options)
 }
@@ -1517,13 +1571,10 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
     drN <- length(drY)
-    print('RESCALING BY drN IS DANGEROUS---SLIGHT NUMERICAL IMPRECISION CAN RESULT IN MINIMUM CRITERION THAT DONT MAKE SENSE, I.E. NEGATIVE CRITERION')
     if (rescale) {
-        print('X before scaling')
-        print(summary(drX))
         drX <- sweep(x = drX, MARGIN = 2, STATS = env$colNorms, FUN = '/')
-        print('X after scaling')
-        print(summary(drX))
+        normY <- sqrt(sum(drY^2))
+        drN <- drN * normY
     }
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
@@ -1570,16 +1621,6 @@ qpSetupCriterion <- function(env) {
 #'     control group.
 #' @param g1 set of expectations for each terms of the MTR for the
 #'     control group.
-#' @param criterion.coef vector of MTR coefficient estimates from
-#'     minimizing the criterion. This is used to impose box
-#'     constraints to improve stability. Specifically, the box
-#'     constraints will be centered around \code{criterion.coef}. The
-#'     size of the box is determined by \code{criterion.box.scale}
-#' @param criterion.box.scale a scalar that determines the size of
-#'     the box constraint. Specifically, \code{abs(criterion.coef) *
-#'     criterion.box.scale} is added and subtracted from
-#'     \code{criterion.coef} to obtain the upper and lower bounds of
-#'     the box constraint.
 #' @param criterion.tol non-negative scalar, determines how much the
 #'     quadratic constraint should be relaxed by. If set to 0, the
 #'     constraint is not relaxed at all.
@@ -1595,8 +1636,7 @@ qpSetupCriterion <- function(env) {
 #' @return A list of matrices and vectors necessary to define an LP
 #'     problem for Gurobi.
 #' @export
-qpSetupBound <- function(env, g0, g1, criterion.coef,
-                         criterion.box.scale = 2,
+qpSetupBound <- function(env, g0, g1,
                          criterion.tol,
                          criterion.min,
                          rescale = FALSE,
@@ -1612,22 +1652,7 @@ qpSetupBound <- function(env, g0, g1, criterion.coef,
         ## criterion.min excludes the SSY.
         env$quad$rhs <- (env$ssy / env$drN) * criterion.tol +
             criterion.min * (1 + criterion.tol)
-        ## TESTING ---------------------
-        ## env$quad$rhs <- env$quad$rhs * 0.1
-        ## END TESTING -----------------
         env$lpobj$quadcon <- list(env$quad)
-        ## Add in the box constraints
-        tmpBand <- abs(criterion.coef)
-        tmpBand[which(tmpBand < 1)]  <-  1
-        env$lpobj$ub <- criterion.coef +
-            tmpBand * criterion.box.scale
-        env$lpobj$lb <- criterion.coef -
-            tmpBand * criterion.box.scale
-        tmpBox <- rbind(env$lpobj$lb, env$lpobj$ub)
-        rownames(tmpBox) <- c('min', 'max')
-        colnames(tmpBox) <- names(env$lpobj$obj)
-        ## print('Box constraints')
-        ## print(tmpBox)
     } else {
         env$lpobj$obj <- NULL
         env$quad$rhs <- NULL

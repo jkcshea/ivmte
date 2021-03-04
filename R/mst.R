@@ -148,9 +148,9 @@ utils::globalVariables("u")
 #'     provided with or without quotation marks.
 #' @param solver character, name of the linear programming package in
 #'     R used to obtain the bounds on the treatment effect. The
-#'     function supports \code{'gurobi'}, \code{'cplexapi'}, \code{rmosek},
-#'     \code{'lpsolveapi'}. The name of the solver should be provided
-#'     with quotation marks.
+#'     function supports \code{'gurobi'}, \code{'cplexapi'},
+#'     \code{rmosek}, \code{'lpsolveapi'}. The name of the solver
+#'     should be provided with quotation marks.
 #' @param solver.options list, each item of the list should correspond
 #'     to an option specific to the solver selected.
 #' @param solver.presolve boolean, default set to \code{TRUE}. Set
@@ -220,9 +220,9 @@ utils::globalVariables("u")
 #'     if the feasibility tolerance of the LP solver is changed, or if
 #'     numerical issues result in discrepancies between the LP
 #'     solver's feasibility check and the audit.
-#' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QP/QCP
-#'     optimization.
+#' @param rescale boolean, set to \code{TRUE} by default. This
+#'     rescalels the MTR components to improve stability in the
+#'     LP/QP/QCP optimization.
 #' @param point boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if it is believed that the treatment effects are
 #'     point identified. If set to \code{TRUE}, a two-step GMM
@@ -265,8 +265,9 @@ utils::globalVariables("u")
 #'     from being included in the return list.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
-#'     applied when \code{solver = 'gurobi'}. The output provided is
-#'     the same as what the Gurobi API would send to the console.
+#'     applied when \code{solver = 'gurobi'} or \code{solver =
+#'     'rmosek'}. The output provided is the same as what the Gurobi
+#'     API would send to the console.
 #' @return Returns a list of results from throughout the estimation
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
@@ -426,16 +427,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   criterion.tol = 0,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
-                  audit.tol, rescale = FALSE,
+                  audit.tol, rescale = TRUE,
                   point = FALSE, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
                   specification.test = TRUE,
                   noisy = FALSE,
-                  smallreturnlist = FALSE, debug = FALSE,
-                  box = FALSE,
-                  fix.criterion = NULL) {
+                  smallreturnlist = FALSE, debug = FALSE) {
     ## Try-catch is implemented to deal with sinking of
     ## output. Specifically, if the function ends prematurely, the
     ## sink can still be reset at the 'finally' segment.
@@ -651,22 +650,45 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         call. = FALSE)
             }
         }
+        if (direct && !(solver %in% c('gurobi', 'rmosek'))) {
+            stop(gsub("\\s+", " ",
+                      paste0("A direct regression may only be peformed if
+                              the solver is Gurobi or Mosek. Please install
+                              either solver and set 'solver = \"gurobi\"'
+                              or 'solver = \"rmosek\"'.")),
+                    call. = FALSE)
+        }
         if (debug) {
-            if (solver != "gurobi") {
-                solver <- "gurobi"
-                warning(gsub("\\s+", " ",
-                             "'debug = TRUE' is only permitted if
-                          'solver = \"gurobi\"'.
-                           Linear programming output below is generated
-                           by Gurobi."),
-                        call. = FALSE, immediate. = TRUE)
-            }
-            if (!requireNamespace("gurobi", quietly = TRUE)) {
-                stop(gsub("\\s+", " ",
-                          "'debug = TRUE' is only permitted if
-                       'solver = \"gurobi\"'."))
+            if (! solver %in% c("gurobi", "rmosek")) {
+                if (requireNamespace("gurobi", quietly = TRUE)) {
+                    solver <- 'gurobi'
+                    warning(gsub("\\s+", " ",
+                                 "'debug = TRUE' is only permitted if
+                          'solver = \"gurobi\"' or
+                          'solver = \"rmosek\"'. Output and solutions will
+                           be obtained via Gurobi."),
+                          call. = FALSE, immediate. = TRUE)
+                } else {
+                    if (requireNamespace("rmosek", quietly = TRUE)) {
+                        solver <- 'rmosek'
+                        warning(gsub("\\s+", " ",
+                                     "'debug = TRUE' is only permitted if
+                          'solver = \"gurobi\"' or
+                          'solver = \"rmosek\"'. Output and solutions will
+                           be obtained via Mosek."),
+                          call. = FALSE, immediate. = TRUE)
+                    } else {
+                        stop(gsub("\\s+", " ",
+                                  "'debug = TRUE' is only permitted if
+                                      'solver = \"gurobi\"' or
+                                      'solver = \"rmosek\"'. Please install
+                                       either solver."),
+                             call. = FALSE, immediate. = TRUE)
+                    }
+                }
             }
         }
+
 
         ##---------------------------
         ## 2. Check format of non-numeric arguments
@@ -2078,11 +2100,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 output <- origEstimate
                 output$call.options <- opList
                 output <- output[sort(names(output))]
-                ## TESTING ----------------------------
+                ## If there are errors, return the errors along with
+                ## whatever output is available.
                 if ('errorTypes' %in% names(output)) {
-                    return(output)
+                    stop(output$error, call. = FALSE)
                 }
-                ## END TESTING ------------------------
                 class(output) <- "ivmte"
             } else {
                 ## Obtain audit grid from original estimate
@@ -2894,8 +2916,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         rm(tmpOutput)
         unlink(logName)
-        if (!noisy) return(output)
-        if (noisy) return(invisible(output))
     }, error = function(err) {
         if (origSinks < sink.number()) {
             ## If there was an error, output should be returned so the
@@ -2910,8 +2930,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
                 unlink(logName)
             }
-            stop(err)
         }
+        stop(err)
     }, finally = {
         ## Turn off sinks if there are interruptions
         if (origSinks < sink.number()) {
@@ -2922,6 +2942,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Make sure temporary log files are delated
         unlink(logName)
+        ## And return output
+        if (!noisy) return(output)
+        if (noisy) return(invisible(output))
     })
 }
 
@@ -3182,8 +3205,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           vars_mtr, terms_mtr0, terms_mtr1, vars_data,
                           splinesobj, noisy = TRUE,
                           smallreturnlist = FALSE,
-                          debug = FALSE, environments,
-                          box, fix.criterion = NULL) {
+                          debug = FALSE, environments) {
     call <- match.call(expand.dots = FALSE)
     if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
         direct <- TRUE
@@ -3682,9 +3704,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          sset = quote(sset),
                                          gstar0 = quote(gstar0),
                                          gstar1 = quote(gstar1),
-                                         solver = quote(solver),
-                                         box = box, ## TESTING
-                                         fix.criterion = fix.criterion)) ## TESTING
+                                         solver = quote(solver)))
     ## Impose default upper and lower bounds on m0 and m1
     if (!hasArg(m1.ub) | !hasArg(m0.ub)) {
         maxy <- max(data[, vars_y])
@@ -3756,7 +3776,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           In order to allow for automatic grid
                           expansion, make sure audit.nx > initgrid.nx
                           or audit.nu > initgrid.nu.")
-                ## TESTING -------------------------
                 if (any(c(2, 3, 5) %in% audit$errorTypes)) {
                     print('You should make this permanent')
                     tmp <- NULL
@@ -3772,10 +3791,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                      solver)
                     audit$status.max <- statusString(audit$status.max,
                                                      solver)
+                    audit$error <- paste(errMessage1, "\n\n", errMessage2)
                     return(audit)
                 }
-                ## END TESTING ---------------------
-                stop(paste(errMessage1, "\n\n", errMessage2), call. = FALSE)
             }
             if (any(codesExpand %in% audit$errorTypes)) {
                 tmpErrMessage <- NULL
@@ -3823,9 +3841,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                            tmpErrMessage, ".\n"))
                 autoExpand <- autoExpand + 1
             }
-            ## TESTING -------------------------
             if (any(c(2, 3, 5) %in% audit$errorTypes)) {
-                print('You should make this permanent')
                 tmp <- NULL
                 for (i in 1:length(audit$errorTypes)) {
                     tmp <- c(tmp, statusString(audit$errorTypes[[i]],
@@ -3841,7 +3857,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                  solver)
                 return(audit)
             }
-            ## END TESTING ---------------------
             cat("\n    Restarting audit with new settings:\n")
             if (any(c(3, 4, 6, 7) %in% audit$errorTypes)) {
                 newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
@@ -3895,7 +3910,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                    "\ninitgrid.nu = ", newGrid.nu,
                    "\naudit.nx = ", audit.nx,
                    "\naudit.nu = ", audit.nu)
-        ## TESTING -------------------------
         if (any(c(2, 3, 5) %in% audit$errorTypes)) {
             print('You should make this permanent')
             tmp <- NULL
@@ -3911,10 +3925,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                              solver)
             audit$status.max <- statusString(audit$status.max,
                                              solver)
+            audit$error <- paste(errMessage1, "\n\n", errMessage2)
             return(audit)
         }
-        ## END TESTING ---------------------
-        stop(paste(errMessage1, "\n\n", errMessage2), call. = FALSE)
     }
     if (noisy) {
         cat("Bounds on the target parameter: [",
