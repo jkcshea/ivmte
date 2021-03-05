@@ -172,7 +172,7 @@ utils::globalVariables("u")
 #' @param lpsolver.options.bounds list, deprecated argument for
 #'     \code{solver.options.bounds}.
 #' @param criterion.tol tolerance for violation of observational
-#'     equivalence, set to 0 by default. Statistical noise may
+#'     equivalence, set to 0.01 by default. Statistical noise may
 #'     prohibit the theoretical LP problem from being feasible. That
 #'     is, there may not exist a set of coefficients on the MTR that
 #'     are observationally equivalent with regard to the IV-like
@@ -424,7 +424,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   lpsolver, lpsolver.options,
                   lpsolver.presolve,
                   lpsolver.options.criterion, lpsolver.options.bounds,
-                  criterion.tol = 0,
+                  criterion.tol = 0.01,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
                   audit.tol, rescale,

@@ -1576,7 +1576,7 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     if (rescale) {
         drX <- sweep(x = drX, MARGIN = 2, STATS = env$colNorms, FUN = '/')
         normY <- sqrt(sum(drY^2))
-        drN <- drN * normY
+        drN <- drN * normY^2
     }
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
@@ -1591,6 +1591,7 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$drY <- drY
     env$drX <- drX
     env$drN <- drN
+    if (rescale) env$normY <- normY
 }
 
 #' Configure QCQP problem to find minimum criterion
