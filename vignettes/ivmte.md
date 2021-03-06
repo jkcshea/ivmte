@@ -1105,7 +1105,7 @@ args <- list(data = ivmteSimData,
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.6189484, -0.6189484]
+#> Bounds on the target parameter: [-0.6202719, -0.6181087]
 #> Audit terminated successfully after 1 round
 
 args[["ivlike"]] <- y ~ d + factor(z) + d*factor(z) # many more moments

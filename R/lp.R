@@ -1205,7 +1205,8 @@ runMosek <- function(lpobj, modelsense, solver.options, debug = FALSE) {
         ## Construct the transformation matrix
         Qc <- lpobj$quadcon[[1]]$Qc * 2
         QdList <- eigen(Qc, symmetric = TRUE)
-        Qd <- diag(sqrt(round(QdList$values, 12))) %*% t(QdList$vectors)
+        QdList$values <- sapply(QdList$values, function(x) max(x, 0))
+        Qd <- diag(sqrt(QdList$values)) %*% t(QdList$vectors)
         ## Update the old linear constraints to include the new variables
         nvars <- length(lpobj$obj)
         QSlack1 <- c(rep(0, times = nvars), c(1, 0), rep(0, times = nvars))

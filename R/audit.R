@@ -178,7 +178,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   mte.dec = FALSE, mte.inc = FALSE,
                   sset, gstar0, gstar1,
                   orig.sset = NULL, orig.criterion = NULL,
-                  criterion.tol = 0,
+                  criterion.tol = 0.01,
                   solver, solver.options, solver.presolve,
                   solver.options.criterion, solver.options.bounds,
                   rescale = TRUE,
@@ -189,6 +189,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     ## Determine if whether IV-like moments or direct MTR regression
     ## will be used.
     direct <- (length(sset) == 1 & 'SSR' %in% names(sset$s1))
+    if (!direct) rescale <- FALSE
     ## Set the audit tolerance
     if (!hasArg(audit.tol)) {
         if (solver == "gurobi") {
@@ -572,15 +573,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         } else {
             qpSetupCriterion(env = lpEnv)
         }
-        if (!direct) {
-            minobseq <- criterionMin(lpEnv, sset, solver,
-                                     solver.options.criterion, rescale,
-                                     debug)
-        } else {
-            minobseq <- criterionMin(lpEnv, sset, solver,
-                                     solver.options.criterion, rescale,
-                                     debug)
-        }
+        minobseq <- criterionMin(env = lpEnv,
+                                 sset = sset,
+                                 solver = solver,
+                                 solver.options = solver.options.criterion,
+                                 rescale = rescale,
+                                 debug = debug)
         ## Try to diagnose cases where the solution is not
         ## available. This could be due to infeasibility or numerical
         ## issues. To deal with infeasibilty, the LP problem is solved
@@ -746,8 +744,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol,
                                  setup = TRUE)
-            minobseqTest <- criterionMin(lpEnv, sset, solver,
-                                         solver.options.criterion)
+            minobseqTest <- criterionMin(env = lpEnv,
+                                         sset = sset,
+                                         solver = solver,
+                                         solver.options =
+                                             solver.options.criterion,
+                                         rescale = rescale)
             lpSetupCriterionBoot(lpEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol,
                                  setup = FALSE)
