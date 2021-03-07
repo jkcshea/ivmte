@@ -457,30 +457,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                  splinesobj = splinesobj,
                                                  monov = monov,
                                                  direct = direct))
-        ## Outcome variable is normalized when rescaling, which
-        ## affects the upper and lower bounds on m0 and m1, as well as
-        ## the MTEs. Update those bounds.
-        if (direct && rescale) {
-            boundsList <- c('m1.ub', 'm0.ub',
-                            'm1.lb', 'm0.lb',
-                            'mte.ub', 'mte.lb')
-            normY <- sset$s1$ys
-            normY <- sqrt(sum(normY^2))
-            tmpDrop <- NULL
-            tmpNew <- list()
-            for (tmpArg in boundsList) {
-                if (do.call(hasArg, list(name = tmpArg))) {
-                    tmpDrop <- c(tmpDrop, tmpArg)
-                    tmpBound <- get(tmpArg) / normY
-                    tmpNew[[tmpArg]] <- tmpBound
-
-                }
-            }
-            monoboundAcall <-
-                modcall(monoboundAcall,
-                        dropargs = tmpDrop,
-                        newargs = tmpNew)
-        }
         ## Generate LP environment that is to be updated
         lpEnv <- new.env()
         lpEnv$mbobj <- eval(monoboundAcall)
@@ -1163,13 +1139,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                            lpEnv$mbobj$mono0seq[, 1],
                                            lpEnv$mbobj$mono1seq[, 1],
                                            lpEnv$mbobj$monoteseq[, 1]))
-                ## The RHS of the constraints must be scaled if Y is
-                ## normalized to have norm 1
-                if (direct && rescale) {
-                    yscale <- normY
-                } else {
-                    yscale <- 1
-                }
                 for (i in types) {
                     ## Expand constraints for m0
                     if (i == 1) {
@@ -1181,7 +1150,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep(">=", length(addIndex)))
                         lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
-                                             rep(m0.lb / yscale,
+                                             rep(m0.lb,
                                                  length(addIndex)))
                         addm0 <- rbind(addm0, tmpGrid[addIndex, ])
                         rm(tmpGrid)
@@ -1196,7 +1165,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep("<=", length(addIndex)))
                         lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
-                                             rep(m0.ub / yscale,
+                                             rep(m0.ub,
                                                  length(addIndex)))
                         addm0 <- rbind(addm0, tmpGrid[addIndex, ])
                         rm(tmpGrid)
@@ -1272,7 +1241,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep(">=", length(addIndex)))
                         lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
-                                             rep(m1.lb / yscale,
+                                             rep(m1.lb,
                                                  length(addIndex)))
                         addm1 <- rbind(addm1, tmpGrid[addIndex, ])
                         rm(tmpGrid)
@@ -1287,7 +1256,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep("<=", length(addIndex)))
                         lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
-                                             rep(m1.ub / yscale,
+                                             rep(m1.ub,
                                                  length(addIndex)))
                         addm1 <- rbind(addm1, tmpGrid[addIndex, ])
                         rm(tmpGrid)
@@ -1364,7 +1333,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep(">=", length(addIndex)))
                         lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
-                                             rep(mte.lb / yscale,
+                                             rep(mte.lb,
                                                  length(addIndex)))
                         addmte <- rbind(addmte, tmpGrid[addIndex, ])
                         rm(tmpGrid)
@@ -1379,7 +1348,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
                                                rep("<=", length(addIndex)))
                         lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
-                                             rep(mte.ub / yscale,
+                                             rep(mte.ub,
                                                  length(addIndex)))
                         addmte <- rbind(addmte, tmpGrid[addIndex, ])
                         rm(tmpGrid)

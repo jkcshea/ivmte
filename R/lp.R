@@ -300,11 +300,6 @@ lpSetupCriterion <- function(env, sset) {
     ## observational equivalence
     env$lpobj$obj <- c(replicate(sn * 2, 1),
                        replicate(gn0 + gn1, 0))
-    ## Testing ---------
-    tmpModel <- env$lpobj
-    save(tmpModel, file = 'rawModel.Rdata')
-    ## stop('end of test')
-    ## -----------------
 }
 
 #' Configure LP environment to be compatible with solvers
@@ -991,14 +986,6 @@ bound <- function(env, sset, solver,
         names(ming0) <- names(maxg0) <- names(sset$s1$g0)
         names(ming1) <- names(maxg1) <- names(sset$s1$g1)
     }
-    if (rescale) {
-        max <- max * env$normY
-        maxg0 <- maxg0 * env$normY
-        maxg1 <- maxg1 * env$normY
-        min <- min * env$normY
-        ming0 <- ming0 * env$normY
-        ming1 <- ming1 * env$normY
-    }
     ## Return output
     output <- list(max = max,
                    maxg0 = maxg0,
@@ -1585,7 +1572,7 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     if (rescale) {
         drX <- sweep(x = drX, MARGIN = 2, STATS = env$colNorms, FUN = '/')
         normY <- sqrt(sum(drY^2))
-        drY <- drY / normY
+        drN <- drN * normY
     }
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
