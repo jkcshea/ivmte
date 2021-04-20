@@ -450,7 +450,10 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
     if (setup) {
         solver <- tolower(solver)
         ## Update objective function
-        env$lpobj$obj <- c(replicate(2 * env$lpobj$sn, 0), g0, g1)
+        tmpSlack <- replicate(2 * env$lpobj$sn, 0)
+        names(tmpSlack) <- c(rbind(paste0('slack', seq(env$lpobj$sn), '-'),
+                                   paste0('slack', seq(env$lpobj$sn), '+')))
+        env$lpobj$obj <- c(tmpSlack, g0, g1)
         ## Allow for slack in minimum criterion
         env$lpobj$rhs <- c(criterion.min * (1 + criterion.tol), env$lpobj$rhs)
         avec <- c(replicate(2 * env$lpobj$sn, 1),
