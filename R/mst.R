@@ -1758,6 +1758,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             warning(gsub("\\s+", " ", propWarn), call. = FALSE)
             propensity <- as.formula(propensity)
         }
+        ## Check that the treatment variable is not contained in the
+        ## MTRs
+        if (treat %in% vars_mtr) {
+            stop(gsub("\\s+", " ",
+                      "Treatment variable cannot be included in the MTRs."),
+                 call. = FALSE)
+        }
         ## Collect all variables declared, and remove unobserved variable
         ## from list
         allvars <- c(vars_y,
