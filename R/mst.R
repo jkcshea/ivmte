@@ -3661,11 +3661,32 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             drY <- sset$s1$ys
             drX <- cbind(sset$s1$g0, sset$s1$g1)
             drN <- length(drY)
+            ## Construct equality constraints
+            if (exists('pmequal0') && exists ('pmequal1')) {
+                tmp.equal.coef0 <- paste0('[m0]', pmequal0)
+                tmp.equal.coef1 <- paste0('[m1]', pmequal1)
+                equal.constraints <- lpSetupEqualCoef(tmp.equal.coef0,
+                                                      tmp.equal.coef1,
+                                                      colnames(drX))
+            }
             if (!rescale) {
                 drFit <- lm.fit(x = drX, y = drY)
                 collinear <- any(is.na(drFit$coefficients))
                 drCoef <- drFit$coef
                 drSSR <- sum(drFit$resid^2)
+                if (!collinear && exists('pmequal0') && exists ('pmequal1')) {
+                    ## Perform separate regression with
+                    ## constraints. The lsei() function does not test
+                    ## for collinearity. It will simply return
+                    ## enormous coefficients. So the check for
+                    ## collinearity is performed without constraints
+                    ## using lm().
+                    drCoef <- lsei::lsei(a = drX, b = drY,
+                                         c = equal.constraints$A,
+                                         d = equal.constraints$rhs)
+                    names(drCoef) <- colnames(drX)
+                    drSSR <- sum((drY  - drX %*% drCoef)^2)
+                }
             } else {
                 dVec <- data[subset_index, treat]
                 gn0 <- ncol(sset$s1$g0)
@@ -3681,6 +3702,21 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 drSSR <- sum(drFit$resid^2)
                 ## Reconstruct the coefficients
                 drCoef <- drFit$coef / colNorms
+                if (!collinear && exists('pmequal0') && exists ('pmequal1')) {
+                    ## Rescale equality constraints
+                    equal.constraints$A <- sweep(x = equal.constraints$A,
+                                                 MARGIN = 2,
+                                                 STATS = colNorms,
+                                                 FUN = '/')
+                    ## Perform separate regression with constraints
+                    ## (see comment pertaining to lsei() function, and
+                    ## how it does not really indicate collinearity).
+                    drCoef <- lsei::lsei(a = resX, b = drY,
+                                         c = equal.constraints$A,
+                                         d = equal.constraints$rhs)
+                    drCoef <- drCoef / colNorms
+                    drSSR <- sum((drY  - drX %*% drCoef)^2)
+                }
             }
             sset$s1$init.coef <- drCoef
             sset$s1$SSR <- drSSR

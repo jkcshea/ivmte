@@ -214,18 +214,12 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         } else {
             tmpANames <- c(colnames(sset$s1$g0), colnames(sset$s1$g1))
         }
-        tmpPos0 <- sapply(equal.coef0, function(x) which(tmpANames == x))
-        tmpPos1 <- sapply(equal.coef1, function(x) which(tmpANames == x))
-        for (i in 1:length(tmpPos0)) {
-            tmpA <- matrix(0, ncol = length(tmpANames), nrow = 1)
-            tmpA[tmpPos0[i]] <- 1
-            tmpA[tmpPos1[i]] <- -1
-            rownames(tmpA) <- paste0('eq.coef.', i)
-            A <- rbind(A, tmpA)
-            sense <- c(sense, '=')
-            rhs <- c(rhs, 0)
-        }
-        rm(tmpPos0, tmpPos1, tmpA, tmpANames)
+        equal.constraints <- lpSetupEqualCoef(equal.coef0, equal.coef1,
+                                              tmpANames)
+        A <- rbind(A, equal.constraints$A)
+        sense <- c(sense, equal.constraints$sense)
+        rhs <- c(rhs, equal.constraints$rhs)
+        rm(tmpANames)
     }
     ## Add in additional constraints if included
     if (shape == TRUE) {
@@ -274,6 +268,46 @@ lpSetup <- function(env, sset, orig.sset = NULL,
                       sn = sn,
                       gn0 = gn0,
                       gn1 = gn1)
+}
+
+#' Generate equality constraints
+#'
+#' This function generates the linear constraints to ensure that
+#' certain MTR coefficients are constant across the treatment and
+#' control group.
+#' @param equal.coef0 character, name of terms in \code{m0} that
+#'     should have common coefficients with the corresponding terms in
+#'     \code{m1}.
+#' @param equal.coef1 character, name of terms in \code{m1} that
+#'     should have common coefficients with the corresponding terms in
+#'     \code{m0}.
+#' @param ANames character, name of all terms in \code{m0} and
+#'     \code{m1}. The names of the terms corresponding to the
+#'     treatment and control groups should be distinguishable. For
+#'     example, all terms for \code{m0} may contain a prefix '[m0]',
+#'     and all terms for \code{m1} may contain a prefix '[m1]'. All
+#'     the terms in \code{equal.coef0} and \code{equal.coef1} should
+#'     be contained in \code{ANames}.
+#' @return A list, containing the matrix of linear equality
+#'     constraints, a vector of equal signs, and a vector of 0s.
+lpSetupEqualCoef <- function(equal.coef0, equal.coef1, ANames) {
+    tmpPos0 <- sapply(equal.coef0, function(x) which(ANames == x))
+    tmpPos1 <- sapply(equal.coef1, function(x) which(ANames == x))
+    newA <- NULL
+    newSense <- NULL
+    newRhs <- NULL
+    for (i in 1:length(tmpPos0)) {
+        tmpA <- matrix(0, ncol = length(ANames), nrow = 1)
+        tmpA[tmpPos0[i]] <- 1
+        tmpA[tmpPos1[i]] <- -1
+        rownames(tmpA) <- paste0('eq.coef.', i)
+        newA <- rbind(newA, tmpA)
+        newSense <- c(newSense, '=')
+        newRhs <- c(newRhs, 0)
+    }
+    return(list(A = newA,
+                sense = newSense,
+                rhs = newRhs))
 }
 
 #' Configure LP environment for diagnostics
