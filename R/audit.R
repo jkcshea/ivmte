@@ -38,6 +38,17 @@
 #'     whether the value assigned was by the user, or set by default.
 #' @param mte.lb.default boolean, default set to FALSE. Indicator for
 #'     whether the value assigned was by the user, or set by default.
+#' @param equal.coef0 character, a vector containing all the terms in
+#'     \code{m0} that should have the same coefficients in
+#'     \code{m1}. The order of the variables must match those of
+#'     \code{equal.coef1}, which contains all the corresponding terms
+#'     in \code{m1}. The reason the terms are entered separately for
+#'     \code{m0} and \code{m1} is because the spline terms may be
+#'     named differently across treatment and control groups.
+#' @param equal.coef1 character, a vector containing all the terms in
+#'     \code{m1} that should have the same coefficients in
+#'     \code{m0}. See the description for \code{equal.coef0} for more
+#'     details.
 #' @param sset a list containing the point estimates and gamma moments
 #'     for each IV-like specification.
 #' @param gstar0 set of expectations for each terms of the MTR for the
@@ -176,6 +187,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   m0.dec = FALSE, m0.inc = FALSE,
                   m1.dec = FALSE, m1.inc = FALSE,
                   mte.dec = FALSE, mte.inc = FALSE,
+                  equal.coef0, equal.coef1,
                   sset, gstar0, gstar1,
                   orig.sset = NULL, orig.criterion = NULL,
                   criterion.tol = 0.01,
@@ -462,7 +474,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         lpEnv$mbobj <- eval(monoboundAcall)
     }
     ## Setup LP problem
+    if (!hasArg(equal.coef0) | !hasArg(equal.coef1)) {
+        equal.coef0 <- NULL
+        equal.coef1 <- NULL
+    }
     lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
+            equal.coef0 = equal.coef0, equal.coef1 = equal.coef1,
             solver = solver, direct = direct, rescale = rescale)
     ## Setup QCQP problem
     if (direct) qpSetup(env = lpEnv, sset = sset, rescale = rescale)

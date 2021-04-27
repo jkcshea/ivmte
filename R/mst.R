@@ -1566,7 +1566,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             vars_mtr   <- c(vars_mtr, all.vars(sf1))
             terms_mtr1 <- c(terms_mtr1, attr(terms(sf1), "term.labels"))
         }
-        ## TESTING -----------------------------------------------------------------------------
         if (hasArg(equal.coef)) {
             if (!classFormula(equal.coef)) {
                 stop(gsub('\\s+', ' ',
@@ -1669,7 +1668,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             rm(tmpTerms0Check, tmpTerms1Check)
         }
-        ## END TESTING -------------------------------------------------------------------------
         ## Collect list of variables used in custom weights (if defined)
         if (!hasArg(target)) {
             for (i in 1:length(target.weight0)) {
@@ -3520,7 +3518,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                  call. = FALSE)
         }
     }
-    stop('end of test')
 
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands
@@ -3923,6 +3920,12 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                   newargs = list(m0.lb = miny,
                                                  m0.lb.default = TRUE))
         }
+    }
+    ## Add equality constraints
+    if (hasArg(equal.coef) && hasArg(splinesobj.equal)) {
+        audit_call <- modcall(audit_call,
+                              newargs = list(equal.coef0 = pmequal0,
+                                             equal.coef1 = pmequal1))
     }
 
     ##---------------------------

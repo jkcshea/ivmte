@@ -147,6 +147,7 @@
 #'
 #' @export
 lpSetup <- function(env, sset, orig.sset = NULL,
+                    equal.coef0 = NULL, equal.coef1 = NULL,
                     shape = TRUE, direct = FALSE, rescale = TRUE,
                     solver) {
     ## Read in constraint grids and sequences
@@ -203,6 +204,28 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         rhs <- NULL
         gn0 <- ncol(sset$s1$g0)
         gn1 <- ncol(sset$s1$g1)
+    }
+    ## Add additional equality constraints if included
+    if (!is.null(equal.coef0) & !is.null(equal.coef1)) {
+        equal.coef0 <- paste0('[m0]', equal.coef0)
+        equal.coef1 <- paste0('[m1]', equal.coef1)
+        if (!direct) {
+            tmpANames <- colnames(A)
+        } else {
+            tmpANames <- c(colnames(sset$s1$g0), colnames(sset$s1$g1))
+        }
+        tmpPos0 <- sapply(equal.coef0, function(x) which(tmpANames == x))
+        tmpPos1 <- sapply(equal.coef1, function(x) which(tmpANames == x))
+        for (i in 1:length(tmpPos0)) {
+            tmpA <- matrix(0, ncol = length(tmpANames), nrow = 1)
+            tmpA[tmpPos0[i]] <- 1
+            tmpA[tmpPos1[i]] <- -1
+            rownames(tmpA) <- paste0('eq.coef.', i)
+            A <- rbind(A, tmpA)
+            sense <- c(sense, '=')
+            rhs <- c(rhs, 0)
+        }
+        rm(tmpPos0, tmpPos1, tmpA, tmpANames)
     }
     ## Add in additional constraints if included
     if (shape == TRUE) {
