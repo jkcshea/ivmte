@@ -1249,7 +1249,7 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                                               gsub("\\(", "\\\\(", q))
                                     namesApos <-
                                         as.integer(
-                                            grepl(paste0(q, "[[:alnum:]]*"),
+                                            grepl(paste0(q, "[0-9A-Za-z._]*"),
                                                   namesA))
                                 } else {
                                     namesApos <- as.integer(namesA == q)

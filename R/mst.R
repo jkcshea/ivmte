@@ -2055,7 +2055,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         allterms <- unique(unlist(sapply(allterms, strsplit, split = ":")))
         allterms <- parenthBoolean(allterms)
         ## Check factors
-        factorPos <- grep("factor\\([[:alnum:]]*\\)", allterms)
+        factorPos <- grep("factor\\([0-9A-Za-z._]*\\)", allterms)
         if (length(factorPos) > 0) {
             factorDict <- list()
             for (i in allterms[factorPos]) {
@@ -3511,11 +3511,26 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     gstar1 <- targetGammas$gstar1
     if (hasArg(equal.coef) && hasArg(splinesobj.equal)) {
         if (! all(pmequal0 %in% names(gstar0), pmequal1 %in% names(gstar1))) {
-            stop(gsub('\\s+', ' ',
-                      "Failed to match terms in 'equal.coef' with terms in
+            ## If equal.coef involves factor variables, then it is
+            ## possible that not all terms in equal.coef will be in the
+            ## MTR. Check that all mismatched terms involve factors.
+            tmpPmMismatch0 <- pmequal0[which(! pmequal0 %in% names(gstar0))]
+            tmpPmMismatch1 <- pmequal1[which(! pmequal1 %in% names(gstar1))]
+            tmpPmMismatch <- c(tmpPmMismatch0, tmpPmMismatch1)
+            tmpFactorCheck <- grepl("factor\\([0-9A-Za-z._]*\\)", tmpPmMismatch)
+            if (all(tmpFactorCheck)) {
+                pmequal0 <- pmequal0[which(pmequal0 %in% names(gstar0))]
+                pmequal1 <- pmequal1[which(pmequal1 %in% names(gstar1))]
+                rm(tmpPmMismatch0, tmpPmMismatch1, tmpPmMismatch)
+            } else {
+                ## If a mismatched term does not pertain to factor
+                ## variables, then request an error report.
+                stop(gsub('\\s+', ' ',
+                          "Failed to match terms in 'equal.coef' with terms in
                       'm0' and 'm1'. Please report this issue on our GitHub
                        page at https://github.com/jkcshea/ivmte/issues."),
-                 call. = FALSE)
+                     call. = FALSE)
+            }
         }
     }
 
