@@ -101,6 +101,9 @@ utils::globalVariables("u")
 #'     to \code{TRUE} if the MTE should be weakly monotone decreasing.
 #' @param mte.inc logical, set to \code{FALSE} by default. Set equal
 #'     to \code{TRUE} if the MTE should be weakly monotone increasing.
+#' @param equal.coef one-sided formula to indicate which terms in
+#'     \code{m0} and \code{m1} should be constrained to have the same
+#'     coefficients. These terms therefore have no effect on the MTE.
 #' @param ivlike formula or vector of formulas specifying the
 #'     regressions for the IV-like estimands. Which coefficients to
 #'     use to define the constraints determining the treatment effect
@@ -415,7 +418,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   target.weight1 = NULL, target.knots0 = NULL,
                   target.knots1 = NULL, m0, m1, uname = u, m1.ub,
                   m0.ub, m1.lb, m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                  m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
+                  m1.dec, m1.inc, mte.dec, mte.inc,
+                  equal.coef, ivlike,
                   components, subset, propensity, link = 'logit',
                   treat, outcome,
                   solver, solver.options,
@@ -461,6 +465,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         envList <- list(m0 = environment(m0),
                         m1 = environment(m1),
                         parent = parent.frame())
+        if (hasArg(equal.coef)) envList$equal.coef <- environment(equal.coef)
         direct <- TRUE
         if (hasArg(ivlike) && !is.null(ivlike)) {
             direct <- FALSE
@@ -1375,6 +1380,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         vars_formulas_x <- c()
         vars_formulas_z <- c()
         vars_subsets    <- c()
+        vars_mtr0       <- c()
+        vars_mtr1       <- c()
         vars_mtr        <- c()
         vars_weights    <- c()
         vars_propensity <- c()
@@ -1534,8 +1541,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         m0 <- splinesobj[[1]]$formula
         m1 <- splinesobj[[2]]$formula
-        vars_mtr <- c(all.vars(splinesobj[[1]]$formula),
-                      all.vars(splinesobj[[2]]$formula))
+        vars_mtr0 <- all.vars(splinesobj[[1]]$formula)
+        vars_mtr1 <- all.vars(splinesobj[[2]]$formula)
+        vars_mtr <- c(vars_mtr0, vars_mtr1)
         if (!is.null(splinesobj[[1]]$formula)) {
             terms_mtr0 <- attr(terms(splinesobj[[1]]$formula),
                                "term.labels")
@@ -1558,6 +1566,110 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             vars_mtr   <- c(vars_mtr, all.vars(sf1))
             terms_mtr1 <- c(terms_mtr1, attr(terms(sf1), "term.labels"))
         }
+        ## TESTING -----------------------------------------------------------------------------
+        if (hasArg(equal.coef)) {
+            if (!classFormula(equal.coef)) {
+                stop(gsub('\\s+', ' ',
+                          "'equal.coef' must be a one-sided formula.
+                           The terms in the formula must be contained in both
+                           'm0' and 'm1', and determine which terms in
+                           the MTRs are constrained to have the same
+                           coefficient."),
+                     call. = FALSE)
+            } else {
+                equal.coef <- Formula::as.Formula(equal.coef)
+                if (!all(length(equal.coef) == c(0, 1))) {
+                    stop(gsub('\\s+', ' ',
+                              "'equal.coef' must be a one-sided formula.
+                              The terms in the formula must be contained in both
+                              'm0' and 'm1', and determine which terms in
+                              the MTRs are constrained to have the same
+                              coefficient."),
+                         call. = FALSE)
+                }
+            }
+            splinesobj.equal <- removeSplines(equal.coef, env = parentFrame)
+            orig.equal.coef <- equal.coef
+            equal.coef <- splinesobj.equal$formula
+            ## Check that the non-spline terms in equal.coef are
+            ## contained in the MTRs
+            if (!is.null(equal.coef)) {
+                tmpTerms0Check <-
+                    all(getXZ(equal.coef, terms = TRUE) %in%
+                        getXZ(splinesobj[[1]]$formula, terms = TRUE))
+                tmpTerms1Check <-
+                    all(getXZ(equal.coef, terms = TRUE) %in%
+                        getXZ(splinesobj[[2]]$formula, terms = TRUE))
+            } else {
+                tmpTerms0Check <- TRUE
+                tmpTerms1Check <- TRUE
+            }
+            ## Check that the spline terms in equal.coef are contained
+            ## in the MTRs
+            tmpSplinesCheck <- TRUE
+            if (!is.null(splinesobj.equal$splineslist)) {
+                for (sc in names(splinesobj.equal$splineslist)) {
+                    tmpEqualFm <-
+                        as.formula(
+                            paste("~", paste(splinesobj.equal$splineslist[[sc]],
+                                             collapse = " + ")))
+                    tmpSplineIndex <- NULL
+                    for (i in 1:2) {
+                        if (! sc %in% names(splinesobj[[i]]$splineslist)) {
+                            tmpSplinesCheck <- FALSE
+                        } else {
+                            tmpMtrFm <-
+                                as.formula(
+                                    paste("~",
+                                          paste(splinesobj[[i]]$splineslist[[sc]],
+                                                collapse = " + ")))
+                            tmpSplinePos <-
+                                which(names(splinesobj[[i]]$splineslist) == sc)
+                            tmpSplineIndex <-
+                                c(tmpSplineIndex,
+                                  splinesobj[[i]]$splinesdict[[tmpSplinePos]]$gstar.index)
+                            if (! all(getXZ(tmpEqualFm, terms = TRUE) %in%
+                                      getXZ(tmpMtrFm, terms = TRUE))) {
+                                tmpSplinesCheck <- FALSE
+                            }
+                        }
+                    }
+                    if (length(tmpSplineIndex) == 2) {
+                        tmpSplinePos <-
+                            which(names(splinesobj.equal$splineslist) == sc)
+                        splinesobj.equal$splinesdict[[tmpSplinePos]]$gstar.index <-
+                            tmpSplineIndex
+                    }
+                }
+                ## Now duplicate the splines object for equal.coef to
+                ## mimic the structue of the splines object for m0 and
+                ## m1. The spline indexes of equal.coef are adjusted
+                ## to match those of m0 and m1.
+                splinesobj.equal0 <- splinesobj.equal
+                splinesobj.equal1 <- splinesobj.equal
+                for (i in 1:length(splinesobj.equal$splinesdict)) {
+                    splinesobj.equal0$splinesdict[[i]]$gstar.index <-
+                        splinesobj.equal0$splinesdict[[i]]$gstar.index[1]
+                    splinesobj.equal1$splinesdict[[i]]$gstar.index <-
+                        splinesobj.equal1$splinesdict[[i]]$gstar.index[2]
+                }
+                splinesobj.equal <- list(splinesobj.equal0,
+                                         splinesobj.equal1)
+                rm(splinesobj.equal0, splinesobj.equal1)
+            }
+            if (!all(c(tmpTerms0Check, tmpTerms1Check, tmpSplinesCheck))) {
+                stop(gsub('\\s+', ' ',
+                          "Not all terms in 'equal.coef' are contained in
+                       both 'm0' and 'm1'. The terms in 'equal.coef' must
+                       be declared to
+                       exactly match the subset of terms in 'm0' and 'm1'
+                       whose coefficients should be constrained to be
+                       equal."),
+                     call. = FALSE)
+            }
+            rm(tmpTerms0Check, tmpTerms1Check)
+        }
+        ## END TESTING -------------------------------------------------------------------------
         ## Collect list of variables used in custom weights (if defined)
         if (!hasArg(target)) {
             for (i in 1:length(target.weight0)) {
@@ -1932,6 +2044,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ## Construct a list of what variables interact with the
         ## spline.
         splinesobj <- interactSplines(splinesobj, origm0, origm1, data, uname)
+        if (exists('splinesobj.equal')) {
+            splinesobj.equal <- interactSplines(splinesobj.equal,
+                                                orig.equal.coef,
+                                                orig.equal.coef,
+                                                data, uname)
+        }
         ## Check that all boolean variables have non-zero variance, and
         ## that all factor variables are complete.
         allterms <- unlist(c(terms_formulas_x, terms_formulas_z, terms_mtr0,
@@ -1998,11 +2116,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (hasArg(target.knots1)) opList$target.knots1 <- target.knots1
 
         ##---------------------------
-        ## 5. Implement estimates
+        ## 5. Perform estimation
         ##---------------------------
         estimateCall <- modcall(call,
                                 newcall = ivmteEstimate,
-                                dropargs = c("m0", "m1",
+                                dropargs = c("m0", "m1", "equal.coef",
                                              "bootstraps", "data",
                                              "bootstraps.m",
                                              "bootstraps.replace",
@@ -2089,6 +2207,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                         newargs = list(late.X = late.X,
                                                        eval.X = eval.X))
             }
+        }
+        if (hasArg(equal.coef)) {
+            estimateCall <-
+                modcall(estimateCall,
+                        newargs = list(equal.coef = equal.coef,
+                                       splinesobj.equal = splinesobj.equal))
         }
         ## Estimate bounds
         ##
@@ -3177,6 +3301,11 @@ checkU <- function(formula, uname) {
 #'     dictionary of splines, containing the original calls of each
 #'     spline in the MTRs, their specifications, and the index used
 #'     for naming each basis spline.
+#' @param splinesobj.equal list of spline components in the MTRs for
+#'     treated and control groups. The structure of
+#'     \code{splinesobj.equal} is the same as \code{splinesobj},
+#'     except the splines are restricted to those whose MTR cofficients
+#'     should be constrained to be equal across treatment groups.
 #' @param environments a list containing the environments of the MTR
 #'     formulas, the IV-like formulas, and the propensity score
 #'     formulas. If a formula is not provided, and thus no environment
@@ -3196,27 +3325,25 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           target.knots0 = NULL, target.knots1 = NULL,
                           m0, m1, uname = u, m1.ub, m0.ub, m1.lb,
                           m0.lb, mte.ub, mte.lb, m0.dec, m0.inc,
-                          m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
-                          components, subset, propensity,
-                          link = "logit", treat, solver,
+                          m1.dec, m1.inc, mte.dec, mte.inc,
+                          equal.coef, ivlike, components, subset,
+                          propensity, link = "logit", treat, solver,
                           solver.options, solver.presolve,
-                          solver.options.criterion, solver.options.bounds,
-                          criterion.tol = 0.01, initgrid.nx = 20,
-                          initgrid.nu = 20, audit.nx = 2500,
-                          audit.nu = 25, audit.add = 100,
-                          audit.max = 25, audit.tol, audit.grid = NULL,
-                          rescale = TRUE,
-                          point = FALSE,
-                          point.eyeweight = FALSE,
+                          solver.options.criterion,
+                          solver.options.bounds, criterion.tol = 0.01,
+                          initgrid.nx = 20, initgrid.nu = 20,
+                          audit.nx = 2500, audit.nu = 25,
+                          audit.add = 100, audit.max = 25, audit.tol,
+                          audit.grid = NULL, rescale = TRUE,
+                          point = FALSE, point.eyeweight = FALSE,
                           point.center = NULL, point.redundant = NULL,
-                          bootstrap = FALSE,
-                          count.moments = TRUE,
-                          orig.sset = NULL,
-                          orig.criterion = NULL, vars_y,
-                          vars_mtr, terms_mtr0, terms_mtr1, vars_data,
-                          splinesobj, noisy = TRUE,
-                          smallreturnlist = FALSE,
-                          debug = FALSE, environments) {
+                          bootstrap = FALSE, count.moments = TRUE,
+                          orig.sset = NULL, orig.criterion = NULL,
+                          vars_y, vars_mtr, terms_mtr0, terms_mtr1,
+                          vars_data, splinesobj, splinesobj.equal,
+                          noisy = TRUE,
+                          smallreturnlist = FALSE, debug = FALSE,
+                          environments) {
     call <- match.call(expand.dots = FALSE)
     if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
         direct <- TRUE
@@ -3283,6 +3410,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          data = quote(data),
                                          env = quote(environments$m0)))
         pm0 <- eval(as.call(m0call))
+        rm(m0call)
     } else {
         pm0 <- NULL
     }
@@ -3294,8 +3422,51 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          data = quote(data),
                                          env = quote(environments$m1)))
         pm1 <- eval(as.call(m1call))
+        rm(m1call)
     } else {
         pm1 <- NULL
+    }
+    if (hasArg(equal.coef) && hasArg(splinesobj.equal)) {
+        ## Get the names of the non-spline terms
+        pmequal.call <-
+            modcall(call,
+                    newcall = polyparse,
+                    keepargs = c("uname"),
+                    newargs = list(formula = equal.coef,
+                                   data = unique(data),
+                                   env = quote(environments$equal.coef)))
+        pmequal <- eval(as.call(pmequal.call))$terms
+        rm(pmequal.call)
+        ## Get the name of the spline terms
+        pmequal.splines0 <- NULL
+        pmequal.splines1 <- NULL
+        if (!is.null(splinesobj.equal[[1]]$splinesinter)) {
+            for (d in 0:1) {
+                tmpNames <- NULL
+                for (i in 1:length(splinesobj.equal[[1]]$splinesinter)) {
+                    tmpIndex <-
+                        splinesobj.equal[[(d + 1)]]$splinesdict[[i]]$gstar.index
+                    tmpSplinesCall <-
+                        gsub("uSpline\\(",
+                             "uSplineInt(x = 1, ",
+                             names(splinesobj.equal[[1]]$splineslist)[i])
+                    tmpSplines <- eval(parse(text = tmpSplinesCall))
+                    tmpInter <- splinesobj.equal[[(d + 1)]]$splinesinter[[i]]
+                    for (j in 1:length(tmpInter)) {
+                        tmpSplineName <-
+                            paste0(paste0("u", d, "S", tmpIndex, "."),
+                                   seq(1, ncol(tmpSplines)),
+                                   paste0(":", tmpInter[j]))
+                        tmpNames <- c(tmpNames, tmpSplineName)
+                    }
+                }
+                assign(paste0('pmequal.splines', d), tmpNames)
+                rm(tmpIndex, tmpSplinesCall, tmpSplines, tmpInter,
+                   tmpSplineName)
+            }
+        }
+        pmequal0 <- c(pmequal, pmequal.splines0)
+        pmequal1 <- c(pmequal, pmequal.splines1)
     }
     ## Generate target weights
     if (!hasArg(target.weight0) & !hasArg(target.weight1)) {
@@ -3340,6 +3511,16 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     rm(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
+    if (hasArg(equal.coef) && hasArg(splinesobj.equal)) {
+        if (! all(pmequal0 %in% names(gstar0), pmequal1 %in% names(gstar1))) {
+            stop(gsub('\\s+', ' ',
+                      "Failed to match terms in 'equal.coef' with terms in
+                      'm0' and 'm1'. Please report this issue on our GitHub
+                       page at https://github.com/jkcshea/ivmte/issues."),
+                 call. = FALSE)
+        }
+    }
+    stop('end of test')
 
     ##---------------------------
     ## 3. Generate moments/gamma terms for IV-like estimands

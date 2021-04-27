@@ -191,7 +191,9 @@ polyparse <- function(formula, data, uname = "u", env = parent.frame(),
         polymat <- matrix(polymat, ncol = 1)
         rownames(polymat) <- rownames(data)
     }
-    ## Construct a dictionary of non-u terms
+    ## Construct a dictionary of non-u terms, where the entry name is
+    ## each term, and the entries are the list of non-u terms that are
+    ## interacted with the u term.
     xterms <- lapply(seq(length(exporder)), function(x) {
         if (exporder[x] == 0) {
             NULL
