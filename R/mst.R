@@ -3434,6 +3434,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                    data = unique(data),
                                    env = quote(environments$equal.coef)))
         pmequal <- eval(as.call(pmequal.call))$terms
+        print('first pmeuqal')
+        print(pmequal)
         rm(pmequal.call)
         ## Get the name of the spline terms
         pmequal.splines0 <- NULL
@@ -3465,6 +3467,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         }
         pmequal0 <- c(pmequal, pmequal.splines0)
         pmequal1 <- c(pmequal, pmequal.splines1)
+        print('new pmequal')
+        print(pmequal0)
+        print(pmequal1)
     }
     ## Generate target weights
     if (!hasArg(target.weight0) & !hasArg(target.weight1)) {
@@ -3509,18 +3514,25 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     rm(gentargetcall)
     gstar0 <- targetGammas$gstar0
     gstar1 <- targetGammas$gstar1
+    if (!is.null(dim(gstar0)) && !is.null(dim(gstar1))) {
+        tmp.gnames0 <- colnames(gstar0)
+        tmp.gnames1 <- colnames(gstar1)
+    } else {
+        tmp.gnames0 <- names(gstar0)
+        tmp.gnames1 <- names(gstar1)
+    }
     if (hasArg(equal.coef) && hasArg(splinesobj.equal)) {
-        if (! all(pmequal0 %in% names(gstar0), pmequal1 %in% names(gstar1))) {
+        if (! all(pmequal0 %in% tmp.gnames0, pmequal1 %in% tmp.gnames1)) {
             ## If equal.coef involves factor variables, then it is
             ## possible that not all terms in equal.coef will be in the
             ## MTR. Check that all mismatched terms involve factors.
-            tmpPmMismatch0 <- pmequal0[which(! pmequal0 %in% names(gstar0))]
-            tmpPmMismatch1 <- pmequal1[which(! pmequal1 %in% names(gstar1))]
+            tmpPmMismatch0 <- pmequal0[which(! pmequal0 %in% tmp.gnames0)]
+            tmpPmMismatch1 <- pmequal1[which(! pmequal1 %in% tmp.gnames1)]
             tmpPmMismatch <- c(tmpPmMismatch0, tmpPmMismatch1)
             tmpFactorCheck <- grepl("factor\\([0-9A-Za-z._]*\\)", tmpPmMismatch)
             if (all(tmpFactorCheck)) {
-                pmequal0 <- pmequal0[which(pmequal0 %in% names(gstar0))]
-                pmequal1 <- pmequal1[which(pmequal1 %in% names(gstar1))]
+                pmequal0 <- pmequal0[which(pmequal0 %in% tmp.gnames0)]
+                pmequal1 <- pmequal1[which(pmequal1 %in% tmp.gnames1)]
                 rm(tmpPmMismatch0, tmpPmMismatch1, tmpPmMismatch)
             } else {
                 ## If a mismatched term does not pertain to factor
@@ -3632,6 +3644,23 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             rm(setobj)
             ivlikeCounter <- ivlikeCounter + 1
         }
+        ## TESTING -----------------------------------------------------------------------------
+        ## Construct equality constraints (you may want to move this code out---it is copied below
+        if (exists('pmequal0') && exists ('pmequal1')) {
+            tmp.equal.coef0 <- paste0('[m0]', pmequal0)
+            tmp.equal.coef1 <- paste0('[m1]', pmequal1)
+            ## equal.constraints <- lpSetupEqualCoef(tmp.equal.coef0,
+            ##                                       tmp.equal.coef1,
+            ##                                       colnames(drX))
+            ## print('These ar eth equal constraint')
+            ## print(equal.constraints)
+            ##
+            ## Note: What you may want to do is pass these constriants
+            ## into the GMM Estimate function instead. The reason is
+            ## that the GMM function may want to drop some of these
+            ## constriants along teh way.
+        }
+        ## END TESTING -------------------------------------------------------------------------
     } else {
         if (!direct) {
             stop(gsub("\\s+", " ",
