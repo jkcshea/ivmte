@@ -3707,6 +3707,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 gn0 <- ncol(sset$s1$g0)
                 gn1 <- ncol(sset$s1$g1)
                 colNorms <- apply(drX, MARGIN = 2, function(x) sqrt(sum(x^2)))
+                colNorms[colNorms == 0] <- 1
                 resX <- sweep(x = drX, MARGIN = 2, STATS = colNorms, FUN = '/')
                 ## Perform the regression. If the MTR is point
                 ## identified without restrictions, then it should

@@ -250,6 +250,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         colNorms1 <- apply(sset$s1$g1, MARGIN = 2, function(x) sqrt(sum(x^2)))
         colNorms <- c(colNorms0, colNorms1)
         rm(colNorms0, colNorms1)
+        colNorms[colNorms == 0] <- 1
         mbA <- sweep(x = mbA,
                      MARGIN = 2,
                      STATS = colNorms,
