@@ -15,9 +15,13 @@ problem as a maximization or minimization problem.}
 
 \item{solver.options}{list, each item of the list should
 correspond to an option specific to the LP solver selected.}
+
+\item{debug}{boolean, indicates whether or not the function should
+provide output when obtaining bounds. The output provided is
+the same as what the Mosek would send to the console.}
 }
 \value{
-a list of the output from \code{lpSolveAPI}. This includes
+a list of the output from \code{Rmosek}. This includes
     the objective value, the solution vector, and the optimization
     status (status of \code{1} indicates successful optimization).
 }

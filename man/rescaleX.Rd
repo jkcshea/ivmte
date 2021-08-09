@@ -4,13 +4,22 @@
 \alias{rescaleX}
 \title{Function to implement rescaling procedure}
 \usage{
-rescaleX(sset, dVec, drY, drN, shape.constraint = FALSE)
+rescaleX(sset, dVec, drY, drN)
 }
 \arguments{
 \item{sset}{a list of lists constructed from the function
 \link{genSSet}. In the case of a direct regression, 'sset'
 contains only one inner list. This list contains the gamma
 moment at the individual level.}
+
+\item{dVec}{Vector of treatment statuses from the data.}
+
+\item{drY}{Vector of outcomes from the data.}
+
+\item{drN}{Scalar, number of observations in the data.}
+}
+\value{
+List of rescaled covariates.
 }
 \description{
 This function rescales the matrix of covariates used in the direct

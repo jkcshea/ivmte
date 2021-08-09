@@ -733,7 +733,7 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #' cat("The minimum criterion is",  obseqMin$obj, "\n")
 #'
 #' @export
-criterionMin <- function(env, sset, solver, solver.options, rescale,
+criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
                          debug = FALSE) {
     solver <- tolower(solver)
     if (solver == "gurobi") {

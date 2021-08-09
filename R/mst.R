@@ -676,7 +676,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                            be obtained via Gurobi."),
                           call. = FALSE, immediate. = TRUE)
                 } else {
-                    if (requireNamespace("rmosek", quietly = TRUE)) {
+                    if (requireNamespace("Rmosek", quietly = TRUE)) {
                         solver <- 'rmosek'
                         warning(gsub("\\s+", " ",
                                      "'debug = TRUE' is only permitted if
@@ -3784,7 +3784,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 }
             }
             if (!requireNamespace("gurobi", quietly = TRUE) &&
-                !requireNamespace("rmosek", quietly = TRUE)) {
+                !requireNamespace("Rmosek", quietly = TRUE)) {
                 stop(gsub('\\s+', ' ',
                           "The MTR is not point identified by a
                            direct regression. However, partial

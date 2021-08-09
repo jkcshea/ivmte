@@ -18,7 +18,8 @@ if (requireNamespace("gurobi", quietly = TRUE)) {
                      target = "ate",
                      treat = 'd',
                      outcome = 'ey',
-                     noisy = TRUE)
+                     noisy = TRUE,
+                     solver = 'gurobi')
 
     ## True coefficients from Mogstad, Torgovitsky (2018, ARE)
     coef.m0 <- c(0.9, -1.1, 0.3)
@@ -118,7 +119,7 @@ if (requireNamespace("gurobi", quietly = TRUE)) {
     model$ub <- rep(Inf, 7)
     model$modelsense <- 'min'
     ## Obtain minimum criterion
-    minobseq <- gurobi(model, list(nonconvex = 0))
+    minobseq <- gurobi::gurobi(model, list(nonconvex = 0))
 
     ## Construct target parameter MTR vector
     tau <- c(-(monoIntegral(1, 0) - monoIntegral(0, 0)),

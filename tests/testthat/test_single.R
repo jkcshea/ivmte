@@ -25,7 +25,7 @@ result <- ivmte(ivlike = ey ~ 1 +d + x1 + x2,
                 initgrid.nx = 2,
                 audit.nx = 5,
                 audit.nu = 5,
-                lpsolver = "lpSolveAPI")
+                solver = "lpSolveAPI")
 
 ##------------------------
 ## Implement test

@@ -4,7 +4,7 @@
 \alias{criterionMin}
 \title{Minimizing violation of observational equivalence}
 \usage{
-criterionMin(env, sset, solver, solver.options, rescale, debug = FALSE)
+criterionMin(env, sset, solver, solver.options, rescale = FALSE, debug = FALSE)
 }
 \arguments{
 \item{env}{environment containing the matrices defining the LP
@@ -16,13 +16,18 @@ terms.}
 \item{solver}{string, name of the package used to solve the LP
 problem.}
 
-\item{solver.options}{list, each item of the list should
-correspond to an option specific to the LP solver selected.}
+\item{solver.options}{list, each item of the list should correspond
+to an option specific to the LP solver selected.}
+
+\item{rescale}{boolean, set to \code{TRUE} if the MTR components
+should be rescaled to improve stability in the LP/QP/QCP
+optimization.}
 
 \item{debug}{boolean, indicates whether or not the function should
 provide output when obtaining bounds. The option is only
-applied when \code{solver = 'gurobi'}. The output provided is
-the same as what the Gurobi API would send to the console.}
+applied when \code{solver = 'gurobi'} or \code{solver =
+'rmosek'}. The output provided is the same as what the Gurobi
+API would send to the console.}
 }
 \value{
 A list including the minimum violation of observational

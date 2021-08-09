@@ -346,6 +346,9 @@ J-statistic.}
 \item{point.redundant}{vector of integers indicating which
 components in the S-set are redundant.}
 
+\item{bootstrap}{boolean, indicates whether the estimate is
+for the bootstrap.}
+
 \item{count.moments}{boolean, indicate if number of linearly
 independent moments should be counted.}
 
@@ -405,9 +408,6 @@ API would send to the console.}
 formulas, the IV-like formulas, and the propensity score
 formulas. If a formula is not provided, and thus no environment
 can be found, then the parent.frame() is assigned by default.}
-
-\item{bootstrap.direct}{boolean, indicates whether the estimate is
-for the bootstrap.}
 }
 \value{
 Returns a list of results from throughout the estimation

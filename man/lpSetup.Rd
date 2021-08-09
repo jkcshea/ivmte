@@ -27,6 +27,14 @@ terms.}
 the gamma moments for each element in the S-set, as well as the
 IV-like coefficients.}
 
+\item{equal.coef0}{character, name of terms in \code{m0} that
+should have common coefficients with the corresponding terms in
+\code{m1}.}
+
+\item{equal.coef1}{character, name of terms in \code{m1} that
+should have common coefficients with the corresponding terms in
+\code{m0}.}
+
 \item{shape}{boolean, default set to TRUE. Switch to determine
 whether or not to include shape restrictions in the LP problem.}
 
