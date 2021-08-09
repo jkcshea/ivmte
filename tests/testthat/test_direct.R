@@ -154,12 +154,13 @@ if (requireNamespace("gurobi", quietly = TRUE)) {
     test_that("Verify bounds and MTR coefficient estimates", {
         expect_equal(unname(c(resultsAlt$gstar$g0, resultsAlt$gstar$g1)),
                      tau)
-        expect_equal(unname(resultsAlt$bounds), bounds)
-        expect_equal(unname(c(resultsAlt$gstar.coef$min.g0,
-                              resultsAlt$gstar.coef$min.g1)),
-                     mtrMin)
-        expect_equal(unname(c(resultsAlt$gstar.coef$max.g0,
-                              resultsAlt$gstar.coef$max.g1)),
-                     mtrMax)
+        expect_equal(unname(resultsAlt$bounds), bounds, tolerance = 4e-07)
+        ## Note: Individual coefficients need not match exactly.
+        ## expect_equal(unname(c(resultsAlt$gstar.coef$min.g0,
+        ##                       resultsAlt$gstar.coef$min.g1)),
+        ##              mtrMin, tolerance = 2e-04)
+        ## expect_equal(unname(c(resultsAlt$gstar.coef$max.g0,
+        ##                       resultsAlt$gstar.coef$max.g1)),
+        ##              mtrMax, tolerance = 1e-03)
     })
 }
