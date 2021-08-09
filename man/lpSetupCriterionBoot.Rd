@@ -4,8 +4,14 @@
 \alias{lpSetupCriterionBoot}
 \title{Configure LP environment for specification testing}
 \usage{
-lpSetupCriterionBoot(env, sset, orig.sset, orig.criterion,
-  criterion.tol = 0, setup = TRUE)
+lpSetupCriterionBoot(
+  env,
+  sset,
+  orig.sset,
+  orig.criterion,
+  criterion.tol = 0,
+  setup = TRUE
+)
 }
 \arguments{
 \item{env}{the LP environment}

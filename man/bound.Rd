@@ -4,8 +4,16 @@
 \alias{bound}
 \title{Obtaining TE bounds}
 \usage{
-bound(env, sset, lpsolver, lpsolver.options, noisy = FALSE,
-  smallreturnlist = FALSE, debug = FALSE)
+bound(
+  env,
+  sset,
+  solver,
+  solver.options,
+  noisy = FALSE,
+  smallreturnlist = FALSE,
+  rescale = FALSE,
+  debug = FALSE
+)
 }
 \arguments{
 \item{env}{environment containing the matrices defining the LP
@@ -17,10 +25,10 @@ object is only used to determine the names of terms. If it is
 no submitted, then no names are provided to the solution
 vector.}
 
-\item{lpsolver}{string, name of the package used to solve the LP
+\item{solver}{string, name of the package used to solve the LP
 problem.}
 
-\item{lpsolver.options}{list, each item of the list should
+\item{solver.options}{list, each item of the list should
 correspond to an option specific to the LP solver selected.}
 
 \item{noisy}{boolean, set to \code{TRUE} if optimization results
@@ -29,9 +37,13 @@ should be displayed.}
 \item{smallreturnlist}{boolean, set to \code{TRUE} if the LP model
 should not be returned.}
 
+\item{rescale}{boolean, set to \code{TRUE} if the MTR components
+should be rescaled to improve stability in the LP/QP/QCP
+optimization.}
+
 \item{debug}{boolean, indicates whether or not the function should
 provide output when obtaining bounds. The option is only
-applied when \code{lpsolver = 'gurobi'}. The output provided is
+applied when \code{solver = 'gurobi'}. The output provided is
 the same as what the Gurobi API would send to the console.}
 }
 \value{
@@ -126,7 +138,7 @@ rhs <- c(rep(0.2, 11), rep(0.8, 11))
 ## Construct LP object to be interpreted and solved by
 ## lpSolveAPI. Note that an environment has to be created for the LP
 ## object. The matrices defining the shape restrictions must be stored
-## as a list under the entry \\code{$mbobj} in the environment.
+## as a list under the entry \code{$mbobj} in the environment.
 lpEnv <- new.env()
 lpEnv$mbobj <- list(mbA = A,
                     mbs = sense,
@@ -135,21 +147,22 @@ lpEnv$mbobj <- list(mbA = A,
 ## that is suitable for the LP solver.
 lpSetup(env = lpEnv,
         sset = sSet,
-        lpsolver = "lpsolveapi")
+        solver = "lpsolveapi")
 ## Setup LP model so that it is solving for the bounds.
 lpSetupBound(env = lpEnv,
              g0 = targetGamma$gstar0,
              g1 = targetGamma$gstar1,
              sset = sSet,
-             criterion.factor = 0,
-             lpsolver = "lpsolveapi")
+             criterion.tol = 0,
+             criterion.min = 0,
+             solver = "lpsolveapi")
 ## Declare any LP solver options as a list.
 lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
 ## Obtain the bounds.
 bounds <- bound(env = lpEnv,
                 sset = sSet,
-                lpsolver = "lpsolveapi",
-                lpsolver.options = lpOptions)
-cat("The bounds are [",  bounds$min, ",", bounds$max, "].\\n")
+                solver = "lpsolveapi",
+                solver.options = lpOptions)
+cat("The bounds are [",  bounds$min, ",", bounds$max, "].\n")
 
 }

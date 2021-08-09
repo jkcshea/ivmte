@@ -4,8 +4,7 @@
 \alias{gendist5e}
 \title{Generate test distribution 5 (has errors and a covariate)}
 \usage{
-gendist5e(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 1,
-  v1.sd = 1.55)
+gendist5e(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 1, v1.sd = 1.55)
 }
 \arguments{
 \item{N}{integer, default set to 100. Total number of observations

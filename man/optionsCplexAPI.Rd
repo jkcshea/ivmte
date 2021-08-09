@@ -29,5 +29,5 @@ list, each element being the command to evaluate to
 }
 \description{
 This function constructs a list of options to be parsed when
-\code{lpsolver} is set to \code{cplexapi}.
+\code{solver} is set to \code{cplexapi}.
 }

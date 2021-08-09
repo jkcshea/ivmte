@@ -4,8 +4,7 @@
 \alias{genGammaSplinesTT}
 \title{Generating the Gamma moments for splines, for 'testthat'}
 \usage{
-genGammaSplinesTT(distr, weight, zvars, u1s1, u0s1, u0s2, target = FALSE,
-  ...)
+genGammaSplinesTT(distr, weight, zvars, u1s1, u0s1, u0s2, target = FALSE, ...)
 }
 \arguments{
 \item{distr}{data.frame, the distribution of the data.}

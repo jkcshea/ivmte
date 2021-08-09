@@ -4,7 +4,17 @@
 \alias{lpSetup}
 \title{Constructing LP problem}
 \usage{
-lpSetup(env, sset, orig.sset = NULL, lpsolver, shape = TRUE)
+lpSetup(
+  env,
+  sset,
+  orig.sset = NULL,
+  equal.coef0 = NULL,
+  equal.coef1 = NULL,
+  shape = TRUE,
+  direct = FALSE,
+  rescale = TRUE,
+  solver
+)
 }
 \arguments{
 \item{env}{environment containing the matrices defining the LP
@@ -17,11 +27,18 @@ terms.}
 the gamma moments for each element in the S-set, as well as the
 IV-like coefficients.}
 
-\item{lpsolver}{string, name of the package used to solve the LP
-problem.}
-
 \item{shape}{boolean, default set to TRUE. Switch to determine
 whether or not to include shape restrictions in the LP problem.}
+
+\item{direct}{boolean, set to \code{TRUE} if the direct MTR
+regression is used.}
+
+\item{rescale}{boolean, set to \code{TRUE} if the MTR components
+should be rescaled to improve stability in the LP/QP/QCP
+optimization.}
+
+\item{solver}{string, name of the package used to solve the LP
+problem.}
 }
 \value{
 A list of matrices and vectors necessary to define an LP
@@ -128,7 +145,7 @@ rhs <- c(rep(0.2, 11), rep(0.8, 11))
 ## Construct LP object to be interpreted and solved by
 ## lpSolveAPI. Note that an environment has to be created for the LP
 ## object. The matrices defining the shape restrictions must be stored
-## as a list under the entry \\code{$mbobj} in the environment.
+## as a list under the entry \code{$mbobj} in the environment.
 lpEnv <- new.env()
 lpEnv$mbobj <- list(mbA = A,
                     mbs = sense,
@@ -137,21 +154,22 @@ lpEnv$mbobj <- list(mbA = A,
 ## that is suitable for the LP solver.
 lpSetup(env = lpEnv,
         sset = sSet,
-        lpsolver = "lpsolveapi")
+        solver = "lpsolveapi")
 ## Setup LP model so that it is solving for the bounds.
 lpSetupBound(env = lpEnv,
              g0 = targetGamma$gstar0,
              g1 = targetGamma$gstar1,
              sset = sSet,
-             criterion.factor = 0,
-             lpsolver = "lpsolveapi")
+             criterion.tol = 0,
+             criterion.min = 0,
+             solver = "lpsolveapi")
 ## Declare any LP solver options as a list.
 lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
 ## Obtain the bounds.
 bounds <- bound(env = lpEnv,
                 sset = sSet,
-                lpsolver = "lpsolveapi",
-                lpsolver.options = lpOptions)
-cat("The bounds are [",  bounds$min, ",", bounds$max, "].\\n")
+                solver = "lpsolveapi",
+                solver.options = lpOptions)
+cat("The bounds are [",  bounds$min, ",", bounds$max, "].\n")
 
 }

@@ -4,12 +4,12 @@
 \alias{lpSetupSolver}
 \title{Configure LP environment to be compatible with solvers}
 \usage{
-lpSetupSolver(env, lpsolver)
+lpSetupSolver(env, solver)
 }
 \arguments{
 \item{env}{The LP environment}
 
-\item{lpsolver}{Character, the LP solver.}
+\item{solver}{Character, the LP solver.}
 }
 \value{
 Nothing, as this modifies an environment variable to save

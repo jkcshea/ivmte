@@ -14,8 +14,7 @@ case sensitive. The value assigned to each item is the value to
 set the option to.}
 
 \item{debug}{boolean, indicates whether or not the function should
-provide output when obtaining bounds. The option is only
-applied when \code{lpsolver = 'gurobi'}. The output provided is
+provide output when obtaining bounds. The output provided is
 the same as what the Gurobi API would send to the console.}
 }
 \value{
@@ -25,7 +24,7 @@ list, the set of options declared by the user, including
 }
 \description{
 This function constructs a list of options to be parsed when
-\code{lpsolver} is set to \code{Gurobi}. This function really
+\code{solver} is set to \code{Gurobi}. This function really
 implements some default values, and accounts for the \code{debug}
 option.
 }

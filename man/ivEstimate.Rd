@@ -4,8 +4,15 @@
 \alias{ivEstimate}
 \title{Obtaining IV-like specifications}
 \usage{
-ivEstimate(formula, data, subset, components, treat, list = FALSE,
-  order = NULL)
+ivEstimate(
+  formula,
+  data,
+  subset,
+  components,
+  treat,
+  list = FALSE,
+  order = NULL
+)
 }
 \arguments{
 \item{formula}{formula to be estimated using OLS/IV.}

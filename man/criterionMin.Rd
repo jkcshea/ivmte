@@ -4,7 +4,7 @@
 \alias{criterionMin}
 \title{Minimizing violation of observational equivalence}
 \usage{
-criterionMin(env, sset, lpsolver, lpsolver.options, debug = FALSE)
+criterionMin(env, sset, solver, solver.options, rescale, debug = FALSE)
 }
 \arguments{
 \item{env}{environment containing the matrices defining the LP
@@ -13,15 +13,15 @@ problem.}
 \item{sset}{A list of IV-like estimates and the corresponding gamma
 terms.}
 
-\item{lpsolver}{string, name of the package used to solve the LP
+\item{solver}{string, name of the package used to solve the LP
 problem.}
 
-\item{lpsolver.options}{list, each item of the list should
+\item{solver.options}{list, each item of the list should
 correspond to an option specific to the LP solver selected.}
 
 \item{debug}{boolean, indicates whether or not the function should
 provide output when obtaining bounds. The option is only
-applied when \code{lpsolver = 'gurobi'}. The output provided is
+applied when \code{solver = 'gurobi'}. The output provided is
 the same as what the Gurobi API would send to the console.}
 }
 \value{
@@ -117,7 +117,7 @@ rhs <- c(rep(0.2, 11), rep(0.8, 11))
 ## Construct LP object to be interpreted and solved by
 ## lpSolveAPI. Note that an environment has to be created for the LP
 ## object. The matrices defining the shape restrictions must be stored
-## as a list under the entry \\code{$mbobj} in the environment.
+## as a list under the entry \code{$mbobj} in the environment.
 lpEnv <- new.env()
 lpEnv$mbobj <- list(mbA = A,
                     mbs = sense,
@@ -126,7 +126,7 @@ lpEnv$mbobj <- list(mbA = A,
 ## that is suitable for the LP solver.
 lpSetup(env = lpEnv,
         sset = sSet,
-        lpsolver = "lpsolveapi")
+        solver = "lpsolveapi")
 ## Setup LP model so that it will minimize the criterion
 lpSetupCriterion(env = lpEnv,
                 sset = sSet)
@@ -135,9 +135,9 @@ lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
 ## Minimize the criterion.
 obseqMin <- criterionMin(env = lpEnv,
                          sset = sSet,
-                         lpsolver = "lpsolveapi",
-                         lpsolver.options = lpOptions)
+                         solver = "lpsolveapi",
+                         solver.options = lpOptions)
 obseqMin
-cat("The minimum criterion is",  obseqMin$obj, "\\n")
+cat("The minimum criterion is",  obseqMin$obj, "\n")
 
 }

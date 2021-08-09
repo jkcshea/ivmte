@@ -22,6 +22,12 @@
 #'     problem.
 #' @param sset List of IV-like estimates and the corresponding gamma
 #'     terms.
+#' @param equal.coef0 character, name of terms in \code{m0} that
+#'     should have common coefficients with the corresponding terms in
+#'     \code{m1}.
+#' @param equal.coef1 character, name of terms in \code{m1} that
+#'     should have common coefficients with the corresponding terms in
+#'     \code{m0}.
 #' @param orig.sset list, only used for bootstraps. The list contains
 #'     the gamma moments for each element in the S-set, as well as the
 #'     IV-like coefficients.
@@ -608,12 +614,16 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #'     terms.
 #' @param solver string, name of the package used to solve the LP
 #'     problem.
-#' @param solver.options list, each item of the list should
-#'     correspond to an option specific to the LP solver selected.
+#' @param solver.options list, each item of the list should correspond
+#'     to an option specific to the LP solver selected.
+#' @param rescale boolean, set to \code{TRUE} if the MTR components
+#'     should be rescaled to improve stability in the LP/QP/QCP
+#'     optimization.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
-#'     applied when \code{solver = 'gurobi'}. The output provided is
-#'     the same as what the Gurobi API would send to the console.
+#'     applied when \code{solver = 'gurobi'} or \code{solver =
+#'     'rmosek'}. The output provided is the same as what the Gurobi
+#'     API would send to the console.
 #' @return A list including the minimum violation of observational
 #'     equivalence, the solution to the LP problem, and the status of
 #'     the solution.
@@ -804,8 +814,8 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
 #'     should be displayed.
 #' @param solver string, name of the package used to solve the LP
 #'     problem.
-#' @param solver.options list, each item of the list should
-#'     correspond to an option specific to the LP solver selected.
+#' @param solver.options list, each item of the list should correspond
+#'     to an option specific to the LP solver selected.
 #' @param smallreturnlist boolean, set to \code{TRUE} if the LP model
 #'     should not be returned.
 #' @param rescale boolean, set to \code{TRUE} if the MTR components
@@ -813,8 +823,9 @@ criterionMin <- function(env, sset, solver, solver.options, rescale,
 #'     optimization.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
-#'     applied when \code{solver = 'gurobi'}. The output provided is
-#'     the same as what the Gurobi API would send to the console.
+#'     applied when \code{solver = 'gurobi'} or \code{solver =
+#'     'rmosek'}. The output provided is the same as what the Gurobi
+#'     API would send to the console.
 #' @return a list containing the bounds on the treatment effect; the
 #'     coefficients on each term in the MTR associated with the upper
 #'     and lower bounds, for both counterfactuals; the optimization
@@ -1243,7 +1254,10 @@ runLpSolveAPI <- function(lpobj, modelsense, solver.options) {
 #'     problem as a maximization or minimization problem.
 #' @param solver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver selected.
-#' @return a list of the output from \code{lpSolveAPI}. This includes
+#' @param debug boolean, indicates whether or not the function should
+#'     provide output when obtaining bounds. The output provided is
+#'     the same as what the Mosek would send to the console.
+#' @return a list of the output from \code{Rmosek}. This includes
 #'     the objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization).
 runMosek <- function(lpobj, modelsense, solver.options, debug = FALSE) {

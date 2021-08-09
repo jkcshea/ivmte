@@ -4,19 +4,72 @@
 \alias{ivmte}
 \title{Instrumental Variables: Extrapolation by Marginal Treatment Effects}
 \usage{
-ivmte(data, target, late.from, late.to, late.X, genlate.lb, genlate.ub,
-  target.weight0 = NULL, target.weight1 = NULL, target.knots0 = NULL,
-  target.knots1 = NULL, m0, m1, uname = u, m1.ub, m0.ub, m1.lb, m0.lb,
-  mte.ub, mte.lb, m0.dec, m0.inc, m1.dec, m1.inc, mte.dec, mte.inc, ivlike,
-  components, subset, propensity, link = "logit", treat,
-  lpsolver = NULL, lpsolver.options, lpsolver.presolve,
-  lpsolver.options.criterion, lpsolver.options.bounds, criterion.tol = 0,
-  initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
-  audit.nu = 25, audit.add = 100, audit.max = 25, audit.tol,
-  point = FALSE, point.eyeweight = FALSE, bootstraps = 0,
-  bootstraps.m, bootstraps.replace = TRUE, levels = c(0.99, 0.95, 0.9),
-  ci.type = "backward", specification.test = TRUE, noisy = FALSE,
-  smallreturnlist = FALSE, debug = FALSE)
+ivmte(
+  data,
+  target,
+  late.from,
+  late.to,
+  late.X,
+  genlate.lb,
+  genlate.ub,
+  target.weight0 = NULL,
+  target.weight1 = NULL,
+  target.knots0 = NULL,
+  target.knots1 = NULL,
+  m0,
+  m1,
+  uname = u,
+  m1.ub,
+  m0.ub,
+  m1.lb,
+  m0.lb,
+  mte.ub,
+  mte.lb,
+  m0.dec,
+  m0.inc,
+  m1.dec,
+  m1.inc,
+  mte.dec,
+  mte.inc,
+  equal.coef,
+  ivlike,
+  components,
+  subset,
+  propensity,
+  link = "logit",
+  treat,
+  outcome,
+  solver,
+  solver.options,
+  solver.presolve,
+  solver.options.criterion,
+  solver.options.bounds,
+  lpsolver,
+  lpsolver.options,
+  lpsolver.presolve,
+  lpsolver.options.criterion,
+  lpsolver.options.bounds,
+  criterion.tol = 0.01,
+  initgrid.nx = 20,
+  initgrid.nu = 20,
+  audit.nx = 2500,
+  audit.nu = 25,
+  audit.add = 100,
+  audit.max = 25,
+  audit.tol,
+  rescale,
+  point = FALSE,
+  point.eyeweight = FALSE,
+  bootstraps = 0,
+  bootstraps.m,
+  bootstraps.replace = TRUE,
+  levels = c(0.99, 0.95, 0.9),
+  ci.type = "backward",
+  specification.test = TRUE,
+  noisy = FALSE,
+  smallreturnlist = FALSE,
+  debug = FALSE
+)
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
@@ -128,12 +181,17 @@ to \code{TRUE} if the MTE should be weakly monotone decreasing.}
 \item{mte.inc}{logical, set to \code{FALSE} by default. Set equal
 to \code{TRUE} if the MTE should be weakly monotone increasing.}
 
+\item{equal.coef}{one-sided formula to indicate which terms in
+\code{m0} and \code{m1} should be constrained to have the same
+coefficients. These terms therefore have no effect on the MTE.}
+
 \item{ivlike}{formula or vector of formulas specifying the
 regressions for the IV-like estimands. Which coefficients to
 use to define the constraints determining the treatment effect
 bounds (alternatively, the moments determining the treatment
 effect point estimate) can be selected in the argument
-\code{components}.}
+\code{components}. If no argument is passed, then a linear
+regression will be performed to estimate the MTR coefficients.}
 
 \item{components}{a list of vectors of the terms in the regression
 specifications to include in the set of IV-like estimands. No
@@ -176,30 +234,46 @@ should be provided with quoation marks.}
 \item{treat}{variable name for treatment indicator. The name can be
 provided with or without quotation marks.}
 
-\item{lpsolver}{character, name of the linear programming package
-in R used to obtain the bounds on the treatment effect. The
+\item{outcome}{variable name for outcome variable. The name can be
+provided with or without quotation marks.}
+
+\item{solver}{character, name of the linear programming package in
+R used to obtain the bounds on the treatment effect. The
 function supports \code{'gurobi'}, \code{'cplexapi'},
-\code{'lpsolveapi'}. The name of the solver should be provided
-with quotation marks.}
+\code{rmosek}, \code{'lpsolveapi'}. The name of the solver
+should be provided with quotation marks.}
 
-\item{lpsolver.options}{list, each item of the list should
-correspond to an option specific to the LP solver selected.}
+\item{solver.options}{list, each item of the list should correspond
+to an option specific to the solver selected.}
 
-\item{lpsolver.presolve}{boolean, default set to \code{TRUE}. Set
+\item{solver.presolve}{boolean, default set to \code{TRUE}. Set
 this parameter to \code{FALSE} if presolve should be turned off
 for the LP problems.}
 
-\item{lpsolver.options.criterion}{list, each item of the list
-should correspond to an option specific to the LP solver
-selected. These options are specific for finding the minimum
-criterion.}
+\item{solver.options.criterion}{list, each item of the list should
+correspond to an option specific to the solver selected. These
+options are specific for finding the minimum criterion.}
 
-\item{lpsolver.options.bounds}{list, each item of the list should
-correspond to an option specific to the LP solver
-selected. These options are specific for finding the bounds.}
+\item{solver.options.bounds}{list, each item of the list should
+correspond to an option specific to the solver selected. These
+options are specific for finding the bounds.}
+
+\item{lpsolver}{character, deprecated argument for \code{lpsolver}.}
+
+\item{lpsolver.options}{list, deprecated argument for
+\code{solver.options}.}
+
+\item{lpsolver.presolve}{boolean, deprecated argument for
+\code{solver.presolve}.}
+
+\item{lpsolver.options.criterion}{list, deprecated argument for
+\code{solver.options.criterion}.}
+
+\item{lpsolver.options.bounds}{list, deprecated argument for
+\code{solver.options.bounds}.}
 
 \item{criterion.tol}{tolerance for violation of observational
-equivalence, set to 0 by default. Statistical noise may
+equivalence, set to 0.01 by default. Statistical noise may
 prohibit the theoretical LP problem from being feasible. That
 is, there may not exist a set of coefficients on the MTR that
 are observationally equivalent with regard to the IV-like
@@ -246,14 +320,18 @@ procedure.}
 
 \item{audit.tol}{feasibility tolerance when performing the
 audit. By default to set to be equal to the Gurobi
-(\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+(\code{solver = "gurobi"}) and CPLEX (\code{solver =
 "cplexapi"}) feasibility tolerance, which is set to
 \code{1e-06} by default.  If the LP solver is lp_solve
-(\code{lpsolver = "lpsolveapi"}), this parameter is set to
+(\code{solver = "lpsolveapi"}), this parameter is set to
 \code{1e-06} by default. This parameter should only be changed
 if the feasibility tolerance of the LP solver is changed, or if
 numerical issues result in discrepancies between the LP
 solver's feasibility check and the audit.}
+
+\item{rescale}{boolean, set to \code{TRUE} by default. This
+rescalels the MTR components to improve stability in the
+LP/QP/QCP optimization.}
 
 \item{point}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} if it is believed that the treatment effects are
@@ -307,8 +385,9 @@ from being included in the return list.}
 
 \item{debug}{boolean, indicates whether or not the function should
 provide output when obtaining bounds. The option is only
-applied when \code{lpsolver = 'gurobi'}. The output provided is
-the same as what the Gurobi API would send to the console.}
+applied when \code{solver = 'gurobi'} or \code{solver =
+'rmosek'}. The output provided is the same as what the Gurobi
+API would send to the console.}
 }
 \value{
 Returns a list of results from throughout the estimation
@@ -467,6 +546,6 @@ ivmte(ivlike = ivlikespecs,
       m0.dec = TRUE,
       m1.dec = TRUE,
       bootstraps = 0,
-      lpsolver = "lpSolveAPI")
+      solver = "lpSolveAPI")
 
 }

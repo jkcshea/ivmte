@@ -4,7 +4,16 @@
 \alias{lpSetupBound}
 \title{Configure LP environment for obtaining the bounds}
 \usage{
-lpSetupBound(env, g0, g1, sset, criterion.factor, lpsolver, setup = TRUE)
+lpSetupBound(
+  env,
+  g0,
+  g1,
+  sset,
+  criterion.tol,
+  criterion.min,
+  solver,
+  setup = TRUE
+)
 }
 \arguments{
 \item{env}{the environment containing the LP model.}
@@ -21,13 +30,15 @@ object is only used to determine the names of terms. If it is
 no submitted, then no names are provided to the solution
 vector.}
 
-\item{criterion.factor}{overall multiplicative factor for how much
+\item{criterion.tol}{additional multiplicative factor for how much
 more the solution is permitted to violate observational
-equivalence of the IV-like estimands,
-i.e. \code{criterion.factor} will multiply \code{minobseq}
-directly.}
+equivalence of the IV-like estimands, i.e. \code{1 +
+criterion.tol} will multiply \code{criterion.min} directly.}
 
-\item{lpsolver}{string, name of the package used to solve the LP
+\item{criterion.min}{minimum criterion, i.e. minimum deviation from
+observational equivalence while satisfying shape constraints.}
+
+\item{solver}{string, name of the package used to solve the LP
 problem.}
 
 \item{setup}{boolean. If \code{TRUE}, the function will modify the

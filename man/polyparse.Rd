@@ -4,8 +4,13 @@
 \alias{polyparse}
 \title{Parsing marginal treatment response formulas}
 \usage{
-polyparse(formula, data, uname = "u", env = parent.frame(),
-  as.function = FALSE)
+polyparse(
+  formula,
+  data,
+  uname = "u",
+  env = parent.frame(),
+  as.function = FALSE
+)
 }
 \arguments{
 \item{formula}{the MTR.}

@@ -4,13 +4,15 @@
 \name{ivmteSimData}
 \alias{ivmteSimData}
 \title{ivmte Simulated Data}
-\format{A data frame with 5,000 rows and 14 columns.
+\format{
+A data frame with 5,000 rows and 14 columns.
 \describe{
   \item{y}{binary outcome variable}
   \item{d}{binary treatment variable}
   \item{z}{instrument that takes the value 0, 1, 2, or 3}
   \item{x}{covariate x that takes integer values from 1 to 10}
-}}
+}
+}
 \source{
 Simulated --- see code in data/ivmteSimData.R.
 }

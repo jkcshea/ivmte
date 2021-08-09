@@ -4,9 +4,25 @@
 \alias{genboundA}
 \title{Generating the LP constraint matrix for bounds}
 \usage{
-genboundA(A0, A1, sset, gridobj, uname, m0.lb, m0.ub, m1.lb, m1.ub, mte.lb,
-  mte.ub, solution.m0.min = NULL, solution.m1.min = NULL,
-  solution.m0.max = NULL, solution.m1.max = NULL, audit.tol)
+genboundA(
+  A0,
+  A1,
+  sset,
+  gridobj,
+  uname,
+  m0.lb,
+  m0.ub,
+  m1.lb,
+  m1.ub,
+  mte.lb,
+  mte.ub,
+  solution.m0.min = NULL,
+  solution.m1.min = NULL,
+  solution.m0.max = NULL,
+  solution.m1.max = NULL,
+  audit.tol,
+  direct = FALSE
+)
 }
 \arguments{
 \item{A0}{the matrix of values from evaluating the MTR for control
@@ -62,14 +78,17 @@ constraints.}
 
 \item{audit.tol}{feasibility tolerance when performing the
 audit. By default to set to be equal to the Gurobi
-(\code{lpsolver = "gurobi"}) and CPLEX (\code{lpsolver =
+(\code{solver = "gurobi"}) and CPLEX (\code{solver =
 "cplexapi"}) feasibility toleraence, which is set to
 \code{1e-06} by default.  If the LP solver is lp_solve
-(\code{lpsolver = "lpsolveapi"}), this parameter is set to
+(\code{solver = "lpsolveapi"}), this parameter is set to
 \code{1e-06} by default. This parameter should only be changed
 if the feasibility tolerance of the LP solver is changed, or if
 numerical issues result in discrepancies between the LP
 solver's feasibility check and the audit.}
+
+\item{direct}{boolean, set to \code{TRUE} if the direct MTR
+regression is used.}
 }
 \value{
 a constraint matrix for the LP problem, the associated

@@ -4,8 +4,15 @@
 \alias{genGamma}
 \title{Estimating expectations of terms in the MTR (gamma objects)}
 \usage{
-genGamma(monomials, lb, ub, multiplier = 1, subset = NULL,
-  means = TRUE, late.rows = NULL)
+genGamma(
+  monomials,
+  lb,
+  ub,
+  multiplier = 1,
+  subset = NULL,
+  means = TRUE,
+  late.rows = NULL
+)
 }
 \arguments{
 \item{monomials}{[UPDATE DESCRIPTION] object containing list of

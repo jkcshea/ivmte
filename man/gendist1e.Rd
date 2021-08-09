@@ -4,8 +4,7 @@
 \alias{gendist1e}
 \title{Generate test distribution 1 with errors}
 \usage{
-gendist1e(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 0.5,
-  v1.sd = 0.75)
+gendist1e(N = 100, subN = 0.5, p1 = 0.4, p2 = 0.6, v0.sd = 0.5, v1.sd = 0.75)
 }
 \arguments{
 \item{N}{integer, default set to 100. Total number of observations

@@ -4,8 +4,20 @@
 \alias{selectViolations}
 \title{Select points from audit grid to add to the constraint grid}
 \usage{
-selectViolations(diffVec, audit.add, lb0seq, lb1seq, lbteseq, ub0seq,
-  ub1seq, ubteseq, mono0seq, mono1seq, monoteseq, mbmap)
+selectViolations(
+  diffVec,
+  audit.add,
+  lb0seq,
+  lb1seq,
+  lbteseq,
+  ub0seq,
+  ub1seq,
+  ubteseq,
+  mono0seq,
+  mono1seq,
+  monoteseq,
+  mbmap
+)
 }
 \arguments{
 \item{diffVec}{numeric vector, with a positive value indicating a

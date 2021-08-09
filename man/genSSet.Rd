@@ -4,9 +4,24 @@
 \alias{genSSet}
 \title{Generating LP moments for IV-like estimands}
 \usage{
-genSSet(data, sset, sest, splinesobj, pmodobj, pm0, pm1, ncomponents,
-  scount, subset_index, means = TRUE, yvar, dvar, noisy = TRUE,
-  ivn = NULL, redundant = NULL)
+genSSet(
+  data,
+  sset,
+  sest,
+  splinesobj,
+  pmodobj,
+  pm0,
+  pm1,
+  ncomponents,
+  scount,
+  subset_index,
+  means = TRUE,
+  yvar,
+  dvar,
+  noisy = TRUE,
+  ivn = NULL,
+  redundant = NULL
+)
 }
 \arguments{
 \item{data}{\code{data.frame} used to estimate the treatment

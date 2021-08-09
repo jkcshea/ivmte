@@ -19,6 +19,6 @@ string, the command to be evaluated to implement a single
     option.
 }
 \description{
-This function constructs a string to be parsed when \code{lpsolver}
+This function constructs a string to be parsed when \code{solver}
 is set to \code{cplexapi}.
 }

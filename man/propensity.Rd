@@ -4,8 +4,7 @@
 \alias{propensity}
 \title{Estimating propensity scores}
 \usage{
-propensity(formula, data, link = "logit", late.Z, late.X,
-  env = parent.frame())
+propensity(formula, data, link = "logit", late.Z, late.X, env = parent.frame())
 }
 \arguments{
 \item{formula}{Formula characterizing probability model. If a

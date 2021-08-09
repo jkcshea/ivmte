@@ -4,8 +4,14 @@
 \alias{negationCheck}
 \title{Check if custom weights are negations of each other}
 \usage{
-negationCheck(data, target.knots0, target.knots1, target.weight0,
-  target.weight1, N = 20)
+negationCheck(
+  data,
+  target.knots0,
+  target.knots1,
+  target.weight0,
+  target.weight1,
+  N = 20
+)
 }
 \arguments{
 \item{data}{data set used for estimation. The comparisons are made

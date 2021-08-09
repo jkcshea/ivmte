@@ -18,7 +18,7 @@ string, the command to be evaluated to implement the
 }
 \description{
 This function constructs a list of options to be parsed when
-\code{lpsolver} is set to \code{lpsolveapi}. The options permitted
+\code{solver} is set to \code{lpsolveapi}. The options permitted
 are those that can be set via \code{lpSolveAPI::lp.control}, and
 should be passed as a named list (e.g. \code{list(epslevel =
 "tight")}).

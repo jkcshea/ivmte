@@ -4,10 +4,30 @@
 \alias{genTarget}
 \title{Generating LP moments for IV-like estimands}
 \usage{
-genTarget(treat, m0, m1, target, target.weight0, target.weight1,
-  target.knots0, target.knots1, late.Z, late.from, late.to, late.X, eval.X,
-  genlate.lb, genlate.ub, data, splinesobj, pmodobj, pm0, pm1,
-  point = FALSE, noisy = TRUE)
+genTarget(
+  treat,
+  m0,
+  m1,
+  target,
+  target.weight0,
+  target.weight1,
+  target.knots0,
+  target.knots1,
+  late.Z,
+  late.from,
+  late.to,
+  late.X,
+  eval.X,
+  genlate.lb,
+  genlate.ub,
+  data,
+  splinesobj,
+  pmodobj,
+  pm0,
+  pm1,
+  point = FALSE,
+  noisy = TRUE
+)
 }
 \arguments{
 \item{treat}{variable name for treatment indicator. The name can be

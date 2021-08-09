@@ -4,8 +4,15 @@
 \alias{piv}
 \title{Obtaining IV-like estimands}
 \usage{
-piv(Y, X, Z, lmcomponents = NULL, weights = NULL, order = NULL,
-  excluded = TRUE)
+piv(
+  Y,
+  X,
+  Z,
+  lmcomponents = NULL,
+  weights = NULL,
+  order = NULL,
+  excluded = TRUE
+)
 }
 \arguments{
 \item{Y}{the vector of outcomes.}

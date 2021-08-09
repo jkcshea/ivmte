@@ -3273,7 +3273,7 @@ checkU <- function(formula, uname) {
 #'     J-statistic.
 #' @param point.redundant vector of integers indicating which
 #'     components in the S-set are redundant.
-#' @param bootstrap.direct boolean, indicates whether the estimate is
+#' @param bootstrap boolean, indicates whether the estimate is
 #'     for the bootstrap.
 #' @param count.moments boolean, indicate if number of linearly
 #'     independent moments should be counted.
@@ -3787,14 +3787,14 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 !requireNamespace("rmosek", quietly = TRUE)) {
                 stop(gsub('\\s+', ' ',
                           "The MTR is not point identified by a
-                                       direct regression. However, partial
-                                       identification involves solving a
-                                       quadratically constrained quadratic
-                                       program.
-                                       Please install one of the
-                                       following optimization packages:
-                                       gurobi (version 7.5-1 or later);
-                                       Rmosek (version 9.2.38 or later)."),
+                           direct regression. However, partial
+                           identification involves solving a
+                           quadratically constrained quadratic
+                           program.
+                           Please install one of the
+                           following optimization packages:
+                           gurobi (version 7.5-1 or later);
+                           Rmosek (version 9.2.38 or later)."),
                      call. = FALSE)
             }
         }
@@ -5386,11 +5386,17 @@ momentMatrix <- function(sset, gn0, gn1, subsetList = NULL, n = NULL) {
 #' regression to improve the conditioning number and the stability of
 #' the estimation procedure.
 #'
+#' @param sset List of IV-like estimates and the corresponding gamma
+#'     terms.
+#' @param dVec Vector of treatment statuses from the data.
+#' @param drY Vector of outcomes from the data.
+#' @param drN Scalar, number of observations in the data. 
 #' @param sset a list of lists constructed from the function
 #'     \link{genSSet}. In the case of a direct regression, 'sset'
 #'     contains only one inner list. This list contains the gamma
 #'     moment at the individual level.
-rescaleX <- function(sset, dVec, drY, drN, shape.constraint = FALSE) {
+#' @return List of rescaled covariates.
+rescaleX <- function(sset, dVec, drY, drN) {
     gn0 <- ncol(sset$s1$g0)
     gn1 <- ncol(sset$s1$g1)
     m0int <- '[m0](Intercept)' %in% colnames(sset$s1$g0)

@@ -19,7 +19,7 @@ MTRs.
 \details{
 The distribution of the data is as follows
 
-|     Z
+       |     Z
  X/Z   |  0     1
 _______|___________
     -1 | 0.1   0.1
@@ -35,7 +35,7 @@ The propensity scores are generated according to the model
 
 p(x, z) = 0.5 - 0.1 * x + 0.2 * z
 
-|     Z
+       |     Z
 p(X,Z) |  0     1
 _______|___________
     -1 | 0.6   0.8
