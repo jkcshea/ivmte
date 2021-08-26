@@ -428,7 +428,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   lpsolver, lpsolver.options,
                   lpsolver.presolve,
                   lpsolver.options.criterion, lpsolver.options.bounds,
-                  criterion.tol = 0.01,
+                  criterion.tol = 1e-4,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
                   audit.tol, rescale,
@@ -5390,7 +5390,7 @@ momentMatrix <- function(sset, gn0, gn1, subsetList = NULL, n = NULL) {
 #'     terms.
 #' @param dVec Vector of treatment statuses from the data.
 #' @param drY Vector of outcomes from the data.
-#' @param drN Scalar, number of observations in the data. 
+#' @param drN Scalar, number of observations in the data.
 #' @param sset a list of lists constructed from the function
 #'     \link{genSSet}. In the case of a direct regression, 'sset'
 #'     contains only one inner list. This list contains the gamma
