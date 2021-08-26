@@ -24,8 +24,10 @@ AE <- read.csv(temp)
 unlink(temp) # delete the file
 
 AE <- subset(AE, agefstm >= 20)
-AE <- subset(AE, select=c(workedm, hourswm, morekids, samesex, YOBM))
-colnames(AE) <- c("worked", "hours", "morekids", "samesex", "yob")
+AE <- subset(AE, select=c(workedm, hourswm, morekids, samesex, YOBM,
+                          blackm, hispm, othracem))
+colnames(AE) <- c("worked", "hours", "morekids", "samesex", "yob",
+                  "black", "hisp", "other")
 rownames(AE) <- NULL
 library("devtools")
 use_data(AE, overwrite = TRUE)
