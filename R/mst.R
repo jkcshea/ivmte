@@ -20,21 +20,20 @@ utils::globalVariables("u")
 #'
 #' @param data \code{data.frame} or \code{data.table} used to estimate
 #'     the treatment effects.
-#' @param target character, target parameter to be
-#'     estimated. Currently function allows for ATE (\code{'ate'}),
-#'     ATT (\code{'att'}), ATU (\code{'atu'}), LATE (\code{'late'}),
-#'     and generalized LATE (\code{'genlate'}).
-#' @param late.from a named vector, or a list, declaring the baseline
+#' @param target character, target parameter to be estimated. The
+#'     function allows for ATE (\code{'ate'}), ATT (\code{'att'}), ATU
+#'     (\code{'atu'}), LATE (\code{'late'}), and generalized LATE
+#'     (\code{'genlate'}).
+#' @param late.from a named vector or a list declaring the baseline
+#'     values of Z used to define the LATE. The name associated with
+#'     each value should be the name of the corresponding variable.
+#' @param late.to a named vector or a list declaring the comparison
 #'     set of values of Z used to define the LATE. The name associated
 #'     with each value should be the name of the corresponding
 #'     variable.
-#' @param late.to a named vector, or a list, declaring the comparison
-#'     set of values of Z used to define the LATE. The name associated
-#'     with each value should be the name of the corresponding
-#'     variable.
-#' @param late.X a named vector, or a list, declaring the values at
-#'     which to condition on. The name associated with each value
-#'     should be the name of the corresponding variable.
+#' @param late.X a named vector or a list declaring the values to
+#'     condition on. The name associated with each value should be the
+#'     name of the corresponding variable.
 #' @param genlate.lb lower bound value of unobservable \code{u} for
 #'     estimating the generalized LATE.
 #' @param genlate.ub upper bound value of unobservable \code{u} for
@@ -149,7 +148,7 @@ utils::globalVariables("u")
 #'     provided with or without quotation marks.
 #' @param outcome variable name for outcome variable. The name can be
 #'     provided with or without quotation marks.
-#' @param solver character, name of the linear programming package in
+#' @param solver character, name of the programming package in
 #'     R used to obtain the bounds on the treatment effect. The
 #'     function supports \code{'gurobi'}, \code{'cplexapi'},
 #'     \code{rmosek}, \code{'lpsolveapi'}. The name of the solver
@@ -554,10 +553,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             "rmosek",
                             "lpsolveapi")) {
             stop(gsub("\\s+", " ",
-                      paste0("Estimator is incompatible with linear
-                             programming package '", solver,
+                      paste0("Estimator is incompatible with solver '", solver,
                              "'. Please install one of the
-                             following linear programming packages instead:
+                             following solvers instead:
                              gurobi (version 7.5-1 or later);
                              cplexAPI (version 1.3.3 or later);
                              Rmosek (version 9.2.38 or later);
