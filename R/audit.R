@@ -1,23 +1,22 @@
 #' Audit procedure
 #'
 #' This is the wrapper for running the entire audit procedure. This
-#' function sets up the LP problem of minimizing the violation of
-#' observational equivalence for the set of IV-like estimands, while
-#' satisfying boundedness and monotonicity constraints declared by the
-#' user. Rather than enforce that boundedness and monotonicity hold
-#' across the entire support of covariates and unobservables, this
-#' procedure enforces the conditions over a grid of points. This grid
-#' corresponds to the set of values the covariates can take, and a set
-#' of values of the unobservable term. The size of this grid is
-#' specified by the user in the function arguments. The procedure
-#' first estimates the bounds while imposing the shape constraints for
-#' an initial subset of points in the grid. The procedure then goes on
-#' to check ('audit') whether the constraints are satisfied over the
-#' entire grid. Any point where either the boundedness or monotonicity
-#' constraints are violated are incorporated into the initial grid,
-#' and the process is repeated until the audit no longer finds any
-#' violations, or until some maximum number of iterations is
-#' reached.
+#' function sets up the LP/QCQP problem of minimizing criterion.  for
+#' the set of IV-like estimands, while satisfying boundedness and
+#' monotonicity constraints declared by the user. Rather than enforce
+#' that boundedness and monotonicity hold across the entire support of
+#' covariates and unobservables, this procedure enforces the
+#' conditions over a grid of points. This grid corresponds to the set
+#' of values the covariates can take, and a set of values of the
+#' unobservable term. The size of this grid is specified by the user
+#' in the function arguments. The procedure first estimates the bounds
+#' while imposing the shape constraints for an initial subset of
+#' points in the grid. The procedure then goes on to check ('audit')
+#' whether the constraints are satisfied over the entire grid. Any
+#' point where either the boundedness or monotonicity constraints are
+#' violated are incorporated into the initial grid, and the process is
+#' repeated until the audit no longer finds any violations, or until
+#' some maximum number of iterations is reached.
 #'
 #' @param audit.grid list, contains the \code{A} matrix used in the
 #'     audit for the original sample, as well as the RHS vector used
@@ -62,7 +61,7 @@
 #'     corresponds to the minimum observational equivalence criterion
 #'     from the original sample.
 #' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QP/QCP
+#'     should be rescaled to improve stability in the LP/QCQP
 #'     optimization.
 #'
 #' @inheritParams ivmteEstimate
@@ -70,7 +69,7 @@
 #' @return a list. Included in the list are estimates of the treatment
 #'     effect bounds; the minimum violation of observational
 #'     equivalence of the set of IV-like estimands; the list of
-#'     matrices and vectors defining the LP problem; the points used
+#'     matrices and vectors defining the LP/QCQP problem; the points used
 #'     to generate the audit grid, and the points where the shape
 #'     constraints were violated.
 #'
@@ -239,7 +238,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             audit.tol <- 1e-06
         }
     }
-    ## Organize LP options
+    ## Organize solver options
     if (solver == "gurobi") {
         ## Construct default options
         solver.options.default <- list(dualreductions = 1,
@@ -469,21 +468,21 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                  splinesobj = splinesobj,
                                                  monov = monov,
                                                  direct = direct))
-        ## Generate LP environment that is to be updated
-        lpEnv <- new.env()
-        lpEnv$mbobj <- eval(monoboundAcall)
+        ## Generate environment that is to be updated
+        modelEnv <- new.env()
+        modelEnv$mbobj <- eval(monoboundAcall)
     }
-    ## Setup LP problem
+    ## Setup LP problem, or linear components of QCQP problem
     if (!hasArg(equal.coef0) | !hasArg(equal.coef1)) {
         equal.coef0 <- NULL
         equal.coef1 <- NULL
     }
-    lpSetup(env = lpEnv, sset = sset, orig.sset = NULL,
+    lpSetup(env = modelEnv, sset = sset, orig.sset = NULL,
             equal.coef0 = equal.coef0, equal.coef1 = equal.coef1,
             solver = solver, direct = direct, rescale = rescale)
     ## Setup QCQP problem
-    if (direct) qpSetup(env = lpEnv, sset = sset, rescale = rescale)
-    ## Prepare LP messages
+    if (direct) qpSetup(env = modelEnv, sset = sset, rescale = rescale)
+    ## Prepare solver messages
     ##
     ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible
     ## or unbounded; 4-unbounded; 5-numerical error; 6-suboptimal;
@@ -491,16 +490,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     ## solution (only for Mosek); 10-maximum iterations reached (only
     ## for Mosek).
     messageAlt <- gsub("\\s+", " ",
-                       "If the LP solver does not return a solution,
-                        consider exporting the LP model
-                        and passing it to the LP solver
+                       "If the solver does not return a solution,
+                        consider exporting the model
+                        and passing it to the solver
                         for more details.\n")
     if (!direct) {
         messageInf <- gsub("\\s+", " ",
                            "Since a minimum criterion was found, the
                         model should be feasible.
                         For more details, consider exporting the model
-                        and passing it to the LP solver.\n")
+                        and passing it to the solver.\n")
         messageInfUnb <- gsub("\\s+", " ",
                               "Since a minimum criterion was found, the
                            model is most likely feasible but
@@ -510,7 +509,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            and 'initgrid.nu'. If the model is
                            indeed infeasible,
                            consider exporting the model and passing it
-                           to the LP solver for more details.\n")
+                           to the solver for more details.\n")
     } else {
         messageInf <- gsub("\\s+", " ",
                            "Since the quadratic constraint is constructed
@@ -532,7 +531,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                If the model is
                                indeed infeasible,
                                consider exporting the model and passing it
-                               to the LP solver for more details.\n")
+                               to the solver for more details.\n")
     }
     messageUnb <- gsub("\\s+", " ",
                        "A possible reason for unboundedness is that
@@ -544,29 +543,29 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         covariates are not scaled appropriately
                         (i.e. the range of magnitudes exceeds 1e13).
                         This is known to cause numerical issues in
-                        LP problems.\n")
+                        problems.\n")
     messageSub <- gsub("\\s+", " ",
-                       "Tolerance parameters for the LP solver
+                       "Tolerance parameters for the solver
                         can be passed through the argument
                         'solver.options'.\n")
     messageOptInf <- gsub("\\s+", " ",
                           "A possible reason for this is that covariates
                            are not scaled appropriately
                            (i.e. the range of magnitudes exceeds 1e13).
-                           Tolerance parameters for the LP solver
+                           Tolerance parameters for the solver
                            can also be passed through the argument
                            'solver.options'.\n")
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
-        lpSetupSolver(env = lpEnv, solver = solver)
+        lpSetupSolver(env = modelEnv, solver = solver)
         if (!direct) {
-            lpSetupCriterion(env = lpEnv, sset = sset)
+            lpSetupCriterion(env = modelEnv, sset = sset)
         } else {
-            qpSetupCriterion(env = lpEnv)
+            qpSetupCriterion(env = modelEnv)
         }
-        minobseq <- criterionMin(env = lpEnv,
+        minobseq <- criterionMin(env = modelEnv,
                                  sset = sset,
                                  solver = solver,
                                  solver.options = solver.options.criterion,
@@ -574,17 +573,17 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                  debug = debug)
         ## Try to diagnose cases where the solution is not
         ## available. This could be due to infeasibility or numerical
-        ## issues. To deal with infeasibilty, the LP problem is solved
-        ## without any shape restrictions. We then check if any of the
-        ## lower and upper bounds are violated, which is a likely
-        ## cause for infeasible solutions.
+        ## issues. To deal with infeasibilty, the LP/QCQP problem is
+        ## solved without any shape restrictions. We then check if any
+        ## of the lower and upper bounds are violated, which is a
+        ## likely cause for infeasible solutions.
         if (minobseq$status %in% c(0, 2, 3, 4, 5)) {
             origMinStatus <- minobseq$status
             ## Stop if issues are numerical, or unbounded, or unknown.
             if (origMinStatus == 0) {
                 errMess <-
                     gsub('\\s+', ' ',
-                         paste('No solution provided by the LP solver when
+                         paste('No solution provided by the solver when
                                minimizing the criterion.',
                                messageAlt))
                 stop(errMess, call. = FALSE)
@@ -608,9 +607,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             ## Otherwise, continue and test for infeasibility.
             rm(minobseq)
             if (!direct) {
-                lpSetupInfeasible(lpEnv, sset)
+                lpSetupInfeasible(modelEnv, sset)
             } else {
-                qpSetupInfeasible(lpEnv, rescale)
+                qpSetupInfeasible(modelEnv, rescale)
             }
             if (solver == "gurobi") {
                 if (debug && solver.options.criterion$outputflag == 1) {
@@ -618,7 +617,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     cat("------------------------------------------------\n")
                 }
             }
-            minobseqAlt <- criterionMin(env = lpEnv,
+            minobseqAlt <- criterionMin(env = modelEnv,
                                         sset = sset,
                                         solver = solver,
                                         solver.options =
@@ -626,13 +625,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         rescale = rescale)
             solVec <- minobseqAlt$x
             ## Test for violation
-            negatepos <- which(lpEnv$mbobj$mbs == ">=")
-            violateDiff <- lpEnv$mbobj$mbA %*% solVec - lpEnv$mbobj$mbrhs
+            negatepos <- which(modelEnv$mbobj$mbs == ">=")
+            violateDiff <- modelEnv$mbobj$mbA %*% solVec - modelEnv$mbobj$mbrhs
             violateDiff[negatepos] <- -violateDiff[negatepos]
             violatevec <- as.vector(violateDiff > audit.tol)
             violatepos <- which(violatevec == TRUE)
             violateType <- sapply(violatepos, function(x) {
-                if (x %in% lpEnv$mbobj$lb0seq) {
+                if (x %in% modelEnv$mbobj$lb0seq) {
                     if (m0.lb.default == TRUE) {
                         return(paste0("m0.lb = ", round(m0.lb, 6),
                                       " (min. observed outcome by default)"))
@@ -640,7 +639,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         return(paste0("m0.lb = ", round(m0.lb, 6)))
                     }
                 }
-                if (x %in% lpEnv$mbobj$lb1seq) {
+                if (x %in% modelEnv$mbobj$lb1seq) {
                     if (m1.lb.default == TRUE) {
                         return(paste0("m1.lb = ", round(m1.lb, 6),
                                       " (min. observed outcome by default)"))
@@ -648,7 +647,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         return(paste0("m1.lb = ", round(m1.lb, 6)))
                     }
                 }
-                if (x %in% lpEnv$mbobj$lbteseq) {
+                if (x %in% modelEnv$mbobj$lbteseq) {
                     if (mte.lb.default == TRUE) {
                         return(paste0("mte.lb = ", round(mte.lb, 6),
                                       " (min. treatment effect 6by default)"))
@@ -656,7 +655,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         return(paste0("mte.lb = ", round(mte.lb, 6)))
                     }
                 }
-                if (x %in% lpEnv$mbobj$ub0seq) {
+                if (x %in% modelEnv$mbobj$ub0seq) {
                     if (m0.ub.default == TRUE) {
                         return(paste0("m0.ub = ", round(m0.ub, 6),
                                       " (max. observed outcome by default)"))
@@ -664,7 +663,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         return(paste0("m0.ub = ", round(m0.ub, 6)))
                     }
                 }
-                if (x %in% lpEnv$mbobj$ub1seq) {
+                if (x %in% modelEnv$mbobj$ub1seq) {
                     if (m1.ub.default == TRUE) {
                         return(paste0("m1.ub = ", round(m1.ub, 6),
                                       " (max. observed outcome by default)"))
@@ -672,7 +671,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         return(paste0("m1.ub = ", round(m1.ub, 6)))
                     }
                 }
-                if (x %in% lpEnv$mbobj$ubteseq) {
+                if (x %in% modelEnv$mbobj$ubteseq) {
                     if (mte.ub.default == TRUE) {
                         return(paste0("mte.ub = ", round(mte.ub, 6),
                                       " (max. treatment effect by default)"))
@@ -680,15 +679,15 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         return(paste0("mte.ub = ", round(mte.ub, 6)))
                     }
                 }
-                if (x %in% lpEnv$mbobj$mono0seq) {
+                if (x %in% modelEnv$mbobj$mono0seq) {
                     if (m0.inc == TRUE) return("m0.inc = TRUE")
                     if (m0.dec == TRUE) return("m0.dec = TRUE")
                 }
-                if (x %in% lpEnv$mbobj$mono1seq) {
+                if (x %in% modelEnv$mbobj$mono1seq) {
                     if (m1.inc == TRUE) return("m1.inc = TRUE")
                     if (m1.dec == TRUE) return("m1.dec = TRUE")
                 }
-                if (x %in% lpEnv$mbobj$monomteseq) {
+                if (x %in% modelEnv$mbobj$monomteseq) {
                     if (mte.inc == TRUE) return("mte.inc = TRUE")
                     if (mte.dec == TRUE) return("mte.dec = TRUE")
                 }
@@ -709,14 +708,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                    and 'initgrid.nu'.\n")
             if (origMinStatus == 2) {
                 stop(gsub("\\s+", " ",
-                          paste("No solution since the LP solver proved the
+                          paste("No solution since the solver proved the
                                  model was infeasible.",
                                 messageInfDiag)),
                      call. = FALSE)
             }
             if (origMinStatus == 3) {
                 stop(gsub("\\s+", " ",
-                          paste("No solution since the LP solver proved the
+                          paste("No solution since the solver proved the
                                  model was infeasible or unbounded.",
                                 messageInfDiag, messageUnbDiag)),
                      call. = FALSE)
@@ -728,22 +727,22 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         }
         if (direct && noisy) {
             cat("    Minimum criterion: ",
-                fmtResult(minobseq$obj * lpEnv$drN + lpEnv$ssy),
+                fmtResult(minobseq$obj * modelEnv$drN + modelEnv$ssy),
                 "\n",
                 sep = "")
         }
         ## Perform specification test
         if (!direct && !is.null(orig.sset) && !is.null(orig.criterion)) {
-            lpSetupCriterionBoot(lpEnv, sset, orig.sset,
+            lpSetupCriterionBoot(modelEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol,
                                  setup = TRUE)
-            minobseqTest <- criterionMin(env = lpEnv,
+            minobseqTest <- criterionMin(env = modelEnv,
                                          sset = sset,
                                          solver = solver,
                                          solver.options =
                                              solver.options.criterion,
                                          rescale = rescale)
-            lpSetupCriterionBoot(lpEnv, sset, orig.sset,
+            lpSetupCriterionBoot(modelEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol,
                                  setup = FALSE)
         }
@@ -753,7 +752,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             bWarn <-
                 paste(bWarn,
                       gsub("\\s+", " ",
-                           paste('The LP solver was unable to satisfy
+                           paste('The solver was unable to satisfy
                                the optimality tolerance when
                                minimizing the criterion, so a suboptimal
                                solution is returned.')))
@@ -797,7 +796,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             cat("    Obtaining bounds...\n")
         }
         if (!direct) {
-            lpSetupBound(env = lpEnv,
+            lpSetupBound(env = modelEnv,
                          g0 = gstar0,
                          g1 = gstar1,
                          sset = sset,
@@ -806,14 +805,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                          solver = solver,
                          setup = TRUE)
         } else {
-            qpSetupBound(env = lpEnv,
+            qpSetupBound(env = modelEnv,
                          g0 = gstar0,
                          g1 = gstar1,
                          criterion.tol = criterion.tol,
                          criterion.min = minobseq$obj,
                          rescale = rescale)
         }
-        lpresult <- bound(env = lpEnv,
+        result <- bound(env = modelEnv,
                           sset = sset,
                           solver = solver,
                           solver.options = solver.options.bounds,
@@ -821,29 +820,29 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                           smallreturnlist = smallreturnlist,
                           rescale = rescale,
                           debug = debug)
-        if (lpresult$error == TRUE) {
+        if (result$error == TRUE) {
             errMess <- NULL
             errTypes <- NULL
             for (type in c('min', 'max')) {
                 tmpName <- paste0(type, 'status')
                 if (type == 'min') tmpType <- 'minimization'
                 if (type == 'max') tmpType <- 'maximization'
-                if (lpresult[[tmpName]] == 0) {
+                if (result[[tmpName]] == 0) {
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
-                                   paste('The LP solver did not provide a
+                                   paste('The solver did not provide a
                                      solution for the', tmpType,
                                      'problem.')))
                 }
-                if (lpresult[[tmpName]] == 2) {
+                if (result[[tmpName]] == 2) {
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
                                    paste('The', tmpType, 'problem was proven
                                           to be infeasible.')))
                 }
-                if (lpresult[[tmpName]] == 3) {
+                if (result[[tmpName]] == 3) {
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
@@ -851,7 +850,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                          'problem was proven to be
                                           infeasible or unbounded.')))
                 }
-                if (lpresult[[tmpName]] == 4) {
+                if (result[[tmpName]] == 4) {
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
@@ -859,7 +858,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                          'problem was proven to be
                                           unbounded.')))
                 }
-                if (lpresult[[tmpName]] == 5) {
+                if (result[[tmpName]] == 5) {
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
@@ -867,7 +866,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                          'problem resulted in
                                           numerical issues.')))
                 }
-                errTypes <- c(errTypes, lpresult[[tmpName]])
+                errTypes <- c(errTypes, result[[tmpName]])
             }
             ## Include explanation
             origErrTypes <- sort(unique(errTypes))
@@ -893,12 +892,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             }
             return(list(error = errMess,
                         errorTypes = origErrTypes,
-                        min = lpresult$min,
-                        max = lpresult$max,
-                        status.min = lpresult$minstatus,
-                        status.max = lpresult$maxstatus,
-                        audit.criterion = minobseq$obj * lpEnv$drN +
-                            lpEnv$ssy,
+                        min = result$min,
+                        max = result$max,
+                        status.min = result$minstatus,
+                        status.max = result$maxstatus,
+                        audit.criterion = minobseq$obj * modelEnv$drN +
+                            modelEnv$ssy,
                         audit.criterion.raw = minobseq$obj,
                         audit.criterion.status = minobseq$status,
                         audit.count = audit_count - 1,
@@ -911,16 +910,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             tmpName <- paste0(type, 'status')
             if (type == 'min') tmpType <- 'minimization'
             if (type == 'max') tmpType <- 'maximization'
-            if (lpresult[[tmpName]] == 6) {
+            if (result[[tmpName]] == 6) {
                 bWarn <-
                     paste(bWarn,
                           gsub("\\s+", " ",
-                               paste('The LP solver was unable to satisfy
+                               paste('The solver was unable to satisfy
                                the optimality tolerance for the',
                                tmpType, 'problem, so a suboptimal
                                solution is returned.')))
             }
-            if (lpresult[[tmpName]] == 7) {
+            if (result[[tmpName]] == 7) {
                 bWarn <-
                     paste(bWarn,
                           gsub("\\s+", " ",
@@ -928,7 +927,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                      tmpType, 'problem is optimal,
                                      but infeasible after rescaling.')))
             }
-            if (lpresult[[tmpName]] == 8) {
+            if (result[[tmpName]] == 8) {
                 bWarn <-
                     paste(bWarn,
                           gsub("\\s+", " ",
@@ -936,7 +935,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                           status (e.g. 'OPTIMAL') to the",
                                      tmpType, 'problem.')))
             }
-            if (lpresult[[tmpName]] == 10) {
+            if (result[[tmpName]] == 10) {
                 bWarn <-
                     paste(bWarn,
                           gsub("\\s+", " ",
@@ -945,7 +944,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                          iteration limit was reached.')))
             }
             bWarnTypes <- c(bWarnTypes,
-                            lpresult[[tmpName]])
+                            result[[tmpName]])
         }
         bWarnTypes <- sort(unique(bWarnTypes))
         for (wt in bWarnTypes) {
@@ -958,12 +957,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         }
         if (!is.null(bWarn)) warning(bWarn, call. = FALSE, immediate. = TRUE)
         ## Save results
-        solVecMin <- c(lpresult$ming0, lpresult$ming1)
-        solVecMax <- c(lpresult$maxg0, lpresult$maxg1)
-        optstatus <- min(c(lpresult$minstatus,
-                           lpresult$maxstatus))
+        solVecMin <- c(result$ming0, result$ming1)
+        solVecMax <- c(result$maxg0, result$maxg1)
+        optstatus <- min(c(result$minstatus,
+                           result$maxstatus))
         if (existsolution == FALSE) existsolution <- TRUE
-        prevbound <- c(lpresult$min, lpresult$max)
+        prevbound <- c(result$min, result$max)
 
         ## Test for violations of shape constraints when obtaining the bounds
         monoboundAcall <- modcall(call,
@@ -980,13 +979,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                      splinesobj,
                                                  monov = monov,
                                                  solution.m0.min =
-                                                     lpresult$ming0,
+                                                     result$ming0,
                                                  solution.m1.min =
-                                                     lpresult$ming1,
+                                                     result$ming1,
                                                  solution.m0.max =
-                                                     lpresult$maxg0,
+                                                     result$maxg0,
                                                  solution.m1.max =
-                                                     lpresult$maxg1,
+                                                     result$maxg1,
                                                  audit.tol = audit.tol,
                                                  direct = direct))
         auditObj <- eval(monoboundAcall)
@@ -1024,7 +1023,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 warning(paste0(gsub("\\s+", " ",
                                     paste0("Audit finished: violations
                                            continue to occur although
-                                           the LP constraint grid and
+                                           the constraint grid and
                                            audit grid are identical,
                                            and the audit tolerance has
                                            increased from ",
@@ -1032,9 +1031,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                            " to ",
                                            format(audit.tol, scientific = TRUE),
                                            ". This suggests precision of the
-                                           LP solver exceeds that of R,
+                                           solver exceeds that of R,
                                            and may be due to scaling issues
-                                           in the LP model.
+                                           in the model.
                                            Setting 'audit.tol' to be larger
                                            than the maximum violation of ",
                                            format(origViolationsMagnitude,
@@ -1050,15 +1049,15 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     warning(gsub("\\s+", " ",
                                  paste0(origViolations,
                                         " violations originally found despite
-                                         the LP constraint grid and audit grid
+                                         the constraint grid and audit grid
                                          being identical.
                                     Audit tolerance was increased from ",
                                     format(origTol, scientific = TRUE), " to ",
                                     format(audit.tol, scientific = TRUE),
                                     ".  This suggests precision of the
-                                 LP solver exceeds that of R,
+                                 solver exceeds that of R,
                                  and may be due to scaling issues
-                                 in the LP model.")), "\n",
+                                 in the model.")), "\n",
                             call. = FALSE,
                             immediate. = TRUE)
                 }
@@ -1147,15 +1146,15 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 addmono1decseq <- NULL
                 addmonoteincseq <- NULL
                 addmonotedecseq <- NULL
-                nShapeConstraints <- max(c(lpEnv$mbobj$lb0seq,
-                                           lpEnv$mbobj$lb1seq,
-                                           lpEnv$mbobj$ub0seq,
-                                           lpEnv$mbobj$ub1seq,
-                                           lpEnv$mbobj$lbteseq,
-                                           lpEnv$mbobj$ubteseq,
-                                           lpEnv$mbobj$mono0seq[, 1],
-                                           lpEnv$mbobj$mono1seq[, 1],
-                                           lpEnv$mbobj$monoteseq[, 1]))
+                nShapeConstraints <- max(c(modelEnv$mbobj$lb0seq,
+                                           modelEnv$mbobj$lb1seq,
+                                           modelEnv$mbobj$ub0seq,
+                                           modelEnv$mbobj$ub1seq,
+                                           modelEnv$mbobj$lbteseq,
+                                           modelEnv$mbobj$ubteseq,
+                                           modelEnv$mbobj$mono0seq[, 1],
+                                           modelEnv$mbobj$mono1seq[, 1],
+                                           modelEnv$mbobj$monoteseq[, 1]))
                 for (i in types) {
                     ## Expand constraints for m0
                     if (i == 1) {
@@ -1164,9 +1163,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         addlb0seq <- seq(length(addIndex)) + tmpAdd
                         tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$m0.lb
-                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                        modelEnv$model$sense <- c(modelEnv$model$sense,
                                                rep(">=", length(addIndex)))
-                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                        modelEnv$model$rhs <- c(modelEnv$model$rhs,
                                              rep(m0.lb,
                                                  length(addIndex)))
                         addm0 <- rbind(addm0, tmpGrid[addIndex, ])
@@ -1179,9 +1178,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         addub0seq <- seq(length(addIndex)) + tmpAdd
                         tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$m0.ub
-                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                        modelEnv$model$sense <- c(modelEnv$model$sense,
                                                rep("<=", length(addIndex)))
-                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                        modelEnv$model$rhs <- c(modelEnv$model$rhs,
                                              rep(m0.ub,
                                                  length(addIndex)))
                         addm0 <- rbind(addm0, tmpGrid[addIndex, ])
@@ -1195,15 +1194,15 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         if (i == 7) {
                             addmono0incseq <- seq(length(addIndex)) + tmpAdd
                             tmpAdd <- tmpAdd + length(addIndex)
-                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                            modelEnv$model$sense <- c(modelEnv$model$sense,
                                                    rep(">=", length(addIndex)))
                         } else {
                             addmono0decseq <- seq(length(addIndex)) + tmpAdd
                             tmpAdd <- tmpAdd + length(addIndex)
-                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                            modelEnv$model$sense <- c(modelEnv$model$sense,
                                                    rep("<=", length(addIndex)))
                         }
-                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                        modelEnv$model$rhs <- c(modelEnv$model$rhs,
                                              rep(0, length(addIndex)))
                         addm0 <- rbind(addm0, tmpGrid[addIndex, ])
                         rm(tmpGrid)
@@ -1222,26 +1221,26 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (rescale) {
                         tmpMat <- sweep(x = tmpMat,
                                         MARGIN = 2,
-                                        STATS = lpEnv$colNorms,
+                                        STATS = modelEnv$colNorms,
                                         FUN = '/')
                     }
-                    lpEnv$lpobj$A <- rbind(lpEnv$lpobj$A, tmpMat)
+                    modelEnv$model$A <- rbind(modelEnv$model$A, tmpMat)
                     rm(addCol, tmpMat)
                     ## Update the contraint sequences
-                    lpEnv$mbobj$lb0seq <- c(lpEnv$mbobj$lb0seq,
+                    modelEnv$mbobj$lb0seq <- c(modelEnv$mbobj$lb0seq,
                                             addlb0seq + nShapeConstraints)
                     rm(addlb0seq)
-                    lpEnv$mbobj$ub0seq <- c(lpEnv$mbobj$ub0seq,
+                    modelEnv$mbobj$ub0seq <- c(modelEnv$mbobj$ub0seq,
                                             addub0seq + nShapeConstraints)
                     rm(addub0seq)
                     if (!is.null(addmono0incseq)) {
-                        lpEnv$mbobj$mono0seq <-
-                            rbind(lpEnv$mbobj$mono0seq,
+                        modelEnv$mbobj$mono0seq <-
+                            rbind(modelEnv$mbobj$mono0seq,
                                   cbind(addmono0incseq + nShapeConstraints, 1))
                     }
                     if (!is.null(addmono0decseq)) {
-                        lpEnv$mbobj$mono0seq <-
-                            rbind(lpEnv$mbobj$mono0seq,
+                        modelEnv$mbobj$mono0seq <-
+                            rbind(modelEnv$mbobj$mono0seq,
                                   cbind(addmono0decseq + nShapeConstraints, -1))
                     }
                     rm(addmono0incseq, addmono0decseq)
@@ -1255,9 +1254,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         addlb1seq <- seq(length(addIndex)) + tmpAdd
                         tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$m1.lb
-                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                        modelEnv$model$sense <- c(modelEnv$model$sense,
                                                rep(">=", length(addIndex)))
-                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                        modelEnv$model$rhs <- c(modelEnv$model$rhs,
                                              rep(m1.lb,
                                                  length(addIndex)))
                         addm1 <- rbind(addm1, tmpGrid[addIndex, ])
@@ -1270,9 +1269,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         addub1seq <- seq(length(addIndex)) + tmpAdd
                         tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$m1.ub
-                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                        modelEnv$model$sense <- c(modelEnv$model$sense,
                                                rep("<=", length(addIndex)))
-                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                        modelEnv$model$rhs <- c(modelEnv$model$rhs,
                                              rep(m1.ub,
                                                  length(addIndex)))
                         addm1 <- rbind(addm1, tmpGrid[addIndex, ])
@@ -1286,15 +1285,15 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         if (i == 9) {
                             addmono1incseq <- seq(length(addIndex)) + tmpAdd
                             tmpAdd <- tmpAdd + length(addIndex)
-                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                            modelEnv$model$sense <- c(modelEnv$model$sense,
                                                    rep(">=", length(addIndex)))
                         } else {
                             addmono1decseq <- seq(length(addIndex)) + tmpAdd
                             tmpAdd <- tmpAdd + length(addIndex)
-                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                            modelEnv$model$sense <- c(modelEnv$model$sense,
                                                    rep("<=", length(addIndex)))
                         }
-                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                        modelEnv$model$rhs <- c(modelEnv$model$rhs,
                                              rep(0, length(addIndex)))
                         addm1 <- rbind(addm1, tmpGrid[addIndex, ])
                         rm(tmpGrid)
@@ -1313,27 +1312,27 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (rescale) {
                         tmpMat <- sweep(x = tmpMat,
                                         MARGIN = 2,
-                                        STATS = lpEnv$colNorms,
+                                        STATS = modelEnv$colNorms,
                                         FUN = '/')
                     }
-                    lpEnv$lpobj$A <-
-                        rbind(lpEnv$lpobj$A, tmpMat)
+                    modelEnv$model$A <-
+                        rbind(modelEnv$model$A, tmpMat)
                     rm(addCol, tmpMat)
                     ## Update the contraint sequences
-                    lpEnv$mbobj$lb1seq <- c(lpEnv$mbobj$lb1seq,
+                    modelEnv$mbobj$lb1seq <- c(modelEnv$mbobj$lb1seq,
                                             addlb1seq + nShapeConstraints)
                     rm(addlb1seq)
-                    lpEnv$mbobj$ub1seq <- c(lpEnv$mbobj$ub1seq,
+                    modelEnv$mbobj$ub1seq <- c(modelEnv$mbobj$ub1seq,
                                             addub1seq + nShapeConstraints)
                     rm(addub1seq)
                     if (!is.null(addmono1incseq)) {
-                        lpEnv$mbobj$mono1seq <-
-                            rbind(lpEnv$mbobj$mono1seq,
+                        modelEnv$mbobj$mono1seq <-
+                            rbind(modelEnv$mbobj$mono1seq,
                                   cbind(addmono1incseq + nShapeConstraints, 1))
                     }
                     if (!is.null(addmono1decseq)) {
-                        lpEnv$mbobj$mono1seq <-
-                            rbind(lpEnv$mbobj$mono1seq,
+                        modelEnv$mbobj$mono1seq <-
+                            rbind(modelEnv$mbobj$mono1seq,
                                   cbind(addmono1decseq + nShapeConstraints, -1))
                     }
                     rm(addmono1incseq, addmono1decseq)
@@ -1347,9 +1346,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         addlbteseq <- seq(length(addIndex)) + tmpAdd
                         tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$mte.lb
-                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                        modelEnv$model$sense <- c(modelEnv$model$sense,
                                                rep(">=", length(addIndex)))
-                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                        modelEnv$model$rhs <- c(modelEnv$model$rhs,
                                              rep(mte.lb,
                                                  length(addIndex)))
                         addmte <- rbind(addmte, tmpGrid[addIndex, ])
@@ -1362,9 +1361,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         addubteseq <- seq(length(addIndex)) + tmpAdd
                         tmpAdd <- tmpAdd + length(addIndex)
                         tmpGrid <- auditObj$bounds$bdA$mte.ub
-                        lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                        modelEnv$model$sense <- c(modelEnv$model$sense,
                                                rep("<=", length(addIndex)))
-                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                        modelEnv$model$rhs <- c(modelEnv$model$rhs,
                                              rep(mte.ub,
                                                  length(addIndex)))
                         addmte <- rbind(addmte, tmpGrid[addIndex, ])
@@ -1378,15 +1377,15 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         if (i == 11) {
                             addmonoteincseq <- seq(length(addIndex)) + tmpAdd
                             tmpAdd <- tmpAdd + length(addIndex)
-                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                            modelEnv$model$sense <- c(modelEnv$model$sense,
                                                    rep(">=", length(addIndex)))
                         } else {
                             addmonotedecseq <- seq(length(addIndex)) + tmpAdd
                             tmpAdd <- tmpAdd + length(addIndex)
-                            lpEnv$lpobj$sense <- c(lpEnv$lpobj$sense,
+                            modelEnv$model$sense <- c(modelEnv$model$sense,
                                                    rep("<=", length(addIndex)))
                         }
-                        lpEnv$lpobj$rhs <- c(lpEnv$lpobj$rhs,
+                        modelEnv$model$rhs <- c(modelEnv$model$rhs,
                                              rep(0, length(addIndex)))
                         addmte <- rbind(addmte, tmpGrid[addIndex, ])
                         rm(tmpGrid)
@@ -1401,27 +1400,27 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (rescale) {
                         tmpMat <- sweep(x = tmpMat,
                                         MARGIN = 2,
-                                        STATS = lpEnv$colNorms,
+                                        STATS = modelEnv$colNorms,
                                         FUN = '/')
                     }
-                    lpEnv$lpobj$A <-
-                        rbind(lpEnv$lpobj$A, tmpMat)
+                    modelEnv$model$A <-
+                        rbind(modelEnv$model$A, tmpMat)
                     rm(tmpMat)
                     ## Update the contraint sequences
-                    lpEnv$mbobj$lbteseq <- c(lpEnv$mbobj$lbteseq,
+                    modelEnv$mbobj$lbteseq <- c(modelEnv$mbobj$lbteseq,
                                              addlbteseq + nShapeConstraints)
                     rm(addlbteseq)
-                    lpEnv$mbobj$ubteseq <- c(lpEnv$mbobj$ubteseq,
+                    modelEnv$mbobj$ubteseq <- c(modelEnv$mbobj$ubteseq,
                                              addubteseq + nShapeConstraints)
                     rm(addubteseq)
                     if (!is.null(addmonoteincseq)) {
-                        lpEnv$mbobj$monoteseq <-
-                            rbind(lpEnv$mbobj$monoteseq,
+                        modelEnv$mbobj$monoteseq <-
+                            rbind(modelEnv$mbobj$monoteseq,
                                   cbind(addmonoteincseq + nShapeConstraints, 1))
                     }
                     if (!is.null(addmonotedecseq)) {
-                        lpEnv$mbobj$monoteseq <-
-                            rbind(lpEnv$mbobj$monoteseq,
+                        modelEnv$mbobj$monoteseq <-
+                            rbind(modelEnv$mbobj$monoteseq,
                                   cbind(addmonotedecseq + nShapeConstraints,
                                         -1))
                     }
@@ -1430,8 +1429,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 rm(addmte)
                 ## Move on to next iteration of the audit
                 audit_count <- audit_count + 1
-                if (!direct) lpSetupBound(env = lpEnv, setup = FALSE)
-                if (direct)  qpSetupBound(env = lpEnv, setup = FALSE)
+                if (!direct) lpSetupBound(env = modelEnv, setup = FALSE)
+                if (direct)  qpSetupBound(env = modelEnv, setup = FALSE)
             }
         } else {
             ## If no violations, then end the audit
@@ -1449,20 +1448,20 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         violateMat$pos <- NULL
     }
     ## Clean up status codes
-    lpresult[['minstatus']] <- statusString(lpresult[['minstatus']], solver)
-    lpresult[['maxstatus']] <- statusString(lpresult[['maxstatus']], solver)
+    result[['minstatus']] <- statusString(result[['minstatus']], solver)
+    result[['maxstatus']] <- statusString(result[['maxstatus']], solver)
     minobseq$status <- statusString(minobseq$status, solver)
     ## Return output
-    output <- list(max = lpresult$max,
-                   min = lpresult$min,
-                   lpresult = lpresult,
+    output <- list(max = result$max,
+                   min = result$min,
+                   result = result,
                    gridobj = list(audit.grid = audit.grid,
                                   violations = violateMat),
                    auditcount = audit_count,
                    minobseq = minobseq$obj,
                    minobseq.status = minobseq$status)
     if (direct) {
-        output$minobseq <- output$minobseq * lpEnv$drN + lpEnv$ssy
+        output$minobseq <- output$minobseq * modelEnv$drN + modelEnv$ssy
         output$minobseq.raw <- minobseq$obj
     }
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
@@ -1475,9 +1474,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
 #'
 #' This function selects which points from the audit grid should be
 #' included into the original grid. Both the constraint grid and audit
-#' grid are represented as constraints in an LP problem. This function
-#' selects which points in the audit grid (i.e. which rows in the
-#' audit constraint matrix) should be added to the constraint grid
+#' grid are represented as constraints in an LP/QCQP problem. This
+#' function selects which points in the audit grid (i.e. which rows in
+#' the audit constraint matrix) should be added to the constraint grid
 #' (i.e. should be appended to the constraint matrix).
 #'
 #' @param diffVec numeric vector, with a positive value indicating a
@@ -1520,7 +1519,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
 #'     rows in the constraint matrices. The function simply returns
 #'     the vector of row numbers for the points from the audit grid
 #'     whose corresponding constraints should be added to the original
-#'     LP problem (i.e. the points to add to the original grid).
+#'     LP/QCQP problem (i.e. the points to add to the original grid).
 selectViolations <- function(diffVec, audit.add,
                              lb0seq, lb1seq, lbteseq,
                              ub0seq, ub1seq, ubteseq,

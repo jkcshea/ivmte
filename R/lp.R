@@ -1,10 +1,10 @@
 #' Constructing LP problem
 #'
-#' This function takes in the IV estimates from the set of IV
-#' regressions declared by the user, as well as their corresponding
-#' moments of the terms in the MTR. These are then used to construct
-#' the components that make up the LP problem. Note that the LP model
-#' will be saved inside an environment variable, which is to be passed
+#' If the user passes IV-like moments to the function, then the
+#' function constructs the components of the LP problem. If no IV-like
+#' moments are passed, then the function constructs the linear
+#' constraints of the QCQP problem. Note that the LP/QCQP model will
+#' be saved inside an environment variable, which is to be passed
 #' through the argument \code{env}. This is done for efficient use of
 #' memory. The environment \code{env} is supposed to already contain a
 #' list under the entry \code{$mbobj} containing the matrices defining
@@ -13,12 +13,12 @@
 #' equations of the form \code{Ax <=> b}: \code{mbA}, the matrix
 #' defining the constraints, \code{A}; \code{mbs}, a vector indicating
 #' whether a row in \code{mbA} is an equality or inequality constraint
-#' (for Gurobi and CPLEX, use '<=', '>=', '='; for lpSolveAPI, use
-#' 'L', 'G', and 'E'); \code{mbrhs}, a vector of the right hand side
-#' values defining the constraint of the form i.e. the vector
+#' (for Gurobi and MOSEK, use '<=', '>=', '='; for CPLEX,
+#' use 'L', 'G', and 'E'); \code{mbrhs}, a vector of the right hand
+#' side values defining the constraint of the form i.e. the vector
 #' \code{b}. Depending on the linear programming solver used, this
 #' function will return different output specific to the solver.
-#' @param env environment containing the matrices defining the LP
+#' @param env environment containing the matrices defining the LP/QCQP
 #'     problem.
 #' @param sset List of IV-like estimates and the corresponding gamma
 #'     terms.
@@ -32,16 +32,17 @@
 #'     the gamma moments for each element in the S-set, as well as the
 #'     IV-like coefficients.
 #' @param shape boolean, default set to TRUE. Switch to determine
-#'     whether or not to include shape restrictions in the LP problem.
+#'     whether or not to include shape restrictions in the LP/QCQP
+#'     problem.
 #' @param direct boolean, set to \code{TRUE} if the direct MTR
 #'     regression is used.
 #' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QP/QCP
+#'     should be rescaled to improve stability in the LP/QCQP
 #'     optimization.
-#' @param solver string, name of the package used to solve the LP
+#' @param solver string, name of the package used to solve the LP/QCQP
 #'     problem.
-#' @return A list of matrices and vectors necessary to define an LP
-#'     problem for Gurobi.
+#' @return A list of matrices and vectors necessary to define an
+#'     LP/QCQP problem.
 #'
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
@@ -125,17 +126,17 @@
 #' ## lpSolveAPI. Note that an environment has to be created for the LP
 #' ## object. The matrices defining the shape restrictions must be stored
 #' ## as a list under the entry \code{$mbobj} in the environment.
-#' lpEnv <- new.env()
-#' lpEnv$mbobj <- list(mbA = A,
+#' modelEnv <- new.env()
+#' modelEnv$mbobj <- list(mbA = A,
 #'                     mbs = sense,
 #'                     mbrhs = rhs)
 #' ## Convert the matrices defining the shape constraints into a format
 #' ## that is suitable for the LP solver.
-#' lpSetup(env = lpEnv,
+#' lpSetup(env = modelEnv,
 #'         sset = sSet,
 #'         solver = "lpsolveapi")
 #' ## Setup LP model so that it is solving for the bounds.
-#' lpSetupBound(env = lpEnv,
+#' lpSetupBound(env = modelEnv,
 #'              g0 = targetGamma$gstar0,
 #'              g1 = targetGamma$gstar1,
 #'              sset = sSet,
@@ -145,7 +146,7 @@
 #' ## Declare any LP solver options as a list.
 #' lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
 #' ## Obtain the bounds.
-#' bounds <- bound(env = lpEnv,
+#' bounds <- bound(env = modelEnv,
 #'                 sset = sSet,
 #'                 solver = "lpsolveapi",
 #'                 solver.options = lpOptions)
@@ -267,7 +268,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     if (solver %in% c("gurobi", "lpsolveapi")) {
         mbA <- Matrix::Matrix(mbA, sparse = TRUE)
     }
-    env$lpobj <- list(rhs = rhs,
+    env$model <- list(rhs = rhs,
                       sense = sense,
                       A = mbA,
                       ub = ub,
@@ -324,7 +325,7 @@ lpSetupEqualCoef <- function(equal.coef0, equal.coef1, ANames) {
 #' constraints, which is the primary cause of infeasibility. This is
 #' done in order to check which shape constraints are causing the
 #' model to be infeasible. The LP model must be passed as an
-#' environment variable, under the entry \code{$lpobj}. See
+#' environment variable, under the entry \code{$model}. See
 #' \code{\link{lpSetup}}.
 #' @param env The LP environment
 #' @param sset List of IV-like estimates and the corresponding gamma
@@ -335,20 +336,20 @@ lpSetupEqualCoef <- function(equal.coef0, equal.coef1, ANames) {
 lpSetupInfeasible <- function(env, sset) {
     sn <- length(sset)
     ## Separate shape constraint objects
-    env$mbobj$mbA <- env$lpobj$A[-(1:sn), ]
-    env$mbobj$mbrhs <- env$lpobj$rhs[-(1:sn)]
-    env$mbobj$mbsense <- env$lpobj$rhs[-(1:sn)]
-    ## Reduce lpobjects so they do not contain any shape constraints
-    env$lpobj$A <- env$lpobj$A[1:sn, ]
-    env$lpobj$rhs <- env$lpobj$rhs[1:sn]
-    env$lpobj$sense <- env$lpobj$sense[1:sn]
+    env$mbobj$mbA <- env$model$A[-(1:sn), ]
+    env$mbobj$mbrhs <- env$model$rhs[-(1:sn)]
+    env$mbobj$mbsense <- env$model$rhs[-(1:sn)]
+    ## Reduce $model so it does not contain any shape constraints
+    env$model$A <- env$model$A[1:sn, ]
+    env$model$rhs <- env$model$rhs[1:sn]
+    env$model$sense <- env$model$sense[1:sn]
 }
 
 #' Configure LP environment for minimizing the criterion
 #'
 #' This function sets up the objective function for minimizing the
 #' criterion. The LP model must be passed as an environment variable,
-#' under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
+#' under the entry \code{$model}. See \code{\link{lpSetup}}.
 #' @param env The LP environment
 #' @param sset List of IV-like estimates and the corresponding gamma
 #'     terms.
@@ -362,7 +363,7 @@ lpSetupCriterion <- function(env, sset) {
     gn1 <- length(sset$s1$g1)
     ## generate all vectors/matrices for LP optimization to minimize
     ## observational equivalence
-    env$lpobj$obj <- c(replicate(sn * 2, 1),
+    env$model$obj <- c(replicate(sn * 2, 1),
                        replicate(gn0 + gn1, 0))
 }
 
@@ -370,7 +371,7 @@ lpSetupCriterion <- function(env, sset) {
 #'
 #' This alters the LP environment so the model will be compatible with
 #' specific solvers. The LP model must be passed as an environment
-#' variable, under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
+#' variable, under the entry \code{$model}. See \code{\link{lpSetup}}.
 #' @param env The LP environment
 #' @param solver Character, the LP solver.
 #' @return Nothing, as this modifies an environment variable to save
@@ -378,19 +379,19 @@ lpSetupCriterion <- function(env, sset) {
 #' @export
 lpSetupSolver <- function(env, solver) {
     if (solver == "cplexapi") {
-        env$lpobj$sense[env$lpobj$sense == "<"]  <- "L"
-        env$lpobj$sense[env$lpobj$sense == "<="] <- "L"
-        env$lpobj$sense[env$lpobj$sense == ">"]  <- "G"
-        env$lpobj$sense[env$lpobj$sense == ">="] <- "G"
-        env$lpobj$sense[env$lpobj$sense == "="]  <- "E"
-        env$lpobj$sense[env$lpobj$sense == "=="] <- "E"
-        env$lpobj$ub[env$lpobj$ub == Inf] <- cplexAPI::CPX_INFBOUND
-        env$lpobj$lb[env$lpobj$lb == -Inf] <- -cplexAPI::CPX_INFBOUND
+        env$model$sense[env$model$sense == "<"]  <- "L"
+        env$model$sense[env$model$sense == "<="] <- "L"
+        env$model$sense[env$model$sense == ">"]  <- "G"
+        env$model$sense[env$model$sense == ">="] <- "G"
+        env$model$sense[env$model$sense == "="]  <- "E"
+        env$model$sense[env$model$sense == "=="] <- "E"
+        env$model$ub[env$model$ub == Inf] <- cplexAPI::CPX_INFBOUND
+        env$model$lb[env$model$lb == -Inf] <- -cplexAPI::CPX_INFBOUND
     }
     if (solver == "lpsolveapi") {
-        env$lpobj$sense[env$lpobj$sense == "<"]  <- "<="
-        env$lpobj$sense[env$lpobj$sense == ">"]  <- ">="
-        env$lpobj$sense[env$lpobj$sense == "=="] <- "="
+        env$model$sense[env$model$sense == "<"]  <- "<="
+        env$model$sense[env$model$sense == ">"]  <- ">="
+        env$model$sense[env$model$sense == "=="] <- "="
     }
 }
 
@@ -399,7 +400,7 @@ lpSetupSolver <- function(env, solver) {
 #' This function re-centers various objects in the LP environment so
 #' that a specification test can be performed via the bootstrap. The
 #' LP model must be passed as an environment variable, under the entry
-#' \code{$lpobj}. See \code{\link{lpSetup}}.
+#' \code{$model}. See \code{\link{lpSetup}}.
 #' @param env the LP environment
 #' @param sset list of IV-like estimates and the corresponding gamma
 #'     terms.
@@ -425,7 +426,7 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
         sn  <- length(sset)
         gn0 <- length(sset$s1$g0)
         gn1 <- length(sset$s1$g1)
-        env$lpobj$obj <- c(replicate(sn * 2, 1),
+        env$model$obj <- c(replicate(sn * 2, 1),
                            replicate(gn0 + gn1, 0))
         ## Prepare to obtain 'recentered' bootstrap
         ## criterion. Specifically, the |S| equality constraints are
@@ -450,31 +451,31 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
         avec <- c(rep(1, 2 * length(orig.sset)),
                   rep(0, 2 * length(orig.sset)),
                   rep(0, length(sset$s1$g0) + length(sset$s1$g1)))
-        ## Update lpobj
-        env$lpobj$ub <- c(rep(Inf, 2 * length(orig.sset)), env$lpobj$ub)
-        env$lpobj$lb <- c(rep(0, 2 * length(orig.sset)), env$lpobj$lb)
-        env$lpobj$A <- list(a = avec,
+        ## Update model
+        env$model$ub <- c(rep(Inf, 2 * length(orig.sset)), env$model$ub)
+        env$model$lb <- c(rep(0, 2 * length(orig.sset)), env$model$lb)
+        env$model$A <- list(a = avec,
                             b = tmpA,
                             c = cbind(matrix(0,
-                                             nrow = nrow(env$lpobj$A),
+                                             nrow = nrow(env$model$A),
                                              ncol = length(orig.sset) * 2),
-                                      env$lpobj$A))
+                                      env$model$A))
         rm(avec, tmpA)
-        env$lpobj$A <- Reduce(rbind, env$lpobj$A)
-        env$lpobj$rhs <- c(orig.criterion * (1 + criterion.tol),
-                           tmpRhs, env$lpobj$rhs)
-        env$lpobj$sense <- c("<=", tmpSense, env$lpobj$sense)
-        env$lpobj$obj <- c(rep(0, 2 * length(orig.sset)), env$lpobj$obj)
+        env$model$A <- Reduce(rbind, env$model$A)
+        env$model$rhs <- c(orig.criterion * (1 + criterion.tol),
+                           tmpRhs, env$model$rhs)
+        env$model$sense <- c("<=", tmpSense, env$model$sense)
+        env$model$obj <- c(rep(0, 2 * length(orig.sset)), env$model$obj)
     } else {
         ## Simply undo the procedure done above.
         removeCol <- 2 * length(orig.sset)
         removeRow <- length(orig.sset) + 1
-        env$lpobj$ub <- env$lpobj$ub[-(1:removeCol)]
-        env$lpobj$lb <- env$lpobj$lb[-(1:removeCol)]
-        env$lpobj$A <- env$lpobj$A[-(1:removeRow), -(1:removeCol)]
-        env$lpobj$rhs <- env$lpobj$rhs[-(1:removeRow)]
-        env$lpobj$sense <- env$lpobj$sense[-(1:removeRow)]
-        env$lpobj$obj <- env$lpobj$obj[-(1:removeCol)]
+        env$model$ub <- env$model$ub[-(1:removeCol)]
+        env$model$lb <- env$model$lb[-(1:removeCol)]
+        env$model$A <- env$model$A[-(1:removeRow), -(1:removeCol)]
+        env$model$rhs <- env$model$rhs[-(1:removeRow)]
+        env$model$sense <- env$model$sense[-(1:removeRow)]
+        env$model$obj <- env$model$obj[-(1:removeCol)]
     }
 }
 
@@ -483,7 +484,7 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #'
 #' This function sets up the LP model so that the bounds can be
 #' obtained. The LP model must be passed as an environment variable,
-#' under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
+#' under the entry \code{$model}. See \code{\link{lpSetup}}.
 #' @param env the environment containing the LP model.
 #' @param g0 set of expectations for each terms of the MTR for the
 #'     control group.
@@ -514,48 +515,48 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
     if (setup) {
         solver <- tolower(solver)
         ## Update objective function
-        tmpSlack <- replicate(2 * env$lpobj$sn, 0)
-        names(tmpSlack) <- c(rbind(paste0('slack', seq(env$lpobj$sn), '-'),
-                                   paste0('slack', seq(env$lpobj$sn), '+')))
-        env$lpobj$obj <- c(tmpSlack, g0, g1)
+        tmpSlack <- replicate(2 * env$model$sn, 0)
+        names(tmpSlack) <- c(rbind(paste0('slack', seq(env$model$sn), '-'),
+                                   paste0('slack', seq(env$model$sn), '+')))
+        env$model$obj <- c(tmpSlack, g0, g1)
         ## Allow for slack in minimum criterion
-        env$lpobj$rhs <- c(criterion.min * (1 + criterion.tol), env$lpobj$rhs)
-        avec <- c(replicate(2 * env$lpobj$sn, 1),
-                  replicate(env$lpobj$gn0 + env$lpobj$gn1, 0))
-        env$lpobj$A <- rbind(avec, env$lpobj$A)
+        env$model$rhs <- c(criterion.min * (1 + criterion.tol), env$model$rhs)
+        avec <- c(replicate(2 * env$model$sn, 1),
+                  replicate(env$model$gn0 + env$model$gn1, 0))
+        env$model$A <- rbind(avec, env$model$A)
         ## Label each row with the corresponding constraint. IV-like
         ## constraints are already labeled.
-        rownames(env$lpobj$A)[1] <- 'criterion'
-        tmpOffset <- env$lpobj$sn + 1
+        rownames(env$model$A)[1] <- 'criterion'
+        tmpOffset <- env$model$sn + 1
         if (length(env$mbobj$lb0seq) > 0) {
-            rownames(env$lpobj$A)[env$mbobj$lb0seq + tmpOffset] <- 'm0.lb'
+            rownames(env$model$A)[env$mbobj$lb0seq + tmpOffset] <- 'm0.lb'
         }
         if (length(env$mbobj$lb1seq) > 0) {
-            rownames(env$lpobj$A)[env$mbobj$lb1seq + tmpOffset] <- 'm1.lb'
+            rownames(env$model$A)[env$mbobj$lb1seq + tmpOffset] <- 'm1.lb'
         }
         if (length(env$mbobj$lbteseq) > 0) {
-            rownames(env$lpobj$A)[env$mbobj$lbteseq + tmpOffset] <- 'mte.lb'
+            rownames(env$model$A)[env$mbobj$lbteseq + tmpOffset] <- 'mte.lb'
         }
         if (length(env$mbobj$ub0seq) > 0) {
-            rownames(env$lpobj$A)[env$mbobj$ub0seq + tmpOffset] <- 'm0.ub'
+            rownames(env$model$A)[env$mbobj$ub0seq + tmpOffset] <- 'm0.ub'
         }
         if (length(env$mbobj$ub1seq) > 0) {
-            rownames(env$lpobj$A)[env$mbobj$ub1seq + tmpOffset] <- 'm1.ub'
+            rownames(env$model$A)[env$mbobj$ub1seq + tmpOffset] <- 'm1.ub'
         }
         if (length(env$mbobj$ubteseq) > 0) {
-            rownames(env$lpobj$A)[env$mbobj$ubteseq + tmpOffset] <- 'mte.ub'
+            rownames(env$model$A)[env$mbobj$ubteseq + tmpOffset] <- 'mte.ub'
         }
         if (!is.null(env$mbobj$mono0seq)) {
             tmpDec <- which(env$mbobj$mono0seq[, 2] == -1)
             if (length(tmpDec) > 0) {
                 tmpDec <- env$mbobj$mono0seq[, 1][tmpDec]
-                rownames(env$lpobj$A)[tmpDec + tmpOffset] <- 'm0.dec'
+                rownames(env$model$A)[tmpDec + tmpOffset] <- 'm0.dec'
             }
             rm(tmpDec)
             tmpInc <- which(env$mbobj$mono0seq[, 2] == 1)
             if (length(tmpInc) > 0) {
                 tmpInc <- env$mbobj$mono0seq[, 1][tmpInc]
-                rownames(env$lpobj$A)[tmpInc + tmpOffset] <- 'm0.inc'
+                rownames(env$model$A)[tmpInc + tmpOffset] <- 'm0.inc'
             }
             rm(tmpInc)
         }
@@ -563,13 +564,13 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
             tmpDec <- which(env$mbobj$mono1seq[, 2] == -1)
             if (length(tmpDec) > 0) {
                 tmpDec <- env$mbobj$mono1seq[, 1][tmpDec]
-                rownames(env$lpobj$A)[tmpDec + tmpOffset] <- 'm1.dec'
+                rownames(env$model$A)[tmpDec + tmpOffset] <- 'm1.dec'
             }
             rm(tmpDec)
             tmpInc <- which(env$mbobj$mono1seq[, 2] == 1)
             if (length(tmpInc) > 0) {
                 tmpInc <- env$mbobj$mono1seq[, 1][tmpInc]
-                rownames(env$lpobj$A)[tmpInc + tmpOffset] <- 'm1.inc'
+                rownames(env$model$A)[tmpInc + tmpOffset] <- 'm1.inc'
             }
             rm(tmpInc)
         }
@@ -577,27 +578,27 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
             tmpDec <- which(env$mbobj$monoteseq[, 2] == -1)
             if (length(tmpDec) > 0) {
                 tmpDec <- env$mbobj$monoteseq[, 1][tmpDec]
-                rownames(env$lpobj$A)[tmpDec + tmpOffset] <- 'mte.dec'
+                rownames(env$model$A)[tmpDec + tmpOffset] <- 'mte.dec'
             }
             rm(tmpDec)
             tmpInc <- which(env$mbobj$monoteseq[, 2] == 1)
             if (length(tmpInc) > 0) {
                 tmpInc <- env$mbobj$monoteseq[, 1][tmpInc]
-                rownames(env$lpobj$A)[tmpInc + tmpOffset] <- 'mte.inc'
+                rownames(env$model$A)[tmpInc + tmpOffset] <- 'mte.inc'
             }
             rm(tmpInc)
         }
-        ## Adjust syntax for LP solver.
-        if (solver %in% c("gurobi", "lpsolveapi")) {
-            env$lpobj$sense <- c("<=", env$lpobj$sense)
+        ## Adjust syntax for solver.
+        if (solver %in% c("gurobi", "lpsolveapi", "rmosek")) {
+            env$model$sense <- c("<=", env$model$sense)
         }
         if (solver == "cplexapi") {
-            env$lpobj$sense <- c("L", env$lpobj$sense)
+            env$model$sense <- c("L", env$model$sense)
         }
     } else {
-        env$lpobj$rhs <- env$lpobj$rhs[-1]
-        env$lpobj$sense <- env$lpobj$sense[-1]
-        env$lpobj$A <- env$lpobj$A[-1, ]
+        env$model$rhs <- env$model$rhs[-1]
+        env$model$sense <- env$model$sense[-1]
+        env$model$A <- env$model$A[-1, ]
     }
 }
 
@@ -606,7 +607,7 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #' Given a set of IV-like estimates and the set of matrices/vectors
 #' defining an LP problem, this function minimizes the violation of
 #' observational equivalence under the L1 norm. The LP model must be
-#' passed as an environment variable, under the entry \code{$lpobj}.
+#' passed as an environment variable, under the entry \code{$model}.
 #' See \code{\link{lpSetup}}.
 #' @param env environment containing the matrices defining the LP
 #'     problem.
@@ -710,22 +711,22 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #' ## lpSolveAPI. Note that an environment has to be created for the LP
 #' ## object. The matrices defining the shape restrictions must be stored
 #' ## as a list under the entry \code{$mbobj} in the environment.
-#' lpEnv <- new.env()
-#' lpEnv$mbobj <- list(mbA = A,
+#' modelEnv <- new.env()
+#' modelEnv$mbobj <- list(mbA = A,
 #'                     mbs = sense,
 #'                     mbrhs = rhs)
 #' ## Convert the matrices defining the shape constraints into a format
 #' ## that is suitable for the LP solver.
-#' lpSetup(env = lpEnv,
+#' lpSetup(env = modelEnv,
 #'         sset = sSet,
 #'         solver = "lpsolveapi")
 #' ## Setup LP model so that it will minimize the criterion
-#' lpSetupCriterion(env = lpEnv,
+#' lpSetupCriterion(env = modelEnv,
 #'                 sset = sSet)
 #' ## Declare any LP solver options as a list.
 #' lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
 #' ## Minimize the criterion.
-#' obseqMin <- criterionMin(env = lpEnv,
+#' obseqMin <- criterionMin(env = modelEnv,
 #'                          sset = sSet,
 #'                          solver = "lpsolveapi",
 #'                          solver.options = lpOptions)
@@ -741,25 +742,25 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
             cat("\nMinimum criterion optimization statistics:\n")
             cat("------------------------------------------\n")
         }
-        env$lpobj$modelsense <- "min"
+        env$model$modelsense <- "min"
         if (debug) {
-            gurobi::gurobi_write(env$lpobj, "lpCriterion.mps")
-            model <- env$lpobj
-            save(model, file = "lpCriterion.Rdata")
+            gurobi::gurobi_write(env$model, "modelCriterion.mps")
+            model <- env$model
+            save(model, file = "modelCriterion.Rdata")
             rm(model)
         }
-        result   <- runGurobi(env$lpobj, solver.options)
+        result   <- runGurobi(env$model, solver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
         if (debug) cat("\n")
     } else if (solver == "cplexapi") {
-        result   <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, solver.options)
+        result   <- runCplexAPI(env$model, cplexAPI::CPX_MIN, solver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
     } else if (solver == "lpsolveapi") {
-        result   <- runLpSolveAPI(env$lpobj, 'min', solver.options)
+        result   <- runLpSolveAPI(env$model, 'min', solver.options)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
@@ -768,21 +769,21 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
             cat("\nMinimum criterion optimization statistics:\n")
             cat("------------------------------------------\n")
         }
-        result   <- runMosek(env$lpobj, 'min', solver.options, debug)
+        result   <- runMosek(env$model, 'min', solver.options, debug)
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
         if (debug) cat("\n")
     } else {
         stop(gsub('\\s+', ' ',
-                  "Invalid LP solver. Option 'solver' must be either 'gurobi',
+                  "Invalid solver. Option 'solver' must be either 'gurobi',
                   'cplexapi', 'rmosek', or 'lpsolveapi'."))
     }
     ## Provide nicer output
-    g0sol <- optx[(2 * env$lpobj$sn + 1) :
-                  (2 * env$lpobj$sn + env$lpobj$gn0)]
-    g1sol <- optx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
-                  (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+    g0sol <- optx[(2 * env$model$sn + 1) :
+                  (2 * env$model$sn + env$model$gn0)]
+    g1sol <- optx[(2 * env$model$sn + env$model$gn0 + 1) :
+                  (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
     names(g0sol) <- names(sset$gstar$g0)
     names(g1sol) <- names(sset$gstar$g1)
     if (rescale) {
@@ -802,7 +803,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
 #'
 #' This function estimates the bounds on the target treatment
 #' effect. The LP model must be passed as an environment variable,
-#' under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
+#' under the entry \code{$model}. See \code{\link{lpSetup}}.
 #' @param env environment containing the matrices defining the LP
 #'     problem.
 #' @param sset a list containing the point estimates and gamma
@@ -913,17 +914,17 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
 #' ## lpSolveAPI. Note that an environment has to be created for the LP
 #' ## object. The matrices defining the shape restrictions must be stored
 #' ## as a list under the entry \code{$mbobj} in the environment.
-#' lpEnv <- new.env()
-#' lpEnv$mbobj <- list(mbA = A,
+#' modelEnv <- new.env()
+#' modelEnv$mbobj <- list(mbA = A,
 #'                     mbs = sense,
 #'                     mbrhs = rhs)
 #' ## Convert the matrices defining the shape constraints into a format
 #' ## that is suitable for the LP solver.
-#' lpSetup(env = lpEnv,
+#' lpSetup(env = modelEnv,
 #'         sset = sSet,
 #'         solver = "lpsolveapi")
 #' ## Setup LP model so that it is solving for the bounds.
-#' lpSetupBound(env = lpEnv,
+#' lpSetupBound(env = modelEnv,
 #'              g0 = targetGamma$gstar0,
 #'              g1 = targetGamma$gstar1,
 #'              sset = sSet,
@@ -933,7 +934,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
 #' ## Declare any LP solver options as a list.
 #' lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
 #' ## Obtain the bounds.
-#' bounds <- bound(env = lpEnv,
+#' bounds <- bound(env = modelEnv,
 #'                 sset = sSet,
 #'                 solver = "lpsolveapi",
 #'                 solver.options = lpOptions)
@@ -953,13 +954,13 @@ bound <- function(env, sset, solver,
             cat("------------------------------------\n")
         }
         if (debug == TRUE){
-            gurobi::gurobi_write(env$lpobj, "lpBound.mps")
-            model <- env$lpobj
-            save(model, file = "lpBound.Rdata")
+            gurobi::gurobi_write(env$model, "modelBound.mps")
+            model <- env$model
+            save(model, file = "modelBound.Rdata")
             rm(model)
         }
-        env$lpobj$modelsense <- "min"
-        minresult <- runGurobi(env$lpobj, solver.options)
+        env$model$modelsense <- "min"
+        minresult <- runGurobi(env$model, solver.options)
         min <- minresult$objval
         minstatus <- minresult$status
         minoptx <- minresult$optx
@@ -967,27 +968,27 @@ bound <- function(env, sset, solver,
             cat("\nUpper bound optimization statistics:\n")
             cat("------------------------------------\n")
         }
-        env$lpobj$modelsense <- "max"
-        maxresult <- runGurobi(env$lpobj, solver.options)
+        env$model$modelsense <- "max"
+        maxresult <- runGurobi(env$model, solver.options)
         max <- maxresult$objval
         maxstatus <- maxresult$status
         maxoptx <- maxresult$optx
         if (debug) cat("\n")
     } else if (solver == "cplexapi") {
-        minresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MIN, solver.options)
+        minresult <- runCplexAPI(env$model, cplexAPI::CPX_MIN, solver.options)
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
-        maxresult <- runCplexAPI(env$lpobj, cplexAPI::CPX_MAX, solver.options)
+        maxresult <- runCplexAPI(env$model, cplexAPI::CPX_MAX, solver.options)
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
     } else if (solver == "lpsolveapi") {
-        minresult <- runLpSolveAPI(env$lpobj, 'min', solver.options)
+        minresult <- runLpSolveAPI(env$model, 'min', solver.options)
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
-        maxresult <- runLpSolveAPI(env$lpobj, 'max', solver.options)
+        maxresult <- runLpSolveAPI(env$model, 'max', solver.options)
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
@@ -996,7 +997,7 @@ bound <- function(env, sset, solver,
             cat("\nLower bound optimization statistics:\n")
             cat("------------------------------------\n")
         }
-        minresult <- runMosek(env$lpobj, 'min', solver.options, debug)
+        minresult <- runMosek(env$model, 'min', solver.options, debug)
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
@@ -1004,17 +1005,17 @@ bound <- function(env, sset, solver,
             cat("\nUpper bound optimization statistics:\n")
             cat("------------------------------------\n")
         }
-        maxresult <- runMosek(env$lpobj, 'max', solver.options)
+        maxresult <- runMosek(env$model, 'max', solver.options)
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
         if (debug) cat("\n")
     } else {
         stop(gsub('\\s+', ' ',
-                  "Invalid LP solver. Option 'solver' must be either 'gurobi',
+                  "Invalid solver. Option 'solver' must be either 'gurobi',
                   'cplexapi', 'rmosek', or 'lpsolveapi'."))
     }
-    env$lpobj$modelsense <- NULL
+    env$model$modelsense <- NULL
     ## Return error codes, if any
     if (maxstatus %in% c(2, 3, 4, 5, 9) || minstatus %in% c(2, 3, 4, 5, 9)) {
         return(list(error = TRUE,
@@ -1023,14 +1024,14 @@ bound <- function(env, sset, solver,
                     min = min,
                     minstatus = minstatus))
     }
-    ming0 <- minoptx[(2 * env$lpobj$sn + 1) :
-                     (2 * env$lpobj$sn + env$lpobj$gn0)]
-    ming1 <- minoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
-                     (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
-    maxg0 <- maxoptx[(2 * env$lpobj$sn + 1) :
-                     (2 * env$lpobj$sn + env$lpobj$gn0)]
-    maxg1 <- maxoptx[(2 * env$lpobj$sn + env$lpobj$gn0 + 1) :
-                     (2 * env$lpobj$sn + env$lpobj$gn0 + env$lpobj$gn1)]
+    ming0 <- minoptx[(2 * env$model$sn + 1) :
+                     (2 * env$model$sn + env$model$gn0)]
+    ming1 <- minoptx[(2 * env$model$sn + env$model$gn0 + 1) :
+                     (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
+    maxg0 <- maxoptx[(2 * env$model$sn + 1) :
+                     (2 * env$model$sn + env$model$gn0)]
+    maxg1 <- maxoptx[(2 * env$model$sn + env$model$gn0 + 1) :
+                     (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
     if (rescale) {
         ming0 <- ming0 / env$colNorms[1:ncol(sset$s1$g0)]
         ming1 <- ming1 / env$colNorms[(ncol(sset$s1$g0) + 1):
@@ -1074,7 +1075,7 @@ bound <- function(env, sset, solver,
         output$norms <- env$colNorms
     }
     if (!smallreturnlist) {
-        if (solver != 'rmosek') output$model = env$lpobj
+        if (solver != 'rmosek') output$model = env$model
         if (solver == 'rmosek') {
             output$model <- minresult$prob
             output$model$sense <- NULL
@@ -1084,21 +1085,21 @@ bound <- function(env, sset, solver,
 }
 
 
-#' Running Gurobi LP solver
+#' Running Gurobi solver
 #'
-#' This function solves the LP problem using the Gurobi package. The
+#' This function solves the LP/QCQP problem using the Gurobi package. The
 #' object generated by \code{\link{lpSetup}} is compatible with the
 #' \code{gurobi} function. See \code{\link{runCplexAPI}} for
 #' additional error code labels.
-#' @param lpobj list of matrices and vectors defining the linear
+#' @param model list of matrices and vectors defining the linear
 #'     programming problem.
 #' @param solver.options list, each item of the list should
 #'     correspond to an option specific to the LP solver selected.
 #' @return a list of the output from Gurobi. This includes the
 #'     objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization) .
-runGurobi <- function(lpobj, solver.options) {
-    result <- gurobi::gurobi(lpobj, solver.options)
+runGurobi <- function(model, solver.options) {
+    result <- gurobi::gurobi(model, solver.options)
     status <- 0
     if (result$status == "OPTIMAL") status <- 1
     if (result$status == "INFEASIBLE") status <- 2
@@ -1113,14 +1114,14 @@ runGurobi <- function(lpobj, solver.options) {
 }
 
 
-#' Running cplexAPI LP solver
+#' Running cplexAPI solver
 #'
 #' This function solves the LP problem using the cplexAPI package. The
 #' object generated by \code{\link{lpSetup}} is not compatible with
 #' the \code{cplexAPI} functions. This function adapts the object to
 #' solve the LP problem. See \code{\link{runGurobi}} for additional
 #' error code labels.
-#' @param lpobj list of matrices and vectors defining the linear
+#' @param model list of matrices and vectors defining the linear
 #'     programming problem.
 #' @param lpdir input either CPX_MAX or CPX_MIN, which sets the LP
 #'     problem as a maximization or minimization problem.
@@ -1129,7 +1130,7 @@ runGurobi <- function(lpobj, solver.options) {
 #' @return a list of the output from CPLEX. This includes the
 #'     objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization).
-runCplexAPI <- function(lpobj, lpdir, solver.options) {
+runCplexAPI <- function(model, lpdir, solver.options) {
     ## Declare environment and set options
     env  <- cplexAPI::openEnvCPLEX()
     prob <- cplexAPI::initProbCPLEX(env)
@@ -1140,27 +1141,27 @@ runCplexAPI <- function(lpobj, lpdir, solver.options) {
         }
     }
     ## Declare LP prblem
-    sense <- lpobj$sense
-    cnt <- apply(lpobj$A, MARGIN = 2, function(x) length(which(x != 0)))
-    beg <- rep(0, ncol(lpobj$A))
+    sense <- model$sense
+    cnt <- apply(model$A, MARGIN = 2, function(x) length(which(x != 0)))
+    beg <- rep(0, ncol(model$A))
     beg[-1] <- cumsum(cnt[-length(cnt)])
-    ind <- unlist(apply(lpobj$A, MARGIN = 2, function(x) which(x != 0) - 1))
-    val <- c(lpobj$A)
+    ind <- unlist(apply(model$A, MARGIN = 2, function(x) which(x != 0) - 1))
+    val <- c(model$A)
     val <- val[val != 0]
     cplexAPI::copyLpwNamesCPLEX(env = env,
                                 lp = prob,
-                                nCols = ncol(lpobj$A),
-                                nRows = nrow(lpobj$A),
+                                nCols = ncol(model$A),
+                                nRows = nrow(model$A),
                                 lpdir = lpdir,
-                                objf = lpobj$obj,
-                                rhs = lpobj$rhs,
+                                objf = model$obj,
+                                rhs = model$rhs,
                                 sense = sense,
                                 matbeg = beg,
                                 matcnt = cnt,
                                 matind = ind,
                                 matval = val,
-                                lb = lpobj$lb,
-                                ub = lpobj$ub)
+                                lb = model$lb,
+                                ub = model$ub)
     cplexAPI::lpoptCPLEX(env, prob)
     solution <- cplexAPI::solutionCPLEX(env, prob)
     cplexAPI::delProbCPLEX(env, prob)
@@ -1194,7 +1195,7 @@ runCplexAPI <- function(lpobj, lpdir, solver.options) {
 #' adapts the object to solve the LP problem. See
 #' \code{\link{runGurobi}} and \code{\link{runCplexAPI}} for
 #' additional error code labels.
-#' @param lpobj list of matrices and vectors defining the linear
+#' @param model list of matrices and vectors defining the linear
 #'     programming problem.
 #' @param modelsense input either 'max' or 'min' which sets the LP
 #'     problem as a maximization or minimization problem.
@@ -1203,31 +1204,31 @@ runCplexAPI <- function(lpobj, lpdir, solver.options) {
 #' @return a list of the output from \code{lpSolveAPI}. This includes
 #'     the objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization).
-runLpSolveAPI <- function(lpobj, modelsense, solver.options) {
-    lpmodel <- lpSolveAPI::make.lp(nrow(lpobj$A), ncol(lpobj$A))
-    for (j in 1:ncol(lpobj$A)) {
+runLpSolveAPI <- function(model, modelsense, solver.options) {
+    lpmodel <- lpSolveAPI::make.lp(nrow(model$A), ncol(model$A))
+    for (j in 1:ncol(model$A)) {
         lpSolveAPI::set.column(lprec = lpmodel,
                                column = j,
-                               x = lpobj$A[, j])
+                               x = model$A[, j])
     }
     lpSolveAPI::set.constr.value(lprec = lpmodel,
-                                 rhs = lpobj$rhs)
-    sense <- lpobj$sense
+                                 rhs = model$rhs)
+    sense <- model$sense
     sense[sense == "<"]  <- "<="
     sense[sense == ">"]  <- ">="
     sense[sense == "=="] <- "="
     lpSolveAPI::set.constr.type(lprec = lpmodel,
                                 types = sense)
     lpSolveAPI::set.objfn(lprec = lpmodel,
-                          obj = lpobj$obj)
+                          obj = model$obj)
     lpSolveAPI::lp.control(lprec = lpmodel,
                            sense = modelsense)
     if (!is.null(solver.options)) {
         eval(solver.options)
     }
     lpSolveAPI::set.bounds(lprec = lpmodel,
-                           lower = lpobj$lb,
-                           upper = lpobj$ub)
+                           lower = model$lb,
+                           upper = model$ub)
     solved <- lpSolveAPI::solve.lpExtPtr(lpmodel)
     status <- 0
     if (solved == 0) status <- 1
@@ -1242,13 +1243,13 @@ runLpSolveAPI <- function(lpobj, modelsense, solver.options) {
 
 #' Running Rmosek
 #'
-#' This function solves the LP problem using the \code{Rmosek}
+#' This function solves the LP/QCQP problem using the \code{Rmosek}
 #' package. The object generated by \code{\link{lpSetup}} is not
 #' compatible with the \code{Rmosek} functions. This function
 #' adapts the object to solve the LP problem. See
 #' \code{\link{runGurobi}} and \code{\link{runCplexAPI}} for
 #' additional error code labels.
-#' @param lpobj list of matrices and vectors defining the linear
+#' @param model list of matrices and vectors defining the linear
 #'     programming problem.
 #' @param modelsense input either 'max' or 'min' which sets the LP
 #'     problem as a maximization or minimization problem.
@@ -1260,48 +1261,48 @@ runLpSolveAPI <- function(lpobj, modelsense, solver.options) {
 #' @return a list of the output from \code{Rmosek}. This includes
 #'     the objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization).
-runMosek <- function(lpobj, modelsense, solver.options, debug = FALSE) {
-    qcp <- !is.null(lpobj$Q)
-    qcqp <- !is.null(lpobj$quadcon)
+runMosek <- function(model, modelsense, solver.options, debug = FALSE) {
+    qcp <- !is.null(model$Q)
+    qcqp <- !is.null(model$quadcon)
     if (qcqp) {
         ## Construct the transformation matrix
-        Qc <- lpobj$quadcon[[1]]$Qc * 2
+        Qc <- model$quadcon[[1]]$Qc * 2
         QdList <- eigen(Qc, symmetric = TRUE)
         QdList$values <- sapply(QdList$values, function(x) max(x, 0))
         Qd <- diag(sqrt(QdList$values)) %*% t(QdList$vectors)
         ## Update the old linear constraints to include the new variables
-        nvars <- length(lpobj$obj)
+        nvars <- length(model$obj)
         QSlack1 <- c(rep(0, times = nvars), c(1, 0), rep(0, times = nvars))
-        QSlack2 <- c(lpobj$quadcon[[1]]$q, 0, 1, rep(0, times = nvars))
-        lpobj$A <- rbind(cbind(lpobj$A, Matrix::Matrix(0, nrow = nrow(lpobj$A),
+        QSlack2 <- c(model$quadcon[[1]]$q, 0, 1, rep(0, times = nvars))
+        model$A <- rbind(cbind(model$A, Matrix::Matrix(0, nrow = nrow(model$A),
                                                        ncol = nvars + 2)),
                          QSlack1,
                          QSlack2,
                          cbind(Qd,
                                Matrix::Matrix(0, nrow = nvars, ncol = 2),
                                -diag(nvars)))
-        lpobj$rhs <- c(lpobj$rhs, 1, lpobj$quadcon[[1]]$rhs, rep(0, nvars))
-        lpobj$sense <- c(lpobj$sense, '=', '=', rep('=', nvars))
-        lpobj$ub <- c(lpobj$ub, 1, Inf, rep(Inf, nvars))
-        lpobj$lb <- c(lpobj$lb, 1, 0, rep(-Inf, nvars))
+        model$rhs <- c(model$rhs, 1, model$quadcon[[1]]$rhs, rep(0, nvars))
+        model$sense <- c(model$sense, '=', '=', rep('=', nvars))
+        model$ub <- c(model$ub, 1, Inf, rep(Inf, nvars))
+        model$lb <- c(model$lb, 1, 0, rep(-Inf, nvars))
         ## Update objective to include new variables
-        lpobj$obj <- c(lpobj$obj, rep(0, nvars + 2))
+        model$obj <- c(model$obj, rep(0, nvars + 2))
     }
     prob <- list()
-    tmpSense <- lpobj$sense
-    tmpBlc <- lpobj$rhs
-    tmpBuc <- lpobj$rhs
+    tmpSense <- model$sense
+    tmpBlc <- model$rhs
+    tmpBuc <- model$rhs
     tmpBuc[which(tmpSense == '>=')] <- Inf
     tmpBlc[which(tmpSense == '<=')] <- -Inf
     prob$bc <- rbind(blc = tmpBlc,
                      buc = tmpBuc)
-    prob$bx <- rbind(blx = lpobj$lb,
-                     bux = lpobj$ub)
-    prob$A <- lpobj$A
-    prob$c <- lpobj$obj
+    prob$bx <- rbind(blx = model$lb,
+                     bux = model$ub)
+    prob$A <- model$A
+    prob$c <- model$obj
     prob$sense <- modelsense
     if (qcp) {
-        tripletQ <- matrixTriplets(lpobj$Q, lower = TRUE)
+        tripletQ <- matrixTriplets(model$Q, lower = TRUE)
         prob$qobj$i <- tripletQ$rows
         prob$qobj$j <- tripletQ$columns
         prob$qobj$v <- tripletQ$values * 2
@@ -1320,12 +1321,12 @@ runMosek <- function(lpobj, modelsense, solver.options, debug = FALSE) {
     ## Export model if debugging
     if (debug == TRUE){
         if (qcp) {
-            Rmosek::mosek_write(prob, "lpCriterion.mps", solver.options)
-            save(prob, file = "lpCriterion.Rdata")
+            Rmosek::mosek_write(prob, "modelCriterion.mps", solver.options)
+            save(prob, file = "modelCriterion.Rdata")
         }
         if (qcqp) {
-            Rmosek::mosek_write(prob, "lpBound.mps", solver.options)
-            save(prob, file = "lpBound.Rdata")
+            Rmosek::mosek_write(prob, "modelBound.mps", solver.options)
+            save(prob, file = "modelBound.Rdata")
         }
     }
     ## Estimate
@@ -1369,10 +1370,10 @@ runMosek <- function(lpobj, modelsense, solver.options, debug = FALSE) {
         }
         if (!is.null(optx)) {
             if (!qcp) {
-                objval <- sum(optx * lpobj$obj)
+                objval <- sum(optx * model$obj)
             } else {
-                objval <- t(optx) %*% lpobj$Q %*% optx +
-                    t(optx) %*% lpobj$obj
+                objval <- t(optx) %*% model$Q %*% optx +
+                    t(optx) %*% model$obj
             }
             if (qcqp) {
                 optx <- optx[1:nvars]
@@ -1669,17 +1670,17 @@ qpSetup <- function(env, sset, rescale = TRUE) {
 #'
 #' This function sets up the objective function for minimizing the
 #' criterion. The QCQP model must be passed as an environment variable,
-#' under the entry \code{$lpobj}. See \code{\link{qpSetup}}.
+#' under the entry \code{$model}. See \code{\link{qpSetup}}.
 #' @param env The LP environment
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
 #' @export
 qpSetupCriterion <- function(env) {
-    env$lpobj$obj <- env$quad$q
-    env$lpobj$Q <- env$quad$Qc
-    env$lpobj$modelsense <- 'min'
-    env$lpobj$ub <- rep(Inf, times = length(env$quad$q))
-    env$lpobj$lb <- rep(-Inf, times = length(env$quad$q))
+    env$model$obj <- env$quad$q
+    env$model$Q <- env$quad$Qc
+    env$model$modelsense <- 'min'
+    env$model$ub <- rep(Inf, times = length(env$quad$q))
+    env$model$lb <- rep(-Inf, times = length(env$quad$q))
 }
 
 #' Constructing QCQP problem for bounding
@@ -1708,7 +1709,7 @@ qpSetupCriterion <- function(env) {
 #'     constraint. Set to \code{FALSE} if the quadratic constraint
 #'     should be removed.
 #' @return A list of matrices and vectors necessary to define an LP
-#'     problem for Gurobi.
+#'     problem for Gurobi or MOSEK.
 #' @export
 qpSetupBound <- function(env, g0, g1,
                          criterion.tol,
@@ -1717,22 +1718,22 @@ qpSetupBound <- function(env, g0, g1,
                          setup = TRUE) {
     if (setup) {
         ## Prepare objective
-        env$lpobj$obj <- c(g0, g1)
+        env$model$obj <- c(g0, g1)
         if (rescale) {
-            env$lpobj$obj <- env$lpobj$obj / env$colNorms
+            env$model$obj <- env$model$obj / env$colNorms
         }
-        env$lpobj$Q <- NULL
+        env$model$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
         ## criterion.min excludes the SSY.
         env$quad$rhs <- (env$ssy / env$drN) * criterion.tol +
             criterion.min * (1 + criterion.tol)
-        env$lpobj$quadcon <- list(env$quad)
+        env$model$quadcon <- list(env$quad)
     } else {
-        env$lpobj$obj <- NULL
+        env$model$obj <- NULL
         env$quad$rhs <- NULL
-        env$lpobj$quadcon <- NULL
-        env$lpobj$ub <- NULL
-        env$lpobj$lb <- NULL
+        env$model$quadcon <- NULL
+        env$model$ub <- NULL
+        env$model$lb <- NULL
     }
 }
 
@@ -1743,7 +1744,7 @@ qpSetupBound <- function(env, g0, g1,
 #' constraints, which is the primary cause of infeasibility. This is
 #' done in order to check which shape constraints are causing the
 #' model to be infeasible. The QP model must be passed as an
-#' environment variable, under the entry \code{$lpobj}. See
+#' environment variable, under the entry \code{$model}. See
 #' \code{\link{lpSetup}}.
 #' @param env The LP environment
 #' @param rescale boolean, set to \code{TRUE} if the MTR components
@@ -1754,13 +1755,13 @@ qpSetupBound <- function(env, g0, g1,
 #' @export
 qpSetupInfeasible <- function(env, rescale) {
     ## Separate shape constraint objects
-    env$mbobj$mbA <- env$lpobj$A
-    env$mbobj$mbrhs <- env$lpobj$rhs
-    env$mbobj$mbsense <- env$lpobj$rhs
-    ## Reduce lpobjects so they do not contain any shape constraints
-    env$lpobj$A <- matrix(0, nrow = 1, ncol = ncol(env$mbobj$mbA))
-    env$lpobj$rhs <- 0
-    env$lpobj$sense <- '='
+    env$mbobj$mbA <- env$model$A
+    env$mbobj$mbrhs <- env$model$rhs
+    env$mbobj$mbsense <- env$model$rhs
+    ## Reduce model object so it does not contain any shape constraints
+    env$model$A <- matrix(0, nrow = 1, ncol = ncol(env$mbobj$mbA))
+    env$model$rhs <- 0
+    env$model$sense <- '='
 }
 
 #' Convert matrix into triplet form

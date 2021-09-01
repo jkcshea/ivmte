@@ -43,10 +43,10 @@ gengrid <- function(index, xsupport, usupport, uname) {
                 map = map))
 }
 
-#' Generating the LP constraint matrix for bounds
+#' Generating the constraint matrix
 #'
 #' This function generates the component of the constraint matrix in
-#' the LP problem pertaining to the lower and upper bounds on the MTRs
+#' the LP/QCQP problem pertaining to the lower and upper bounds on the MTRs
 #' and MTEs. These bounds are declared by the user.
 #' @param A0 the matrix of values from evaluating the MTR for control
 #'     observations over the grid generated to perform the audit. This
@@ -85,18 +85,14 @@ gengrid <- function(index, xsupport, usupport, uname) {
 #'     parameter. If passed, this will initiate checks of shape
 #'     constraints.
 #' @param audit.tol feasibility tolerance when performing the
-#'     audit. By default to set to be equal to the Gurobi
-#'     (\code{solver = "gurobi"}) and CPLEX (\code{solver =
-#'     "cplexapi"}) feasibility toleraence, which is set to
-#'     \code{1e-06} by default.  If the LP solver is lp_solve
-#'     (\code{solver = "lpsolveapi"}), this parameter is set to
-#'     \code{1e-06} by default. This parameter should only be changed
-#'     if the feasibility tolerance of the LP solver is changed, or if
-#'     numerical issues result in discrepancies between the LP
-#'     solver's feasibility check and the audit.
+#'     audit. By default to set to be equal \code{1e-06}. This
+#'     parameter should only be changed if the feasibility tolerance
+#'     of the solver is changed, or if numerical issues result in
+#'     discrepancies between the solver's feasibility check and the
+#'     audit.
 #' @param direct boolean, set to \code{TRUE} if the direct MTR
 #'     regression is used.
-#' @return a constraint matrix for the LP problem, the associated
+#' @return a constraint matrix for the LP/QCQP problem, the associated
 #'     vector of inequalities, and the RHS vector in the inequality
 #'     constraint. The objects pertain only to the boundedness
 #'     constraints declared by the user.
@@ -430,11 +426,11 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
     }
 }
 
-#' Generate LP components of the monotonicity constraints
+#' Generate components of the monotonicity constraints
 #'
 #' This function generates the matrix and vectors associated with the
 #' monotonicity constraints declared by the user. It takes in a grid
-#' of the covariates on which the LP constraints are defined, and then
+#' of the covariates on which the shape constraints are defined, and then
 #' calculates the values of the MTR and MTE over the grid. The
 #' matrices characterizing the monotonicity conditions can then be
 #' obtained by taking first differences over the grid of the
@@ -486,18 +482,14 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
 #'     parameter. If passed, this will initiate checks of shape
 #'     constraints.
 #' @param audit.tol feasibility tolerance when performing the
-#'     audit. By default to set to be equal to the Gurobi
-#'     (\code{solver = "gurobi"}) and CPLEX (\code{solver =
-#'     "cplexapi"}) feasibility toleraence, which is set to
-#'     \code{1e-06} by default.  If the LP solver is lp_solve
-#'     (\code{solver = "lpsolveapi"}), this parameter is set to
-#'     \code{1e-06} by default. This parameter should only be changed
-#'     if the feasibility tolerance of the LP solver is changed, or if
-#'     numerical issues result in discrepancies between the LP
-#'     solver's feasibility check and the audit.
+#'     audit. By default to set to be equal \code{1e-06}. This
+#'     parameter should only be changed if the feasibility tolerance
+#'     of the solver is changed, or if numerical issues result in
+#'     discrepancies between the solver's feasibility check and the
+#'     audit.
 #' @param direct boolean, set to \code{TRUE} if the direct MTR
 #'     regression is used.
-#' @return constraint matrix for the LP problem. The matrix pertains
+#' @return constraint matrix for the LP/QCQP problem. The matrix pertains
 #'     only to the monotonicity conditions on the MTR and MTE declared
 #'     by the user.
 genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
@@ -931,7 +923,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
 #'     constraints.
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
-#'     boundedness and monotonicity constraints of an LP problem.
+#'     boundedness and monotonicity constraints of an LP/QCQP problem.
 combinemonobound <- function(bdA, monoA) {
     mbA    <- NULL
     mbs    <- NULL
@@ -1039,20 +1031,16 @@ combinemonobound <- function(bdA, monoA) {
 #'     parameter. If passed, this will initiate checks of shape
 #'     constraints.
 #' @param audit.tol feasibility tolerance when performing the
-#'     audit. By default to set to be equal to the Gurobi
-#'     (\code{solver = "gurobi"}) and CPLEX (\code{solver =
-#'     "cplexapi"}) feasibility toleraence, which is set to
-#'     \code{1e-06} by default.  If the LP solver is lp_solve
-#'     (\code{solver = "lpsolveapi"}), this parameter is set to
-#'     \code{1e-06} by default. This parameter should only be changed
-#'     if the feasibility tolerance of the LP solver is changed, or if
-#'     numerical issues result in discrepancies between the LP
-#'     solver's feasibility check and the audit.
+#'     audit. By default to set to be equal \code{1e-06}. This
+#'     parameter should only be changed if the feasibility tolerance
+#'     of the solver is changed, or if numerical issues result in
+#'     discrepancies between the solver's feasibility check and the
+#'     audit.
 #' @param direct boolean, set to \code{TRUE} if the direct MTR
 #'     regression is used.
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
-#'     boundedness and monotonicity constraints of an LP problem.
+#'     boundedness and monotonicity constraints of an LP/QCQP problem.
 genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                           splinesobj, monov, uname, m0, m1, sset,
                           gstar0, gstar1, m0.lb, m0.ub, m1.lb, m1.ub,

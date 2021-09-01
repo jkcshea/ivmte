@@ -148,16 +148,16 @@ utils::globalVariables("u")
 #'     provided with or without quotation marks.
 #' @param outcome variable name for outcome variable. The name can be
 #'     provided with or without quotation marks.
-#' @param solver character, name of the programming package in
-#'     R used to obtain the bounds on the treatment effect. The
-#'     function supports \code{'gurobi'}, \code{'cplexapi'},
-#'     \code{rmosek}, \code{'lpsolveapi'}. The name of the solver
-#'     should be provided with quotation marks.
+#' @param solver character, name of the programming package in R used
+#'     to obtain the bounds on the treatment effect. The function
+#'     supports \code{'gurobi'}, \code{'cplexapi'}, \code{rmosek},
+#'     \code{'lpsolveapi'}. The name of the solver should be provided
+#'     with quotation marks.
 #' @param solver.options list, each item of the list should correspond
 #'     to an option specific to the solver selected.
 #' @param solver.presolve boolean, default set to \code{TRUE}. Set
 #'     this parameter to \code{FALSE} if presolve should be turned off
-#'     for the LP problems.
+#'     for the LP/QCQP problems.
 #' @param solver.options.criterion list, each item of the list should
 #'     correspond to an option specific to the solver selected. These
 #'     options are specific for finding the minimum criterion.
@@ -173,16 +173,17 @@ utils::globalVariables("u")
 #'     \code{solver.options.criterion}.
 #' @param lpsolver.options.bounds list, deprecated argument for
 #'     \code{solver.options.bounds}.
-#' @param criterion.tol tolerance for violation of observational
-#'     equivalence, set to 0.01 by default. Statistical noise may
-#'     prohibit the theoretical LP problem from being feasible. That
-#'     is, there may not exist a set of coefficients on the MTR that
-#'     are observationally equivalent with regard to the IV-like
-#'     regression coefficients. The function therefore first estimates
-#'     the minimum violation of observational equivalence. This is
-#'     reported in the output under the name 'minimum criterion'. The
-#'     constraints in the LP problem pertaining to observational
-#'     equivalence are then relaxed by the amount \code{minimum
+#' @param criterion.tol tolerance for the criterion function, and is
+#'     set to 1e-4 by default. The criterion measures how well the
+#'     IV-like moments/conditional means are matched using the
+#'     l1-norm. Statistical noise may prohibit the theoretical LP/QCQP
+#'     problem from being feasible. That is, there may not exist a set
+#'     of MTR coefficients that are able to match all the specified
+#'     moments. The function thus first estimates the minimum
+#'     criterion, which is reported in the output under the name
+#'     'minimum criterion', with a criterion of 0 meaning that all
+#'     moments were able to be matched. The function then relaxes the
+#'     constraints by tolerating a criterion up to \code{minimum
 #'     criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a
 #'     value greater than 0 to allow for more conservative bounds.
 #' @param initgrid.nx integer determining the number of points of the
@@ -203,8 +204,8 @@ utils::globalVariables("u")
 #'     points 0 and 1 are additionally included. These points are used
 #'     to audit whether the shape restrictions on the \code{u}
 #'     components of the MTRs are satisfied. The initial grid used to
-#'     impose the shape constraints in the LP problem are constructed
-#'     from a subset of these points.
+#'     impose the shape constraints in the LP/QCQP problem are
+#'     constructed from a subset of these points.
 #' @param audit.add maximum number of points to add to the initial
 #'     constraint grid for imposing each kind of shape constraint. For
 #'     example, if there are 5 different kinds of shape constraints,
@@ -213,18 +214,16 @@ utils::globalVariables("u")
 #' @param audit.max maximum number of iterations in the audit
 #'     procedure.
 #' @param audit.tol feasibility tolerance when performing the
-#'     audit. By default to set to be equal to the Gurobi
-#'     (\code{solver = "gurobi"}) and CPLEX (\code{solver =
-#'     "cplexapi"}) feasibility tolerance, which is set to
-#'     \code{1e-06} by default.  If the LP solver is lp_solve
-#'     (\code{solver = "lpsolveapi"}), this parameter is set to
-#'     \code{1e-06} by default. This parameter should only be changed
-#'     if the feasibility tolerance of the LP solver is changed, or if
-#'     numerical issues result in discrepancies between the LP
+#'     audit. By default to set to be 1e-06, which is equal to the
+#'     default feasibility tolerances of Gurobi (\code{solver =
+#'     "gurobi"}), CPLEX (\code{solver = "cplexapi"}), and Rmosek
+#'     (\code{solver = "rmosek"}). This parameter should only be
+#'     changed if the feasibility tolerance of the solver is changed,
+#'     or if numerical issues result in discrepancies between the
 #'     solver's feasibility check and the audit.
 #' @param rescale boolean, set to \code{TRUE} by default. This
 #'     rescalels the MTR components to improve stability in the
-#'     LP/QP/QCP optimization.
+#'     LP/QCQP optimization.
 #' @param point boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if it is believed that the treatment effects are
 #'     point identified. If set to \code{TRUE}, a two-step GMM
@@ -263,8 +262,8 @@ utils::globalVariables("u")
 #'     e.g. when performing the bootstrap.
 #' @param smallreturnlist boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} to exclude large intermediary components
-#'     (i.e. propensity score model, LP model, bootstrap iterations)
-#'     from being included in the return list.
+#'     (i.e. propensity score model, LP/QCQP model, bootstrap
+#'     iterations) from being included in the return list.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{solver = 'gurobi'} or \code{solver =
@@ -274,7 +273,7 @@ utils::globalVariables("u")
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
 #'     expectations of each term in the MTRs; the components and
-#'     results of the LP problem.
+#'     results of the LP/QCQP problem.
 #'
 #' @details When the function is used to estimate bounds, and
 #'     statistical inference is not performed, the function returns
@@ -285,7 +284,7 @@ utils::globalVariables("u")
 #' procedure was terminated.}
 #' \item{audit.criterion}{the minimum criterion.}
 #' \item{audit.grid}{a list containing the points used to define the audit
-#' grid, as well as the list of points where the shape constraints were
+#' grid, as well as a table of points where the shape constraints were
 #' violated.}
 #' \item{bounds}{a vector with the estimated lower and upper bounds of
 #' the target treatment effect.}
@@ -300,9 +299,9 @@ utils::globalVariables("u")
 #' and control group MTRs.}
 #' \item{gstar.weights}{a list containing the target weights used to
 #' estimate \code{gstar}.}
-#' \item{lp.result}{a list containing the LP model, and the full output
-#' from solving the LP problem.}
-#' \item{lp.solver}{the LP solver used in estimation.}
+#' \item{result}{a list containing the LP/QCQP model, and the full output
+#' from solving the problem.}
+#' \item{solver}{the solver used in estimation.}
 #' \item{moments}{the number of elements in the S-set used to generate
 #' achieve (partial) identification.}
 #' \item{propensity}{the propensity score model. If a variable is fed
@@ -317,9 +316,9 @@ utils::globalVariables("u")
 #' the estimation procedure.}
 #' }
 #'
-#' If \code{bootstraps} is not 0, then statistical inference will be
-#' performed and the output will additionally contain the following
-#' objects.
+#' If \code{bootstraps} is greater than 0, then statistical inference
+#' will be performed and the output will additionally contain the
+#' following objects.
 #' \describe{
 #' \item{bootstraps}{the number of bootstraps.}
 #' \item{bootstraps.failed}{the number of bootstraps that failed (e.g.
@@ -570,7 +569,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 stop(gsub("\\s+", " ",
                           paste0("'solver.options' must be a list.
                                Each item in the list should correspond to an
-                               option to be passed to the LP solver.
+                               option to be passed to the solver.
                                The name of the item should match the name
                                of the option, and the value of the item
                                should be the value to set the option to.")),
@@ -600,7 +599,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 stop(gsub("\\s+", " ",
                           paste0("'solver.options.criterion' must be a list.
                                Each item in the list should correspond to an
-                               option to be passed to the LP solver.
+                               option to be passed to the solver.
                                The name of the item should match the name
                                of the option, and the value of the item
                                should be the value to set the option to.")),
@@ -615,7 +614,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 stop(gsub("\\s+", " ",
                           paste0("'solver.options.bounds' must be a list.
                                Each item in the list should correspond to an
-                               option to be passed to the LP solver.
+                               option to be passed to the solver.
                                The name of the item should match the name
                                of the option, and the value of the item
                                should be the value to set the option to.")),
@@ -633,7 +632,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (solver != "gurobi") {
                 warning(gsub("\\s+", " ",
                              paste0("The 'presolve' option is only implemented
-                                 if the LP solver is Gurobi. For CPLEX and
+                                 if the solver is Gurobi. For CPLEX and
                                  lp_solve, set the presolve parameter using
                                  'lpsolve.options', 'lpsolve.options.criterion',
                                  and 'lpsolve.options.bounds'.")),
@@ -658,7 +657,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (direct && !(solver %in% c('gurobi', 'rmosek'))) {
             stop(gsub("\\s+", " ",
                       paste0("A direct regression may only be peformed if
-                              the solver is Gurobi or Mosek. Please install
+                              the solver is Gurobi or MOSEK. Please install
                               either solver and set 'solver = \"gurobi\"'
                               or 'solver = \"rmosek\"'.")),
                     call. = FALSE)
@@ -680,7 +679,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                      "'debug = TRUE' is only permitted if
                           'solver = \"gurobi\"' or
                           'solver = \"rmosek\"'. Output and solutions will
-                           be obtained via Mosek."),
+                           be obtained via MOSEK."),
                           call. = FALSE, immediate. = TRUE)
                     } else {
                         stop(gsub("\\s+", " ",
@@ -3218,7 +3217,7 @@ checkU <- function(formula, uname) {
 #' Single iteration of estimation procedure from Mogstad, Torgovitsky,
 #' Santos (2018)
 #'
-#' This function estimates bounds on treatment effect parameters,
+#' This function estimates the treatment effect parameters,
 #' following the procedure described in
 #' \href{https://doi.org/10.3982/ECTA15463}{Mogstad, Santos and
 #' Torgovitsky (2018)}. A detailed description of the module and its
@@ -3233,12 +3232,20 @@ checkU <- function(formula, uname) {
 #' The treatment effects parameters the user can choose from are the
 #' ATE, ATT, ATU, LATE, and generalized LATE. The user is required to
 #' provide a polynomial expression for the marginal treatment
-#' responses (MTR), as well as a set of regressions. By restricting
-#' the set of coefficients on each term of the MTRs to be consistent
-#' with the regression estimates, the function is able to restrict
-#' itself to a set of MTRs. The bounds on the treatment effect
-#' parameter correspond to finding coefficients on the MTRs that
-#' maximize their average difference.
+#' responses (MTR), as well as a set of regressions.
+#'
+#' There are two approaches to estimating the treatment effect
+#' parameters. The first approach restricts the set of MTR
+#' coefficients on each term of the MTRs to be consistent with the
+#' regression estimates from the specifications passed through
+#' \code{ivlike}. The bounds on the treatment effect parameter
+#' correspond to finding coefficients on the MTRs that maximize their
+#' average difference. If the model is point identified, then GMM is
+#' used for estimation. Otherwise, the function solves an LP
+#' problem. The second approach restricts the set of MTR coefficients
+#' to fit the conditional mean of the outcome variable. If the model
+#' is point identified, then constrained least squares is used for
+#' estimation. Otherwise, the function solves a QCQP.
 #'
 #' The estimation procedure relies on the propensity to take up
 #' treatment. The propensity scores can either be estimated as part of
@@ -3313,7 +3320,7 @@ checkU <- function(formula, uname) {
 #'     procedure. This includes all IV-like estimands; the propensity
 #'     score model; bounds on the treatment effect; the estimated
 #'     expectations of each term in the MTRs; the components and
-#'     results of the LP problem.
+#'     results of the LP/QCQP problem.
 # @export
 ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           late.X, eval.X, genlate.lb, genlate.ub,
@@ -3357,18 +3364,18 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     uname <- gsub("~", "", uname)
     uname <- gsub("\\\"", "", uname)
     if (noisy == TRUE && hasArg(solver)) {
-        if (solver == "gurobi") cat("\nLP solver: Gurobi ('gurobi')\n\n")
-        if (solver == "cplexapi") cat("\nLP solver: CPLEX ('cplexAPI')\n\n")
-        if (solver == "rmosek") cat("\nLP solver: Mosek ('Rmosek')\n\n")
+        if (solver == "gurobi") cat("\nSolver: Gurobi ('gurobi')\n\n")
+        if (solver == "cplexapi") cat("\nSolver: CPLEX ('cplexAPI')\n\n")
+        if (solver == "rmosek") cat("\nSolver: MOSEK ('Rmosek')\n\n")
         if (solver == "lpsolveapi") {
-            cat("\nLP solver: lp_solve ('lpSolveAPI')\n\n")
+            cat("\nSolver: lp_solve ('lpSolveAPI')\n\n")
             warning(gsub("\\s+", " ",
                      "The R package 'lpSolveAPI' interfaces with 'lp_solve',
                       which is outdated and potentially unreliable. It is
                       recommended to use commercial solvers
                       Gurobi (solver = 'gurobi'),
-                      CPLEX (solver = 'cplexAPI'), or Mosek
-                      (solver = 'Rmosek') instead.
+                      CPLEX (solver = 'cplexAPI'), or
+                      MOSEK (solver = 'Rmosek') instead.
                       Free academic licenses can be obtained for these
                       commercial solvers."),
                 "\n", call. = FALSE, immediate. = TRUE)
@@ -4081,7 +4088,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 ##           'optimal but infeasible after rescaling')
                 ## }
                 tmpErrMessage <- paste(tmpErrMessage, collapse = "; ")
-                cat(paste0("    LP model ",
+                cat(paste0("    Model ",
                            tmpErrMessage, ".\n"))
                 autoExpand <- autoExpand + 1
             }
@@ -4175,16 +4182,16 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (noisy) {
         cat("Bounds on the target parameter: [",
             fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n\n", sep = "")
-        ## if (any(audit$lpresult$modelstats[, 3] > 6)) {
+        ## if (any(audit$result$modelstats[, 3] > 6)) {
         ##     bMessage <- "The following sets of coefficients defining the
         ##             LP problem exhibit ranges exceeding 6 orders of magnitude: "
-        ##     if (audit$lpresult$modelstats[1, 3] > 6) {
+        ##     if (audit$result$modelstats[1, 3] > 6) {
         ##         bMessage <- paste(bMessage, "constraint matrix")
         ##     }
-        ##     if (audit$lpresult$modelstats[2, 3] > 6) {
+        ##     if (audit$result$modelstats[2, 3] > 6) {
         ##         bMessage <- paste(bMessage, "RHS vector (IV-like coefficients)")
         ##     }
-        ##     if (audit$lpresult$modelstats[3, 3] > 6) {
+        ##     if (audit$result$modelstats[3, 3] > 6) {
         ##         bMessage <- paste(bMessage, "objective vector (gamma moments)")
         ##     }
         ##     bMessage <- paste0(bMessage, ". Large ranges in the coefficients
@@ -4198,22 +4205,22 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (solver == "gurobi") solver <- "Gurobi ('gurobi')"
     if (solver == "lpsolveapi") solver <- "lp_solve ('lpSolveAPI')"
     if (solver == "cplexapi") solver <- "CPLEX ('cplexAPI')"
-    if (solver == "rmosek") solver <- "Mosek ('Rmosek')"
+    if (solver == "rmosek") solver <- "MOSEK ('Rmosek')"
     if (!smallreturnlist) {
         output <- list(gstar = list(g0 = gstar0,
                                     g1 = gstar1,
                                  n = targetGammas$n),
                        gstar.weights = list(w0 = targetGammas$w0,
                                             w1 = targetGammas$w1),
-                       gstar.coef = list(min.g0 = audit$lpresult$ming0,
-                                         max.g0 = audit$lpresult$maxg0,
-                                         min.g1 = audit$lpresult$ming1,
-                                         max.g1 = audit$lpresult$maxg1),
+                       gstar.coef = list(min.g0 = audit$result$ming0,
+                                         max.g0 = audit$result$maxg0,
+                                         min.g1 = audit$result$ming1,
+                                         max.g1 = audit$result$maxg1),
                        propensity = pmodel,
                        bounds = c(lower = audit$min,
                                   upper = audit$max),
-                       lp.result =  audit$lpresult,
-                       lp.solver = solver,
+                       result =  audit$result,
+                       solver = solver,
                        moments = nIndepMoments,
                        audit.grid = list(audit.x =
                                              audit$gridobj$audit.grid$support,
@@ -4249,7 +4256,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          maxg1 = audit$maxg1),
                        bounds = c(lower = audit$min,
                                   upper = audit$max),
-                       lp.solver = solver,
+                       solver = solver,
                        moments = nIndepMoments,
                        audit.grid = list(audit.x =
                                              audit$gridobj$audit.grid$support,
@@ -4279,12 +4286,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
 }
 
 
-#' Generating LP moments for IV-like estimands
+#' Generating target MTR moments
 #'
-#' This function takes in the IV estimate and its IV-like
-#' specification, and generates a list containing the corresponding
-#' point estimate, and the corresponding moments (gammas) that will
-#' enter into the constraint matrix of the LP problem.
+#' This function estimates the moment of each MTR term under the
+#' target weight.
 #'
 #' @param pmodobj A vector of propensity scores.
 #' @param pm0 A list of the monomials in the MTR for d = 0.
@@ -4739,12 +4744,14 @@ genTarget <- function(treat, m0, m1, target,
 }
 
 
-#' Generating LP moments for IV-like estimands
+#' Generating moments/data for IV-like estimands
 #'
 #' This function takes in the IV estimate and its IV-like
 #' specification, and generates a list containing the corresponding
-#' point estimate, and the corresponding moments (gammas) that will
-#' enter into the constraint matrix of the LP problem. The function
+#' IV-like point estimate, and the corresponding moments (gammas) that
+#' will enter into the constraint matrix of the LP problem. If the
+#' option \code{means = FALSE}, then the data are not averaged to
+#' generate the gamma moments and may be used for GMM. The function
 #' requires the user to provide a list (i.e. the list the point
 #' estimates and moments corresponding to other IV-like
 #' specifications; or an empty list) to append these point estimates
@@ -5617,9 +5624,9 @@ summary.ivmte <- function(object, ...) {
                     object$moments, length(object$s.set)))
         cat(sprintf("Minimum criterion: %s \n",
                     fmtResult(object$audit.criterion)))
-        ## Return LP solver used
-        cat(sprintf("LP solver: %s\n", object$lp.solver))
-        if (object$lp.solver == "lp_solve ('lpSolveAPI')") {
+        ## Return solver used
+        cat(sprintf("Solver: %s\n", object$solver))
+        if (object$solver == "lp_solve ('lpSolveAPI')") {
             warning(
                 gsub("\\s+", " ",
                      "The R package 'lpSolveAPI' interfaces with 'lp_solve',
@@ -5627,7 +5634,7 @@ summary.ivmte <- function(object, ...) {
                       recommended to use commercial solvers
                       Gurobi (solver = 'gurobi'),
                       CPLEX (solver = 'cplexAPI'), or
-                      Mosek (solver = 'Rmosek') instead.
+                      MOSEK (solver = 'Rmosek') instead.
                       Free academic licenses can be obtained for these
                       commercial solvers."),
                 "\n", call. = FALSE)
