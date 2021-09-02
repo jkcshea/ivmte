@@ -45,7 +45,7 @@ The package uses the moment-based framework developed by @mogstadsantostorgovits
 
 This vignette is intended as a guide to using **ivmte** for users already familiar with MTE methods.
 The key defintions and concepts from that literature are used without further explanation.
-We have written a paper [@sheatorgovitsky2019wp] that discusses both the MTE methodology and the usage of **ivmte**, which should be helpful for users unfamiliar with MTE methods.
+We have written a paper [@sheatorgovitsky2021wp] that discusses both the MTE methodology and the usage of **ivmte**, which should be helpful for users unfamiliar with MTE methods.
 The survey article by @mogstadtorgovitsky2018aroe provides additional theoretical background on MTE methods, including the moment-based implementation used in this module.
 
 ## Installation and Requirements
@@ -70,16 +70,18 @@ Two additional packages are also required for **ivmte**:
     This option requires a Gurobi software license, which Gurobi Optimization offers at no cost to academic researchers.
     i. CPLEX and the package **cplexAPI**,  which is available on CRAN.
     CPLEX can be obtained from [IBM](https://www.ibm.com/analytics/cplex-optimizer).
-    This option requires a software license, which IBM offers at no cost to academic researchers.
+    This option requires a CPLEX software license, which IBM offers at no cost to academic researchers.
+	i. MOSEK and the package **Rmosek**, which can be obtained from [MOSEK ApS](https://www.mosek.com/).
+	This option requires a MOSEK software license, which MOSEK ApS offers at no cost to academic researchers.
     i. The **lpSolveAPI** package, which is free and open-source, and available from CRAN.
     Note that **lpSolveAPI** is a wrapper for [lp_solve](http://lpsolve.sourceforge.net/5.5/), which is no longer
     actively developed.
 
-**ivmte** tries to automatically choose a solver from those available, with preference being given to Gurobi and CPLEX.
+**ivmte** tries to automatically choose a solver from those available, with preference being given to Gurobi, CPLEX, and MOSEK.
 We have provided the option to use **lpSolveAPI** because it appears to be the
 only interface for solving linear programs that can be installed solely through
 `install.packages`.
-However, we _strongly_ recommend using Gurobi or CPLEX, since these are
+However, we _strongly_ recommend using Gurobi, CPLEX, or MOSEK, since these are
 actively developed, much more stable, and typically an order of magnitude faster
 than **lpSolveAPI**.
 A very clear installation guide for Gurobi can be found [here](https://cran.r-project.org/package=prioritizr/vignettes/gurobi_installation.html)
@@ -570,7 +572,6 @@ args[["components"]] <- l(c(intercept, x), c(d), )
 r <- do.call(ivmte, args)
 r
 ```
-
 Note that `intercept` is a reserved word that is used to specify the coefficient on the constant term.
 If the function `list` is used to pass the `components` option, an error will follow.
 
@@ -578,7 +579,6 @@ If the function `list` is used to pass the `components` option, an error will fo
 args[["components"]] <- list(c(intercept, x), c(d), )
 args[["components"]] <- list(c("intercept", "x"), c("d"), "")
 r <- do.call(ivmte, args)
-r
 ```
 
 #### Subsetting
@@ -633,6 +633,7 @@ args <- list(data = ivmteSimData,
              m1 = ~ u,
              propensity = d ~ factor(z))
 r <- do.call(ivmte, args)
+r
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
 r
@@ -662,7 +663,7 @@ Other options relevent to confidence region construction are `bootstraps.m`, whi
 The default is to set `bootstraps.m` to the sample size of the observed data with `bootstraps.replace = TRUE`.
 This corresponds to the usual nonparametric bootstrap.
 Choosing `bootstraps.m` to be smaller than the sample size and setting `bootstraps.replace` to be `TRUE` or `FALSE` corresponds to the "m out of n" bootstrap or subsampling, respectively.
-Regardless of these settings, two types of confidence regions are constructed following the terminology of @andrewshan2009ej; see @sheatorgovitsky2019wp for more detail, references, and important theoretical caveats to the procedures.
+Regardless of these settings, two types of confidence regions are constructed following the terminology of @andrewshan2009ej; see @sheatorgovitsky2021wp for more detail, references, and important theoretical caveats to the procedures.
 While the `summary` output displays only the backward confidence region, both forward and backward confidence regions are stored under `$bounds.ci`.
 ```{r, partial.ci.show}
 r$bounds.ci
@@ -746,12 +747,12 @@ args <- list(data = ivmteSimData,
              propensity = d ~ factor(z),
              bootstraps = 50)
 r <- do.call(ivmte, args)
-r
+summary(r)
 
 args[["ivlike"]] <- y ~ d + factor(z) + d*factor(z) # many more moments
 args[["point"]] <- TRUE
 r <- do.call(ivmte, args)
-r
+summary(r)
 ```
 
 ### Plotting MTRs and MTEs

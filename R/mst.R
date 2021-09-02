@@ -224,12 +224,16 @@ utils::globalVariables("u")
 #' @param rescale boolean, set to \code{TRUE} by default. This
 #'     rescalels the MTR components to improve stability in the
 #'     LP/QCQP optimization.
-#' @param point boolean, default set to \code{FALSE}. Set to
-#'     \code{TRUE} if it is believed that the treatment effects are
-#'     point identified. If set to \code{TRUE}, a two-step GMM
-#'     procedure is implemented to estimate the treatment
-#'     effects. Shape constraints on the MTRs will be ignored under
-#'     point identification.
+#' @param point boolean. Set to \code{TRUE} if it is believed that the
+#'     treatment effects are point identified. If set to \code{TRUE}
+#'     and IV-like formulas are passed, then a two-step GMM procedure
+#'     is implemented to estimate the treatment effects. Shape
+#'     constraints on the MTRs will be ignored under point
+#'     identification. If set to \code{TRUE} and the regression-based
+#'     criteria is used instead, then OLS will be used to estimate the
+#'     MTR coefficients used to estimate the treatment effect. If not
+#'     declared, then the function will determine whether or not the
+#'     target parameter is point identified.
 #' @param point.eyeweight boolean, default set to \code{FALSE}. Set to
 #'     \code{TRUE} if the GMM point estimate should use the identity
 #'     weighting matrix (i.e. one-step GMM).
@@ -430,7 +434,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
                   audit.tol, rescale,
-                  point = FALSE, point.eyeweight = FALSE,
+                  point, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
                   levels = c(0.99, 0.95, 0.90), ci.type = 'backward',
@@ -1337,7 +1341,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                           "'bootstraps.m' must be an integer greater than or
                            equal to 1."), call. = FALSE)
             }
-            if (point == TRUE) {
+            if (hasArg(point) && point == TRUE) {
                 warning(gsub("\\s+", " ",
                              "Argument 'bootstrap.m' is only used for
                           partial identification, and will be ignored
@@ -2226,16 +2230,24 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         ##
         ## If the direct MTR regression is performed, then it must
         ## first be determined whether the target parameter is point
-        ## identified.
-        if (direct) {
-            origEstimate <- eval(estimateCall)
-            specification.test <- FALSE
-            if ('point.estimate' %in% names(origEstimate))  point <- TRUE
-            if (!'point.estimate' %in% names(origEstimate)) point <- FALSE
-        }
+        ## identified. Note that if the user passes point == FALSE,
+        ## then bounds will be returned.
+        ## if (direct) {
+        ##     origEstimate <- eval(estimateCall)
+        ##     specification.test <- FALSE
+        ##     if ('point.estimate' %in% names(origEstimate))  point <- TRUE
+        ##     if (!'point.estimate' %in% names(origEstimate)) point <- FALSE
+        ## }
+        ## BEGIN--TESTING--------------------------------------------------------
+        ## UPDATE COMMENTS: Also need to check point identification
+        ## for moment criteria.
+        origEstimate <- eval(estimateCall)
+        if ('point.estimate' %in% names(origEstimate))  point <- TRUE
+        if (!'point.estimate' %in% names(origEstimate)) point <- FALSE
+        ## END TESTING------------------------------------------------------------
+        if (direct) specification.test <- FALSE
         ## Now estimate the bounds.
         if (point == FALSE) {
-            if (!direct) origEstimate <- eval(estimateCall)
             ## Estimate bounds without resampling
             if (bootstraps == 0) {
                 output <- origEstimate
@@ -2366,6 +2378,9 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 ## until 'future.apply' is installed.
                 tmpFuture <- ('future.apply' %in% loadedNamespaces() |
                               'future' %in% loadedNamespaces())
+                ## TESTING ####################
+                tmpFuture <- FALSE
+                ## END TESTING ###################
                 if (tmpFuture) {
                     if (!requireNamespace('future.apply', quietly = TRUE)) {
                         tmpFuture <- FALSE
@@ -2380,7 +2395,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     }
                 }
                 ## If neither 'future' nor 'future.apply' is loaded
-                ## into the session, then the bootstrap will be performed sequentially.
+                ## into the session, then the bootstrap will be
+                ## performed sequentially.
                 if (!tmpFuture) {
                     for (b in 1:bootstraps) {
                         bootEstimate <- tmpBootCall(bootIndex = b,
@@ -2612,7 +2628,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Point estimate without resampling
         if (point == TRUE & bootstraps == 0) {
-            if (!direct) origEstimate <- eval(estimateCall)
             output <- origEstimate
             output$call.options = opList
             output <- output[sort(names(output))]
@@ -2620,7 +2635,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Point estimate with resampling
         if (point == TRUE & bootstraps > 0) {
-            if (!direct) origEstimate <- eval(estimateCall)
             teEstimates  <- NULL
             mtrEstimates <- NULL
             propEstimates <- NULL
@@ -3497,8 +3511,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                               "late.from", "late.to",
                                               "late.X", "eval.X",
                                               "genlate.lb",
-                                              "genlate.ub", "splinesobj",
-                                              "point", "noisy"),
+                                              "genlate.ub",
+                                              "splinesobj", "noisy"),
                                  dropargs = "data",
                                  newargs = list(data = quote(data),
                                                 pmodobj = quote(pmodel),
@@ -3511,8 +3525,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                               "target.weight0",
                                               "target.weight1",
                                               "target.knots0", "target.knots1",
-                                              "splinesobj",
-                                              "point", "noisy"),
+                                              "splinesobj", "noisy"),
                                  dropargs = "data",
                                  newargs = list(data = quote(data),
                                                 pmodobj = quote(pmodel),
@@ -3609,41 +3622,22 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 subsetIndexList[[ivlikeCounter]] <- as.integer(subset_index)
             }
             ncomponents <- sum(!is.na(sest$betas))
-            if (point) {
-                setobj <- genSSet(data = data,
-                                  sset = sset,
-                                  sest = sest,
-                                  splinesobj = splinesobj,
-                                  pmodobj = pmodel$phat[subset_index],
-                                  pm0 = pm0,
-                                  pm1 = pm1,
-                                  ncomponents = ncomponents,
-                                  scount = scount,
-                                  subset_index = subset_index,
-                                  means = FALSE,
-                                  yvar = vars_y,
-                                  dvar = treat,
-                                  noisy = noisy,
-                                  ivn = ivlikeCounter,
-                                  redundant = point.redundant)
-            } else {
-                setobj <- genSSet(data = data,
-                                  sset = sset,
-                                  sest = sest,
-                                  splinesobj = splinesobj,
-                                  pmodobj = pmodel$phat[subset_index],
-                                  pm0 = pm0,
-                                  pm1 = pm1,
-                                  ncomponents = ncomponents,
-                                  scount = scount,
-                                  subset_index = subset_index,
-                                  means = TRUE,
-                                  yvar = vars_y,
-                                  dvar = treat,
-                                  noisy = noisy,
-                                  ivn = ivlikeCounter,
-                                  redundant = point.redundant)
-            }
+            setobj <- genSSet(data = data,
+                              sset = sset,
+                              sest = sest,
+                              splinesobj = splinesobj,
+                              pmodobj = pmodel$phat[subset_index],
+                              pm0 = pm0,
+                              pm1 = pm1,
+                              ncomponents = ncomponents,
+                              scount = scount,
+                              subset_index = subset_index,
+                              means = FALSE,
+                              yvar = vars_y,
+                              dvar = treat,
+                              noisy = noisy,
+                              ivn = ivlikeCounter,
+                              redundant = point.redundant)
             ## Update set of moments (gammas)
             sset <- setobj$sset
             scount <- setobj$scount
@@ -3863,8 +3857,27 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     call. = FALSE)
         }
         rm(wmat)
+        ## Determine if point identified or not for IV-like case.
+        if (!hasArg(point)) {
+            if (nIndepMoments >= length(gstar0) + length(gstar1)) {
+                point <- TRUE
+                warning(gsub("\\s+", " ",
+                             "MTR is point identified via GMM.
+                              Shape constraints are ignored."),
+                        call. = FALSE)
+            } else {
+                point <- FALSE
+            }
+        }
     } else {
         nIndepMoments <- NULL
+    }
+    if (!direct && point == FALSE) {
+        for (i in 1:length(sset)) {
+            sset[[i]]$g0 <- colMeans(sset[[i]]$g0)
+            sset[[i]]$g1 <- colMeans(sset[[i]]$g1)
+            sset[[i]]$ys <- NULL
+        }
     }
     if (!is.null(point.redundant)) point.redundant <- 0
     ## If bootstrapping, check that length of sset is equivalent in
@@ -3894,8 +3907,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                  noisy = noisy)
         if (!smallreturnlist) {
             return(list(s.set  = sset,
-                        gstar = list(g0 = colMeans(gstar0),
-                                     g1 = colMeans(gstar1)),
+                        gstar = list(g0 = gstar0,
+                                     g1 = gstar1),
                         propensity = pmodel,
                         point.estimate = gmmResult$point.estimate,
                         moments = list(count = length(gmmResult$moments),
@@ -3913,8 +3926,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 return(output)
             })
             output <- list(s.set = sset,
-                           gstar = list(g0 = colMeans(gstar0),
-                                        g1 = colMeans(gstar1)),
+                           gstar = list(g0 = gstar0,
+                                        g1 = gstar1),
                            point.estimate = gmmResult$point.estimate,
                            moments = list(count = length(gmmResult$moments),
                                           criterion = gmmResult$moments),
@@ -4307,13 +4320,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
 #' @param pmodobj A vector of propensity scores.
 #' @param pm0 A list of the monomials in the MTR for d = 0.
 #' @param pm1 A list of the monomials in the MTR for d = 1.
-#' @param point boolean, set to \code{FALSE} by default. \code{point}
-#'     refers to whether the partial or point identification is
-#'     desired. If set to \code{FALSE}, then the gamma moments are
-#'     returned, i.e. sample averages are taken. If set to
-#'     \code{TRUE}, then no sample averages are taken, and a matrix is
-#'     returned. The sample average of each column of the matrix
-#'     corresponds to a particular gamma moment.
 #'
 #' @inheritParams ivmteEstimate
 #'
@@ -4359,8 +4365,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
 #'           splinesobj = splinesList,
 #'           pmodobj = propensityObj,
 #'           pm0 = polynomials0,
-#'           pm1 = polynomials1,
-#'           point = FALSE)
+#'           pm1 = polynomials1)
 #'
 #' @export
 genTarget <- function(treat, m0, m1, target,
@@ -4369,7 +4374,7 @@ genTarget <- function(treat, m0, m1, target,
                       late.Z, late.from, late.to, late.X,
                       eval.X, genlate.lb, genlate.ub,
                       data, splinesobj, pmodobj, pm0, pm1,
-                      point = FALSE, noisy = TRUE) {
+                      noisy = TRUE) {
     if (!hasArg(late.X)) {
         late.X <- NULL
         eval.X <- NULL
@@ -4437,20 +4442,11 @@ genTarget <- function(treat, m0, m1, target,
             if (noisy == TRUE) {
                 cat("    Integrating terms for control group...\n")
             }
-            if (point == FALSE) {
-                gstar0 <- genGamma(monomials = pm0,
-                                   lb = w0$lb,
-                                   ub = w0$ub,
-                                   multiplier = w0$mp,
-                                   late.rows = lateRows)
-            } else {
-                gstar0 <- genGamma(monomials = pm0,
-                                   lb = w0$lb,
-                                   ub = w0$ub,
-                                   multiplier = w0$mp,
-                                   means = FALSE,
-                                   late.rows = lateRows)
-            }
+            gstar0 <- genGamma(monomials = pm0,
+                               lb = w0$lb,
+                               ub = w0$ub,
+                               multiplier = w0$mp,
+                               late.rows = lateRows)
         } else {
             gstar0 <- NULL
         }
@@ -4458,60 +4454,30 @@ genTarget <- function(treat, m0, m1, target,
             if (noisy == TRUE) {
                 cat("    Integrating terms for treated group...\n")
             }
-            if (point == FALSE) {
-                gstar1 <- genGamma(monomials = pm1,
-                                   lb = w1$lb,
-                                   ub = w1$ub,
-                                   multiplier = w1$mp,
-                                   late.rows = lateRows)
-            } else {
-                gstar1 <- genGamma(monomials = pm1,
-                                   lb = w1$lb,
-                                   ub = w1$ub,
-                                   multiplier = w1$mp,
-                                   means = FALSE,
-                                   late.rows = lateRows)
-            }
+            gstar1 <- genGamma(monomials = pm1,
+                               lb = w1$lb,
+                               ub = w1$ub,
+                               multiplier = w1$mp,
+                               late.rows = lateRows)
         } else {
             gstar1 <- NULL
         }
-        if (point == FALSE) {
-            gstarSplineObj0 <- genGammaSplines(splinesobj = splinesobj[[1]],
-                                               data = data,
-                                               lb = w0$lb,
-                                               ub = w0$ub,
-                                               multiplier = w0$mp,
-                                               d = 0,
-                                               late.rows = lateRows)
-            gstarSpline0 <- gstarSplineObj0$gamma
-            gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
-                                               data = data,
-                                               lb = w1$lb,
-                                               ub = w1$ub,
-                                               multiplier = w1$mp,
-                                               d = 1,
-                                               late.rows = lateRows)
-            gstarSpline1 <- gstarSplineObj1$gamma
-        } else {
-            gstarSplineObj0 <- genGammaSplines(splinesobj = splinesobj[[1]],
-                                               data = data,
-                                               lb = w0$lb,
-                                               ub = w0$ub,
-                                               multiplier = w0$mp,
-                                               d = 0,
-                                               means = FALSE,
-                                               late.rows = lateRows)
-            gstarSpline0 <- gstarSplineObj0$gamma
-            gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
-                                               data = data,
-                                               lb = w1$lb,
-                                               ub = w1$ub,
-                                               multiplier = w1$mp,
-                                               d = 1,
-                                               means = FALSE,
-                                               late.rows = lateRows)
-            gstarSpline1 <- gstarSplineObj1$gamma
-        }
+        gstarSplineObj0 <- genGammaSplines(splinesobj = splinesobj[[1]],
+                                           data = data,
+                                           lb = w0$lb,
+                                           ub = w0$ub,
+                                           multiplier = w0$mp,
+                                           d = 0,
+                                           late.rows = lateRows)
+        gstarSpline0 <- gstarSplineObj0$gamma
+        gstarSplineObj1 <- genGammaSplines(splinesobj = splinesobj[[2]],
+                                           data = data,
+                                           lb = w1$lb,
+                                           ub = w1$ub,
+                                           multiplier = w1$mp,
+                                           d = 1,
+                                           late.rows = lateRows)
+        gstarSpline1 <- gstarSplineObj1$gamma
     } else {
         ## Convert fixed/numeric weights into functions
         if (is.numeric(target.weight0)) {
@@ -4553,7 +4519,7 @@ genTarget <- function(treat, m0, m1, target,
                 constants <- which(sapply(target.knots0,
                                           function(x) length(formalArgs(x))) == 0)
                 target.knots0[constants] <- sapply(target.knots0[constants],
-                                                    function(x) funEval(x))
+                                                   function(x) funEval(x))
                 target.knots0[constants] <-
                     sapply(unlist(target.knots0[constants]),
                            constructConstant)
@@ -4569,7 +4535,7 @@ genTarget <- function(treat, m0, m1, target,
                 constants <- which(sapply(target.knots1,
                                           function(x) length(formalArgs(x))) == 0)
                 target.knots1[constants] <- sapply(target.knots1[constants],
-                                                    function(x) funEval(x))
+                                                   function(x) funEval(x))
                 target.knots1[constants] <-
                     sapply(unlist(target.knots1[constants]),
                            constructConstant)
@@ -4644,18 +4610,10 @@ genTarget <- function(treat, m0, m1, target,
                                                  fun = target.weight[[i]],
                                                  argnames = wValVars))
                     }
-                    if (point == FALSE) {
-                        gamma <- gamma + genGamma(pm,
-                                                  lb = lb,
-                                                  ub = ub,
-                                                  multiplier = weights)
-                    } else {
-                        gamma <- gamma + genGamma(pm,
-                                                  lb = lb,
-                                                  ub = ub,
-                                                  multiplier = weights,
-                                                  means = FALSE)
-                    }
+                    gamma <- gamma + genGamma(pm,
+                                              lb = lb,
+                                              ub = ub,
+                                              multiplier = weights)
                 }
                 assign(paste0("gstar", d), gamma)
                 assign(paste0("pm", d), pm)
@@ -4667,8 +4625,8 @@ genTarget <- function(treat, m0, m1, target,
             if (noisy == TRUE) {
                 if (d == 0) {
                     cat("    Integrating spline terms for control group...\n")
-                    } else {
-                    cat("    Integrating spline terms for treated group...\n")
+                } else {
+                        cat("    Integrating spline terms for treated group...\n")
                 }
             }
             noSplineMtr <- splinesobj[[d + 1]]
@@ -4711,24 +4669,13 @@ genTarget <- function(treat, m0, m1, target,
                                                  fun = target.weight[[i]],
                                                  argnames = wValVars))
                     }
-                    if (point == FALSE) {
-                        gammaSplines <- gammaSplines +
-                            genGammaSplines(splinesobj = noSplineMtr,
-                                            data = data,
-                                            lb = lb,
-                                            ub = ub,
-                                            multiplier = weights,
-                                            d = d)$gamma
-                    } else {
-                        gammaSplines <- gammaSplines +
-                            genGammaSplines(splinesobj = noSplineMtr,
-                                            data = data,
-                                            lb = lb,
-                                            ub = ub,
-                                            multiplier = weights,
-                                            d = d,
-                                            means = FALSE)$gamma
-                    }
+                    gammaSplines <- gammaSplines +
+                        genGammaSplines(splinesobj = noSplineMtr,
+                                        data = data,
+                                        lb = lb,
+                                        ub = ub,
+                                        multiplier = weights,
+                                        d = d)$gamma
                 }
                 assign(paste0("gstarSpline", d), gammaSplines)
             } else {
@@ -4736,13 +4683,8 @@ genTarget <- function(treat, m0, m1, target,
             }
         }
     }
-    if (point == FALSE) {
-        gstar0 <- c(gstar0, gstarSpline0)
-        gstar1 <- c(gstar1, gstarSpline1)
-    } else {
-        gstar0 <- cbind(gstar0, gstarSpline0)
-        gstar1 <- cbind(gstar1, gstarSpline1)
-    }
+    gstar0 <- c(gstar0, gstarSpline0)
+    gstar1 <- c(gstar1, gstarSpline1)
     output <- list(gstar0 = gstar0,
                    gstar1 = gstar1)
     if (hasArg(target)) {
@@ -5140,8 +5082,8 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
                         subsetList = NULL, n = NULL, redundant = NULL,
                         identity = FALSE, nMoments, splines,
                         noisy = TRUE) {
-    gn0 <- ncol(gstar0)
-    gn1 <- ncol(gstar1)
+    gn0 <- length(gstar0)
+    gn1 <- length(gstar1)
     if ((gn0 + gn1) > length(sset)) {
         stop(gsub("\\s+", " ",
                   paste0("GMM system is underidentified: there are ",
@@ -5334,9 +5276,9 @@ gmmEstimate <- function(sset, gstar0, gstar1, center = NULL,
         jtest <- NULL
     }
     theta <- as.vector(theta)
-    names(theta) <- c(paste0("m0.", colnames(gstar0)),
-                      paste0("m1.", colnames(gstar1)))
-    point.estimate <- sum(c(colMeans(gstar0), colMeans(gstar1)) * theta)
+    names(theta) <- c(paste0("m0.", names(gstar0)),
+                      paste0("m1.", names(gstar1)))
+    point.estimate <- sum(c(gstar0, gstar1) * theta)
     if (noisy == TRUE) {
         cat("\nPoint estimate of the target parameter: ",
             point.estimate, "\n\n", sep = "")
