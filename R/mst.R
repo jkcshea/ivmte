@@ -531,26 +531,33 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (requireNamespace("gurobi", quietly = TRUE)) {
                 solver <- "gurobi"
             } else if (requireNamespace("lpSolveAPI", quietly = TRUE)) {
-                solver <- "lpSolveAPI"
+                solver <- "lpsolveapi"
             } else if (requireNamespace("cplexAPI", quietly = TRUE)) {
-                solver <- "cplexAPI"
+                solver <- "cplexapi"
             } else if (requireNamespace("Rmosek", quietly = TRUE)) {
-                solver <- "Rmosek"
+                solver <- "rmosek"
             } else {
-                stop(gsub("\\s+", " ",
-                          "Please install one of the following packages required
-                      for estimation:
-                      gurobi (version 7.5-1 or later);
-                      cplexAPI (version 1.3.3 or later);
-                      Rmosek (version 9.2.38 or later);
-                      lpSolveAPI (version 5.5.2.0 or later)."),
-                     call. = FALSE)
+                solver <- "none"
+                point <- TRUE
+                if (direct)  tmp.method <- 'OLS,'
+                if (!direct) tmp.method <- 'GMM,'
+                warning(gsub("\\s+", " ",
+                             paste("None of the compatible solvers are
+                                    installed, so estimation is only possible
+                                    under point identification.
+                                    MTR coefficients will be estimated
+                                    using", tmp.method, "and an estimate of
+                                    the target parameter will be returned
+                                    only if the MTR coefficients are point
+                                    identified.")),
+                        call. = FALSE)
             }
         }
         if (! solver %in% c("gurobi",
                             "cplexapi",
                             "rmosek",
-                            "lpsolveapi")) {
+                            "lpsolveapi",
+                            "none")) {
             stop(gsub("\\s+", " ",
                       paste0("Estimator is incompatible with solver '", solver,
                              "'. Please install one of the
@@ -654,7 +661,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         call. = FALSE)
             }
         }
-        if (direct && !(solver %in% c('gurobi', 'rmosek'))) {
+        if (direct && !(solver %in% c('gurobi', 'rmosek', 'none'))) {
             stop(gsub("\\s+", " ",
                       paste0("A direct regression may only be peformed if
                               the solver is Gurobi or MOSEK. Please install
@@ -2208,6 +2215,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 modcall(estimateCall,
                         newargs = list(equal.coef = equal.coef,
                                        splinesobj.equal = splinesobj.equal))
+        }
+        if (solver == "none") {
+            estimateCall <-
+                modcall(estimateCall,
+                        dropargs = c("point"),
+                        newargs = list(point = TRUE))
         }
         ## Estimate bounds
         ##
@@ -4348,7 +4361,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
 #'           pm0 = polynomials0,
 #'           pm1 = polynomials1,
 #'           point = FALSE)
-#'
 #'
 #' @export
 genTarget <- function(treat, m0, m1, target,
