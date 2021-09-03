@@ -1,21 +1,28 @@
----
-title: "ivmte: An R Package for Marginal Treatment Effect Methods"
-author: "Joshua Shea and Alexander Torgovitsky"
-bibliography: refs.bib
-output:
-  github_document:
-    toc: true
-    keep_html: true
-  html_document:
-    toc: true
-    keep_md: true
-vignette: >
-  %\VignetteIndexEntry{ivmte}
-  %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
----
+ivmte: An R Package for Marginal Treatment Effect Methods
+================
+Joshua Shea and Alexander Torgovitsky
 
-
+  - [Introduction](#introduction)
+  - [Scope of this Vignette](#scope-of-this-vignette)
+  - [Installation and Requirements](#installation-and-requirements)
+  - [Usage Demonstration](#usage-demonstration)
+      - [Data and Background](#data-and-background)
+      - [Syntax and Output Overview](#syntax-and-output-overview)
+      - [Specifying the MTR Functions](#specifying-the-mtr-functions)
+      - [Specifying the Target
+        Parameter](#specifying-the-target-parameter)
+      - [Specifying the IV–Like
+        Estimands](#specifying-the-ivlike-estimands)
+      - [Specifying the Propensity
+        Score](#specifying-the-propensity-score)
+      - [Point Identified Models](#point-identified-models)
+      - [Confidence Intervals](#confidence-intervals)
+      - [Specification Tests](#specification-tests)
+      - [Plotting MTRs and MTEs](#plotting-mtrs-and-mtes)
+      - [Plotting weights](#plotting-weights)
+  - [Help, Feature Requests and Bug
+    Reports](#help-feature-requests-and-bug-reports)
+  - [References](#references)
 
 [![DOI](https://zenodo.org/badge/136092207.svg)](https://zenodo.org/badge/latestdoi/136092207)
 
@@ -1239,3 +1246,92 @@ For clarity, the weights for associated with the intercept have been omitted fro
 Please post an issue on the [GitHub repository](https://github.com/jkcshea/ivmte/issues).
 
 ## References
+
+<div id="refs" class="references">
+
+<div id="ref-andrewshan2009ej">
+
+Andrews, Donald W. K., and Sukjin Han. 2009. “Invalidity of the
+Bootstrap and the M Out of N Bootstrap for Confidence Interval Endpoints
+Defined by Moment Inequalities.” *Econometrics Journal* 12: S172–S199.
+<http://dx.doi.org/10.1111/j.1368-423X.2008.00265.x>.
+
+</div>
+
+<div id="ref-angristevans1998taer">
+
+Angrist, Joshua D., and William N. Evans. 1998. “Children and Their
+Parents’ Labor Supply: Evidence from Exogenous Variation in Family
+Size.” *The American Economic Review* 88 (3): 450–77.
+<http://www.jstor.org/stable/116844>.
+
+</div>
+
+<div id="ref-bugnicanayshi2015joe">
+
+Bugni, Federico A., Ivan A. Canay, and Xiaoxia Shi. 2015. “Specification
+Tests for Partially Identified Models Defined by Moment Inequalities.”
+*Journal of Econometrics* 185 (1): 259–82.
+<http://www.sciencedirect.com/science/article/pii/S0304407614002577>.
+
+</div>
+
+<div id="ref-hallhorowitz1996e">
+
+Hall, Peter, and Joel L. Horowitz. 1996. “Bootstrap Critical Values for
+Tests Based on Generalized-Method-of-Moments Estimators.” *Econometrica*
+64 (4): 891–916. <http://www.jstor.org/stable/2171849>.
+
+</div>
+
+<div id="ref-hansen1982e">
+
+Hansen, Lars Peter. 1982. “Large Sample Properties of Generalized Method
+of Moments Estimators.” *Econometrica* 50 (4): 1029–54.
+<http://www.jstor.org/stable/1912775>.
+
+</div>
+
+<div id="ref-heckmanvytlacil2005e">
+
+Heckman, James J., and Edward Vytlacil. 2005. “Structural Equations,
+Treatment Effects, and Econometric Policy Evaluation.” *Econometrica* 73
+(3): 669–738. <http://dx.doi.org/10.1111/j.1468-0262.2005.00594.x>.
+
+</div>
+
+<div id="ref-imbensangrist1994e">
+
+Imbens, Guido W., and Joshua D. Angrist. 1994. “Identification and
+Estimation of Local Average Treatment Effects.” *Econometrica* 62 (2):
+467–75. <http://www.jstor.org/stable/2951620>.
+
+</div>
+
+<div id="ref-mogstadsantostorgovitsky2018e">
+
+Mogstad, Magne, Andres Santos, and Alexander Torgovitsky. 2018. “Using
+Instrumental Variables for Inference About Policy Relevant Treatment
+Parameters.” *Econometrica* 86 (5): 1589–1619.
+<https://dx.doi.org/10.3982/ecta15463>.
+
+</div>
+
+<div id="ref-mogstadtorgovitsky2018aroe">
+
+Mogstad, Magne, and Alexander Torgovitsky. 2018. “Identification and
+Extrapolation of Causal Effects with Instrumental Variables.” *Annual
+Review of Economics* 10 (1).
+<https://dx.doi.org/10.1146/annurev-economics-101617-041813>.
+
+</div>
+
+<div id="ref-sheatorgovitsky2021wp">
+
+Shea, Joshua, and Alexander Torgovitsky. 2021. “Ivmte: An R
+Package for Implementing Marginal Treatment Effect Methods.” *Working
+Paper*.
+
+</div>
+
+</div>
