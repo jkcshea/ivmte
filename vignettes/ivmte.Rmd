@@ -620,10 +620,13 @@ results
 ```
 
 ### Point Identified Models
-The default of the `ivmte` command is to estimate bounds on the target parameter.
-If one believes the model is in fact point identified, then `point == TRUE` can be included as an option.
-Point identification will typically occur when `ivlike`, `components` and `subset` are such that they have more (non-redundant) components than there are free parameters in `m0` and `m1`.
-Bounds in this case will typically shrink to a point.
+
+By default, `ivmte` will determine if the model is point identified.
+This typically occurs when `ivlike`, `components` and `subset` are such that they have more (non-redundant) components than there are free parameters in `m0` and `m1`.
+If the model is point identified, then the bounds will typically shrink to a point.
+The `ivmte` function will then estimate the target parameter using quadratic loss and the optimal two-step GMM weighting matrix for moments.
+If the model is known to be point identified beforehand, one can include the option ```point = TRUE``` to ensure the target parameter is estimated this way.
+One can additionally pass ```point.eyeweight = TRUE``` to estimate the target parameter using identity weighting.
 
 ```{r, point.id}
 args <- list(data = ivmteSimData,
@@ -631,17 +634,27 @@ args <- list(data = ivmteSimData,
              target = "ate",
              m0 = ~ u,
              m1 = ~ u,
-             propensity = d ~ factor(z))
-r <- do.call(ivmte, args)
-r
-args[["point"]] <- TRUE
+             propensity = d ~ factor(z),
+             point = TRUE)
 r <- do.call(ivmte, args)
 r
 ```
-Notice that even though ```point = FALSE``` and ```point = TRUE``` provide a single number for the target parameter in this scenario, that number is slightly different.
-The reason is that, for computational reasons, ```point = TRUE``` uses the usual quadratic loss, while ```point = FALSE``` uses absolute deviations loss.
+
+If `ivmte` determines that the model is not point identified or the user passes ```point = FALSE```, then the bounds on the target parameter will be estimated.
+However, the user may still pass ```point = FALSE``` even though there are more (non-redundant) moments than free parameters in `m0` and `m1`.
+The bounds will collapse to a point, but may differ from the case where ```point = TRUE```.
+The reason is that `ivmte` uses absolute deviation loss instead of quadratic loss when  ```point = FALSE```.
+To demonstrate this, the example below sets the tuning parameter ```criterion.tol = 0``` so that the bounds indeed collapse to a point (see @mogstadsantostorgovitsky2018e for more detail).
+
+```{r, point.id.absolute}
+args$point <- FALSE
+args$criterion.tol <- 0
+r <- do.call(ivmte, args)
+r
+```
+
 One should use ```point = TRUE``` if the model is point identified, since it computes confidence intervals and specification tests (discussed ahead) in a well-understood way.
-The default when ```point = TRUE``` is to use the optimal two-step GMM weighting, however the identity weighting can be computed by passing ```point.eyeweight = TRUE```.
+
 
 ### Confidence Intervals
 
