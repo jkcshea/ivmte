@@ -2228,23 +2228,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Estimate bounds
         ##
-        ## If the direct MTR regression is performed, then it must
-        ## first be determined whether the target parameter is point
-        ## identified. Note that if the user passes point == FALSE,
-        ## then bounds will be returned.
-        ## if (direct) {
-        ##     origEstimate <- eval(estimateCall)
-        ##     specification.test <- FALSE
-        ##     if ('point.estimate' %in% names(origEstimate))  point <- TRUE
-        ##     if (!'point.estimate' %in% names(origEstimate)) point <- FALSE
-        ## }
-        ## BEGIN--TESTING--------------------------------------------------------
-        ## UPDATE COMMENTS: Also need to check point identification
-        ## for moment criteria.
+        ## If 'point' is not passed, then determine whether the model
+        ## is point identified.
         origEstimate <- eval(estimateCall)
         if ('point.estimate' %in% names(origEstimate))  point <- TRUE
         if (!'point.estimate' %in% names(origEstimate)) point <- FALSE
-        ## END TESTING------------------------------------------------------------
         if (direct) specification.test <- FALSE
         ## Now estimate the bounds.
         if (point == FALSE) {
