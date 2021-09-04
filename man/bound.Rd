@@ -57,7 +57,7 @@ a list containing the bounds on the treatment effect; the
 \description{
 This function estimates the bounds on the target treatment
 effect. The LP model must be passed as an environment variable,
-under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
+under the entry \code{$model}. See \code{\link{lpSetup}}.
 }
 \examples{
 dtm <- ivmte:::gendistMosquito()
@@ -106,8 +106,7 @@ targetGamma <- genTarget(treat = "d",
                          splinesobj = splinesList,
                          pmodobj = propensityObj,
                          pm0 = polynomials0,
-                         pm1 = polynomials1,
-                         point = FALSE)
+                         pm1 = polynomials1)
 
 ## Construct S-set. which contains the coefficients and weights
 ## corresponding to various IV-like estimands
@@ -140,17 +139,17 @@ rhs <- c(rep(0.2, 11), rep(0.8, 11))
 ## lpSolveAPI. Note that an environment has to be created for the LP
 ## object. The matrices defining the shape restrictions must be stored
 ## as a list under the entry \code{$mbobj} in the environment.
-lpEnv <- new.env()
-lpEnv$mbobj <- list(mbA = A,
+modelEnv <- new.env()
+modelEnv$mbobj <- list(mbA = A,
                     mbs = sense,
                     mbrhs = rhs)
 ## Convert the matrices defining the shape constraints into a format
 ## that is suitable for the LP solver.
-lpSetup(env = lpEnv,
+lpSetup(env = modelEnv,
         sset = sSet,
         solver = "lpsolveapi")
 ## Setup LP model so that it is solving for the bounds.
-lpSetupBound(env = lpEnv,
+lpSetupBound(env = modelEnv,
              g0 = targetGamma$gstar0,
              g1 = targetGamma$gstar1,
              sset = sSet,
@@ -160,7 +159,7 @@ lpSetupBound(env = lpEnv,
 ## Declare any LP solver options as a list.
 lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
 ## Obtain the bounds.
-bounds <- bound(env = lpEnv,
+bounds <- bound(env = modelEnv,
                 sset = sSet,
                 solver = "lpsolveapi",
                 solver.options = lpOptions)

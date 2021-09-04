@@ -18,7 +18,7 @@ constraints.}
 \value{
 a list containing a unified constraint matrix, unified
     vector of inequalities, and unified RHS vector for the
-    boundedness and monotonicity constraints of an LP problem.
+    boundedness and monotonicity constraints of an LP/QCQP problem.
 }
 \description{
 This function simply combines the objects associated with the

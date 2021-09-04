@@ -19,5 +19,5 @@ Nothing, as this modifies an environment variable to save
 \description{
 This function sets up the objective function for minimizing the
 criterion. The LP model must be passed as an environment variable,
-under the entry \code{$lpobj}. See \code{\link{lpSetup}}.
+under the entry \code{$model}. See \code{\link{lpSetup}}.
 }

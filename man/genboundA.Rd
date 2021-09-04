@@ -2,7 +2,7 @@
 % Please edit documentation in R/monobound.R
 \name{genboundA}
 \alias{genboundA}
-\title{Generating the LP constraint matrix for bounds}
+\title{Generating the constraint matrix}
 \usage{
 genboundA(
   A0,
@@ -77,27 +77,23 @@ parameter. If passed, this will initiate checks of shape
 constraints.}
 
 \item{audit.tol}{feasibility tolerance when performing the
-audit. By default to set to be equal to the Gurobi
-(\code{solver = "gurobi"}) and CPLEX (\code{solver =
-"cplexapi"}) feasibility toleraence, which is set to
-\code{1e-06} by default.  If the LP solver is lp_solve
-(\code{solver = "lpsolveapi"}), this parameter is set to
-\code{1e-06} by default. This parameter should only be changed
-if the feasibility tolerance of the LP solver is changed, or if
-numerical issues result in discrepancies between the LP
-solver's feasibility check and the audit.}
+audit. By default to set to be equal \code{1e-06}. This
+parameter should only be changed if the feasibility tolerance
+of the solver is changed, or if numerical issues result in
+discrepancies between the solver's feasibility check and the
+audit.}
 
 \item{direct}{boolean, set to \code{TRUE} if the direct MTR
 regression is used.}
 }
 \value{
-a constraint matrix for the LP problem, the associated
+a constraint matrix for the LP/QCQP problem, the associated
     vector of inequalities, and the RHS vector in the inequality
     constraint. The objects pertain only to the boundedness
     constraints declared by the user.
 }
 \description{
 This function generates the component of the constraint matrix in
-the LP problem pertaining to the lower and upper bounds on the MTRs
+the LP/QCQP problem pertaining to the lower and upper bounds on the MTRs
 and MTEs. These bounds are declared by the user.
 }

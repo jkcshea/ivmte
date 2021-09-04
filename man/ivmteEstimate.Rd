@@ -81,10 +81,10 @@ ivmteEstimate(
 \item{data}{\code{data.frame} or \code{data.table} used to estimate
 the treatment effects.}
 
-\item{target}{character, target parameter to be
-estimated. Currently function allows for ATE (\code{'ate'}),
-ATT (\code{'att'}), ATU (\code{'atu'}), LATE (\code{'late'}),
-and generalized LATE (\code{'genlate'}).}
+\item{target}{character, target parameter to be estimated. The
+function allows for ATE (\code{'ate'}), ATT (\code{'att'}), ATU
+(\code{'atu'}), LATE (\code{'late'}), and generalized LATE
+(\code{'genlate'}).}
 
 \item{late.Z}{vector of variable names used to define the LATE.}
 
@@ -240,18 +240,18 @@ should be provided with quoation marks.}
 \item{treat}{variable name for treatment indicator. The name can be
 provided with or without quotation marks.}
 
-\item{solver}{character, name of the linear programming package in
-R used to obtain the bounds on the treatment effect. The
-function supports \code{'gurobi'}, \code{'cplexapi'},
-\code{rmosek}, \code{'lpsolveapi'}. The name of the solver
-should be provided with quotation marks.}
+\item{solver}{character, name of the programming package in R used
+to obtain the bounds on the treatment effect. The function
+supports \code{'gurobi'}, \code{'cplexapi'}, \code{rmosek},
+\code{'lpsolveapi'}. The name of the solver should be provided
+with quotation marks.}
 
 \item{solver.options}{list, each item of the list should correspond
 to an option specific to the solver selected.}
 
 \item{solver.presolve}{boolean, default set to \code{TRUE}. Set
 this parameter to \code{FALSE} if presolve should be turned off
-for the LP problems.}
+for the LP/QCQP problems.}
 
 \item{solver.options.criterion}{list, each item of the list should
 correspond to an option specific to the solver selected. These
@@ -261,16 +261,17 @@ options are specific for finding the minimum criterion.}
 correspond to an option specific to the solver selected. These
 options are specific for finding the bounds.}
 
-\item{criterion.tol}{tolerance for violation of observational
-equivalence, set to 0.01 by default. Statistical noise may
-prohibit the theoretical LP problem from being feasible. That
-is, there may not exist a set of coefficients on the MTR that
-are observationally equivalent with regard to the IV-like
-regression coefficients. The function therefore first estimates
-the minimum violation of observational equivalence. This is
-reported in the output under the name 'minimum criterion'. The
-constraints in the LP problem pertaining to observational
-equivalence are then relaxed by the amount \code{minimum
+\item{criterion.tol}{tolerance for the criterion function, and is
+set to 1e-4 by default. The criterion measures how well the
+IV-like moments/conditional means are matched using the
+l1-norm. Statistical noise may prohibit the theoretical LP/QCQP
+problem from being feasible. That is, there may not exist a set
+of MTR coefficients that are able to match all the specified
+moments. The function thus first estimates the minimum
+criterion, which is reported in the output under the name
+'minimum criterion', with a criterion of 0 meaning that all
+moments were able to be matched. The function then relaxes the
+constraints by tolerating a criterion up to \code{minimum
 criterion * (1 + criterion.tol)}. Set \code{criterion.tol} to a
 value greater than 0 to allow for more conservative bounds.}
 
@@ -295,8 +296,8 @@ open interval (0, 1) drawn from a Halton sequence. The end
 points 0 and 1 are additionally included. These points are used
 to audit whether the shape restrictions on the \code{u}
 components of the MTRs are satisfied. The initial grid used to
-impose the shape constraints in the LP problem are constructed
-from a subset of these points.}
+impose the shape constraints in the LP/QCQP problem are
+constructed from a subset of these points.}
 
 \item{audit.add}{maximum number of points to add to the initial
 constraint grid for imposing each kind of shape constraint. For
@@ -308,14 +309,12 @@ added to the constraint grid.}
 procedure.}
 
 \item{audit.tol}{feasibility tolerance when performing the
-audit. By default to set to be equal to the Gurobi
-(\code{solver = "gurobi"}) and CPLEX (\code{solver =
-"cplexapi"}) feasibility tolerance, which is set to
-\code{1e-06} by default.  If the LP solver is lp_solve
-(\code{solver = "lpsolveapi"}), this parameter is set to
-\code{1e-06} by default. This parameter should only be changed
-if the feasibility tolerance of the LP solver is changed, or if
-numerical issues result in discrepancies between the LP
+audit. By default to set to be 1e-06, which is equal to the
+default feasibility tolerances of Gurobi (\code{solver =
+"gurobi"}), CPLEX (\code{solver = "cplexapi"}), and Rmosek
+(\code{solver = "rmosek"}). This parameter should only be
+changed if the feasibility tolerance of the solver is changed,
+or if numerical issues result in discrepancies between the
 solver's feasibility check and the audit.}
 
 \item{audit.grid}{list, contains the \code{A} matrix used in the
@@ -324,14 +323,18 @@ in the audit from the original sample.}
 
 \item{rescale}{boolean, set to \code{TRUE} by default. This
 rescalels the MTR components to improve stability in the
-LP/QP/QCP optimization.}
+LP/QCQP optimization.}
 
-\item{point}{boolean, default set to \code{FALSE}. Set to
-\code{TRUE} if it is believed that the treatment effects are
-point identified. If set to \code{TRUE}, a two-step GMM
-procedure is implemented to estimate the treatment
-effects. Shape constraints on the MTRs will be ignored under
-point identification.}
+\item{point}{boolean. Set to \code{TRUE} if it is believed that the
+treatment effects are point identified. If set to \code{TRUE}
+and IV-like formulas are passed, then a two-step GMM procedure
+is implemented to estimate the treatment effects. Shape
+constraints on the MTRs will be ignored under point
+identification. If set to \code{TRUE} and the regression-based
+criteria is used instead, then OLS will be used to estimate the
+MTR coefficients used to estimate the treatment effect. If not
+declared, then the function will determine whether or not the
+target parameter is point identified.}
 
 \item{point.eyeweight}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} if the GMM point estimate should use the identity
@@ -395,8 +398,8 @@ e.g. when performing the bootstrap.}
 
 \item{smallreturnlist}{boolean, default set to \code{FALSE}. Set to
 \code{TRUE} to exclude large intermediary components
-(i.e. propensity score model, LP model, bootstrap iterations)
-from being included in the return list.}
+(i.e. propensity score model, LP/QCQP model, bootstrap
+iterations) from being included in the return list.}
 
 \item{debug}{boolean, indicates whether or not the function should
 provide output when obtaining bounds. The option is only
@@ -414,10 +417,10 @@ Returns a list of results from throughout the estimation
     procedure. This includes all IV-like estimands; the propensity
     score model; bounds on the treatment effect; the estimated
     expectations of each term in the MTRs; the components and
-    results of the LP problem.
+    results of the LP/QCQP problem.
 }
 \description{
-This function estimates bounds on treatment effect parameters,
+This function estimates the treatment effect parameters,
 following the procedure described in
 \href{https://doi.org/10.3982/ECTA15463}{Mogstad, Santos and
 Torgovitsky (2018)}. A detailed description of the module and its
@@ -433,12 +436,20 @@ available on the module's
 The treatment effects parameters the user can choose from are the
 ATE, ATT, ATU, LATE, and generalized LATE. The user is required to
 provide a polynomial expression for the marginal treatment
-responses (MTR), as well as a set of regressions. By restricting
-the set of coefficients on each term of the MTRs to be consistent
-with the regression estimates, the function is able to restrict
-itself to a set of MTRs. The bounds on the treatment effect
-parameter correspond to finding coefficients on the MTRs that
-maximize their average difference.
+responses (MTR), as well as a set of regressions.
+
+There are two approaches to estimating the treatment effect
+parameters. The first approach restricts the set of MTR
+coefficients on each term of the MTRs to be consistent with the
+regression estimates from the specifications passed through
+\code{ivlike}. The bounds on the treatment effect parameter
+correspond to finding coefficients on the MTRs that maximize their
+average difference. If the model is point identified, then GMM is
+used for estimation. Otherwise, the function solves an LP
+problem. The second approach restricts the set of MTR coefficients
+to fit the conditional mean of the outcome variable. If the model
+is point identified, then constrained least squares is used for
+estimation. Otherwise, the function solves a QCQP.
 
 The estimation procedure relies on the propensity to take up
 treatment. The propensity scores can either be estimated as part of

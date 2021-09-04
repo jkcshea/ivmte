@@ -137,15 +137,11 @@ parameter. If passed, this will initiate checks of shape
 constraints.}
 
 \item{audit.tol}{feasibility tolerance when performing the
-audit. By default to set to be equal to the Gurobi
-(\code{solver = "gurobi"}) and CPLEX (\code{solver =
-"cplexapi"}) feasibility toleraence, which is set to
-\code{1e-06} by default.  If the LP solver is lp_solve
-(\code{solver = "lpsolveapi"}), this parameter is set to
-\code{1e-06} by default. This parameter should only be changed
-if the feasibility tolerance of the LP solver is changed, or if
-numerical issues result in discrepancies between the LP
-solver's feasibility check and the audit.}
+audit. By default to set to be equal \code{1e-06}. This
+parameter should only be changed if the feasibility tolerance
+of the solver is changed, or if numerical issues result in
+discrepancies between the solver's feasibility check and the
+audit.}
 
 \item{direct}{boolean, set to \code{TRUE} if the direct MTR
 regression is used.}
@@ -153,7 +149,7 @@ regression is used.}
 \value{
 a list containing a unified constraint matrix, unified
     vector of inequalities, and unified RHS vector for the
-    boundedness and monotonicity constraints of an LP problem.
+    boundedness and monotonicity constraints of an LP/QCQP problem.
 }
 \description{
 This is a wrapper function generating the matrices and vectors

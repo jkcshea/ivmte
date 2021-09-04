@@ -73,13 +73,13 @@ The audit grid is represented using a set of constraint
     rows in the constraint matrices. The function simply returns
     the vector of row numbers for the points from the audit grid
     whose corresponding constraints should be added to the original
-    LP problem (i.e. the points to add to the original grid).
+    LP/QCQP problem (i.e. the points to add to the original grid).
 }
 \description{
 This function selects which points from the audit grid should be
 included into the original grid. Both the constraint grid and audit
-grid are represented as constraints in an LP problem. This function
-selects which points in the audit grid (i.e. which rows in the
-audit constraint matrix) should be added to the constraint grid
+grid are represented as constraints in an LP/QCQP problem. This
+function selects which points in the audit grid (i.e. which rows in
+the audit constraint matrix) should be added to the constraint grid
 (i.e. should be appended to the constraint matrix).
 }

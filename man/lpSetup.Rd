@@ -17,7 +17,7 @@ lpSetup(
 )
 }
 \arguments{
-\item{env}{environment containing the matrices defining the LP
+\item{env}{environment containing the matrices defining the LP/QCQP
 problem.}
 
 \item{sset}{List of IV-like estimates and the corresponding gamma
@@ -36,28 +36,29 @@ should have common coefficients with the corresponding terms in
 \code{m0}.}
 
 \item{shape}{boolean, default set to TRUE. Switch to determine
-whether or not to include shape restrictions in the LP problem.}
+whether or not to include shape restrictions in the LP/QCQP
+problem.}
 
 \item{direct}{boolean, set to \code{TRUE} if the direct MTR
 regression is used.}
 
 \item{rescale}{boolean, set to \code{TRUE} if the MTR components
-should be rescaled to improve stability in the LP/QP/QCP
+should be rescaled to improve stability in the LP/QCQP
 optimization.}
 
-\item{solver}{string, name of the package used to solve the LP
+\item{solver}{string, name of the package used to solve the LP/QCQP
 problem.}
 }
 \value{
-A list of matrices and vectors necessary to define an LP
-    problem for Gurobi.
+A list of matrices and vectors necessary to define an
+    LP/QCQP problem.
 }
 \description{
-This function takes in the IV estimates from the set of IV
-regressions declared by the user, as well as their corresponding
-moments of the terms in the MTR. These are then used to construct
-the components that make up the LP problem. Note that the LP model
-will be saved inside an environment variable, which is to be passed
+If the user passes IV-like moments to the function, then the
+function constructs the components of the LP problem. If no IV-like
+moments are passed, then the function constructs the linear
+constraints of the QCQP problem. Note that the LP/QCQP model will
+be saved inside an environment variable, which is to be passed
 through the argument \code{env}. This is done for efficient use of
 memory. The environment \code{env} is supposed to already contain a
 list under the entry \code{$mbobj} containing the matrices defining
@@ -66,9 +67,9 @@ should contain three entries corresponding to a system of linear
 equations of the form \code{Ax <=> b}: \code{mbA}, the matrix
 defining the constraints, \code{A}; \code{mbs}, a vector indicating
 whether a row in \code{mbA} is an equality or inequality constraint
-(for Gurobi and CPLEX, use '<=', '>=', '='; for lpSolveAPI, use
-'L', 'G', and 'E'); \code{mbrhs}, a vector of the right hand side
-values defining the constraint of the form i.e. the vector
+(for Gurobi and MOSEK, use '<=', '>=', '='; for CPLEX,
+use 'L', 'G', and 'E'); \code{mbrhs}, a vector of the right hand
+side values defining the constraint of the form i.e. the vector
 \code{b}. Depending on the linear programming solver used, this
 function will return different output specific to the solver.
 }
@@ -119,8 +120,7 @@ targetGamma <- genTarget(treat = "d",
                          splinesobj = splinesList,
                          pmodobj = propensityObj,
                          pm0 = polynomials0,
-                         pm1 = polynomials1,
-                         point = FALSE)
+                         pm1 = polynomials1)
 
 ## Construct S-set. which contains the coefficients and weights
 ## corresponding to various IV-like estimands
@@ -154,17 +154,17 @@ rhs <- c(rep(0.2, 11), rep(0.8, 11))
 ## lpSolveAPI. Note that an environment has to be created for the LP
 ## object. The matrices defining the shape restrictions must be stored
 ## as a list under the entry \code{$mbobj} in the environment.
-lpEnv <- new.env()
-lpEnv$mbobj <- list(mbA = A,
+modelEnv <- new.env()
+modelEnv$mbobj <- list(mbA = A,
                     mbs = sense,
                     mbrhs = rhs)
 ## Convert the matrices defining the shape constraints into a format
 ## that is suitable for the LP solver.
-lpSetup(env = lpEnv,
+lpSetup(env = modelEnv,
         sset = sSet,
         solver = "lpsolveapi")
 ## Setup LP model so that it is solving for the bounds.
-lpSetupBound(env = lpEnv,
+lpSetupBound(env = modelEnv,
              g0 = targetGamma$gstar0,
              g1 = targetGamma$gstar1,
              sset = sSet,
@@ -174,7 +174,7 @@ lpSetupBound(env = lpEnv,
 ## Declare any LP solver options as a list.
 lpOptions <- optionsLpSolveAPI(list(epslevel = "tight"))
 ## Obtain the bounds.
-bounds <- bound(env = lpEnv,
+bounds <- bound(env = modelEnv,
                 sset = sSet,
                 solver = "lpsolveapi",
                 solver.options = lpOptions)

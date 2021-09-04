@@ -42,7 +42,7 @@ should be removed.}
 }
 \value{
 A list of matrices and vectors necessary to define an LP
-    problem for Gurobi.
+    problem for Gurobi or MOSEK.
 }
 \description{
 This function is only used when the direct MTR regression procedure

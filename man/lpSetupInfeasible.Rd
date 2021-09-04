@@ -22,6 +22,6 @@ environment. That way, the model can be solved without any shape
 constraints, which is the primary cause of infeasibility. This is
 done in order to check which shape constraints are causing the
 model to be infeasible. The LP model must be passed as an
-environment variable, under the entry \code{$lpobj}. See
+environment variable, under the entry \code{$model}. See
 \code{\link{lpSetup}}.
 }

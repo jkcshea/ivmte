@@ -5054,8 +5054,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
 #'                          splinesobj = splinesList,
 #'                          pmodobj = propensityObj,
 #'                          pm0 = polynomials0,
-#'                          pm1 = polynomials1,
-#'                          point = TRUE)
+#'                          pm1 = polynomials1)
 #'
 #' ## Construct S-set. which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands

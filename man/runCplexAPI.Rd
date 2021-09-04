@@ -2,12 +2,12 @@
 % Please edit documentation in R/lp.R
 \name{runCplexAPI}
 \alias{runCplexAPI}
-\title{Running cplexAPI LP solver}
+\title{Running cplexAPI solver}
 \usage{
-runCplexAPI(lpobj, lpdir, solver.options)
+runCplexAPI(model, lpdir, solver.options)
 }
 \arguments{
-\item{lpobj}{list of matrices and vectors defining the linear
+\item{model}{list of matrices and vectors defining the linear
 programming problem.}
 
 \item{lpdir}{input either CPX_MAX or CPX_MIN, which sets the LP

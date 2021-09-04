@@ -91,8 +91,7 @@
 #'                          splinesobj = splinesList,
 #'                          pmodobj = propensityObj,
 #'                          pm0 = polynomials0,
-#'                          pm1 = polynomials1,
-#'                          point = FALSE)
+#'                          pm1 = polynomials1)
 #'
 #' ## Construct S-set. which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands
@@ -676,8 +675,7 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #'                          splinesobj = splinesList,
 #'                          pmodobj = propensityObj,
 #'                          pm0 = polynomials0,
-#'                          pm1 = polynomials1,
-#'                          point = FALSE)
+#'                          pm1 = polynomials1)
 #'
 #' ## Construct S-set. which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands
@@ -880,8 +878,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
 #'                          splinesobj = splinesList,
 #'                          pmodobj = propensityObj,
 #'                          pm0 = polynomials0,
-#'                          pm1 = polynomials1,
-#'                          point = FALSE)
+#'                          pm1 = polynomials1)
 #'
 #' ## Construct S-set. which contains the coefficients and weights
 #' ## corresponding to various IV-like estimands

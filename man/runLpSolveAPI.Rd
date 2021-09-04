@@ -4,10 +4,10 @@
 \alias{runLpSolveAPI}
 \title{Running lpSolveAPI}
 \usage{
-runLpSolveAPI(lpobj, modelsense, solver.options)
+runLpSolveAPI(model, modelsense, solver.options)
 }
 \arguments{
-\item{lpobj}{list of matrices and vectors defining the linear
+\item{model}{list of matrices and vectors defining the linear
 programming problem.}
 
 \item{modelsense}{input either 'max' or 'min' which sets the LP

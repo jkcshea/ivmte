@@ -2,7 +2,7 @@
 % Please edit documentation in R/mst.R
 \name{genSSet}
 \alias{genSSet}
-\title{Generating LP moments for IV-like estimands}
+\title{Generating moments/data for IV-like estimands}
 \usage{
 genSSet(
   data,
@@ -86,8 +86,10 @@ A list containing the point estimate for the IV regression,
 \description{
 This function takes in the IV estimate and its IV-like
 specification, and generates a list containing the corresponding
-point estimate, and the corresponding moments (gammas) that will
-enter into the constraint matrix of the LP problem. The function
+IV-like point estimate, and the corresponding moments (gammas) that
+will enter into the constraint matrix of the LP problem. If the
+option \code{means = FALSE}, then the data are not averaged to
+generate the gamma moments and may be used for GMM. The function
 requires the user to provide a list (i.e. the list the point
 estimates and moments corresponding to other IV-like
 specifications; or an empty list) to append these point estimates

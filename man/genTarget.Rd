@@ -2,7 +2,7 @@
 % Please edit documentation in R/mst.R
 \name{genTarget}
 \alias{genTarget}
-\title{Generating LP moments for IV-like estimands}
+\title{Generating target MTR moments}
 \usage{
 genTarget(
   treat,
@@ -25,7 +25,6 @@ genTarget(
   pmodobj,
   pm0,
   pm1,
-  point = FALSE,
   noisy = TRUE
 )
 }
@@ -43,10 +42,10 @@ set to \code{TRUE} by default.}
 \item{m1}{one-sided formula for the marginal treatment response
 function for the treated group. See \code{m0} for details.}
 
-\item{target}{character, target parameter to be
-estimated. Currently function allows for ATE (\code{'ate'}),
-ATT (\code{'att'}), ATU (\code{'atu'}), LATE (\code{'late'}),
-and generalized LATE (\code{'genlate'}).}
+\item{target}{character, target parameter to be estimated. The
+function allows for ATE (\code{'ate'}), ATT (\code{'att'}), ATU
+(\code{'atu'}), LATE (\code{'late'}), and generalized LATE
+(\code{'genlate'}).}
 
 \item{target.weight0}{user-defined weight function for the control
 group defining the target parameter. A list of functions can be
@@ -107,14 +106,6 @@ for naming each basis spline.}
 
 \item{pm1}{A list of the monomials in the MTR for d = 1.}
 
-\item{point}{boolean, set to \code{FALSE} by default. \code{point}
-refers to whether the partial or point identification is
-desired. If set to \code{FALSE}, then the gamma moments are
-returned, i.e. sample averages are taken. If set to
-\code{TRUE}, then no sample averages are taken, and a matrix is
-returned. The sample average of each column of the matrix
-corresponds to a particular gamma moment.}
-
 \item{noisy}{boolean, default set to \code{TRUE}. If \code{TRUE},
 then messages are provided throughout the estimation
 procedure. Set to \code{FALSE} to suppress all messages,
@@ -131,10 +122,8 @@ A list containing either the vectors of gamma moments for
     \code{u} in each term it appears in.
 }
 \description{
-This function takes in the IV estimate and its IV-like
-specification, and generates a list containing the corresponding
-point estimate, and the corresponding moments (gammas) that will
-enter into the constraint matrix of the LP problem.
+This function estimates the moment of each MTR term under the
+target weight.
 }
 \examples{
 dtm <- ivmte:::gendistMosquito()
@@ -169,8 +158,6 @@ genTarget(treat = "d",
           splinesobj = splinesList,
           pmodobj = propensityObj,
           pm0 = polynomials0,
-          pm1 = polynomials1,
-          point = FALSE)
-
+          pm1 = polynomials1)
 
 }
