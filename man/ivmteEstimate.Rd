@@ -420,13 +420,12 @@ Returns a list of results from throughout the estimation
     results of the LP/QCQP problem.
 }
 \description{
-This function estimates the treatment effect parameters,
-following the procedure described in
-\href{https://doi.org/10.3982/ECTA15463}{Mogstad, Santos and
-Torgovitsky (2018)}. A detailed description of the module and its
-features can be found in
+This function estimates the treatment effect parameters, following
+the procedure described in Mogstad, Santos and Torgovitsky (2018)
+(\doi{10.3982/ECTA15463}). A detailed description of the module and
+its features can be found in
 \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea
-and Torgovitsky (2019)}. However, this is not the main function of
+and Torgovitsky (2021)}. However, this is not the main function of
 the module. See \code{\link{ivmte}} for the main function. For
 examples of how to use the package, see the vignette, which is
 available on the module's

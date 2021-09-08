@@ -401,18 +401,17 @@ Returns a list of results from throughout the estimation
 \description{
 This function provides a general framework for using the marginal
 treatment effect (MTE) to extrapolate. The model is the same binary
-treatment instrumental variable (IV) model considered by
-\href{https://doi.org/10.2307/2951620}{Imbens and Angrist (1994)}
-and \href{https://doi.org/10.1111/j.1468-0262.2005.00594.x}{Heckman
-and Vytlacil (2005)}. The framework on which this function is based
-was developed by \href{https://doi.org/10.3982/ECTA15463}{Mogstad,
-Santos and Torgovitsky (2018)}. See also the recent survey paper on
-extrapolation in IV models by
-\href{https://doi.org/10.1146/annurev-economics-101617-041813}{Mogstad
-and Torgovitsky (2018)}. A detailed description of the module and
-its features can be found in
+treatment instrumental variable (IV) model considered by Imbens and
+Angrist (1994) (\doi{10.2307/2951620}) and Heckman and Vytlacil
+(2005) (\doi{10.1111/j.1468-0262.2005.00594.x}). The framework on
+which this function is based was developed by Mogstad, Santos and
+Torgovitsky (2018) (\doi{10.3982/ECTA15463}). See also the recent
+survey paper on extrapolation in IV models by Mogstad and
+Torgovitsky (2018)
+(\doi{10.1146/annurev-economics-101617-041813}). A detailed
+description of the module and its features can be found in
 \href{https://a-torgovitsky.github.io/shea-torgovitsky.pdf}{Shea
-and Torgovitsky (2019)}.
+and Torgovitsky (2021)}.
 }
 \details{
 When the function is used to estimate bounds, and

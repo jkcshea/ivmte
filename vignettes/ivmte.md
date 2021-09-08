@@ -1473,7 +1473,7 @@ Size.” *The American Economic Review* 88 (3): 450–77.
 Bugni, Federico A., Ivan A. Canay, and Xiaoxia Shi. 2015. “Specification
 Tests for Partially Identified Models Defined by Moment Inequalities.”
 *Journal of Econometrics* 185 (1): 259–82.
-<http://www.sciencedirect.com/science/article/pii/S0304407614002577>.
+<https://www.sciencedirect.com/science/article/pii/S0304407614002577>.
 
 </div>
 
