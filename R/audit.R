@@ -724,10 +724,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
                 sep = "")
         }
+        if (rescale) {
+            drN <- modelEnv$drN / sqrt(modelEnv$ssy)
+        } else {
+            drN <- modelEnv$drN
+        }
+        minCriterion <- (minobseq$obj * modelEnv$drN + modelEnv$ssy) / drN
         if (direct && noisy) {
-            cat("    Minimum criterion: ",
-                fmtResult(minobseq$obj * modelEnv$drN + modelEnv$ssy),
-                "\n",
+            cat("    Minimum criterion: ", fmtResult(minCriterion), "\n",
                 sep = "")
         }
         ## Perform specification test
@@ -895,8 +899,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         max = result$max,
                         status.min = result$minstatus,
                         status.max = result$maxstatus,
-                        audit.criterion = minobseq$obj * modelEnv$drN +
-                            modelEnv$ssy,
+                        audit.criterion = minCriterion,
                         audit.criterion.raw = minobseq$obj,
                         audit.criterion.status = minobseq$status,
                         audit.count = audit_count - 1,
@@ -1460,7 +1463,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                    minobseq = minobseq$obj,
                    minobseq.status = minobseq$status)
     if (direct) {
-        output$minobseq <- output$minobseq * modelEnv$drN + modelEnv$ssy
+        output$minobseq <- minCriterion
         output$minobseq.raw <- minobseq$obj
     }
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
