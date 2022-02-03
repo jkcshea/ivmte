@@ -1650,7 +1650,6 @@ qpSetup <- function(env, sset, rescale = TRUE) {
         normY <- sqrt(sum(drY^2))
         drN <- drN * normY
     }
-    ## TESTING ------------------
     ## Add a new variable yhat for each observation, defined using a
     ## linear constraint
     origACols <- ncol(env$model$A)
@@ -1678,13 +1677,6 @@ qpSetup <- function(env, sset, rescale = TRUE) {
                            Matrix::Diagonal(length(drY))) / drN
     qc$sense <- '<'
     qc$name <- 'SSR'
-    ## ## ORIGINAL --------------
-    ## qc <- list()
-    ## qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
-    ## qc$Qc <- Matrix::Matrix(t(drX) %*% drX / drN, sparse = TRUE)
-    ## qc$sense <- '<'
-    ## qc$name <- 'SSR'
-    ## ## END ORIGINAL --------------
     ## Store the quadratic component
     env$quad <- qc
     ## Store the SSY
@@ -1748,12 +1740,8 @@ qpSetupBound <- function(env, g0, g1,
                          setup = TRUE) {
     if (setup) {
         ## Prepare objective
-        ## Testing ---------------
         env$model$obj <- c(c(g0, g1),
                            rep(0, length(env$drY)))
-        ## ## original --------------
-        ## env$model$obj <- c(g0, g1)
-        ## ## End original ----------
         if (rescale) {
             env$model$obj <- env$model$obj / c(env$colNorms,
                                                rep(1, length(env$drY)))

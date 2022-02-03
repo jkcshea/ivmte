@@ -2365,9 +2365,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 ## until 'future.apply' is installed.
                 tmpFuture <- ('future.apply' %in% loadedNamespaces() |
                               'future' %in% loadedNamespaces())
-                ## TESTING ####################
                 tmpFuture <- FALSE
-                ## END TESTING ###################
                 if (tmpFuture) {
                     if (!requireNamespace('future.apply', quietly = TRUE)) {
                         tmpFuture <- FALSE

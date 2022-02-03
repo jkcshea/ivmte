@@ -1257,13 +1257,11 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         STATS = modelEnv$colNorms,
                                         FUN = '/')
                     }
-                    ## Testing -------------------
                     ## Expand additional constraints to allow for new variable
                     tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
                                            ncol = length(modelEnv$drY))
                     colnames(tmpA) <- paste0("yhat.", seq(length(modelEnv$drY)))
                     tmpMat <- cbind(tmpMat, tmpA)
-                    ## End testing --------------
                     modelEnv$model$A <- rbind(modelEnv$model$A, tmpMat)
                     rm(addCol, tmpMat)
                     ## Update the contraint sequences
@@ -1355,13 +1353,11 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         STATS = modelEnv$colNorms,
                                         FUN = '/')
                     }
-                    ## Testing -------------------
                     ## Expand additional constraints to allow for new variable
                     tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
                                            ncol = length(modelEnv$drY))
                     colnames(tmpA) <- paste0("yhat.", seq(length(modelEnv$drY)))
                     tmpMat <- cbind(tmpMat, tmpA)
-                    ## End testing --------------
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)
                     rm(addCol, tmpMat)
@@ -1450,13 +1446,11 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         STATS = modelEnv$colNorms,
                                         FUN = '/')
                     }
-                    ## Testing -------------------
                     ## Expand additional constraints to allow for new variable
                     tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
                                            ncol = length(modelEnv$drY))
                     colnames(tmpA) <- paste0("yhat.", seq(length(modelEnv$drY)))
                     tmpMat <- cbind(tmpMat, tmpA)
-                    ## End testing --------------
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)
                     rm(tmpMat)
