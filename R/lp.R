@@ -403,7 +403,7 @@ lpSetupSolver <- function(env, solver) {
 #' @param env the LP environment
 #' @param sset list of IV-like estimates and the corresponding gamma
 #'     terms.
-#' @param orig.sset list, only used for bootstraps. The list caontains
+#' @param orig.sset list, only used for bootstraps. The list contains
 #'     the gamma moments for each element in the S-set, as well as the
 #'     IV-like coefficients.
 #' @param orig.criterion scalar, only used for bootstraps. This is the
@@ -429,10 +429,12 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
                            replicate(gn0 + gn1, 0))
         ## Prepare to obtain 'recentered' bootstrap
         ## criterion. Specifically, the |S| equality constraints are
-        ## centered. Then, the original |S| equality constraints are
+        ## centered---this is done in the lpSetup function already, as
+        ## long as orig.sset is provided to the function. Then, the
+        ## |S| equality constraints from the ORIGINAL SAMPLE are
         ## added. In addition, 2 * |S| residual variables are added to
         ## the problem. These new residual variables correspond to the
-        ## |S| equality constraints from the original, uncentered
+        ## |S| equality constraints from the ORIGINAL (and uncentered)
         ## sample.
         tmpA <- NULL
         tmpRhs <- NULL
@@ -1029,6 +1031,7 @@ bound <- function(env, sset, solver,
                      (2 * env$model$sn + env$model$gn0)]
     maxg1 <- maxoptx[(2 * env$model$sn + env$model$gn0 + 1) :
                      (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
+    ## Undo the rescaling
     if (rescale) {
         ming0 <- ming0 / env$colNorms[1:ncol(sset$s1$g0)]
         ming1 <- ming1 / env$colNorms[(ncol(sset$s1$g0) + 1):
@@ -1647,11 +1650,41 @@ qpSetup <- function(env, sset, rescale = TRUE) {
         normY <- sqrt(sum(drY^2))
         drN <- drN * normY
     }
+    ## TESTING ------------------
+    ## Add a new variable yhat for each observation, defined using a
+    ## linear constraint
+    origACols <- ncol(env$model$A)
+    tmpA <- Matrix::Matrix(0, nrow = nrow(env$model$A), ncol = length(drY))
+    tmpI <- Matrix::Diagonal(length(drY))
+    tmpRhs <- rep(0, length(drY))
+    tmpSense <- rep("=", length(drY))
+    tmpBounds <- rep(Inf, length(drY))
+    tmpNorms <- rep(1, length(drY))
+    colnames(tmpA) <- colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
+        names(tmpBounds) <- names(tmpNorms) <- paste0("yhat.", seq(length(drY)))
+    env$model$A <- rbind(cbind(env$model$A, tmpA),
+                         cbind(drX, -tmpI))
+    env$model$rhs <- c(env$model$rhs, tmpRhs)
+    env$model$sense <- c(env$model$sense, tmpSense)
+    env$model$lb <- c(env$model$lb, -tmpBounds)
+    env$model$ub <- c(env$model$ub, tmpBounds)
+    ## env$colNorms <- c(env$colNorms, tmpNorms)
+    ## Now set up the quadratic constraint
     qc <- list()
-    qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
-    qc$Qc <- Matrix::Matrix(t(drX) %*% drX / drN, sparse = TRUE)
+    qc$q <- -2 * c(rep(0, origACols), drY) / drN
+    qc$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
+                                          ncol = origACols,
+                                          nrow = origACols),
+                           Matrix::Diagonal(length(drY))) / drN
     qc$sense <- '<'
     qc$name <- 'SSR'
+    ## ## ORIGINAL --------------
+    ## qc <- list()
+    ## qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
+    ## qc$Qc <- Matrix::Matrix(t(drX) %*% drX / drN, sparse = TRUE)
+    ## qc$sense <- '<'
+    ## qc$name <- 'SSR'
+    ## ## END ORIGINAL --------------
     ## Store the quadratic component
     env$quad <- qc
     ## Store the SSY
@@ -1715,9 +1748,15 @@ qpSetupBound <- function(env, g0, g1,
                          setup = TRUE) {
     if (setup) {
         ## Prepare objective
-        env$model$obj <- c(g0, g1)
+        ## Testing ---------------
+        env$model$obj <- c(c(g0, g1),
+                           rep(0, length(env$drY)))
+        ## ## original --------------
+        ## env$model$obj <- c(g0, g1)
+        ## ## End original ----------
         if (rescale) {
-            env$model$obj <- env$model$obj / env$colNorms
+            env$model$obj <- env$model$obj / c(env$colNorms,
+                                               rep(1, length(env$drY)))
         }
         env$model$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
