@@ -793,7 +793,6 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
     }
     print('This is optimal x')
     print(optx[1:16])
-    stop('end of test')
     output <- list(obj = obseqmin,
                    x = optx,
                    g0 = g0sol,
