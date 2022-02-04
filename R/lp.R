@@ -789,8 +789,6 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
         g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
                                       (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
     }
-    print("The optimal x")
-    print(optx)
     output <- list(obj = obseqmin,
                    x = optx,
                    g0 = g0sol,
