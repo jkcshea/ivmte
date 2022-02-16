@@ -1652,29 +1652,30 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     }
     ## Add a new variable yhat for each observation, defined using a
     ## linear constraint
-    origACols <- ncol(env$model$A)
-    tmpA <- Matrix::Matrix(0, nrow = nrow(env$model$A), ncol = length(drY))
-    tmpI <- Matrix::Diagonal(length(drY))
-    tmpRhs <- rep(0, length(drY))
-    tmpSense <- rep("=", length(drY))
-    tmpBounds <- rep(Inf, length(drY))
-    tmpNorms <- rep(1, length(drY))
+    AA <- t(drX) %*% drX
+    cholAA <- chol(AA, pivot = TRUE)
+    cholAA <- Matrix::Matrix(AA)
+    tmpA <- Matrix::Matrix(0, nrow = nrow(env$model$A), ncol = ncol(AA))
+    tmpI <- Matrix::Diagonal(ncol(AA))
+    tmpRhs <- rep(0, ncol(AA))
+    tmpSense <- rep("=", ncol(AA))
+    tmpBounds <- rep(Inf, ncol(AA))
     colnames(tmpA) <- colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
-        names(tmpBounds) <- names(tmpNorms) <- paste0("yhat.", seq(length(drY)))
+        names(tmpBounds) <- paste0("yhat.", seq(ncol(AA)))
     env$model$A <- rbind(cbind(env$model$A, tmpA),
-                         cbind(drX, -tmpI))
+                         cbind(cholAA, -tmpI))
     env$model$rhs <- c(env$model$rhs, tmpRhs)
     env$model$sense <- c(env$model$sense, tmpSense)
     env$model$lb <- c(env$model$lb, -tmpBounds)
     env$model$ub <- c(env$model$ub, tmpBounds)
-    ## env$colNorms <- c(env$colNorms, tmpNorms)
     ## Now set up the quadratic constraint
     qc <- list()
-    qc$q <- -2 * c(rep(0, origACols), drY) / drN
+    qc$q <- -2 * c(t(drX) %*% drY) / drN
+    qc$q <- c(qc$q, rep(0, ncol(AA)))
     qc$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
-                                          ncol = origACols,
-                                          nrow = origACols),
-                           Matrix::Diagonal(length(drY))) / drN
+                                          ncol = ncol(AA),
+                                          nrow = ncol(AA)),
+                           Matrix::Diagonal(ncol(AA))) / drN
     qc$sense <- '<'
     qc$name <- 'SSR'
     ## Store the quadratic component
@@ -1741,10 +1742,10 @@ qpSetupBound <- function(env, g0, g1,
     if (setup) {
         ## Prepare objective
         env$model$obj <- c(c(g0, g1),
-                           rep(0, length(env$drY)))
+                           rep(0, ncol(env$drX)))
         if (rescale) {
             env$model$obj <- env$model$obj / c(env$colNorms,
-                                               rep(1, length(env$drY)))
+                                               rep(1, ncol(env$drX)))
         }
         env$model$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
