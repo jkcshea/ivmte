@@ -554,6 +554,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            Tolerance parameters for the solver
                            can also be passed through the argument
                            'solver.options'.\n")
+    ## Add placeholder for violation matrix
+    violateMat.prev <- NULL
+    violateMat.same <- 0
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
@@ -1065,6 +1068,34 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 }
                 break
             }
+        }
+        ## End the audit if the previous violations were not addressed
+        if (!is.null(violateMat.prev) && !is.null(violateMat)) {
+            if (all(dim(violateMat) == dim(violateMat.prev))
+                && all(violateMat == violateMat.prev)) {
+                violateMat.same <- violateMat.same + 1
+            } else {
+                violateMat.same <- 0
+            }
+        }
+        violateMat.prev <- violateMat
+        if (violateMat.same >= 2) {
+            warning(gsub("\\s+", " ",
+                         paste0("Audit is unable to resolve violations:
+                                 the same set of violations have persisted
+                                 for three iterations. This can occur if
+                                 the tolerance declared in 'audit.tol' differs
+                                 from the tolerance of the solver, which can be
+                                 set using the option 'solver.options'.
+                                 This can also occur if the option 'rescale'
+                                 is set to TRUE, which rescales the QCQP problem
+                                 to improve numerical stability but results in
+                                 different relative tolerances between R and
+                                 the solver.
+                                 Audit is terminated.")), "\n",
+                    call. = FALSE,
+                    immediate. = TRUE)
+            break
         }
         ## Address violations by expanding initial grid
         if (!is.null(violateMat)) {
