@@ -1259,8 +1259,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     }
                     ## Expand additional constraints to allow for new variable
                     tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                           ncol = length(modelEnv$drY))
-                    colnames(tmpA) <- paste0("yhat.", seq(length(modelEnv$drY)))
+                                           ncol = ncol(modelEnv$drX))
+                    colnames(tmpA) <- paste0("yhat.", seq(ncol(modelEnv$drX)))
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <- rbind(modelEnv$model$A, tmpMat)
                     rm(addCol, tmpMat)
@@ -1355,8 +1355,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     }
                     ## Expand additional constraints to allow for new variable
                     tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                           ncol = length(modelEnv$drY))
-                    colnames(tmpA) <- paste0("yhat.", seq(length(modelEnv$drY)))
+                                           ncol = ncol(modelEnv$drX))
+                    colnames(tmpA) <- paste0("yhat.", seq(ncol(modelEnv$drX)))
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)
@@ -1448,8 +1448,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     }
                     ## Expand additional constraints to allow for new variable
                     tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                           ncol = length(modelEnv$drY))
-                    colnames(tmpA) <- paste0("yhat.", seq(length(modelEnv$drY)))
+                                           ncol = ncol(modelEnv$drX))
+                    colnames(tmpA) <- paste0("yhat.", seq(ncol(modelEnv$drX)))
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)

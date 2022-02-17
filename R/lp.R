@@ -1653,8 +1653,14 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     ## Add a new variable yhat for each observation, defined using a
     ## linear constraint
     AA <- t(drX) %*% drX
-    cholAA <- chol(AA, pivot = TRUE)
-    cholAA <- Matrix::Matrix(AA)
+    cholAA <- suppressWarnings(chol(AA, pivot = TRUE))
+    cholRank <- attr(cholAA, 'rank')
+    if (cholRank < nrow(AA)) {
+        cholAA[(cholRank + 1):nrow(cholAA),
+        (cholRank + 1):nrow(cholAA)] <- 0
+    }
+    cholOrder <- order(attr(cholAA, 'pivot'))
+    cholAA <- Matrix::Matrix(cholAA)[, cholOrder]
     tmpA <- Matrix::Matrix(0, nrow = nrow(env$model$A), ncol = ncol(AA))
     tmpI <- Matrix::Diagonal(ncol(AA))
     tmpRhs <- rep(0, ncol(AA))
