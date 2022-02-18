@@ -734,15 +734,10 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         }
         minCriterion <- (minobseq$obj * modelEnv$drN + modelEnv$ssy) / drN
         if (direct && noisy) {
-            print("quad component")
-            print(minobseq$obj * modelEnv$drN)
-            print("SSY")
-            print(modelEnv$ssy)
-            print(cbind(modelEnv$colNorms, minobseq$x))
             cat("    Minimum criterion: ", fmtResult(minCriterion), "\n",
                 sep = "")
         }
-        stop('end of test')
+        
         ## Perform specification test
         if (!direct && !is.null(orig.sset) && !is.null(orig.criterion)) {
             lpSetupCriterionBoot(modelEnv, sset, orig.sset,

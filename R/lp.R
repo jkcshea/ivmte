@@ -791,24 +791,6 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
         g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
                                       (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
     }
-    ## TESTING ----------------
-    print("middle")
-    print(env$quad$q %*% optx)
-    print("middle scaled")
-    print(quantile(env$quad$q * optx * env$drN, probs = seq(0, 1, 0.01)))
-    print("quadratic")
-    print(t(optx) %*% env$quad$Qc %*% optx)
-    print("Checking if new constraints are satisfied.")
-    tmp.diff <- as.vector(abs(env$model$A %*% optx - env$model$rhs))
-    names(tmp.diff) <- rownames(env$model$A)
-    print(tmp.diff[grep("yhat\\.", names(tmp.diff))])
-    print('max difference')
-    print(max(tmp.diff[grep("yhat\\.", names(tmp.diff))]))
-    print(quantile(tmp.diff[grep("yhat\\.", names(tmp.diff))], probs = seq(0, 1, 0.01)))
-    print('This is the norm')
-    print(env$drN)
-    ## END TESTING ------------
-
     output <- list(obj = obseqmin,
                    x = optx,
                    g0 = g0sol,
@@ -1117,27 +1099,7 @@ bound <- function(env, sset, solver,
 #'     objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization) .
 runGurobi <- function(model, solver.options) {
-    result <- gurobi::gurobi(model, solver.options)
-    ## Testing --------------------
-    check.data <- data.table(index = seq(nrow(model$A)),
-                             lhs = as.vector(model$A %*% result$x),
-                             sense = model$sense,
-                             rhs = model$rhs)
-    test.vec <- apply(check.data, 1, function(x) {
-        tmp.sense <- x[3]
-        if (tmp.sense %in% c('<', '<=')) tmp.sense <- '<='
-        if (tmp.sense %in% c('>', '>=')) tmp.sense <- '>='
-        if (tmp.sense %in% c('=')) tmp.sense <- '=='
-        eval.str <- paste0(x[2], tmp.sense, x[4])
-        eval(parse(text = eval.str))
-    })
-    check.data$eval <- test.vec
-    check.data$diff <- abs(check.data$lhs - check.data$rhs)
-    print("violations of new variable definition")
-    print(check.data[check.data$diff > 1e-06 & check.data$sense == "=", ])
-    print("quantile of the solution")
-    print(quantile(result$x, probs = seq(0, 1, 0.01)))
-    ## End testing ----------------    
+    result <- gurobi::gurobi(model, solver.options)   
     status <- 0
     if (result$status == "OPTIMAL") status <- 1
     if (result$status == "INFEASIBLE") status <- 2
@@ -1699,11 +1661,6 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     }
     cholOrder <- order(attr(cholAA, 'pivot'))
     cholAA <- Matrix::Matrix(cholAA)[, cholOrder]
-    print("quantile of cholesky")
-    print(quantile(as.matrix(cholAA), probs = seq(0, 1, 0.01)))
-    print(cholAA[1:20, 1:10])
-    print("How many are 0s?")
-    print(mean(as.matrix(cholAA) == 0, na.rm = TRUE))
     tmpA <- Matrix::Matrix(0, nrow = nrow(env$model$A), ncol = ncol(AA))
     tmpI <- Matrix::Diagonal(ncol(AA))
     tmpRhs <- rep(0, ncol(AA))
