@@ -826,7 +826,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                           noisy = noisy,
                           smallreturnlist = smallreturnlist,
                           rescale = rescale,
-                          debug = debug)
+                        debug = debug)
         if (result$error == TRUE) {
             errMess <- NULL
             errTypes <- NULL

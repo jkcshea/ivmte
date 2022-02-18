@@ -1099,7 +1099,7 @@ bound <- function(env, sset, solver,
 #'     objective value, the solution vector, and the optimization
 #'     status (status of \code{1} indicates successful optimization) .
 runGurobi <- function(model, solver.options) {
-    result <- gurobi::gurobi(model, solver.options)   
+    result <- gurobi::gurobi(model, solver.options)
     status <- 0
     if (result$status == "OPTIMAL") status <- 1
     if (result$status == "INFEASIBLE") status <- 2
@@ -1650,45 +1650,9 @@ qpSetup <- function(env, sset, rescale = TRUE) {
         normY <- sqrt(sum(drY^2))
         drN <- drN * normY
     }
-    ## Add a new variable yhat for each observation, defined using a
-    ## linear constraint
-    AA <- t(drX) %*% drX
-    cholAA <- suppressWarnings(chol(AA, pivot = TRUE))
-    cholRank <- attr(cholAA, 'rank')
-    if (cholRank < nrow(AA)) {
-        cholAA[(cholRank + 1):nrow(cholAA),
-        (cholRank + 1):nrow(cholAA)] <- 0
-    }
-    cholOrder <- order(attr(cholAA, 'pivot'))
-    cholAA <- Matrix::Matrix(cholAA)[, cholOrder]
-    tmpA <- Matrix::Matrix(0, nrow = nrow(env$model$A), ncol = ncol(AA))
-    tmpI <- Matrix::Diagonal(ncol(AA))
-    tmpRhs <- rep(0, ncol(AA))
-    tmpSense <- rep("=", ncol(AA))
-    tmpBounds <- rep(Inf, ncol(AA))
-    colnames(tmpA) <- colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
-        names(tmpBounds) <- paste0("yhat.", seq(ncol(AA)))
-    origA.colnames <- colnames(env$model$A)
-    origA.rows <- nrow(env$model$A)
-    env$model$A <- rbind(cbind(env$model$A, tmpA),
-                         cbind(cholAA, -tmpI))
-    env$model$rhs <- c(env$model$rhs, tmpRhs)
-    env$model$sense <- c(env$model$sense, tmpSense)
-    env$model$lb <- c(env$model$lb, -tmpBounds)
-    env$model$ub <- c(env$model$ub, tmpBounds)
-    colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
-    rownames(env$model$A) <-
-        names(env$model$rhs) <-
-        names(env$model$sense) <- c(paste0("init.", seq(origA.rows)),
-                                    colnames(tmpA))
-    ## Now set up the quadratic constraint
     qc <- list()
-    qc$q <- -2 * c(t(drX) %*% drY) / drN
-    qc$q <- c(qc$q, rep(0, ncol(AA)))
-    qc$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
-                                          ncol = ncol(AA),
-                                          nrow = ncol(AA)),
-                           Matrix::Diagonal(ncol(AA))) / drN
+    qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
+    qc$Qc <- Matrix::Matrix(t(drX) %*% drX / drN, sparse = TRUE)
     qc$sense <- '<'
     qc$name <- 'SSR'
     ## Store the quadratic component
@@ -1700,6 +1664,40 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$drX <- drX
     env$drN <- drN
     if (rescale) env$normY <- normY
+    ## Add a new variable yhat for each observation, defined using a
+    ## linear constraint
+    AA <- t(drX) %*% drX
+    cholAA <- suppressWarnings(chol(AA, pivot = TRUE))
+    cholRank <- attr(cholAA, 'rank')
+    if (cholRank < nrow(AA)) {
+        cholAA[(cholRank + 1):nrow(cholAA),
+        (cholRank + 1):nrow(cholAA)] <- 0
+    }
+    cholOrder <- order(attr(cholAA, 'pivot'))
+    cholAA <- Matrix::Matrix(cholAA)[, cholOrder]
+    tmpI <- Matrix::Diagonal(ncol(AA))
+    tmpRhs <- rep(0, ncol(AA))
+    tmpSense <- rep("=", ncol(AA))
+    tmpBounds <- rep(Inf, ncol(AA))
+    colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
+        names(tmpBounds) <- paste0("yhat.", seq(ncol(AA)))
+    cholMats <- list(A = cbind(cholAA, -tmpI),
+                     rhs = tmpRhs,
+                     sense = tmpSense,
+                     ub = tmpBounds,
+                     lb = -tmpBounds)
+    env$cholMats <- cholMats
+    ## Now set up the quadratic constraint
+    cholQuad <- list()
+    cholQuad$q <- -2 * c(t(drX) %*% drY) / drN
+    cholQuad$q <- c(cholQuad$q, rep(0, ncol(AA)))
+    cholQuad$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
+                                          ncol = ncol(AA),
+                                          nrow = ncol(AA)),
+                           Matrix::Diagonal(ncol(AA))) / drN
+    cholQuad$sense <- '<'
+    cholQuad$name <- 'SSR'
+    env$cholQuad <- cholQuad
 }
 
 #' Configure QCQP problem to find minimum criterion
@@ -1753,6 +1751,64 @@ qpSetupBound <- function(env, g0, g1,
                          rescale = FALSE,
                          setup = TRUE) {
     if (setup) {
+        ## ## CHOLESKY CODE ---------------------------------
+        ## ## Add a new variable yhat for each observation, defined using a
+        ## ## linear constraint
+        ## AA <- t(env$drX) %*% env$drX
+        ## cholAA <- suppressWarnings(chol(AA, pivot = TRUE))
+        ## cholRank <- attr(cholAA, 'rank')
+        ## if (cholRank < nrow(AA)) {
+        ##     cholAA[(cholRank + 1):nrow(cholAA),
+        ##     (cholRank + 1):nrow(cholAA)] <- 0
+        ## }
+        ## cholOrder <- order(attr(cholAA, 'pivot'))
+        ## cholAA <- Matrix::Matrix(cholAA)[, cholOrder]
+        ## tmpA <- Matrix::Matrix(0, nrow = nrow(env$model$A), ncol = ncol(AA))
+        ## tmpI <- Matrix::Diagonal(ncol(AA))
+        ## tmpRhs <- rep(0, ncol(AA))
+        ## tmpSense <- rep("=", ncol(AA))
+        ## tmpBounds <- rep(Inf, ncol(AA))
+        ## colnames(tmpA) <- colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
+        ##     names(tmpBounds) <- paste0("yhat.", seq(ncol(AA)))
+        ## origA.colnames <- colnames(env$model$A)
+        ## env$model$A <- rbind(cbind(env$model$A, tmpA),
+        ##                      cbind(cholAA, -tmpI))
+        ## env$model$rhs <- c(env$model$rhs, tmpRhs)
+        ## env$model$sense <- c(env$model$sense, tmpSense)
+        ## env$model$lb <- c(env$model$lb, -tmpBounds)
+        ## env$model$ub <- c(env$model$ub, tmpBounds)
+        ## colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
+        ## ## Now set up the quadratic constraint
+        ## qc <- list()
+        ## qc$q <- -2 * c(t(env$drX) %*% env$drY) / env$drN
+        ## qc$q <- c(qc$q, rep(0, ncol(AA)))
+        ## qc$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
+        ##                                       ncol = ncol(AA),
+        ##                                       nrow = ncol(AA)),
+        ##                        Matrix::Diagonal(ncol(AA))) / env$drN
+        ## qc$sense <- '<'
+        ## qc$name <- 'SSR'
+        ## ## END CHOLESKY CODE -------------------------------
+
+        ## New cholesky code ---------------------
+        ## Track the position of the Cholesky constraints
+        env$cholPos <- seq(nrow(env$model$A) + 1,
+                           nrow(env$model$A) + ncol(env$drX))
+        ## Update the constraint matrices
+        tmpA <- Matrix::Matrix(data = 0,
+                               nrow = nrow(env$model$A),
+                               ncol = ncol(env$model$A))
+        colnames(tmpA) <- paste0("yhat.", seq(ncol(env$model$A)))
+        origA.colnames <- colnames(env$model$A)
+        env$model$A <- rbind(cbind(env$model$A, tmpA),
+                             env$cholMats$A)
+        env$model$rhs <- c(env$model$rhs, env$cholMats$rhs)
+        env$model$sense <- c(env$model$sense, env$cholMats$sense)
+        env$model$lb <- c(env$model$lb, env$cholMats$lb)
+        env$model$ub <- c(env$model$ub, env$cholMats$ub)
+        colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
+        ## End of cholesky -----------------------
+
         ## Prepare objective
         env$model$obj <- c(c(g0, g1),
                            rep(0, ncol(env$drX)))
@@ -1763,15 +1819,23 @@ qpSetupBound <- function(env, g0, g1,
         env$model$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
         ## criterion.min excludes the SSY.
-        env$quad$rhs <- (env$ssy / env$drN) * criterion.tol +
+        env$model$quadcon <- list(env$cholQuad)
+        env$model$quadcon[[1]]$rhs <- (env$ssy / env$drN) * criterion.tol +
             criterion.min * (1 + criterion.tol)
-        env$model$quadcon <- list(env$quad)
     } else {
+        ## Delete components of the model that will be replaced (to
+        ## avoid mistakes)
         env$model$obj <- NULL
         env$quad$rhs <- NULL
         env$model$quadcon <- NULL
         env$model$ub <- NULL
         env$model$lb <- NULL
+        ## Remove the auxiliary (Cholesky) variables from the shape
+        ## constraints
+        env$model$A <- env$model$A[, 1:(ncol(env$model$A) - ncol(env$drX))]
+        env$model$A <- env$model$A[-env$cholPos, ]
+        env$model$sense <- env$model$sense[-env$cholPos]
+        env$model$rhs <- env$model$rhs[-env$cholPos]
     }
 }
 
