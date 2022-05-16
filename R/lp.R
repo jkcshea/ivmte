@@ -1,24 +1,22 @@
 #' Constructing LP problem
 #'
-#' If the user passes IV-like moments to the function, then the
-#' function constructs the components of the LP problem. If no IV-like
-#' moments are passed, then the function constructs the linear
-#' constraints of the QCQP problem. Note that the LP/QCQP model will
-#' be saved inside an environment variable, which is to be passed
-#' through the argument \code{env}. This is done for efficient use of
-#' memory. The environment \code{env} is supposed to already contain a
-#' list under the entry \code{$mbobj} containing the matrices defining
-#' the shape constraints. This list of shape constraints \code{$mbobj}
-#' should contain three entries corresponding to a system of linear
-#' equations of the form \code{Ax <=> b}: \code{mbA}, the matrix
-#' defining the constraints, \code{A}; \code{mbs}, a vector indicating
-#' whether a row in \code{mbA} is an equality or inequality constraint
-#' (for Gurobi and MOSEK, use '<=', '>=', '='; for CPLEX,
-#' use 'L', 'G', and 'E'); \code{mbrhs}, a vector of the right hand
-#' side values defining the constraint of the form i.e. the vector
-#' \code{b}. Depending on the linear programming solver used, this
-#' function will return different output specific to the solver.
-#' @param env environment containing the matrices defining the LP/QCQP
+#' This function constructs the components of the LP problem. Note
+#' that the LP model will be saved inside an environment variable,
+#' which is to be passed through the argument \code{env}. This is done
+#' for efficient use of memory. The environment \code{env} is supposed
+#' to already contain a list under the entry \code{$mbobj} containing
+#' the matrices defining the shape constraints. This list of shape
+#' constraints \code{$mbobj} should contain three entries
+#' corresponding to a system of linear equations of the form \code{Ax
+#' <=> b}: \code{mbA}, the matrix defining the constraints, \code{A};
+#' \code{mbs}, a vector indicating whether a row in \code{mbA} is an
+#' equality or inequality constraint (for Gurobi and MOSEK, use '<=',
+#' '>=', '='; for CPLEX, use 'L', 'G', and 'E'); \code{mbrhs}, a
+#' vector of the right hand side values defining the constraint of the
+#' form i.e. the vector \code{b}. Depending on the linear programming
+#' solver used, this function will return different output specific to
+#' the solver.
+#' @param env environment containing the matrices defining the LP
 #'     problem.
 #' @param sset List of IV-like estimates and the corresponding gamma
 #'     terms.
@@ -32,17 +30,11 @@
 #'     the gamma moments for each element in the S-set, as well as the
 #'     IV-like coefficients.
 #' @param shape boolean, default set to TRUE. Switch to determine
-#'     whether or not to include shape restrictions in the LP/QCQP
-#'     problem.
-#' @param direct boolean, set to \code{TRUE} if the direct MTR
-#'     regression is used.
-#' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QCQP
-#'     optimization.
-#' @param solver string, name of the package used to solve the LP/QCQP
+#'     whether or not to include shape restrictions in the LP problem.
+#' @param solver string, name of the package used to solve the LP
 #'     problem.
 #' @return A list of matrices and vectors necessary to define an
-#'     LP/QCQP problem.
+#'     LP problem.
 #'
 #' @examples
 #' dtm <- ivmte:::gendistMosquito()
@@ -154,7 +146,7 @@
 #' @export
 lpSetup <- function(env, sset, orig.sset = NULL,
                     equal.coef0 = NULL, equal.coef1 = NULL,
-                    shape = TRUE, direct = FALSE, rescale = TRUE,
+                    shape = TRUE,
                     solver) {
     ## Read in constraint grids and sequences
     solver <- tolower(solver)
@@ -163,63 +155,51 @@ lpSetup <- function(env, sset, orig.sset = NULL,
             env$shapeSeq[[i]] <- NULL
         }
     }
-    if (!direct) {
-        ## Determine lengths
-        sn  <- length(sset)
-        gn0 <- length(sset$s1$g0)
-        gn1 <- length(sset$s1$g1)
-        ## Generate all vectors/matrices for LP optimization to minimize
-        ## observational equivalence
-        rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
-        if (!is.null(orig.sset)) {
-            ## Recenter RHS when bootstrapping
-            rhs <- rhs - unlist(lapply(orig.sset, function(x) x[["beta"]]))
-        }
-        sense <- replicate(sn, "=")
-        A <- NULL
-        scount <- 0
-        for (s in names(sset)) {
-            avec <- replicate(2 * sn, 0)
-            avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
-            ## Regarding c(-1, 1), the -1 is for w+, 1 is for w-
-            g0fill <- sset[[s]]$g0
-            g1fill <- sset[[s]]$g1
-            if (!is.null(orig.sset)) {
-                ## Recenter gamma vectors when bootstrapping
-                g0fill <- g0fill - orig.sset[[s]]$g0
-                g1fill <- g1fill - orig.sset[[s]]$g1
-            }
-            avec <- c(avec, g0fill, g1fill)
-            A <- rbind(A, avec)
-            scount <- scount + 1
-        }
-        ## Generate informative colnumn names and row names indicating
-        ## which rows correspond to which IV-like specifications, and
-        ## which columns correspond to which MTR terms
-        ## colnames(A) <- c(c(rbind(paste0('slack', seq(sn), '-'),
-        ##                          paste0('slack', seq(sn), '+'))),
-        ##                  colnames(A)[(2 * sn + 1) : ncol(A)])
-        tmpIvs <- paste0('iv', lapply(sset, function(x) x$ivspec))
-        tmpBetas <- lapply(sset, function(x) names(x$beta))
-        rownames(A) <- mapply(paste, tmpIvs, tmpBetas, sep = '.')
-        rm(tmpIvs, tmpBetas)
-    } else {
-        sn <- 0
-        A <- NULL
-        sense <- NULL
-        rhs <- NULL
-        gn0 <- ncol(sset$s1$g0)
-        gn1 <- ncol(sset$s1$g1)
+
+    ## Determine lengths
+    sn  <- length(sset)
+    gn0 <- length(sset$s1$g0)
+    gn1 <- length(sset$s1$g1)
+    ## Generate all vectors/matrices for LP optimization to minimize
+    ## observational equivalence
+    rhs <- unlist(lapply(sset, function(x) x[["beta"]]))
+    if (!is.null(orig.sset)) {
+        ## Recenter RHS when bootstrapping
+        rhs <- rhs - unlist(lapply(orig.sset, function(x) x[["beta"]]))
     }
+    sense <- replicate(sn, "=")
+    A <- NULL
+    scount <- 0
+    for (s in names(sset)) {
+        avec <- replicate(2 * sn, 0)
+        avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
+        ## Regarding c(-1, 1), the -1 is for w+, 1 is for w-
+        g0fill <- sset[[s]]$g0
+        g1fill <- sset[[s]]$g1
+        if (!is.null(orig.sset)) {
+            ## Recenter gamma vectors when bootstrapping
+            g0fill <- g0fill - orig.sset[[s]]$g0
+            g1fill <- g1fill - orig.sset[[s]]$g1
+        }
+        avec <- c(avec, g0fill, g1fill)
+        A <- rbind(A, avec)
+        scount <- scount + 1
+    }
+    ## Generate informative colnumn names and row names indicating
+    ## which rows correspond to which IV-like specifications, and
+    ## which columns correspond to which MTR terms
+    ## colnames(A) <- c(c(rbind(paste0('slack', seq(sn), '-'),
+    ##                          paste0('slack', seq(sn), '+'))),
+    ##                  colnames(A)[(2 * sn + 1) : ncol(A)])
+    tmpIvs <- paste0('iv', lapply(sset, function(x) x$ivspec))
+    tmpBetas <- lapply(sset, function(x) names(x$beta))
+    rownames(A) <- mapply(paste, tmpIvs, tmpBetas, sep = '.')
+    rm(tmpIvs, tmpBetas)
     ## Add additional equality constraints if included
     if (!is.null(equal.coef0) & !is.null(equal.coef1)) {
         equal.coef0 <- paste0('[m0]', equal.coef0)
         equal.coef1 <- paste0('[m1]', equal.coef1)
-        if (!direct) {
-            tmpANames <- colnames(A)
-        } else {
-            tmpANames <- c(colnames(sset$s1$g0), colnames(sset$s1$g1))
-        }
+        tmpANames <- colnames(A)
         equal.constraints <- lpSetupEqualCoef(equal.coef0, equal.coef1,
                                               tmpANames)
         A <- rbind(A, equal.constraints$A)
@@ -230,7 +210,6 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ## Add in additional constraints if included
     if (shape == TRUE) {
         mbA <- rbind(A, env$mbobj$mbA)
-        if (direct) colnames(mbA) <- colnames(env$mbobj$mbA)
         env$mbobj$mbA <- NULL
         sense <- c(sense, env$mbobj$mbs)
         env$mbobj$mbs <- NULL
@@ -240,29 +219,12 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         mbA <- A
     }
     rm(A)
-    if (!direct) {
-        colnames(mbA) <- c(c(rbind(paste0('slack', seq(sn), '-'),
-                                   paste0('slack', seq(sn), '+'))),
-                           names(sset$s1$g0), names(sset$s1$g1))
-    } else {
-        colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1))
-    }
+    colnames(mbA) <- c(c(rbind(paste0('slack', seq(sn), '-'),
+                               paste0('slack', seq(sn), '+'))),
+                       names(sset$s1$g0), names(sset$s1$g1))
     ## Define bounds on parameters
     ub <- replicate(ncol(mbA), Inf)
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
-    if (direct && rescale) {
-        ## Rescale linear constraints
-        colNorms0 <- apply(sset$s1$g0, MARGIN = 2, function(x) sqrt(sum(x^2)))
-        colNorms1 <- apply(sset$s1$g1, MARGIN = 2, function(x) sqrt(sum(x^2)))
-        colNorms <- c(colNorms0, colNorms1)
-        rm(colNorms0, colNorms1)
-        colNorms[colNorms == 0] <- 1
-        mbA <- sweep(x = mbA,
-                     MARGIN = 2,
-                     STATS = colNorms,
-                     FUN = '/')
-        env$colNorms <- colNorms
-    }
     ## Convert into sparse matrix
     if (solver %in% c("gurobi", "lpsolveapi")) {
         mbA <- Matrix::Matrix(mbA, sparse = TRUE)
@@ -616,9 +578,6 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #'     problem.
 #' @param solver.options list, each item of the list should correspond
 #'     to an option specific to the LP solver selected.
-#' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QP/QCP
-#'     optimization.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{solver = 'gurobi'} or \code{solver =
@@ -732,8 +691,7 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
 #' cat("The minimum criterion is",  obseqMin$obj, "\n")
 #'
 #' @export
-criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
-                         debug = FALSE) {
+criterionMin <- function(env, sset, solver, solver.options, debug = FALSE) {
     solver <- tolower(solver)
     if (solver == "gurobi") {
         if (debug && solver.options$outputflag == 1) {
@@ -784,11 +742,6 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
                   (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
     names(g0sol) <- names(sset$gstar$g0)
     names(g1sol) <- names(sset$gstar$g1)
-    if (rescale) {
-        g0sol <- g0sol / env$colNorms[1:ncol(sset$s1$g0)]
-        g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
-                                      (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
-    }
     output <- list(obj = obseqmin,
                    x = optx,
                    g0 = g0sol,
@@ -817,9 +770,6 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
 #'     to an option specific to the LP solver selected.
 #' @param smallreturnlist boolean, set to \code{TRUE} if the LP model
 #'     should not be returned.
-#' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QP/QCP
-#'     optimization.
 #' @param debug boolean, indicates whether or not the function should
 #'     provide output when obtaining bounds. The option is only
 #'     applied when \code{solver = 'gurobi'} or \code{solver =
@@ -941,7 +891,6 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
 bound <- function(env, sset, solver,
                   solver.options, noisy = FALSE,
                   smallreturnlist = FALSE,
-                  rescale = FALSE,
                   debug = FALSE) {
     solver <- tolower(solver)
     ## Obtain lower and upper bounds
@@ -1029,14 +978,6 @@ bound <- function(env, sset, solver,
                      (2 * env$model$sn + env$model$gn0)]
     maxg1 <- maxoptx[(2 * env$model$sn + env$model$gn0 + 1) :
                      (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
-    if (rescale) {
-        ming0 <- ming0 / env$colNorms[1:ncol(sset$s1$g0)]
-        ming1 <- ming1 / env$colNorms[(ncol(sset$s1$g0) + 1):
-                                      (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
-        maxg0 <- maxg0 / env$colNorms[1:ncol(sset$s1$g0)]
-        maxg1 <- maxg1 / env$colNorms[(ncol(sset$s1$g0) + 1):
-                                      (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
-    }
     if (hasArg(sset)) {
         names(ming0) <- names(sset$s1$g0)
         names(ming1) <- names(sset$s1$g1)
@@ -1068,9 +1009,6 @@ bound <- function(env, sset, solver,
                    minresult = minresult,
                    minstatus = minstatus,
                    error = FALSE)
-    if (rescale) {
-        output$norms <- env$colNorms
-    }
     if (!smallreturnlist) {
         if (solver != 'rmosek') output$model = env$model
         if (solver == 'rmosek') {
@@ -1084,7 +1022,7 @@ bound <- function(env, sset, solver,
 
 #' Running Gurobi solver
 #'
-#' This function solves the LP/QCQP problem using the Gurobi package. The
+#' This function solves the LP problem using the Gurobi package. The
 #' object generated by \code{\link{lpSetup}} is compatible with the
 #' \code{gurobi} function. See \code{\link{runCplexAPI}} for
 #' additional error code labels.
@@ -1240,7 +1178,7 @@ runLpSolveAPI <- function(model, modelsense, solver.options) {
 
 #' Running Rmosek
 #'
-#' This function solves the LP/QCQP problem using the \code{Rmosek}
+#' This function solves the LP problem using the \code{Rmosek}
 #' package. The object generated by \code{\link{lpSetup}} is not
 #' compatible with the \code{Rmosek} functions. This function
 #' adapts the object to solve the LP problem. See
@@ -1633,20 +1571,12 @@ optionsCplexAPITol <- function(options) {
 #'     problem.
 #' @param sset A list containing the covariats and outcome variable
 #'     for the direct MTR regression.
-#' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QP/QCP
-#'     optimization.
 #' @export
-qpSetup <- function(env, sset, rescale = TRUE) {
+qpSetup <- function(env, sset) {
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
     drN <- length(drY)
-    if (rescale) {
-        drX <- sweep(x = drX, MARGIN = 2, STATS = env$colNorms, FUN = '/')
-        normY <- sqrt(sum(drY^2))
-        drN <- drN * normY
-    }
     qc <- list()
     qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
     qc$Qc <- Matrix::Matrix(t(drX) %*% drX / drN, sparse = TRUE)
@@ -1660,7 +1590,6 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$drY <- drY
     env$drX <- drX
     env$drN <- drN
-    if (rescale) env$normY <- normY
 }
 
 #' Configure QCQP problem to find minimum criterion
@@ -1698,9 +1627,6 @@ qpSetupCriterion <- function(env) {
 #'     constraint is not relaxed at all.
 #' @param criterion.min minimum of (SSR - SSY) of a linear regression
 #'     with shape constraints.
-#' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QP/QCP
-#'     optimization.
 #' @param setup boolean, set to \code{TRUE} if the QP problem should
 #'     be set up for solving the bounds, which includes the quadratic
 #'     constraint. Set to \code{FALSE} if the quadratic constraint
@@ -1711,14 +1637,10 @@ qpSetupCriterion <- function(env) {
 qpSetupBound <- function(env, g0, g1,
                          criterion.tol,
                          criterion.min,
-                         rescale = FALSE,
                          setup = TRUE) {
     if (setup) {
         ## Prepare objective
         env$model$obj <- c(g0, g1)
-        if (rescale) {
-            env$model$obj <- env$model$obj / env$colNorms
-        }
         env$model$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
         ## criterion.min excludes the SSY.
@@ -1744,13 +1666,10 @@ qpSetupBound <- function(env, g0, g1,
 #' environment variable, under the entry \code{$model}. See
 #' \code{\link{lpSetup}}.
 #' @param env The LP environment
-#' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QP/QCP
-#'     optimization.
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
 #' @export
-qpSetupInfeasible <- function(env, rescale) {
+qpSetupInfeasible <- function(env) {
     ## Separate shape constraint objects
     env$mbobj$mbA <- env$model$A
     env$mbobj$mbrhs <- env$model$rhs

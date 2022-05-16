@@ -220,9 +220,6 @@ utils::globalVariables("u")
 #'     changed if the feasibility tolerance of the solver is changed,
 #'     or if numerical issues result in discrepancies between the
 #'     solver's feasibility check and the audit.
-#' @param rescale boolean, set to \code{TRUE} by default. This
-#'     rescalels the MTR components to improve stability in the
-#'     LP/QCQP optimization.
 #' @param point boolean. Set to \code{TRUE} if it is believed that the
 #'     treatment effects are point identified. If set to \code{TRUE}
 #'     and IV-like formulas are passed, then a two-step GMM procedure
@@ -432,7 +429,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   criterion.tol = 1e-4,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
-                  audit.tol, rescale,
+                  audit.tol,
                   point, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
@@ -471,17 +468,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (hasArg(ivlike) && !is.null(ivlike)) {
             direct <- FALSE
             envList$ivlike <- environment(ivlike)
-        }
-        if (!direct) {
-            if (hasArg(rescale)) {
-                warning(gsub('\\s+', ' ',
-                             "The 'rescale' option is currently ignored
-                              unless a direct regression is performed."),
-                        call. = FALSE)
-            }
-            rescale <- FALSE
-        } else {
-            if (!hasArg(rescale)) rescale <- TRUE
         }
         envProp <- try(environment(propensity), silent = TRUE)
         if (class(envProp) != "environment") {
@@ -664,14 +650,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         call. = FALSE)
             }
         }
-        if (direct && !(solver %in% c('gurobi', 'rmosek', 'none'))) {
-            stop(gsub("\\s+", " ",
-                      paste0("A direct regression may only be peformed if
-                              the solver is Gurobi or MOSEK. Please install
-                              either solver and set 'solver = \"gurobi\"'
-                              or 'solver = \"rmosek\"'.")),
-                    call. = FALSE)
-        }
         if (debug) {
             if (! solver %in% c("gurobi", "rmosek")) {
                 if (requireNamespace("gurobi", quietly = TRUE)) {
@@ -842,8 +820,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 warning(gsub("\\s+", " ",
                              "If the 'ivlike' argument is not passed, then the
                               estimation procedure no longer estimates IV-like
-                              moments and the
-                              'components' argument becomes redundant."),
+                              moments and the 'components' argument becomes
+                              redundant."),
                         call. = FALSE)
             }
         }
@@ -863,8 +841,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 if (subsetChar == TRUE) {
                     stop(gsub("\\s+", " ",
                               "Subset conditions should be logical
-                           expressions involving variable names from the
-                           data set and logical operators."),
+                               expressions involving variable names from the
+                               data set and logical operators."),
                          call. = FALSE)
                 } else if (subsetLogic == TRUE) {
                     ## Currently prohobit logical vectors. Instead
@@ -912,12 +890,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 if (!direct) {
                     stop(gsub("\\s+", " ",
                               "Number of subset conditions not equal to
-                       number of IV specifications.
-                       Either declare a single subset
-                       condition to be applied to all IV specifications; or
-                       declare a list of subset conditions, one for each IV
-                       specificaiton. An empty element in the list of subset
-                       conditions corresponds to using the full sample."),
+                               number of IV specifications.
+                               Either declare a single subset
+                               condition to be applied to all IV specifications;
+                               or declare a list of subset conditions, one for
+                               each IV specificaiton. An empty element in the
+                               list of subset conditions corresponds to using
+                               the full sample."),
                        call. = FALSE)
                 } else {
                     stop(gsub("\\s+", " ",
@@ -2144,7 +2123,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                              "lpsolver.presolve",
                                              "lpsolver.options.criterion",
                                              "lpsolver.options.bounds",
-                                             "rescale",
                                              "target.weight0", "target.weight1",
                                              "target.knots0", "target.knots1",
                                              "late.Z", "late.to", "late.from",
@@ -2164,7 +2142,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                data = quote(data),
                                                subset = quote(subset),
                                                solver = quote(solver),
-                                               rescale = rescale,
                                                noisy = TRUE,
                                                vars_y = quote(vars_y),
                                                vars_mtr = quote(vars_mtr),
@@ -2365,9 +2342,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 ## until 'future.apply' is installed.
                 tmpFuture <- ('future.apply' %in% loadedNamespaces() |
                               'future' %in% loadedNamespaces())
-                ## TESTING ####################
                 tmpFuture <- FALSE
-                ## END TESTING ###################
                 if (tmpFuture) {
                     if (!requireNamespace('future.apply', quietly = TRUE)) {
                         tmpFuture <- FALSE
@@ -3350,7 +3325,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           initgrid.nx = 20, initgrid.nu = 20,
                           audit.nx = 2500, audit.nu = 25,
                           audit.add = 100, audit.max = 25, audit.tol,
-                          audit.grid = NULL, rescale = TRUE,
+                          audit.grid = NULL,
                           point = FALSE, point.eyeweight = FALSE,
                           point.center = NULL, point.redundant = NULL,
                           bootstrap = FALSE, count.moments = TRUE,
@@ -3650,7 +3625,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             sw1[data[[treat]] == 0] <- 0
             sest <- list(sw0 = matrix(sw0[subset_index], ncol = 1),
                          sw1 = matrix(sw1[subset_index], ncol = 1))
-            
+
             setobj <- genSSet(data = data,
                               sset = sset,
                               sest = sest,
@@ -3667,22 +3642,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                               noisy = noisy,
                               ivn = 0)
             sset <- setobj$sset
-            ## Original code ----------------------
-            ## sset$s1$ivspec <- NULL
-            ## sset$s1$beta <- NULL
-            ## rm(setobj)
-            ## ## Now perform the MTR regression and check for
-            ## ## collinearities
-            ## drY <- sset$s1$ys
-            ## drX <- cbind(sset$s1$g0, sset$s1$g1)
-            ## drN <- length(drY)
-            ## Begin testing ----------------------
             drY <- setobj$drY
             drX <- setobj$drX
-            print(head(drX))
-
-            ## End testing ------------------
-            print("adjust for equality constraints!")
             ## Construct equality constraints
             if (exists('pmequal0') && exists ('pmequal1')) {
                 tmp.equal.coef0 <- paste0('[m0]', pmequal0)
@@ -3691,55 +3652,22 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                       tmp.equal.coef1,
                                                       colnames(drX))
             }
-            if (!rescale) {
-                drFit <- lm.fit(x = drX, y = drY)
-                collinear <- any(is.na(drFit$coefficients))
-                drCoef <- drFit$coef
-                drSSR <- sum(drFit$resid^2)
-                if (!collinear && exists('pmequal0') && exists ('pmequal1')) {
-                    ## Perform separate regression with
-                    ## constraints. The lsei() function does not test
-                    ## for collinearity. It will simply return
-                    ## enormous coefficients. So the check for
-                    ## collinearity is performed without constraints
-                    ## using lm().
-                    drCoef <- lsei::lsei(a = drX, b = drY,
-                                         c = equal.constraints$A,
-                                         d = equal.constraints$rhs)
-                    names(drCoef) <- colnames(drX)
-                    drSSR <- sum((drY  - drX %*% drCoef)^2)
-                }
-            } else {
-                dVec <- data[subset_index, treat]
-                gn0 <- ncol(sset$s1$g0)
-                gn1 <- ncol(sset$s1$g1)
-                colNorms <- apply(drX, MARGIN = 2, function(x) sqrt(sum(x^2)))
-                colNorms[colNorms == 0] <- 1
-                resX <- sweep(x = drX, MARGIN = 2, STATS = colNorms, FUN = '/')
-                ## Perform the regression. If the MTR is point
-                ## identified without restrictions, then it should
-                ## also be point identified with restrictions. This is
-                ## done to correctly detect for collinerity.
-                drFit <- lm.fit(x = resX, y = drY)
-                collinear <- any(is.na(drFit$coefficients))
-                drSSR <- sum(drFit$resid^2)
-                ## Reconstruct the coefficients
-                drCoef <- drFit$coef / colNorms
-                if (!collinear && exists('pmequal0') && exists ('pmequal1')) {
-                    ## Rescale equality constraints
-                    equal.constraints$A <- sweep(x = equal.constraints$A,
-                                                 MARGIN = 2,
-                                                 STATS = colNorms,
-                                                 FUN = '/')
-                    ## Perform separate regression with constraints
-                    ## (see comment pertaining to lsei() function, and
-                    ## how it does not really indicate collinearity).
-                    drCoef <- lsei::lsei(a = resX, b = drY,
-                                         c = equal.constraints$A,
-                                         d = equal.constraints$rhs)
-                    drCoef <- drCoef / colNorms
-                    drSSR <- sum((drY  - drX %*% drCoef)^2)
-                }
+            drFit <- lm.fit(x = drX, y = drY)
+            collinear <- any(is.na(drFit$coefficients))
+            drCoef <- drFit$coef
+            drSSR <- sum(drFit$resid^2)
+            if (!collinear && exists('pmequal0') && exists ('pmequal1')) {
+                ## Perform separate regression with
+                ## constraints. The lsei() function does not test
+                ## for collinearity. It will simply return
+                ## enormous coefficients. So the check for
+                ## collinearity is performed without constraints
+                ## using lm().
+                drCoef <- lsei::lsei(a = drX, b = drY,
+                                     c = equal.constraints$A,
+                                     d = equal.constraints$rhs)
+                names(drCoef) <- colnames(drX)
+                drSSR <- sum((drY  - drX %*% drCoef)^2)
             }
             sset$s1$init.coef <- drCoef
             sset$s1$SSR <- drSSR
@@ -3806,7 +3734,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             }
         }
     }
-    print("FIX ERROR MESSAGE: 'quadratically constrained quadratic'")
     rm(sest, subset_index)
     if (!is.null(pm0)) {
         pm0 <- list(exporder = pm0$exporder,
@@ -3947,7 +3874,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "initgrid.nu", "initgrid.nx",
                     "audit.nx", "audit.nu", "audit.add",
                     "audit.max", "audit.tol",
-                    "audit.grid", "rescale",
+                    "audit.grid",
                     "m1.ub", "m0.ub",
                     "m1.lb", "m0.lb",
                     "mte.ub", "mte.lb", "m0.dec",
@@ -4949,7 +4876,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         ## from the IV regressions)
         scount <- scount + 1
     }
-    ## Begin testing -------------------------------------
     if (direct) {
         drY <- sset$s1$ys
         gs0 <- sset$s1$g0
@@ -4976,7 +4902,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
     if (!direct) {
         drX <- drY <- NULL
     }
-    ## End testing ---------------------------------------
     return(list(sset = sset,
                 scount = scount,
                 drX = drX,

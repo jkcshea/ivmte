@@ -46,7 +46,7 @@ gengrid <- function(index, xsupport, usupport, uname) {
 #' Generating the constraint matrix
 #'
 #' This function generates the component of the constraint matrix in
-#' the LP/QCQP problem pertaining to the lower and upper bounds on the MTRs
+#' the LP problem pertaining to the lower and upper bounds on the MTRs
 #' and MTEs. These bounds are declared by the user.
 #' @param A0 the matrix of values from evaluating the MTR for control
 #'     observations over the grid generated to perform the audit. This
@@ -90,9 +90,7 @@ gengrid <- function(index, xsupport, usupport, uname) {
 #'     of the solver is changed, or if numerical issues result in
 #'     discrepancies between the solver's feasibility check and the
 #'     audit.
-#' @param direct boolean, set to \code{TRUE} if the direct MTR
-#'     regression is used.
-#' @return a constraint matrix for the LP/QCQP problem, the associated
+#' @return a constraint matrix for the LP problem, the associated
 #'     vector of inequalities, and the RHS vector in the inequality
 #'     constraint. The objects pertain only to the boundedness
 #'     constraints declared by the user.
@@ -100,7 +98,7 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
                       m1.lb, m1.ub, mte.lb, mte.ub,
                       solution.m0.min = NULL, solution.m1.min = NULL,
                       solution.m0.max = NULL, solution.m1.max = NULL,
-                      audit.tol, direct = FALSE) {
+                      audit.tol) {
     if (!is.null(solution.m0.min) && !is.null(solution.m1.min) &&
         !is.null(solution.m0.max) && !is.null(solution.m1.max)) {
         audit <- TRUE
@@ -111,15 +109,10 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
     gridmap <- gridobj$map
     namesA0 <- colnames(A0)
     namesA1 <- colnames(A1)
-    if (!direct) {
-        sn <- length(sset)
-        namesA  <- c(seq(1, 2 * sn),
-                     namesA0,
-                     namesA1)
-    } else {
-        sn <- 0
-        namesA <- c(namesA0, namesA1)
-    }
+    sn <- length(sset)
+    namesA  <- c(seq(1, 2 * sn),
+                 namesA0,
+                 namesA1)
     ## Generate place holders for the matrices representing monotonicity
     lbdA0  <- NULL
     lbdA1  <- NULL
@@ -487,9 +480,7 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
 #'     of the solver is changed, or if numerical issues result in
 #'     discrepancies between the solver's feasibility check and the
 #'     audit.
-#' @param direct boolean, set to \code{TRUE} if the direct MTR
-#'     regression is used.
-#' @return constraint matrix for the LP/QCQP problem. The matrix pertains
+#' @return constraint matrix for the LP problem. The matrix pertains
 #'     only to the monotonicity conditions on the MTR and MTE declared
 #'     by the user.
 genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
@@ -497,7 +488,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
                      mte.inc,
                      solution.m0.min = NULL, solution.m1.min = NULL,
                      solution.m0.max = NULL, solution.m1.max = NULL,
-                     audit.tol, direct) {
+                     audit.tol) {
     if (!is.null(solution.m0.min) && !is.null(solution.m1.min) &&
         !is.null(solution.m0.max) && !is.null(solution.m1.max)) {
         audit <- TRUE
@@ -541,19 +532,10 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
     ## columns
     namesA0 <- colnames(A0)
     namesA1 <- colnames(A1)
-    if (!direct) {
-        sn <- length(sset)
-        namesA  <- c(seq(1, 2 * sn),
-                     namesA0,
-                     namesA1)
-    } else {
-        sn <- 0
-        namesA  <- c(namesA0,
-                     namesA1)
-        drY <- sset$s1$ys
-        drX <- cbind(sset$s1$g0, sset$s1$g1)
-        drQ <- sset$s1$Q
-    }
+    sn <- length(sset)
+    namesA  <- c(seq(1, 2 * sn),
+                 namesA0,
+                 namesA1)
     ## The functions below generate the constraint matrix, the sense
     ## vector, and the RHS vector associated with the monotonicity
     ## constraints for m0, m1, and the mte. In addition, mappings to
@@ -923,7 +905,7 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
 #'     constraints.
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
-#'     boundedness and monotonicity constraints of an LP/QCQP problem.
+#'     boundedness and monotonicity constraints of an LP problem.
 combinemonobound <- function(bdA, monoA) {
     mbA    <- NULL
     mbs    <- NULL
@@ -1036,11 +1018,9 @@ combinemonobound <- function(bdA, monoA) {
 #'     of the solver is changed, or if numerical issues result in
 #'     discrepancies between the solver's feasibility check and the
 #'     audit.
-#' @param direct boolean, set to \code{TRUE} if the direct MTR
-#'     regression is used.
 #' @return a list containing a unified constraint matrix, unified
 #'     vector of inequalities, and unified RHS vector for the
-#'     boundedness and monotonicity constraints of an LP/QCQP problem.
+#'     boundedness and monotonicity constraints of an LP problem.
 genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                           splinesobj, monov, uname, m0, m1, sset,
                           gstar0, gstar1, m0.lb, m0.ub, m1.lb, m1.ub,
@@ -1049,8 +1029,7 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                           solution.m0.min = NULL,
                           solution.m1.min = NULL,
                           solution.m0.max = NULL,
-                          solution.m1.max = NULL, audit.tol,
-                          direct) {
+                          solution.m1.max = NULL, audit.tol) {
     if (!is.null(solution.m0.min) && !is.null(solution.m1.min) &&
         !is.null(solution.m0.max) && !is.null(solution.m1.max)) {
         audit <- TRUE
@@ -1387,7 +1366,7 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                         "mte.lb", "mte.ub",
                         "solution.m0.min", "solution.m1.min",
                         "solution.m0.max", "solution.m1.max",
-                        "audit.tol", "direct")
+                        "audit.tol")
         boundAcall <- modcall(call,
                               newcall = genboundA,
                               keepargs = boundlist,
@@ -1407,7 +1386,7 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                            "mte.dec", "mte.inc",
                            "solution.m0.min", "solution.m1.min",
                            "solution.m0.max", "solution.m1.max",
-                           "audit.tol", "direct")
+                           "audit.tol")
             monoAcall <- modcall(call,
                                  newcall = genmonoA,
                                  keepargs = monolist,
