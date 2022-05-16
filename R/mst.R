@@ -3650,6 +3650,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             sw1[data[[treat]] == 0] <- 0
             sest <- list(sw0 = matrix(sw0[subset_index], ncol = 1),
                          sw1 = matrix(sw1[subset_index], ncol = 1))
+            
             setobj <- genSSet(data = data,
                               sset = sset,
                               sest = sest,
@@ -3666,14 +3667,22 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                               noisy = noisy,
                               ivn = 0)
             sset <- setobj$sset
-            sset$s1$ivspec <- NULL
-            sset$s1$beta <- NULL
-            rm(setobj)
-            ## Now perform the MTR regression and check for
-            ## collinearities
-            drY <- sset$s1$ys
-            drX <- cbind(sset$s1$g0, sset$s1$g1)
-            drN <- length(drY)
+            ## Original code ----------------------
+            ## sset$s1$ivspec <- NULL
+            ## sset$s1$beta <- NULL
+            ## rm(setobj)
+            ## ## Now perform the MTR regression and check for
+            ## ## collinearities
+            ## drY <- sset$s1$ys
+            ## drX <- cbind(sset$s1$g0, sset$s1$g1)
+            ## drN <- length(drY)
+            ## Begin testing ----------------------
+            drY <- setobj$drY
+            drX <- setobj$drX
+            print(head(drX))
+
+            ## End testing ------------------
+            print("adjust for equality constraints!")
             ## Construct equality constraints
             if (exists('pmequal0') && exists ('pmequal1')) {
                 tmp.equal.coef0 <- paste0('[m0]', pmequal0)
@@ -3797,6 +3806,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             }
         }
     }
+    print("FIX ERROR MESSAGE: 'quadratically constrained quadratic'")
     rm(sest, subset_index)
     if (!is.null(pm0)) {
         pm0 <- list(exporder = pm0$exporder,
@@ -4939,7 +4949,38 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         ## from the IV regressions)
         scount <- scount + 1
     }
-    return(list(sset = sset, scount = scount))
+    ## Begin testing -------------------------------------
+    if (direct) {
+        drY <- sset$s1$ys
+        gs0 <- sset$s1$g0
+        gs1 <- sset$s1$g1
+        drX <- cbind(gs0, gs1)
+        drN <- length(drY)
+        ncomponents <- ncol(drX)
+        YB <- sweep(drX, 1, drY, FUN = "*")
+        BB <- t(drX) %*% drX / drN
+        scount <- 1
+        for (i in 1:ncomponents) {
+            sset[[paste0("s", scount)]] <-
+                list(ivspec = scount,
+                     beta = mean(YB[, i]),
+                     g0 = BB[i, 1:ncol(gs0)],
+                     g1 = BB[i, (1 + ncol(gs0)):ncol(drX)],
+                     ys = YB[, i] ,
+                     w0 = drX[, i],
+                     w1 = drX[, i],
+                     n = drN)
+            scount <- scount + 1
+        }
+    }
+    if (!direct) {
+        drX <- drY <- NULL
+    }
+    ## End testing ---------------------------------------
+    return(list(sset = sset,
+                scount = scount,
+                drX = drX,
+                drY = drY))
 }
 
 #' GMM estimate of TE under point identification
