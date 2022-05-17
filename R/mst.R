@@ -3418,16 +3418,20 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         pm1 <- NULL
     }
     if (hasArg(equal.coef) && hasArg(splinesobj.equal)) {
-        ## Get the names of the non-spline terms
-        pmequal.call <-
-            modcall(call,
-                    newcall = polyparse,
-                    keepargs = c("uname"),
-                    newargs = list(formula = equal.coef,
-                                   data = unique(data),
-                                   env = quote(environments$equal.coef)))
-        pmequal <- eval(as.call(pmequal.call))$terms
-        rm(pmequal.call)
+        if (!is.null(equal.coef)) {
+            ## Get the names of the non-spline terms
+            pmequal.call <-
+                modcall(call,
+                        newcall = polyparse,
+                        keepargs = c("uname"),
+                        newargs = list(formula = equal.coef,
+                                       data = unique(data),
+                                       env = quote(environments$equal.coef)))
+            pmequal <- eval(as.call(pmequal.call))$terms
+            rm(pmequal.call)
+        } else {
+            pmequal <- NULL
+        }
         ## Get the name of the spline terms
         pmequal.splines0 <- NULL
         pmequal.splines1 <- NULL
@@ -4185,8 +4189,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                            m1 = splinesobj[[2]]$splinesdict))
         if (!direct) output$s.set <- sset
         if (direct) {
-            output$X <- cbind(sset$s1$g0, sset$s1$g1)
-            output$Y <- sset$s1$ys
+            output$X <- drX
+            output$Y <- drY
             output$init.SSR <- sset$s1$SSR
             output$init.gstar.coef <- sset$s1$init.coef
             output$audit.criterion.raw <- audit$minobseq.raw
@@ -4887,9 +4891,11 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         BB <- t(drX) %*% drX / drN
         scount <- 1
         for (i in 1:ncomponents) {
+            EYB <- mean(YB[, i])
+            names(EYB) <- paste0('direct', i)
             sset[[paste0("s", scount)]] <-
                 list(ivspec = scount,
-                     beta = mean(YB[, i]),
+                     beta = EYB,
                      g0 = BB[i, 1:ncol(gs0)],
                      g1 = BB[i, (1 + ncol(gs0)):ncol(drX)],
                      ys = YB[, i] ,
