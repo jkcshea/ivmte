@@ -220,7 +220,7 @@ utils::globalVariables("u")
 #'     changed if the feasibility tolerance of the solver is changed,
 #'     or if numerical issues result in discrepancies between the
 #'     solver's feasibility check and the audit.
-#' @param rescale boolean, set to \code{TRUE} by default. This
+#' @param rescale boolean, set to \code{FALSE} by default. This
 #'     rescalels the MTR components to improve stability in the
 #'     LP/QCQP optimization.
 #' @param point boolean. Set to \code{TRUE} if it is believed that the
@@ -481,7 +481,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             rescale <- FALSE
         } else {
-            if (!hasArg(rescale)) rescale <- TRUE
+            if (!hasArg(rescale)) rescale <- FALSE
         }
         envProp <- try(environment(propensity), silent = TRUE)
         if (class(envProp) != "environment") {
