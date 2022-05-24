@@ -832,7 +832,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         max = result$max,
                         status.min = result$minstatus,
                         status.max = result$maxstatus,
-                        runtimes = c(audit = minobseq$runtime,
+                        runtimes = c(criterion = minobseq$runtime,
                                      min = result$minruntime,
                                      max = result$maxruntime),
                         audit.criterion = minCriterion,
@@ -1399,9 +1399,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                    auditcount = audit_count,
                    minobseq = minobseq$obj,
                    minobseq.status = minobseq$status,
-                   runtime = c(audit = minobseq$runtime,
-                                min = result$minruntime,
-                                max = result$maxruntime))
+                   runtime = c(criterion = minobseq$runtime,
+                               min = result$minruntime,
+                               max = result$maxruntime))
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
         output$spectest = minobseqTest$obj
     }
