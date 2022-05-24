@@ -705,18 +705,24 @@ criterionMin <- function(env, sset, solver, solver.options, debug = FALSE) {
             save(model, file = "modelCriterion.Rdata")
             rm(model)
         }
+        min.t0   <- Sys.time()
         result   <- runGurobi(env$model, solver.options)
+        min.t1   <- Sys.time()
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
         if (debug) cat("\n")
     } else if (solver == "cplexapi") {
+        min.t0   <- Sys.time()
         result   <- runCplexAPI(env$model, cplexAPI::CPX_MIN, solver.options)
+        min.t1   <- Sys.time()
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
     } else if (solver == "lpsolveapi") {
+        min.t0   <- Sys.time()
         result   <- runLpSolveAPI(env$model, 'min', solver.options)
+        min.t1   <- Sys.time()
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
@@ -725,7 +731,9 @@ criterionMin <- function(env, sset, solver, solver.options, debug = FALSE) {
             cat("\nMinimum criterion optimization statistics:\n")
             cat("------------------------------------------\n")
         }
+        min.t0   <- Sys.time()
         result   <- runMosek(env$model, 'min', solver.options, debug)
+        min.t1   <- Sys.time()
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
@@ -735,6 +743,8 @@ criterionMin <- function(env, sset, solver, solver.options, debug = FALSE) {
                   "Invalid solver. Option 'solver' must be either 'gurobi',
                   'cplexapi', 'rmosek', or 'lpsolveapi'."))
     }
+    ## Clean up time calculation
+    runtime <- difftime(time1 = min.t1, time2 = min.t0, units = "secs")
     ## Provide nicer output
     g0sol <- optx[(2 * env$model$sn + 1) :
                   (2 * env$model$sn + env$model$gn0)]
@@ -746,7 +756,8 @@ criterionMin <- function(env, sset, solver, solver.options, debug = FALSE) {
                    x = optx,
                    g0 = g0sol,
                    g1 = g1sol,
-                   status = status)
+                   status = status,
+                   runtime = runtime)
     return(output)
 }
 
@@ -906,7 +917,9 @@ bound <- function(env, sset, solver,
             rm(model)
         }
         env$model$modelsense <- "min"
+        min.t0 <- Sys.time()
         minresult <- runGurobi(env$model, solver.options)
+        min.t1 <- Sys.time()
         min <- minresult$objval
         minstatus <- minresult$status
         minoptx <- minresult$optx
@@ -915,26 +928,36 @@ bound <- function(env, sset, solver,
             cat("------------------------------------\n")
         }
         env$model$modelsense <- "max"
+        max.t0 <- Sys.time()
         maxresult <- runGurobi(env$model, solver.options)
+        max.t1 <- Sys.time()
         max <- maxresult$objval
         maxstatus <- maxresult$status
         maxoptx <- maxresult$optx
         if (debug) cat("\n")
     } else if (solver == "cplexapi") {
+        min.t0    <- Sys.time()
         minresult <- runCplexAPI(env$model, cplexAPI::CPX_MIN, solver.options)
+        min.t1    <- Sys.time()
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
+        max.t0    <- Sys.time()
         maxresult <- runCplexAPI(env$model, cplexAPI::CPX_MAX, solver.options)
+        max.t1    <- Sys.time()
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
     } else if (solver == "lpsolveapi") {
+        min.t0    <- Sys.time()
         minresult <- runLpSolveAPI(env$model, 'min', solver.options)
+        min.t1    <- Sys.time()
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
+        max.t0    <- Sys.time()
         maxresult <- runLpSolveAPI(env$model, 'max', solver.options)
+        max.t1    <- Sys.time()
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
@@ -943,7 +966,9 @@ bound <- function(env, sset, solver,
             cat("\nLower bound optimization statistics:\n")
             cat("------------------------------------\n")
         }
+        min.t0    <- Sys.time()
         minresult <- runMosek(env$model, 'min', solver.options, debug)
+        min.t1    <- Sys.time()
         min       <- minresult$objval
         minoptx   <- minresult$optx
         minstatus <- minresult$status
@@ -951,7 +976,9 @@ bound <- function(env, sset, solver,
             cat("\nUpper bound optimization statistics:\n")
             cat("------------------------------------\n")
         }
+        max.t0    <- Sys.time()
         maxresult <- runMosek(env$model, 'max', solver.options)
+        max.t1    <- Sys.time()
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
@@ -962,13 +989,18 @@ bound <- function(env, sset, solver,
                   'cplexapi', 'rmosek', or 'lpsolveapi'."))
     }
     env$model$modelsense <- NULL
+    ## Clean up times
+    runtime.min <- difftime(time1 = min.t1, time2 = min.t0, units = "secs")
+    runtime.max <- difftime(time1 = max.t1, time2 = max.t0, units = "secs")
     ## Return error codes, if any
     if (maxstatus %in% c(2, 3, 4, 5, 9) || minstatus %in% c(2, 3, 4, 5, 9)) {
         return(list(error = TRUE,
                     max = max,
                     maxstatus = maxstatus,
+                    maxruntime = runtime.max,
                     min = min,
-                    minstatus = minstatus))
+                    minstatus = minstatus,
+                    minruntime = runtime.min))
     }
     ming0 <- minoptx[(2 * env$model$sn + 1) :
                      (2 * env$model$sn + env$model$gn0)]
@@ -1003,11 +1035,13 @@ bound <- function(env, sset, solver,
                    maxg1 = maxg1,
                    maxresult = maxresult,
                    maxstatus = maxstatus,
+                   maxruntime = runtime.max,
                    min = min,
                    ming0 = ming0,
                    ming1 = ming1,
                    minresult = minresult,
                    minstatus = minstatus,
+                   minruntime = runtime.min,
                    error = FALSE)
     if (!smallreturnlist) {
         if (solver != 'rmosek') output$model = env$model

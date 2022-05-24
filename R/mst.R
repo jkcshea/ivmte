@@ -3629,7 +3629,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             sw1[data[[treat]] == 0] <- 0
             sest <- list(sw0 = matrix(sw0[subset_index], ncol = 1),
                          sw1 = matrix(sw1[subset_index], ncol = 1))
-
             setobj <- genSSet(data = data,
                               sset = sset,
                               sest = sest,
@@ -4173,6 +4172,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        bounds = c(lower = audit$min,
                                   upper = audit$max),
                        result =  audit$result,
+                       runtime = audit$runtime,
                        solver = solver,
                        moments = nIndepMoments,
                        audit.grid = list(audit.x =
@@ -4209,6 +4209,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          maxg1 = audit$maxg1),
                        bounds = c(lower = audit$min,
                                   upper = audit$max),
+                       runtime = audit$runtime,
                        solver = solver,
                        moments = nIndepMoments,
                        audit.grid = list(audit.x =
