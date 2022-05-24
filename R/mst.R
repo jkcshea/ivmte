@@ -4894,11 +4894,15 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         for (i in 1:ncomponents) {
             EYB <- mean(YB[, i])
             names(EYB) <- paste0('direct', i)
+            g0 <- BB[i, 1:ncol(gs0)]
+            g1 <- BB[i, (1 + ncol(gs0)):ncol(drX)]
+            names(g0) <- colnames(BB)[1:ncol(gs0)]
+            names(g1) <- colnames(BB)[(1 + ncol(gs0)):ncol(drX)]
             sset[[paste0("s", scount)]] <-
                 list(ivspec = scount,
                      beta = EYB,
-                     g0 = BB[i, 1:ncol(gs0)],
-                     g1 = BB[i, (1 + ncol(gs0)):ncol(drX)],
+                     g0 = g0,
+                     g1 = g1,
                      ys = YB[, i] ,
                      w0 = drX[, i],
                      w1 = drX[, i],
