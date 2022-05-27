@@ -903,6 +903,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         max = result$max,
                         status.min = result$minstatus,
                         status.max = result$maxstatus,
+                        runtime = c(criterion = minobseq$runtime,
+                                    min = result$minruntime,
+                                    max = result$maxruntime),
                         audit.criterion = minCriterion,
                         audit.criterion.raw = minobseq$obj,
                         audit.criterion.status = minobseq$status,
@@ -1508,7 +1511,10 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                   violations = violateMat),
                    auditcount = audit_count,
                    minobseq = minobseq$obj,
-                   minobseq.status = minobseq$status)
+                   minobseq.status = minobseq$status,
+                   runtime = c(criterion = minobseq$runtime,
+                               min = result$minruntime,
+                               max = result$maxruntime))
     if (direct) {
         output$minobseq <- minCriterion
         output$minobseq.raw <- minobseq$obj
