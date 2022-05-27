@@ -1050,10 +1050,10 @@ bound <- function(env, sset, solver,
         return(list(error = TRUE,
                     max = max,
                     maxstatus = maxstatus,
+                    maxruntime = runtime.max,
                     min = min,
                     minstatus = minstatus,
-                    minruntime = runtime.min,
-                    maxruntime = runtime.max))
+                    minruntime = runtime.min))
     }
     ming0 <- minoptx[(2 * env$model$sn + 1) :
                      (2 * env$model$sn + env$model$gn0)]
