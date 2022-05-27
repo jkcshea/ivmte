@@ -3197,7 +3197,9 @@ checkU <- function(formula, uname) {
     upos <- unlist(lapply(termsVarList, function(x) uname %in% x))
     parPos <- unlist(lapply(termsList, function(x) grepl("\\(", x)))
     termsList <- termsList[as.logical(upos * parPos)]
-    checkVec <- grepl(paste0("^I\\(", uname, "\\^[0-9]+\\)$"), termsList)
+    checkVec1 <- grepl(paste0("^I\\(", uname, "\\^[0-9]+\\)$"), termsList)
+    checkVec2 <- grepl(paste0("^I\\(", uname, "\\)$"), termsList)
+    checkVec <- as.logical(apply(cbind(checkVec1, checkVec2), 1, max))
     if (all(checkVec))  errorTermsFormula <- NULL
     if (!all(checkVec)) errorTermsFormula <- termsList[!checkVec]
     return(errorTermsFormula)
