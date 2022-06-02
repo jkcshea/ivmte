@@ -198,8 +198,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     solver <- tolower(solver)
     ## Determine if whether IV-like moments or direct MTR regression
     ## will be used.
-    direct <- (length(sset) == 1 & 'SSR' %in% names(sset$s1))
-    if (!direct) rescale <- FALSE
+    qp.switch <- (length(sset) == 1 & !is.null(dim(sset$s1$g0)))
+    if (!qp.switch) rescale <- FALSE
     ## Set the audit tolerance
     if (!hasArg(audit.tol)) {
         if (solver == "gurobi") {
@@ -276,7 +276,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             }
         }
         ## Turn off non-convex option if using direct regression
-        if (direct) {
+        if (qp.switch) {
             solver.options.criterion$nonconvex <- 0
             solver.options.bounds$nonconvex <- 0
         }
@@ -392,8 +392,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         'mte.dec', 'mte.inc',
                         'pm0', 'pm1')
     if (audit_count == 1) {
-        if (!direct) sn <- length(sset)
-        if (direct) sn <- 0
+        if (!qp.switch) sn <- length(sset)
+        if (qp.switch) sn <- 0
         if (is.null(audit.grid)) {
             ## Generate the underlying X grid for the audit
             if (length(xvars) == 0) {
@@ -466,7 +466,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                  uvec = uvec,
                                                  splinesobj = splinesobj,
                                                  monov = monov,
-                                                 direct = direct))
+                                                 qp = qp.switch))
         ## Generate environment that is to be updated
         modelEnv <- new.env()
         modelEnv$mbobj <- eval(monoboundAcall)
@@ -478,9 +478,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     }
     lpSetup(env = modelEnv, sset = sset, orig.sset = NULL,
             equal.coef0 = equal.coef0, equal.coef1 = equal.coef1,
-            solver = solver, direct = direct, rescale = rescale)
+            solver = solver, qp = qp.switch, rescale = rescale)
     ## Setup QCQP problem
-    if (direct) qpSetup(env = modelEnv, sset = sset, rescale = rescale)
+    if (qp.switch) qpSetup(env = modelEnv, sset = sset, rescale = rescale)
     ## Prepare solver messages
     ##
     ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible
@@ -493,7 +493,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         consider exporting the model
                         and passing it to the solver
                         for more details.\n")
-    if (!direct) {
+    if (!qp.switch) {
         messageInf <- gsub("\\s+", " ",
                            "Since a minimum criterion was found, the
                         model should be feasible.
@@ -562,7 +562,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
         lpSetupSolver(env = modelEnv, solver = solver)
-        if (!direct) {
+        if (!qp.switch) {
             lpSetupCriterion(env = modelEnv, sset = sset)
         } else {
             qpSetupCriterion(env = modelEnv)
@@ -608,7 +608,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             }
             ## Otherwise, continue and test for infeasibility.
             rm(minobseq)
-            if (!direct) {
+            if (!qp.switch) {
                 lpSetupInfeasible(modelEnv, sset)
             } else {
                 qpSetupInfeasible(modelEnv, rescale)
@@ -723,7 +723,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                      call. = FALSE)
             }
         }
-        if (!direct && noisy) {
+        if (!qp.switch && noisy) {
             cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
                 sep = "")
         }
@@ -733,13 +733,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             drN <- modelEnv$drN
         }
         minCriterion <- (minobseq$obj * modelEnv$drN + modelEnv$ssy) / drN
-        if (direct && noisy) {
+        if (qp.switch && noisy) {
             cat("    Minimum criterion: ", fmtResult(minCriterion), "\n",
                 sep = "")
         }
-        
+
         ## Perform specification test
-        if (!direct && !is.null(orig.sset) && !is.null(orig.criterion)) {
+        if (!qp.switch && !is.null(orig.sset) && !is.null(orig.criterion)) {
             lpSetupCriterionBoot(modelEnv, sset, orig.sset,
                                  orig.criterion, criterion.tol,
                                  setup = TRUE)
@@ -802,7 +802,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         if (noisy) {
             cat("    Obtaining bounds...\n")
         }
-        if (!direct) {
+        if (!qp.switch) {
             lpSetupBound(env = modelEnv,
                          g0 = gstar0,
                          g1 = gstar1,
@@ -996,7 +996,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                                  solution.m1.max =
                                                      result$maxg1,
                                                  audit.tol = audit.tol,
-                                                 direct = direct))
+                                                 qp = qp.switch))
         auditObj <- eval(monoboundAcall)
         ## Combine the violation matrices
         violateMat <- NULL
@@ -1248,8 +1248,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 }
                 if (!is.null(addm0)) {
                     ## Update the constraint matrix
-                    if (!direct) addCol <- length(sset$s1$g1)
-                    if (direct) addCol <- ncol(sset$s1$g1)
+                    if (!qp.switch) addCol <- length(sset$s1$g1)
+                    if (qp.switch) addCol <- ncol(sset$s1$g1)
                     tmpMat <- cbind(matrix(0, nrow = nrow(addm0),
                                            ncol = 2 * sn),
                                     addm0,
@@ -1262,9 +1262,15 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variable
-                    tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                           ncol = ncol(modelEnv$drX))
-                    colnames(tmpA) <- paste0("yhat.", seq(ncol(modelEnv$drX)))
+                    if (qp.switch) {
+                        tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
+                                               ncol = ncol(sset$s1$g0) +
+                                                   ncol(sset$s1$g1))
+                        colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
+                                                              ncol(sset$s1$g1)))
+                    } else {
+                        tmpA <- NULL
+                    }
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <- rbind(modelEnv$model$A, tmpMat)
                     rm(addCol, tmpMat)
@@ -1344,8 +1350,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 }
                 if (!is.null(addm1)) {
                     ## Update the constraint matrix
-                    if (!direct) addCol <- length(sset$s1$g0)
-                    if (direct) addCol <- ncol(sset$s1$g0)
+                    if (!qp.switch) addCol <- length(sset$s1$g0)
+                    if (qp.switch) addCol <- ncol(sset$s1$g0)
                     tmpMat <- cbind(matrix(0, nrow = nrow(addm1),
                                            ncol = 2 * sn),
                                     matrix(0, nrow = nrow(addm1),
@@ -1357,10 +1363,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         STATS = modelEnv$colNorms,
                                         FUN = '/')
                     }
-                    ## Expand additional constraints to allow for new variable
-                    tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                           ncol = ncol(modelEnv$drX))
-                    colnames(tmpA) <- paste0("yhat.", seq(ncol(modelEnv$drX)))
+                    ## Expand additional constraints to allow for new variables
+                    if (qp.switch) {
+                        tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
+                                               ncol = ncol(sset$s1$g0) +
+                                                   ncol(sset$s1$g1))
+                        colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
+                                                              ncol(sset$s1$g1)))
+                    } else {
+                        tmpA <- NULL
+                    }
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)
@@ -1451,9 +1463,15 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variable
-                    tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                           ncol = ncol(modelEnv$drX))
-                    colnames(tmpA) <- paste0("yhat.", seq(ncol(modelEnv$drX)))
+                    if (qp.switch) {
+                        tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
+                                               ncol = ncol(sset$s1$g0) +
+                                                   ncol(sset$s1$g1))
+                        colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
+                                                              ncol(sset$s1$g1)))
+                    } else {
+                        tmpA <- NULL
+                    }
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)
@@ -1481,8 +1499,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 rm(addmte)
                 ## Move on to next iteration of the audit
                 audit_count <- audit_count + 1
-                if (!direct) lpSetupBound(env = modelEnv, setup = FALSE)
-                if (direct)  qpSetupBound(env = modelEnv, setup = FALSE)
+                if (!qp.switch) lpSetupBound(env = modelEnv, setup = FALSE)
+                if (qp.switch)  qpSetupBound(env = modelEnv, setup = FALSE)
             }
         } else {
             ## If no violations, then end the audit
@@ -1515,7 +1533,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                    runtime = c(criterion = minobseq$runtime,
                                min = result$minruntime,
                                max = result$maxruntime))
-    if (direct) {
+    if (qp.switch) {
         output$minobseq <- minCriterion
         output$minobseq.raw <- minobseq$obj
     }

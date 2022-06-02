@@ -34,8 +34,8 @@
 #' @param shape boolean, default set to TRUE. Switch to determine
 #'     whether or not to include shape restrictions in the LP/QCQP
 #'     problem.
-#' @param direct boolean, set to \code{TRUE} if the direct MTR
-#'     regression is used.
+#' @param qp boolean, set to \code{TRUE} if the direct MTR
+#'     regression via QP is used.
 #' @param rescale boolean, set to \code{TRUE} if the MTR components
 #'     should be rescaled to improve stability in the LP/QCQP
 #'     optimization.
@@ -154,7 +154,7 @@
 #' @export
 lpSetup <- function(env, sset, orig.sset = NULL,
                     equal.coef0 = NULL, equal.coef1 = NULL,
-                    shape = TRUE, direct = FALSE, rescale = TRUE,
+                    shape = TRUE, qp = FALSE, rescale = TRUE,
                     solver) {
     ## Read in constraint grids and sequences
     solver <- tolower(solver)
@@ -163,7 +163,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
             env$shapeSeq[[i]] <- NULL
         }
     }
-    if (!direct) {
+    if (!qp) {
         ## Determine lengths
         sn  <- length(sset)
         gn0 <- length(sset$s1$g0)
@@ -215,7 +215,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     if (!is.null(equal.coef0) & !is.null(equal.coef1)) {
         equal.coef0 <- paste0('[m0]', equal.coef0)
         equal.coef1 <- paste0('[m1]', equal.coef1)
-        if (!direct) {
+        if (!qp) {
             tmpANames <- colnames(A)
         } else {
             tmpANames <- c(colnames(sset$s1$g0), colnames(sset$s1$g1))
@@ -230,7 +230,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ## Add in additional constraints if included
     if (shape == TRUE) {
         mbA <- rbind(A, env$mbobj$mbA)
-        if (direct) colnames(mbA) <- colnames(env$mbobj$mbA)
+        if (qp) colnames(mbA) <- colnames(env$mbobj$mbA)
         env$mbobj$mbA <- NULL
         sense <- c(sense, env$mbobj$mbs)
         env$mbobj$mbs <- NULL
@@ -240,7 +240,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         mbA <- A
     }
     rm(A)
-    if (!direct) {
+    if (!qp) {
         colnames(mbA) <- c(c(rbind(paste0('slack', seq(sn), '-'),
                                    paste0('slack', seq(sn), '+'))),
                            names(sset$s1$g0), names(sset$s1$g1))
@@ -250,7 +250,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ## Define bounds on parameters
     ub <- replicate(ncol(mbA), Inf)
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
-    if (direct && rescale) {
+    if (qp && rescale) {
         ## Rescale linear constraints
         colNorms0 <- apply(sset$s1$g0, MARGIN = 2, function(x) sqrt(sum(x^2)))
         colNorms1 <- apply(sset$s1$g1, MARGIN = 2, function(x) sqrt(sum(x^2)))
@@ -1785,46 +1785,6 @@ qpSetupBound <- function(env, g0, g1,
                          rescale = FALSE,
                          setup = TRUE) {
     if (setup) {
-        ## ## CHOLESKY CODE ---------------------------------
-        ## ## Add a new variable yhat for each observation, defined using a
-        ## ## linear constraint
-        ## AA <- t(env$drX) %*% env$drX
-        ## cholAA <- suppressWarnings(chol(AA, pivot = TRUE))
-        ## cholRank <- attr(cholAA, 'rank')
-        ## if (cholRank < nrow(AA)) {
-        ##     cholAA[(cholRank + 1):nrow(cholAA),
-        ##     (cholRank + 1):nrow(cholAA)] <- 0
-        ## }
-        ## cholOrder <- order(attr(cholAA, 'pivot'))
-        ## cholAA <- Matrix::Matrix(cholAA)[, cholOrder]
-        ## tmpA <- Matrix::Matrix(0, nrow = nrow(env$model$A), ncol = ncol(AA))
-        ## tmpI <- Matrix::Diagonal(ncol(AA))
-        ## tmpRhs <- rep(0, ncol(AA))
-        ## tmpSense <- rep("=", ncol(AA))
-        ## tmpBounds <- rep(Inf, ncol(AA))
-        ## colnames(tmpA) <- colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
-        ##     names(tmpBounds) <- paste0("yhat.", seq(ncol(AA)))
-        ## origA.colnames <- colnames(env$model$A)
-        ## env$model$A <- rbind(cbind(env$model$A, tmpA),
-        ##                      cbind(cholAA, -tmpI))
-        ## env$model$rhs <- c(env$model$rhs, tmpRhs)
-        ## env$model$sense <- c(env$model$sense, tmpSense)
-        ## env$model$lb <- c(env$model$lb, -tmpBounds)
-        ## env$model$ub <- c(env$model$ub, tmpBounds)
-        ## colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
-        ## ## Now set up the quadratic constraint
-        ## qc <- list()
-        ## qc$q <- -2 * c(t(env$drX) %*% env$drY) / env$drN
-        ## qc$q <- c(qc$q, rep(0, ncol(AA)))
-        ## qc$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
-        ##                                       ncol = ncol(AA),
-        ##                                       nrow = ncol(AA)),
-        ##                        Matrix::Diagonal(ncol(AA))) / env$drN
-        ## qc$sense <- '<'
-        ## qc$name <- 'SSR'
-        ## ## END CHOLESKY CODE -------------------------------
-
-        ## New cholesky code ---------------------
         ## Track the position of the Cholesky constraints
         env$cholPos <- seq(nrow(env$model$A) + 1,
                            nrow(env$model$A) + ncol(env$drX))
@@ -1841,8 +1801,6 @@ qpSetupBound <- function(env, g0, g1,
         env$model$lb <- c(env$model$lb, env$cholMats$lb)
         env$model$ub <- c(env$model$ub, env$cholMats$ub)
         colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
-        ## End of cholesky -----------------------
-
         ## Prepare objective
         env$model$obj <- c(c(g0, g1),
                            rep(0, ncol(env$drX)))

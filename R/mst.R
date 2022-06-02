@@ -220,9 +220,13 @@ utils::globalVariables("u")
 #'     changed if the feasibility tolerance of the solver is changed,
 #'     or if numerical issues result in discrepancies between the
 #'     solver's feasibility check and the audit.
+#' @param direct either "QP" or "LP". If "QP", then the regression
+#'     approach is performed by solving quadratic programs. If "LP",
+#'     then the regression approach is performed by solving linear
+#'     programs.
 #' @param rescale boolean, set to \code{FALSE} by default. This
 #'     rescalels the MTR components to improve stability in the
-#'     LP/QCQP optimization.
+#'     QCQP optimization.
 #' @param point boolean. Set to \code{TRUE} if it is believed that the
 #'     treatment effects are point identified. If set to \code{TRUE}
 #'     and IV-like formulas are passed, then a two-step GMM procedure
@@ -432,7 +436,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   criterion.tol = 1e-4,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
-                  audit.tol, rescale,
+                  audit.tol, direct, rescale,
                   point, point.eyeweight = FALSE,
                   bootstraps = 0, bootstraps.m,
                   bootstraps.replace = TRUE,
@@ -467,21 +471,38 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         m1 = environment(m1),
                         parent = parent.frame())
         if (hasArg(equal.coef)) envList$equal.coef <- environment(equal.coef)
-        direct <- TRUE
         if (hasArg(ivlike) && !is.null(ivlike)) {
-            direct <- FALSE
+            direct.switch <- FALSE
             envList$ivlike <- environment(ivlike)
-        }
-        if (!direct) {
             if (hasArg(rescale)) {
                 warning(gsub('\\s+', ' ',
-                             "The 'rescale' option is currently ignored
-                              unless a direct regression is performed."),
+                             "The 'rescale' option is currently ignored unless a
+                              direct regression
+                              is performed."),
                         call. = FALSE)
             }
             rescale <- FALSE
+            qp.switch <- FALSE
+            direct <- NULL
         } else {
+            direct.switch <- TRUE
             if (!hasArg(rescale)) rescale <- FALSE
+            if (!hasArg(direct)) direct <- "qp"
+            direct <- tolower(direct)
+            if (direct == "qp") {
+                qp.switch <- TRUE
+            } else if (direct == "lp") {
+                qp.switch <- FALSE
+            } else {
+                stop(gsub("\\s+", " ",
+                          paste0("The 'direct' argument must either be 'LP' or
+                                 'QP'. Set 'direct' to 'LP' if the direct
+                                 regression should be performed via a
+                                 linear program. Set 'direct' to 'QP' if the
+                                 direct regression should be performed via
+                                 a quadratic program.")),
+                     call. = FALSE)
+            }
         }
         envProp <- try(environment(propensity), silent = TRUE)
         if (class(envProp) != "environment") {
@@ -542,8 +563,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             } else {
                 solver <- "none"
                 point <- TRUE
-                if (direct)  tmp.method <- 'OLS,'
-                if (!direct) tmp.method <- 'GMM,'
+                if (direct.switch)  tmp.method <- 'OLS,'
+                if (!direct.switch) tmp.method <- 'GMM,'
                 warning(gsub("\\s+", " ",
                              paste("None of the compatible solvers are
                                     installed, so estimation is only possible
@@ -664,9 +685,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         call. = FALSE)
             }
         }
-        if (direct && !(solver %in% c('gurobi', 'rmosek', 'none'))) {
+        if (qp.switch && !(solver %in% c('gurobi', 'rmosek', 'none'))) {
             stop(gsub("\\s+", " ",
-                      paste0("A direct regression may only be peformed if
+                      paste0("A direct regression via quadratic programming
+                              may only be peformed if
                               the solver is Gurobi or MOSEK. Please install
                               either solver and set 'solver = \"gurobi\"'
                               or 'solver = \"rmosek\"'.")),
@@ -744,7 +766,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         if (hasArg(ci.type))  ci.type  <- tolower(ci.type)
         ## Convert ivlike formula into a list (i.e. a one-element list
         ## with one formula), which is a more robust framework
-        if (!direct) {
+        if (!direct.switch) {
             if (classFormula(ivlike)) {
                 ivlike <- c(ivlike)
             }
@@ -909,7 +931,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
             ## Fill in any missing subset slots
             if (length(subset) > 1 && length(subset) != length_formula) {
-                if (!direct) {
+                if (!direct.switch) {
                     stop(gsub("\\s+", " ",
                               "Number of subset conditions not equal to
                        number of IV specifications.
@@ -993,7 +1015,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
         }
         if (hasArg(outcome)) {
-            if (direct) {
+            if (direct.switch) {
                 outcomeStr <- deparse(substitute(outcome))
                 outcomeStr <- gsub("~", "", outcomeStr)
                 outcomeStr <- gsub("\\\"", "", outcomeStr)
@@ -1010,7 +1032,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         call. = FALSE)
             }
         }
-        if (direct && !hasArg(outcome)) {
+        if (direct.switch && !hasArg(outcome)) {
             stop(gsub('\\s+', ' ',
                       "If 'ivlike' is not passed, then a regression of the
                        outcome variable on the MTR will be performed.
@@ -1227,7 +1249,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
         }
         if (hasArg(point)) {
-            if (point == TRUE && !direct) {
+            if (point == TRUE && !direct.switch) {
                 if (hasArg(m0.dec) | hasArg(m0.inc) |
                     hasArg(m1.dec) | hasArg(m1.inc) |
                     hasArg(mte.dec) | hasArg(mte.inc) |
@@ -1370,7 +1392,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                       point identification, and will be ignored when
                       point = FALSE."), call. = FALSE)
         }
-        if (hasArg(point.eyeweight) && direct) {
+        if (hasArg(point.eyeweight) && direct.switch) {
             warning(gsub("\\s+", " ",
                          "Argument 'point.eyeweight' is only used for
                       point identification when IV-like estimands are
@@ -1398,7 +1420,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         terms_mtr0       <- c()
         terms_mtr1       <- c()
         terms_components <- c()
-        if (!direct) {
+        if (!direct.switch) {
             if (classList(ivlike)) {
                 if (!min(unlist(lapply(ivlike, classFormula)))) {
                     stop(gsub("\\s+", " ",
@@ -1808,7 +1830,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 }
             }
         } else {
-            if (direct) {
+            if (direct.switch) {
                 stop(gsub("\\s+", " ",
                           paste0("'propensity' argument must either be a
                           two-sided formula (if the propensity score is to be
@@ -1910,7 +1932,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## For the components, since they may be terms, we first collect
         ## all terms, and then break it down into variables.
-        if (!direct) {
+        if (!direct.switch) {
             vars_components <- NULL
             if (userComponents) {
                 for (comp in components) {
@@ -1958,11 +1980,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Collect all variables, and remove the variable name
         ## corresponding to the unobservable.
-        if (!direct) allvars <- c(allvars, vars_components)
+        if (!direct.switch) allvars <- c(allvars, vars_components)
         allvars <- unique(allvars)
         allvars <- allvars[allvars != uname]
         ## Fill in components list if necessary
-        if (!direct) {
+        if (!direct.switch) {
             comp_filler <- lapply(terms_formulas_x,
                                   function(x) as.character(unstring(x)))
             if (userComponents) {
@@ -2104,7 +2126,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                         'm0.inc', 'm1.dec', 'm1.inc',
                                         'mte.dec', 'mte.inc', 'link'))
         opList <- eval(opList)
-        if (!direct) {
+        if (!direct.switch) {
             opList$ivlike <- ivlike
             opList$components <- components
         } else {
@@ -2144,6 +2166,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                              "lpsolver.presolve",
                                              "lpsolver.options.criterion",
                                              "lpsolver.options.bounds",
+                                             "direct",
                                              "rescale",
                                              "target.weight0", "target.weight1",
                                              "target.knots0", "target.knots1",
@@ -2164,6 +2187,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                data = quote(data),
                                                subset = quote(subset),
                                                solver = quote(solver),
+                                               direct = direct,
                                                rescale = rescale,
                                                noisy = TRUE,
                                                vars_y = quote(vars_y),
@@ -2232,7 +2256,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         origEstimate <- eval(estimateCall)
         if ('point.estimate' %in% names(origEstimate))  point <- TRUE
         if (!'point.estimate' %in% names(origEstimate)) point <- FALSE
-        if (direct) specification.test <- FALSE
+        if (direct.switch) specification.test <- FALSE
         ## Now estimate the bounds.
         if (point == FALSE) {
             ## Estimate bounds without resampling
@@ -2316,7 +2340,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                 output$specification.test <-
                                     bootEstimate$specification.test
                             }
-                            if (direct) {
+                            if (direct.switch) {
                                 output$audit.criterion <-
                                     bootEstimate$audit.criterion
                             }
@@ -2392,7 +2416,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             bootCriterion <- c(bootCriterion,
                                                bootEstimate$specification.test)
                         }
-                        if (direct) {
+                        if (direct.switch) {
                             bootCriterion <- c(bootCriterion,
                                                bootEstimate$audit.criterion)
                         }
@@ -2424,7 +2448,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                            x$specification.test
                                                        }))
                     }
-                    if (direct) {
+                    if (direct.switch) {
                         bootCriterion <- Reduce(rbind,
                                                 lapply(bootEstimate,
                                                        function(x) {
@@ -2603,7 +2627,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     output$propensity.se <- propSE
                     output$propensity.ci  <- propensity.ci
                 }
-                if (direct) {
+                if (direct.switch) {
                     output$audit.criterion.bootstraps <- bootCriterion
                 }
                 output$call.options <- opList
@@ -2965,11 +2989,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             output3 <- list(p.value = pvalue,
                             bootstraps = bootstraps,
                             bootstraps.failed = bootFailN)
-            if (!direct) {
+            if (!direct.switch) {
                 output3$j.test <- jtest
                 output3$j.test.bootstraps <- jstats
             }
-            if (direct) {
+            if (direct.switch) {
                 output3$SSR.bootstraps <- SSRs
             }
             if ("j.test" %in% names(output1) &&
@@ -3350,7 +3374,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           initgrid.nx = 20, initgrid.nu = 20,
                           audit.nx = 2500, audit.nu = 25,
                           audit.add = 100, audit.max = 25, audit.tol,
-                          audit.grid = NULL, rescale = TRUE,
+                          audit.grid = NULL, direct, rescale = TRUE,
                           point = FALSE, point.eyeweight = FALSE,
                           point.center = NULL, point.redundant = NULL,
                           bootstrap = FALSE, count.moments = TRUE,
@@ -3362,9 +3386,10 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           environments) {
     call <- match.call(expand.dots = FALSE)
     if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
-        direct <- TRUE
+        direct.switch <- TRUE
+        qp.switch <- direct == "qp"
     } else {
-        direct <- FALSE
+        direct.switch <- FALSE
     }
     if (classFormula(ivlike)) ivlike <- c(ivlike)
     ## Character arguments will be converted to lowercase
@@ -3518,7 +3543,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                 pm0 = quote(pm0),
                                                 pm1 = quote(pm1)))
     }
-    if (direct) {
+    if (direct.switch) {
         gentargetcall <- modcall(gentargetcall,
                                  dropargs = 'point')
     }
@@ -3555,8 +3580,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ## 3. Generate moments/gamma terms for IV-like estimands
     ##---------------------------
     if (noisy == TRUE) {
-        if (!direct) cat("\nGenerating IV-like moments...\n")
-        if (direct)  cat("\nPerforming direct MTR regression...\n")
+        if (!direct.switch) cat("\nGenerating IV-like moments...\n")
+        if (direct.switch)  cat("\nPerforming direct MTR regression...\n")
     }
     sset  <- list() ## Contains all IV-like estimates and their
                     ## corresponding moments/gammas
@@ -3619,6 +3644,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                               scount = scount,
                               subset_index = subset_index,
                               means = FALSE,
+                              direct = direct,
                               yvar = vars_y,
                               dvar = treat,
                               noisy = noisy,
@@ -3631,7 +3657,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             ivlikeCounter <- ivlikeCounter + 1
         }
     } else {
-        if (!direct) {
+        if (!direct.switch) {
             stop(gsub("\\s+", " ",
                       "'ivlike' argument must either be a formula or a vector of
                   formulas."),
@@ -3661,19 +3687,22 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                               scount = scount,
                               subset_index = subset_index,
                               means = FALSE,
+                              direct = direct,
                               yvar = vars_y,
                               dvar = treat,
                               noisy = noisy,
                               ivn = 0)
             sset <- setobj$sset
-            sset$s1$ivspec <- NULL
-            sset$s1$beta <- NULL
-            rm(setobj)
+            if (direct.switch && qp.switch) {
+                sset$s1$ivspec <- NULL
+                sset$s1$beta <- NULL
+            }
             ## Now perform the MTR regression and check for
             ## collinearities
-            drY <- sset$s1$ys
-            drX <- cbind(sset$s1$g0, sset$s1$g1)
+            drY <- setobj$drY
+            drX <- setobj$drX
             drN <- length(drY)
+            rm(setobj)
             ## Construct equality constraints
             if (exists('pmequal0') && exists ('pmequal1')) {
                 tmp.equal.coef0 <- paste0('[m0]', pmequal0)
@@ -3732,8 +3761,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     drSSR <- sum((drY  - drX %*% drCoef)^2)
                 }
             }
-            sset$s1$init.coef <- drCoef
-            sset$s1$SSR <- drSSR
             ## If no collinearities, return the implied target parameter
             if (!collinear) {
                 if ((hasArg(point) && point == TRUE) |
@@ -3777,7 +3804,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                     sample.'),
                                               call. = FALSE)
                 ## Move on to the QCQP problem
-                if (direct && noisy) {
+                if (direct.switch && noisy) {
                     cat("    MTR is not point identified.\n")
                 }
             }
@@ -3809,7 +3836,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     xterms = pm1$xterms)
     }
     if (smallreturnlist) pmodel <- pmodel$model
-    if (count.moments && !direct) {
+    if (count.moments && !direct.switch) {
         wmat <- NULL
         for (s in 1:length(sset)) {
             if (!is.null(subsetIndexList)) {
@@ -3858,7 +3885,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     } else {
         nIndepMoments <- NULL
     }
-    if (!direct && point == FALSE) {
+    if (!direct.switch && point == FALSE) {
         for (i in 1:length(sset)) {
             sset[[i]]$g0 <- colMeans(sset[[i]]$g0)
             sset[[i]]$g1 <- colMeans(sset[[i]]$g1)
@@ -3878,7 +3905,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ## Prepare GMM estimate estimate if `point' agument is set to TRUE
     splinesCheck <- !(all(is.null(splinesobj[[1]]$splineslist)) &&
         all(is.null(splinesobj[[2]]$splineslist)))
-    if (!direct && point == TRUE) {
+    if (!direct.switch && point == TRUE) {
         ## Obtain GMM estimate
         gmmResult <- gmmEstimate(sset = sset,
                                  gstar0 = gstar0,
@@ -4005,7 +4032,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     newGrid.nu <- initgrid.nu
     newGrid.nx <- initgrid.nx
     ## Select codes for reasons to stop or expand
-    if (!direct) {
+    if (!direct.switch) {
         codesStop <- c(0, 2, 5)
         codesExpand <- c(3, 4, 6, 7)
     } else {
@@ -4066,7 +4093,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                               'was infeasible')
                 }
                 if (3 %in% audit$errorTypes) {
-                    if (!direct) {
+                    if (!direct.switch) {
                         tmpErrMessage <-
                             c(tmpErrMessage,
                               gsub('\\s+', ' ',
@@ -4247,16 +4274,16 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        audit.criterion.status = audit$minobseq.status,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
                                            m1 = splinesobj[[2]]$splinesdict))
-        if (!direct) output$s.set <- sset
-        if (direct) {
-            output$X <- cbind(sset$s1$g0, sset$s1$g1)
-            output$Y <- sset$s1$ys
-            output$init.SSR <- sset$s1$SSR
-            output$init.gstar.coef <- sset$s1$init.coef
+        if (!direct.switch) output$s.set <- sset
+        if (direct.switch) {
+            output$X <- drX
+            output$Y <- drY
+            output$init.SSR <- drSSR
+            output$init.gstar.coef <- drCoef
             output$audit.criterion.raw <- audit$minobseq.raw
         }
     } else {
-        if (!direct) {
+        if (!direct.switch) {
             sset <- lapply(sset, function(x) {
                 x[c("ivspec", "beta", "g0", "g1")]
             })
@@ -4283,17 +4310,17 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                        audit.criterion.status = audit$minobseq.status,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
                                            m1 = splinesobj[[2]]$splinesdict))
-        if (!direct) output$s.set <- sset
-        if (direct) {
-            output$init.SSR <- sset$s1$SSR
-            output$init.gstar.coef <- sset$s1$init.coef
+        if (!direct.switch) output$s.set <- sset
+        if (direct.switch) {
+            output$init.SSR <- drSSR
+            output$init.gstar.coef <- drCoef
         }
         if (all(class(pmodel$model) != "NULL")) {
             output$propensity.coef <- pmodel$model$coef
         }
     }
     if (!is.null(audit$spectest)) output$specification.test <- audit$spectest
-    if (direct) {
+    if (direct.switch) {
         output$moments <- NULL
     }
     return(output)
@@ -4716,14 +4743,16 @@ genTarget <- function(treat, m0, m1, target,
 #' @param ncomponents The number of components from the IV regression
 #'     to include in the S-set.
 #' @param scount integer, an index for the elements in the S-set.
-#' @param subset_index vector of integers, a row index for the subset of
-#'     the data the IV regression is restricted to.
+#' @param subset_index vector of integers, a row index for the subset
+#'     of the data the IV regression is restricted to.
 #' @param means boolean, set to \code{TRUE} by default. If set to
 #'     \code{TRUE}, then the gamma moments are returned, i.e. sample
 #'     averages are taken. If set to \code{FALSE}, then no sample
 #'     averages are taken, and a matrix is returned. The sample
 #'     average of each column of the matrix corresponds to a
 #'     particular gamma moment.
+#' @param direct String, either "LP" or "QR". Determines whether a set
+#'     of moments or a design matrix should be generated.
 #' @param yvar name of outcome variable. This is only used if
 #'     \code{means = FALSE}, which occurs when the user believes the
 #'     treatment effect is point identified.
@@ -4795,9 +4824,9 @@ genTarget <- function(treat, m0, m1, target,
 #' @export
 genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                     ncomponents, scount, subset_index, means = TRUE,
-                    yvar, dvar, noisy = TRUE, ivn = NULL,
+                    yvar, dvar, direct = "QP", noisy = TRUE, ivn = NULL,
                     redundant = NULL) {
-    direct <- !('betas' %in% names(sest))
+    direct.switch <- !('betas' %in% names(sest))
     if (!hasArg(subset_index)) {
         subset_index <- NULL
         n <- nrow(data)
@@ -4806,7 +4835,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
     }
     for (j in 1:ncomponents) {
         if (! scount %in% redundant) {
-            if (noisy == TRUE && !direct) {
+            if (noisy == TRUE && !direct.switch) {
                 cat("    Moment ", scount, "...\n", sep = "")
             }
             if (!is.null(pm0)) {
@@ -4941,7 +4970,44 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         ## from the IV regressions)
         scount <- scount + 1
     }
-    return(list(sset = sset, scount = scount))
+    if (direct.switch) {
+        drY <- sset$s1$ys
+        gs0 <- sset$s1$g0
+        gs1 <- sset$s1$g1
+        drX <- cbind(gs0, gs1)
+        if (direct == "lp") {
+            drN <- length(drY)
+            ncomponents <- ncol(drX)
+            YB <- sweep(drX, 1, drY, FUN = "*")
+            BB <- t(drX) %*% drX / drN
+            scount <- 1
+            for (i in 1:ncomponents) {
+                EYB <- mean(YB[, i])
+                names(EYB) <- paste0('direct', i)
+                g0 <- BB[i, 1:ncol(gs0)]
+                g1 <- BB[i, (1 + ncol(gs0)):ncol(drX)]
+                names(g0) <- colnames(BB)[1:ncol(gs0)]
+                names(g1) <- colnames(BB)[(1 + ncol(gs0)):ncol(drX)]
+                sset[[paste0("s", scount)]] <-
+                    list(ivspec = scount,
+                         beta = EYB,
+                         g0 = g0,
+                         g1 = g1,
+                         ys = YB[, i] ,
+                         w0 = drX[, i],
+                         w1 = drX[, i],
+                         n = drN)
+                scount <- scount + 1
+            }
+        }
+    }
+    if (!direct.switch) {
+        drX <- drY <- NULL
+    }
+    return(list(sset = sset,
+                scount = scount,
+                drX = drX,
+                drY = drY))
 }
 
 #' GMM estimate of TE under point identification
