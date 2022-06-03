@@ -1148,6 +1148,16 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             target.weight0 <- NULL
             target.weight1 <- NULL
         } else {
+            if (!hasArg(target.weight0) & !hasArg(target.weight1)) {
+                stop(gsub("\\s+", " ",
+                          "A target weight must be provided. Set
+                           'target' equal to 'ate', 'att', 'atu', 'late', or
+                           'genlate' to estimate standard treatment
+                           effect parameters. Alternatively, pass custom weights
+                           through 'target.weight0' and 'target.weight1' to
+                           estimate more general treatment effect parameters."),
+                     call. = FALSE)
+            }
             if (!(hasArg(target.weight0) & hasArg(target.weight1))) {
                 stop(gsub("\\s+", " ",
                           "Only one target weight function is provided. If a
@@ -3747,10 +3757,22 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             if (!collinear) {
                 if ((hasArg(point) && point == TRUE) |
                     !hasArg(point)) {
-                    warning(gsub('\\s+', ' ',
-                                 'MTR is point identified via linear regression.
-                                  Shape constraints are ignored.'),
-                            call. = FALSE)
+                    if (hasArg(m0.lb) | hasArg(m0.ub) |
+                        hasArg(m1.lb) | hasArg(m1.ub) |
+                        hasArg(m0.inc) | hasArg(m0.dec) |
+                        hasArg(m1.inc) | hasArg(m1.dec) |
+                        hasArg(mte.inc) | hasArg(mte.dec)) {
+                        warning(gsub("\\s+", " ",
+                                     "MTR is point identified via linear
+                                      regression. Shape constraints are
+                                      ignored."),
+                                call. = FALSE)
+                    } else {
+                        warning(gsub("\\s+", " ",
+                                     "MTR is point identified via linear
+                                      regression."),
+                                call. = FALSE)
+                    }
                     point.estimate <- sum(c(gstar0, gstar1) * drCoef)
                     if (noisy == TRUE) {
                         cat("\nPoint estimate of the target parameter: ",
@@ -3856,10 +3878,20 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         if (!hasArg(point)) {
             if (nIndepMoments >= length(gstar0) + length(gstar1)) {
                 point <- TRUE
-                warning(gsub("\\s+", " ",
-                             "MTR is point identified via GMM.
-                              Shape constraints are ignored."),
-                        call. = FALSE)
+                if (hasArg(m0.lb) | hasArg(m0.ub) |
+                    hasArg(m1.lb) | hasArg(m1.ub) |
+                    hasArg(m0.inc) | hasArg(m0.dec) |
+                    hasArg(m1.inc) | hasArg(m1.dec) |
+                    hasArg(mte.inc) | hasArg(mte.dec)) {
+                    warning(gsub("\\s+", " ",
+                                 "MTR is point identified via GMM.
+                                 Shape constraints are ignored."),
+                            call. = FALSE)
+                } else {
+                    warning(gsub("\\s+", " ",
+                                 "MTR is point identified via GMM."),
+                            call. = FALSE)
+                }
             } else {
                 point <- FALSE
             }
