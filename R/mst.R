@@ -554,12 +554,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         } else {
             if (requireNamespace("gurobi", quietly = TRUE)) {
                 solver <- "gurobi"
+            } else if (requireNamespace("Rmosek", quietly = TRUE)) {
+                solver <- "rmosek"
             } else if (requireNamespace("lpSolveAPI", quietly = TRUE)) {
                 solver <- "lpsolveapi"
             } else if (requireNamespace("cplexAPI", quietly = TRUE)) {
                 solver <- "cplexapi"
-            } else if (requireNamespace("Rmosek", quietly = TRUE)) {
-                solver <- "rmosek"
             } else {
                 solver <- "none"
                 point <- TRUE
@@ -3401,24 +3401,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     uname <- deparse(substitute(uname))
     uname <- gsub("~", "", uname)
     uname <- gsub("\\\"", "", uname)
-    if (noisy == TRUE && hasArg(solver)) {
-        if (solver == "gurobi") cat("\nSolver: Gurobi ('gurobi')\n\n")
-        if (solver == "cplexapi") cat("\nSolver: CPLEX ('cplexAPI')\n\n")
-        if (solver == "rmosek") cat("\nSolver: MOSEK ('Rmosek')\n\n")
-        if (solver == "lpsolveapi") {
-            cat("\nSolver: lp_solve ('lpSolveAPI')\n\n")
-            warning(gsub("\\s+", " ",
-                     "The R package 'lpSolveAPI' interfaces with 'lp_solve',
-                      which is outdated and potentially unreliable. It is
-                      recommended to use commercial solvers
-                      Gurobi (solver = 'gurobi'),
-                      CPLEX (solver = 'cplexAPI'), or
-                      MOSEK (solver = 'Rmosek') instead.
-                      Free academic licenses can be obtained for these
-                      commercial solvers."),
-                "\n", call. = FALSE, immediate. = TRUE)
-        }
-    }
 
     ##---------------------------
     ## 1. Obtain propensity scores

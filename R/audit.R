@@ -196,6 +196,24 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   noisy = TRUE, debug = FALSE) {
     call  <- match.call()
     solver <- tolower(solver)
+    if (noisy == TRUE) {
+        if (solver == "gurobi") cat("    Solver: Gurobi ('gurobi')\n")
+        if (solver == "cplexapi") cat("    Solver: CPLEX ('cplexAPI')\n")
+        if (solver == "rmosek") cat("    Solver: MOSEK ('Rmosek')\n")
+        if (solver == "lpsolveapi") {
+            cat("    Solver: lp_solve ('lpSolveAPI')\n")
+            warning(gsub("\\s+", " ",
+                         "The R package 'lpSolveAPI' interfaces with 'lp_solve',
+                      which is outdated and potentially unreliable. It is
+                      recommended to use commercial solvers
+                      Gurobi (solver = 'gurobi'),
+                      CPLEX (solver = 'cplexAPI'), or
+                      MOSEK (solver = 'Rmosek') instead.
+                      Free academic licenses can be obtained for these
+                      commercial solvers."),
+                    "\n", call. = FALSE, immediate. = FALSE)
+        }
+    }
     ## Determine if whether IV-like moments or direct MTR regression
     ## will be used.
     qp.switch <- (length(sset) == 1 & !is.null(dim(sset$s1$g0)))
