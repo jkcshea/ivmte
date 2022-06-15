@@ -556,10 +556,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 solver <- "gurobi"
             } else if (requireNamespace("Rmosek", quietly = TRUE)) {
                 solver <- "rmosek"
-            } else if (requireNamespace("lpSolveAPI", quietly = TRUE)) {
-                solver <- "lpsolveapi"
             } else if (requireNamespace("cplexAPI", quietly = TRUE)) {
                 solver <- "cplexapi"
+            } else if (requireNamespace("lpSolveAPI", quietly = TRUE)) {
+                solver <- "lpsolveapi"
             } else {
                 solver <- "none"
                 point <- TRUE

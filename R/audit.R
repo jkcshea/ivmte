@@ -838,12 +838,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                          rescale = rescale)
         }
         result <- bound(env = modelEnv,
-                          sset = sset,
-                          solver = solver,
-                          solver.options = solver.options.bounds,
-                          noisy = noisy,
-                          smallreturnlist = smallreturnlist,
-                          rescale = rescale,
+                        sset = sset,
+                        solver = solver,
+                        solver.options = solver.options.bounds,
+                        noisy = noisy,
+                        smallreturnlist = smallreturnlist,
+                        rescale = rescale,
                         debug = debug)
         if (result$error == TRUE) {
             errMess <- NULL
