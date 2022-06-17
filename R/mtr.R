@@ -515,7 +515,7 @@ removeSplines <- function(formula, env = parent.frame()) {
             splinesSpec <- eval(parse(text = splinesSpecCmd),
                                 envir = env)
             if (! "intercept" %in% names(splinesSpec)) {
-                splinesSpec$intercept = TRUE
+                splinesSpec$intercept = FALSE
             }
             ## Check if the spline is already in the dictionary
             if (length(splinesDict) > 0) {
@@ -606,9 +606,9 @@ removeSplines <- function(formula, env = parent.frame()) {
 #' @param knots the knots of the spline.
 #' @param degree the degree of the spline; default is set to 0
 #'     (constant splines).
-#' @param intercept boolean, set to TRUE if intercept term is to be
-#'     included (i.e. an additional basis such that the sum of the
-#'     splines at every point in \code{x} is equal to 1).
+#' @param intercept boolean, set to \code{TRUE} if intercept term is
+#'     to be included (i.e. an additional basis such that the sum of
+#'     the splines at every point in \code{x} is equal to 1).
 #' @return a matrix, the values of the integrated splines. Each row
 #'     corresponds to a value of \code{x}; each column corresponds to
 #'     a basis defined by the degrees and knots.
@@ -648,7 +648,7 @@ removeSplines <- function(formula, env = parent.frame()) {
 #' eval(parse(text = gsub("uSpline\\(",
 #'                        "ivmte:::uSplineInt(x = x, ",
 #'                        names(splineslist)[2])))
-uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
+uSplineInt <- function(x, knots, degree = 0, intercept = FALSE) {
     ## Note: warning below is suppressed since it will be provided
     ## when uSplineBasis is run.
     if (any(knots < 0) || any(knots > 1)) {
@@ -672,9 +672,9 @@ uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
 #' @param knots the knots of the spline.
 #' @param degree the degree of the spline; default is set to 0
 #'     (constant splines).
-#' @param intercept boolean, set to TRUE if intercept term is to be
-#'     included (i.e. an additional basis such that the sum of the
-#'     splines at every point in \code{x} is equal to 1).
+#' @param intercept boolean, set to \code{TRUE} if intercept term is
+#'     to be included (i.e. an additional basis such that the sum of
+#'     the splines at every point in \code{x} is equal to 1).
 #' @return a matrix, the values of the integrated splines. Each row
 #'     corresponds to a value of \code{x}; each column corresponds to
 #'     a basis defined by the degrees and knots.
@@ -713,7 +713,7 @@ uSplineInt <- function(x, knots, degree = 0, intercept = TRUE) {
 #' eval(parse(text = gsub("uSpline\\(",
 #'                        "ivmte:::uSplineBasis(x = x, ",
 #'                        names(splineslist)[2])))
-uSplineBasis <- function(x, knots, degree = 0, intercept = TRUE) {
+uSplineBasis <- function(x, knots, degree = 0, intercept = FALSE) {
     if (any(knots < 0) || any(knots > 1)) {
         stop(gsub("\\s+", " ",
                   "When defining splines, each knot must be inside the

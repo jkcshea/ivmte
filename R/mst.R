@@ -61,7 +61,7 @@ utils::globalVariables("u")
 #'     incorporated using the expression \code{uSpline}, e.g.
 #'     \code{uSpline(degree = 2, knots = c(0.4, 0.8), intercept =
 #'     TRUE)}. The \code{intercept} argument may be omitted, and is
-#'     set to \code{TRUE} by default.
+#'     set to \code{FALSE} by default.
 #' @param m1 one-sided formula for the marginal treatment response
 #'     function for the treated group. See \code{m0} for details.
 #' @param uname variable name for the unobservable used in declaring

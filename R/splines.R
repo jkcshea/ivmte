@@ -98,14 +98,14 @@ splineUpdate <- function(x, bmat, knots, i, current.order) {
 #'     function.
 #' @param knots vector, the internal knots.
 #' @param degree integer, the degree of the splines.
-#' @param intercept boolean, default set to \code{TRUE}. This includes
-#'     an additional component to the basis splines so that the
-#'     splines are a partition of unity (i.e. the sum of all
-#'     components equal to 1).
+#' @param intercept boolean, default set to \code{FALSE}. If set to
+#'     \code{TRUE}, then an additional basis spline is included so
+#'     that the basis splines are a partition of unity (i.e. the sum
+#'     of all basis splines equal to 1).
 #' @param i integer, the basis component to be evaluated.
 #' @param boundary.knots vector, default is \code{c(0, 1)}.
 #' @return scalar.
-splinesBasis <- function(x, knots, degree, intercept = TRUE, i,
+splinesBasis <- function(x, knots, degree, intercept = FALSE, i,
                             boundary.knots = c(0, 1)) {
     if (i > degree + length(knots) + intercept) {
         return(NA)
