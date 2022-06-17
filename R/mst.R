@@ -3882,7 +3882,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     hasArg(m1.lb) | hasArg(m1.ub) |
                     hasArg(m0.inc) | hasArg(m0.dec) |
                     hasArg(m1.inc) | hasArg(m1.dec) |
-                    hasArg(mte.inc) | hasArg(mte.dec)) {
+                    hasArg(mte.inc) | hasArg(mte.dec) |
+                    hasArg(equal.coef)) {
                     warning(gsub("\\s+", " ",
                                  "MTR is point identified via GMM.
                                  Shape constraints are ignored."),
