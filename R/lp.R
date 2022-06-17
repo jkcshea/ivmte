@@ -1684,13 +1684,6 @@ qpSetup <- function(env, sset, rescale = TRUE) {
         normY <- sqrt(sum(drY^2))
         drN <- drN * normY
     }
-    qc <- list()
-    qc$q <- as.vector(-2 * t(drX) %*% drY) / drN
-    qc$Qc <- Matrix::Matrix(t(drX) %*% drX / drN, sparse = TRUE)
-    qc$sense <- '<'
-    qc$name <- 'SSR'
-    ## Store the quadratic component
-    env$quad <- qc
     ## Store the SSY
     env$ssy <- sum(drY^2)
     ## Store the regression matrices
@@ -1732,6 +1725,19 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     cholQuad$sense <- '<'
     cholQuad$name <- 'SSR'
     env$cholQuad <- cholQuad
+    ## Incorporate the Cholesky decomposition
+    tmpA <- Matrix::Matrix(data = 0,
+                           nrow = nrow(env$model$A),
+                           ncol = ncol(env$model$A))
+    colnames(tmpA) <- paste0("yhat.", seq(ncol(env$model$A)))
+    origA.colnames <- colnames(env$model$A)
+    env$model$A <- rbind(cbind(env$model$A, tmpA),
+                         env$cholMats$A)
+    env$model$rhs <- c(env$model$rhs, env$cholMats$rhs)
+    env$model$sense <- c(env$model$sense, env$cholMats$sense)
+    env$model$lb <- c(env$model$lb, env$cholMats$lb)
+    env$model$ub <- c(env$model$ub, env$cholMats$ub)
+    colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
 }
 
 #' Configure QCQP problem to find minimum criterion
@@ -1744,11 +1750,9 @@ qpSetup <- function(env, sset, rescale = TRUE) {
 #'     memory.
 #' @export
 qpSetupCriterion <- function(env) {
-    env$model$obj <- env$quad$q
-    env$model$Q <- env$quad$Qc
+    env$model$obj <- env$cholQuad$q
+    env$model$Q <- env$cholQuad$Qc
     env$model$modelsense <- 'min'
-    env$model$ub <- rep(Inf, times = length(env$quad$q))
-    env$model$lb <- rep(-Inf, times = length(env$quad$q))
 }
 
 #' Constructing QCQP problem for bounding
@@ -1785,22 +1789,6 @@ qpSetupBound <- function(env, g0, g1,
                          rescale = FALSE,
                          setup = TRUE) {
     if (setup) {
-        ## Track the position of the Cholesky constraints
-        env$cholPos <- seq(nrow(env$model$A) + 1,
-                           nrow(env$model$A) + ncol(env$drX))
-        ## Update the constraint matrices
-        tmpA <- Matrix::Matrix(data = 0,
-                               nrow = nrow(env$model$A),
-                               ncol = ncol(env$model$A))
-        colnames(tmpA) <- paste0("yhat.", seq(ncol(env$model$A)))
-        origA.colnames <- colnames(env$model$A)
-        env$model$A <- rbind(cbind(env$model$A, tmpA),
-                             env$cholMats$A)
-        env$model$rhs <- c(env$model$rhs, env$cholMats$rhs)
-        env$model$sense <- c(env$model$sense, env$cholMats$sense)
-        env$model$lb <- c(env$model$lb, env$cholMats$lb)
-        env$model$ub <- c(env$model$ub, env$cholMats$ub)
-        colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
         ## Prepare objective
         env$model$obj <- c(c(g0, g1),
                            rep(0, ncol(env$drX)))
@@ -1818,16 +1806,8 @@ qpSetupBound <- function(env, g0, g1,
         ## Delete components of the model that will be replaced (to
         ## avoid mistakes)
         env$model$obj <- NULL
-        env$quad$rhs <- NULL
+        env$model$Q <- NULL
         env$model$quadcon <- NULL
-        env$model$ub <- NULL
-        env$model$lb <- NULL
-        ## Remove the auxiliary (Cholesky) variables from the shape
-        ## constraints
-        env$model$A <- env$model$A[, 1:(ncol(env$model$A) - ncol(env$drX))]
-        env$model$A <- env$model$A[-env$cholPos, ]
-        env$model$sense <- env$model$sense[-env$cholPos]
-        env$model$rhs <- env$model$rhs[-env$cholPos]
     }
 }
 

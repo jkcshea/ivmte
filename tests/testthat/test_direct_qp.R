@@ -118,6 +118,10 @@ if (requireNamespace("gurobi", quietly = TRUE)) {
     model$modelsense <- 'min'
     ## Obtain minimum criterion
     minobseq <- gurobi::gurobi(model, list(nonconvex = 0))
+    test_that("Verify minimum criterion match", {
+        expect_equal((minobseq$objval + yy) / nrow(dtm),
+                     resultsAlt$audit.criterion)
+    })
 
     ## Construct target parameter MTR vector
     tau <- c(-(monoIntegral(1, 0) - monoIntegral(0, 0)),
