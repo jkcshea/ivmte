@@ -561,17 +561,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         (i.e. the range of magnitudes exceeds 1e13).
                         This is known to cause numerical issues in
                         problems.\n")
-    messageSub <- gsub("\\s+", " ",
-                       "Tolerance parameters for the solver
-                        can be passed through the argument
-                        'solver.options'.\n")
-    messageOptInf <- gsub("\\s+", " ",
-                          "A possible reason for this is that covariates
-                           are not scaled appropriately
-                           (i.e. the range of magnitudes exceeds 1e13).
-                           Tolerance parameters for the solver
-                           can also be passed through the argument
-                           'solver.options'.\n")
     ## Add placeholder for violation matrix
     violateMat.prev <- NULL
     violateMat.same <- 0
@@ -771,50 +760,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                  orig.criterion, criterion.tol,
                                  setup = FALSE)
         }
-        ## Provide warnings if solutions are suboptimal.
-        bWarn <- NULL
-        if (minobseq$status == 6) {
-            bWarn <-
-                paste(bWarn,
-                      gsub("\\s+", " ",
-                           paste('The solver was unable to satisfy
-                               the optimality tolerance when
-                               minimizing the criterion, so a suboptimal
-                               solution is returned.')))
-            bWarn <- paste(bWarn, messageSub)
-        }
-        if (minobseq$status == 7) {
-            bWarn <-
-                paste(bWarn,
-                      gsub("\\s+", " ",
-                           paste('The solution to the problem of
-                                  minimizing the criterion
-                                  is optimal, but infeasible after
-                                  rescaling.')))
-            bWarn <- paste(bWarn, messageOptInf)
-        }
-        if (minobseq$status == 8) {
-            bWarn <-
-                paste(bWarn,
-                      gsub("\\s+", " ",
-                           paste("The solution status (e.g. 'OPTIMAL')
-                                  to the problem of
-                                  minimizing the criterion
-                                  is unknown---Rmosek provided a solution
-                                  but did not provide a status.")))
-            bWarn <- paste(bWarn, messageOptInf)
-        }
-        if (minobseq$status == 10) {
-            bWarn <-
-                paste(bWarn,
-                      gsub("\\s+", " ",
-                           paste("Minimizing the criterion was terminated
-                                  by Rmosek because the maximum iteration limit
-                                  was reached.")))
-            bWarn <- paste(bWarn, messageOptInf)
-        }
-        if (!is.null(bWarn)) warning(bWarn, call. = FALSE,
-                                     immediate. = TRUE)
 
         ## Obtain bounds
         if (noisy) {
@@ -930,59 +875,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         audit.count = audit_count - 1,
                         audit.grid = audit.grid))
         }
-        ## Provide warnings if solutions are suboptimal.
-        bWarn <- NULL
-        bWarnTypes <- NULL
-        for (type in c('min', 'max')) {
-            tmpName <- paste0(type, 'status')
-            if (type == 'min') tmpType <- 'minimization'
-            if (type == 'max') tmpType <- 'maximization'
-            if (result[[tmpName]] == 6) {
-                bWarn <-
-                    paste(bWarn,
-                          gsub("\\s+", " ",
-                               paste('The solver was unable to satisfy
-                               the optimality tolerance for the',
-                               tmpType, 'problem, so a suboptimal
-                               solution is returned.')))
-            }
-            if (result[[tmpName]] == 7) {
-                bWarn <-
-                    paste(bWarn,
-                          gsub("\\s+", " ",
-                               paste('The solution to the',
-                                     tmpType, 'problem is optimal,
-                                     but infeasible after rescaling.')))
-            }
-            if (result[[tmpName]] == 8) {
-                bWarn <-
-                    paste(bWarn,
-                          gsub("\\s+", " ",
-                               paste("Rmosek did not provide a solution
-                                          status (e.g. 'OPTIMAL') to the",
-                                     tmpType, 'problem.')))
-            }
-            if (result[[tmpName]] == 10) {
-                bWarn <-
-                    paste(bWarn,
-                          gsub("\\s+", " ",
-                               paste("Rmosek terminated the",
-                                     tmpType, 'problem because the
-                                         iteration limit was reached.')))
-            }
-            bWarnTypes <- c(bWarnTypes,
-                            result[[tmpName]])
-        }
-        bWarnTypes <- sort(unique(bWarnTypes))
-        for (wt in bWarnTypes) {
-            if (wt == 6) {
-                bWarn <- paste(bWarn, messageSub)
-            }
-            if (wt == 7) {
-                bWarn <- paste(bWarn, messageOptInf)
-            }
-        }
-        if (!is.null(bWarn)) warning(bWarn, call. = FALSE, immediate. = TRUE)
         ## Save results
         solVecMin <- c(result$ming0, result$ming1)
         solVecMax <- c(result$maxg0, result$maxg1)
@@ -1536,6 +1428,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         violateMat$pos <- NULL
     }
     ## Clean up status codes
+    status.codes <- c(criterion = minobseq$status,
+                      min = result$minstatus,
+                      max = result$maxstatus)
     result[['minstatus']] <- statusString(result[['minstatus']], solver)
     result[['maxstatus']] <- statusString(result[['maxstatus']], solver)
     minobseq$status <- statusString(minobseq$status, solver)
@@ -1548,6 +1443,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                    auditcount = audit_count,
                    minobseq = minobseq$obj,
                    minobseq.status = minobseq$status,
+                   status.codes = status.codes,
                    runtime = c(criterion = minobseq$runtime,
                                min = result$minruntime,
                                max = result$maxruntime))

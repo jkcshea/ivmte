@@ -4255,7 +4255,117 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         ##             call. = FALSE, immediate. = TRUE)
         ## }
     }
-    ## include additional output material
+    ## Provide warnings if criterion minmization is suboptimal.
+    messageSub <- gsub("\\s+", " ",
+                       "Tolerance parameters for the solver
+                        can be passed through the argument
+                        'solver.options'.\n")
+    messageOptInf <- gsub("\\s+", " ",
+                          "A possible reason for this is that covariates
+                           are not scaled appropriately
+                           (i.e. the range of magnitudes exceeds 1e13).
+                           Tolerance parameters for the solver
+                           can also be passed through the argument
+                           'solver.options'.\n")
+    bWarn <- NULL
+    if (audit$status.codes[1] == 6) {
+        bWarn <-
+            paste(bWarn,
+                  gsub("\\s+", " ",
+                       paste('The solver was unable to satisfy
+                               the optimality tolerance when
+                               minimizing the criterion, so a suboptimal
+                               solution is returned.')))
+        bWarn <- paste(bWarn, messageSub)
+    }
+    if (audit$status.codes[1] == 7) {
+        bWarn <-
+            paste(bWarn,
+                  gsub("\\s+", " ",
+                       paste('The solution to the problem of
+                                  minimizing the criterion
+                                  is optimal, but infeasible after
+                                  rescaling.')))
+        bWarn <- paste(bWarn, messageOptInf)
+    }
+    if (audit$status.codes[1] == 8) {
+        bWarn <-
+            paste(bWarn,
+                  gsub("\\s+", " ",
+                       paste("The solution status (e.g. 'OPTIMAL')
+                                  to the problem of
+                                  minimizing the criterion
+                                  is unknown---Rmosek provided a solution
+                                  but did not provide a status.")))
+        bWarn <- paste(bWarn, messageOptInf)
+    }
+    if (audit$status.codes[1] == 10) {
+        bWarn <-
+            paste(bWarn,
+                  gsub("\\s+", " ",
+                       paste("Minimizing the criterion was terminated
+                                  by Rmosek because the maximum iteration limit
+                                  was reached.")))
+        bWarn <- paste(bWarn, messageOptInf)
+    }
+    if (!is.null(bWarn)) warning(bWarn, call. = FALSE,
+                                 immediate. = TRUE)
+
+
+
+    ## Check status of bounds
+    bWarn <- NULL
+    bWarnTypes <- NULL
+    for (type in c(2, 3)) {
+        if (type == 2) tmpType <- 'minimization'
+        if (type == 3) tmpType <- 'maximization'
+        if (audit$status.codes[type] == 6) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste('The solver was unable to satisfy
+                               the optimality tolerance for the',
+                               tmpType, 'problem, so a suboptimal
+                               solution is returned.')))
+        }
+        if (audit$status.codes[type] == 7) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste('The solution to the',
+                                 tmpType, 'problem is optimal,
+                                     but infeasible after rescaling.')))
+        }
+        if (audit$status.codes[type] == 8) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste("Rmosek did not provide a solution
+                                          status (e.g. 'OPTIMAL') to the",
+                                 tmpType, 'problem.')))
+        }
+        if (audit$status.codes[type] == 10) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste("Rmosek terminated the",
+                                 tmpType, 'problem because the
+                                         iteration limit was reached.')))
+        }
+        bWarnTypes <- c(bWarnTypes,
+                        audit$status.codes[type])
+    }
+    bWarnTypes <- sort(unique(bWarnTypes))
+    for (wt in bWarnTypes) {
+        if (wt == 6) {
+            bWarn <- paste(bWarn, messageSub)
+        }
+        if (wt == 7) {
+            bWarn <- paste(bWarn, messageOptInf)
+        }
+    }
+    if (!is.null(bWarn)) warning(bWarn, call. = FALSE, immediate. = TRUE)
+    ## Include additional output material
     if (solver == "gurobi") solver <- "Gurobi ('gurobi')"
     if (solver == "lpsolveapi") solver <- "lp_solve ('lpSolveAPI')"
     if (solver == "cplexapi") solver <- "CPLEX ('cplexAPI')"
