@@ -563,7 +563,7 @@ r
 #> Audit terminated successfully after 1 round
 ```
 
-#### Equality constraints on MTR coefficients
+#### Equality Constraints on MTR Coefficients
 
 The user can restrict a subset of the MTR coefficients to be common
 across the treatment arms, assuming `m0` and `m1` have common terms.

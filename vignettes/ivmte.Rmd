@@ -363,7 +363,7 @@ r <- do.call(ivmte, args)
 r
 ```
 
-#### Equality constraints on MTR coefficients
+#### Equality Constraints on MTR Coefficients
 
 The user can restrict a subset of the MTR coefficients to be common across the treatment arms, assuming `m0` and `m1` have common terms.
 This is done by passing a one-sided equation containing the terms with common coefficients across treatment arms to the parameter `equal.coef`.

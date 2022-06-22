@@ -515,7 +515,7 @@ body {
 <span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Bounds on the target parameter: [-0.09769381, 0.09247149]</span></span>
 <span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Audit terminated successfully after 1 round</span></span></code></pre></div>
-<h4 id="equality-constraints-on-mtr-coefficients">Equality constraints on MTR coefficients</h4>
+<h4 id="equality-constraints-on-mtr-coefficients">Equality Constraints on MTR Coefficients</h4>
 <p>The user can restrict a subset of the MTR coefficients to be common across the treatment arms, assuming <code>m0</code> and <code>m1</code> have common terms. This is done by passing a one-sided equation containing the terms with common coefficients across treatment arms to the parameter <code>equal.coef</code>. In the example below, the intercept terms of <code>m0</code> and <code>m1</code> are allowed to differ, but the slopes of the unobserved variable <code>u</code> are constrained to be the same.</p>
 <div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>args <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">data =</span> ivmteSimData,</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>             <span class="at">outcome =</span> <span class="st">&quot;y&quot;</span>,</span>
