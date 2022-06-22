@@ -373,10 +373,10 @@ In the example below, the intercept terms of `m0` and `m1` are allowed to differ
 args <- list(data = ivmteSimData,
              outcome = "y",
              target = "ate",
-             m0 = ~ 1 + u,
-             m1 = ~ 1 + u,
-             equal.coef = ~ 0 + u,
-             propensity = d ~ factor(z))
+             m0 = ~ x + u,
+             m1 = ~ x + u,
+             equal.coef = ~ 0 + x,
+             propensity = d ~ x + factor(z))
 r <- do.call(ivmte, args)
 r$mtr.coef
 ```

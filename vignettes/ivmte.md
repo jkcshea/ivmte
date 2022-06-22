@@ -577,15 +577,17 @@ to be the same.
 args <- list(data = ivmteSimData,
              outcome = "y",
              target = "ate",
-             m0 = ~ 1 + u,
-             m1 = ~ 1 + u,
-             equal.coef = ~ 0 + u,
-             propensity = d ~ factor(z))
+             m0 = ~ x + u,
+             m1 = ~ x + u,
+             equal.coef = ~ 0 + x,
+             propensity = d ~ x + factor(z))
 r <- do.call(ivmte, args)
 #> Warning: MTR is point identified via linear regression.
 r$mtr.coef
-#> [m0](Intercept)           [m0]u [m1](Intercept)           [m1]u 
-#>       0.6610585       0.1284103       0.1063152       0.1284103
+#> [m0](Intercept)           [m0]x           [m0]u [m1](Intercept)           [m1]x 
+#>     0.675148700    -0.003755079     0.137248852     0.132391436    -0.003755079 
+#>           [m1]u 
+#>     0.106476957
 ```
 
 #### The Audit Procedure
