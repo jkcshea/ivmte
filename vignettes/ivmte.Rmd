@@ -29,6 +29,7 @@ require(ivmte)
 require(ggplot2)
 require(gridExtra)
 require(splines2)
+require(lsei)
 ```
 
 [![DOI](https://zenodo.org/badge/136092207.svg)](https://zenodo.org/badge/latestdoi/136092207)
@@ -65,7 +66,7 @@ Up to four additional packages are also required for **ivmte**:
 
 1. **splines2** for specifying models with polynomial splines. This package is available on CRAN.
 2. A package for solving linear programs.
-   There are three options here:
+   There are four options here:
     i. Gurobi and the Gurobi R package **gurobi**, which can be obtained from [Gurobi Optimization](http://www.gurobi.com/index).
     This option requires a Gurobi software license, which Gurobi Optimization offers at no cost to academic researchers.
     i. MOSEK and the package **Rmosek**, which can be obtained from [MOSEK ApS](https://www.mosek.com/).
@@ -243,7 +244,7 @@ cat(results$messages, sep = "\n")
 The target parameter can also be estimated using a regression-based approach that fits the model to the conditional moments of the outcome variable.
 This approach is used when `ivlike` is not passed, and the name of the outcome variable is passed instead using the parameter `outcome`.
 
-```{r, syntaxrun}
+```{r, syntaxrun.regress}
 results <- ivmte(data = AE,
                  target = "att",
                  m0 = ~ u + yob,

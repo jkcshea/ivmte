@@ -44,7 +44,7 @@ additional shape constraints.
 ## Scope of this Vignette
 
 This vignette is intended as a guide to using **ivmte** for users
-already familiar with MTE methods. The key defintions and concepts from
+already familiar with MTE methods. The key definitions and concepts from
 that literature are used without further explanation. We have written a
 paper (Shea and Torgovitsky 2021) that discusses both the MTE
 methodology and the usage of **ivmte**, which should be helpful for
@@ -67,36 +67,43 @@ of the module directly from our GitHub repository via
 devtools::install_github("jkcshea/ivmte")
 ```
 
-Two additional packages are also required for **ivmte**:
+Up to four additional packages are also required for **ivmte**:
 
 1.  **splines2** for specifying models with polynomial splines. This
     package is available on CRAN.
-2.  A package for solving linear programs. There are three options here:
+2.  A package for solving linear programs. There are four options here:
     1.  Gurobi and the Gurobi R package **gurobi**, which can be
         obtained from [Gurobi
         Optimization](http://www.gurobi.com/index). This option requires
         a Gurobi software license, which Gurobi Optimization offers at
         no cost to academic researchers.
-    2.  CPLEX and the package **cplexAPI**, which is available on CRAN.
+    2.  MOSEK and the package **Rmosek**, which can be obtained from
+        [MOSEK ApS](https://www.mosek.com/). This option requires a
+        MOSEK software license, which MOSEK ApS offers at no cost to
+        academic researchers.
+    3.  CPLEX and the package **cplexAPI**, which is available on CRAN.
         CPLEX can be obtained from
         [IBM](https://www.ibm.com/analytics/cplex-optimizer). This
         option requires a CPLEX software license, which IBM offers at no
         cost to academic researchers.
-    3.  MOSEK and the package **Rmosek**, which can be obtained from
-        [MOSEK ApS](https://www.mosek.com/). This option requires a
-        MOSEK software license, which MOSEK ApS offers at no cost to
-        academic researchers.
     4.  The **lpSolveAPI** package, which is free and open-source, and
         available from CRAN. Note that **lpSolveAPI** is a wrapper for
         [lp\_solve](http://lpsolve.sourceforge.net/5.5/), which is no
         longer actively developed.
+3.  A package for solving quadratically constrained quadratic programs.
+    **gurobi** and **Rmosek** are able to solve such programs. **ivmte**
+    can still be used if the user only has access to **cplexAPI** or
+    **lpSolveAPI**, but features of **ivmte** involving quadratically
+    constrained quadratic programs will not be available.
+4.  **lsei** for performing constrained least squares. This package is
+    available on CRAN.
 
 **ivmte** tries to automatically choose a solver from those available,
-with preference being given to Gurobi, CPLEX, and MOSEK. We have
+with preference being given to Gurobi, MOSEK, and CPLEX. We have
 provided the option to use **lpSolveAPI** because it appears to be the
 only interface for solving linear programs that can be installed solely
 through `install.packages`. However, we *strongly* recommend using
-Gurobi, CPLEX, or MOSEK, since these are actively developed, much more
+Gurobi, MOSEK, or CPLEX, since these are actively developed, much more
 stable, and typically an order of magnitude faster than **lpSolveAPI**.
 A very clear installation guide for Gurobi can be found
 [here](https://cran.r-project.org/package=prioritizr/vignettes/gurobi_installation.html)
@@ -290,10 +297,14 @@ Here’s what these required parameters refer to:
     formula refers to the unobservable latent variable in the selection
     equation.
 -   `ivlike` indicates the regressions to be run to create moments to
-    which the model is fit.
+    which the model is fit when using a moment-based approach for
+    estimation. The user can instead pass the `outcome` parameter, which
+    indicates the name of the outcome variable of the model, to use a
+    regression-based approach for estimation.
 -   `propensity` specifies a model for the propensity score.
 
-This is what happens when the code above is run:
+When the above code is run, estimation is performed by matching the
+moments implied by `ivlike` and the following output is returned.
 
 ``` r
 results <- ivmte(data = AE,
@@ -303,9 +314,6 @@ results <- ivmte(data = AE,
                  ivlike = worked ~ morekids + samesex + morekids*samesex,
                  propensity = morekids ~ samesex + yob,
                  noisy = TRUE)
-#> 
-#> Solver: Gurobi ('gurobi')
-#> 
 #> Obtaining propensity scores...
 #> 
 #> Generating target moments...
@@ -320,6 +328,7 @@ results <- ivmte(data = AE,
 #>     Independent moments: 4 
 #> 
 #> Performing audit procedure...
+#>     Solver: Gurobi ('gurobi')
 #>     Generating initial constraint grid...
 #> 
 #>     Audit count: 1
@@ -357,9 +366,6 @@ results
 #> Bounds on the target parameter: [-0.1028836, -0.07818869]
 #> Audit terminated successfully after 1 round
 cat(results$messages, sep = "\n")
-#> 
-#> Solver: Gurobi ('gurobi')
-#> 
 #> Obtaining propensity scores...
 #> 
 #> Generating target moments...
@@ -374,6 +380,7 @@ cat(results$messages, sep = "\n")
 #>     Independent moments: 4 
 #> 
 #> Performing audit procedure...
+#>     Solver: Gurobi ('gurobi')
 #>     Generating initial constraint grid...
 #> 
 #>     Audit count: 1
@@ -384,6 +391,37 @@ cat(results$messages, sep = "\n")
 #> 
 #> Bounds on the target parameter: [-0.1028836, -0.07818869]
 ```
+
+The target parameter can also be estimated using a regression-based
+approach that fits the model to the conditional moments of the outcome
+variable. This approach is used when `ivlike` is not passed, and the
+name of the outcome variable is passed instead using the parameter
+`outcome`.
+
+``` r
+results <- ivmte(data = AE,
+                 target = "att",
+                 m0 = ~ u + yob,
+                 m1 = ~ u + yob,
+                 outcome = "worked",
+                 propensity = morekids ~ samesex + yob,
+                 noisy = TRUE)
+#> Obtaining propensity scores...
+#> 
+#> Generating target moments...
+#>     Integrating terms for control group...
+#>     Integrating terms for treated group...
+#> 
+#> Performing direct MTR regression...
+#> Warning: MTR is point identified via linear regression.
+#> 
+#> Point estimate of the target parameter: -0.08616707
+```
+
+In the example above, the target parameter is point identified. Under
+both the moment and regression approaches, the shape restrictions are
+ignored and the audit procedure is not performed when the target
+parameter is point identified.
 
 ### Specifying the MTR Functions
 
@@ -523,6 +561,31 @@ r
 #> 
 #> Bounds on the target parameter: [-0.09769381, 0.09247149]
 #> Audit terminated successfully after 1 round
+```
+
+#### Equality constraints on MTR coefficients
+
+The user can restrict a subset of the MTR coefficients to be common
+across the treatment arms, assuming `m0` and `m1` have common terms.
+This is done by passing a one-sided equation containing the terms with
+common coefficients across treatment arms to the parameter `equal.coef`.
+In the example below, the intercept terms of `m0` and `m1` are allowed
+to differ, but the slopes of the unobserved variable `u` are constrained
+to be the same.
+
+``` r
+args <- list(data = ivmteSimData,
+             outcome = "y",
+             target = "ate",
+             m0 = ~ 1 + u,
+             m1 = ~ 1 + u,
+             equal.coef = ~ 0 + u,
+             propensity = d ~ factor(z))
+r <- do.call(ivmte, args)
+#> Warning: MTR is point identified via linear regression.
+r$mtr.coef
+#> [m0](Intercept)           [m0]u [m1](Intercept)           [m1]u 
+#>       0.6610585       0.1284103       0.1063152       0.1284103
 ```
 
 #### The Audit Procedure
@@ -927,9 +990,13 @@ results
 ### Point Identified Models
 
 By default, `ivmte` will determine if the model is point identified.
-This typically occurs when `ivlike`, `components` and `subset` are such
-that they have more (non-redundant) components than there are free
-parameters in `m0` and `m1`. If the model is point identified, then the
+Under the moment approach, this typically occurs when `ivlike`,
+`components` and `subset` are such that they have more (non-redundant)
+components than there are free parameters in `m0` and `m1`. Under the
+regression approach, point identification occurs when the design matrix
+is full-rank.
+
+Under the moment approach, if the model is point identified, then the
 bounds will typically shrink to a point. The `ivmte` function will then
 estimate the target parameter using quadratic loss and the optimal
 two-step GMM weighting matrix for moments. If the model is known to be
@@ -956,12 +1023,14 @@ If `ivmte` determines that the model is not point identified or the user
 passes `point = FALSE`, then the bounds on the target parameter will be
 estimated. However, the user may still pass `point = FALSE` even though
 there are more (non-redundant) moments than free parameters in `m0` and
-`m1`. The bounds will collapse to a point, but may differ from the case
-where `point = TRUE`. The reason is that `ivmte` uses absolute deviation
-loss instead of quadratic loss when `point = FALSE`. To demonstrate
-this, the example below sets the tuning parameter `criterion.tol = 0` so
-that the bounds indeed collapse to a point (see Mogstad, Santos, and
-Torgovitsky (2018) for more detail).
+`m1`. Under the moment approach, the bounds will collapse to a point,
+but may differ from the case where `point = TRUE`. The reason is that
+`ivmte` uses absolute deviation loss instead of quadratic loss when
+`point = FALSE`. In addition, shape restrictions are imposed when using
+absolute deviation but are ignored when using quadratic loss. To
+demonstrate this, the example below sets the tuning parameter
+`criterion.tol = 0` so that the bounds indeed collapse to a point (see
+Mogstad, Santos, and Torgovitsky (2018) for more detail).
 
 ``` r
 args$point <- FALSE
@@ -971,6 +1040,66 @@ r
 #> 
 #> Bounds on the target parameter: [-0.5349027, -0.5349027]
 #> Audit terminated successfully after 1 round
+```
+
+Under the regression approach, if the model is point identified, then
+the `ivmte` function will estimate the target parameter using ordinary
+least squares. As with the moment approach, one can include the option
+`point = TRUE` to ensure the target parameter is estimated this way.
+
+``` r
+args <- list(data = ivmteSimData,
+             outcome = "y",
+             target = "ate",
+             m0 = ~ u,
+             m1 = ~ u,
+             propensity = d ~ factor(z),
+             point = TRUE)
+r <- do.call(ivmte, args)
+#> Warning: MTR is point identified via linear regression.
+r
+#> 
+#> Point estimate of the target parameter: -0.5530917
+```
+
+However, under the regression approach, the bounds will not necessarily
+collapse to a point when the design matrix is full rank but
+`point = FALSE`. If the bounds collapse to a point, it may also differ
+from the point estimate when `point = TRUE`. This is because the target
+parameters are estimated using ordinary least squares and the shape
+constraints are ignored when `point = TRUE`. However, the target
+parameters are estimated using a quadratically constrained quadratic
+program that imposes the shape constraints when `point = FALSE`. The
+example below demonstrates this.
+
+``` r
+args$point <- FALSE
+args$criterion.tol <- 0
+r <- do.call(ivmte, args)
+r
+#> 
+#> Bounds on the target parameter: [-0.553351, -0.5528199]
+#> Audit terminated successfully after 1 round
+```
+
+In the case where `point = TRUE` and the user passes `equal.coef`,
+`ivmte` uses the `lsei` function from the `lsei` package to estimate the
+target parameter using constrained least squares. The equality
+constraints on the MTR coefficients are imposed, but the shape
+constraints are ignored.
+
+``` r
+ivmte(data = ivmteSimData,
+      outcome = "y",
+      target = "ate",
+      m0 = ~ u,
+      m1 = ~ u,
+      propensity = d ~ factor(z),
+      equal.coef = ~ 0 + u,
+      point = TRUE)
+#> Warning: MTR is point identified via linear regression.
+#> 
+#> Point estimate of the target parameter: -0.5547433
 ```
 
 One should use `point = TRUE` if the model is point identified, since it
@@ -1010,7 +1139,7 @@ summary(r)
 #> Number of bootstraps: 50
 ```
 
-Other options relevent to confidence region construction are
+Other options relevant to confidence region construction are
 `bootstraps.m`, which indicates the number of observations to draw from
 the sample on each bootstrap replication, and `bootstraps.replace` to
 indicate whether these observations should be drawn with or without
@@ -1175,8 +1304,8 @@ args <- list(data = AE,
 r <- do.call(ivmte, args)
 r
 #> 
-#> Bounds on the target parameter: [-0.08484221, 0.08736006]
-#> Audit terminated successfully after 2 rounds
+#> Bounds on the target parameter: [-1.240035e-05, -2.231762e-17]
+#> Audit terminated successfully after 1 round
 ```
 
 The specification of each uniquely defined spline is stored in the list
@@ -1193,7 +1322,7 @@ specs0
 #> [1] 2
 #> 
 #> $intercept
-#> [1] TRUE
+#> [1] FALSE
 #> 
 #> $knots
 #> [1] 0.3333333 0.6666667
@@ -1211,8 +1340,8 @@ the treatment effect, which are stored in `r$gstar.coef$min.g0`
 
 ``` r
 r$gstar.coef$min.g0
-#> [m0]u0S1.1:1 [m0]u0S1.2:1 [m0]u0S1.3:1 [m0]u0S1.4:1 [m0]u0S1.5:1 
-#>    0.5134883    0.5116711    0.5855708    0.5917033    0.5913861
+#> [m0]u0S1.1:1 [m0]u0S1.2:1 [m0]u0S1.3:1 [m0]u0S1.4:1 
+#>    0.5808415    0.5808410    0.5808417    0.5808414
 ```
 
 -   The first three characters of each variable name, `u0S`, indicate
