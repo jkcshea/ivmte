@@ -1254,8 +1254,12 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                                                                 namesA[r],
                                                                 ".grid.order")],
                                         bmat, by = uname)
+                                tmpX <- bmatTmp[, 4:ncol(bmatTmp)]
+                                if (is.null(dim(tmpX))) {
+                                    tmpX <- matrix(tmpX, ncol = 1)
+                                }
                                 bmatTmp[, 4:ncol(bmatTmp)] <-
-                                    sweep(x = bmatTmp[, 4:ncol(bmatTmp)],
+                                    sweep(x = tmpX,
                                           MARGIN = 1,
                                           STATS = bmatTmp[, namesA[r]],
                                           FUN = "*")
@@ -1268,7 +1272,7 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                                                           namesB)],
                                               by = ".grid.order")
                                 assign(paste0("A", d), newA)
-                                rm(bmatTmp, newA)
+                                rm(bmatTmp, newA, tmpX)
                             }
                         } else {
                             namesA <- colnames(get(paste0("A", d)))
