@@ -464,9 +464,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             grid_index <- sort(
                 sample(seq(nrow(support)),
                        initgrid.nx,
-                       replace = FALSE,
-                       prob = replicate(nrow(support),
-                       (1/nrow(support)))))
+                       replace = FALSE))
         }
         if (initgrid.nu > 0) {
             uvec <- sort(c(0, 1, round(rhalton(initgrid.nu), 8)))
@@ -489,6 +487,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         modelEnv <- new.env()
         modelEnv$mbobj <- eval(monoboundAcall)
     }
+
     ## Setup LP problem, or linear components of QCQP problem
     if (!hasArg(equal.coef0) | !hasArg(equal.coef1)) {
         equal.coef0 <- NULL

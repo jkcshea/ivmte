@@ -1169,10 +1169,28 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
             for (j in 1:length(splinesD)) {
                 for (k in 1:length(splinesD[[j]])) {
                     if (splinesD[[j]][k] != "1") {
-                        tmpDmat <- design(as.formula(paste("~ 0 +",
-                                                           splinesD[[j]][k])),
-                                          gridobj$grid)$X
-                    nonSplinesDmat <- cbind(nonSplinesDmat, tmpDmat)
+                        ## Check if variable is a factor and whether
+                        ## it has sufficient variance
+                        if (substr(splinesD[[j]][k], 1, 7) == "factor(") {
+                            tmpVar <- substr(splinesD[[j]][k],
+                                             8,
+                                             nchar(splinesD[[j]][k]) - 1)
+                            tmpVarSupport <- unique(gridobj$grid[, tmpVar])
+                            if (length(tmpVarSupport) == 1) {
+                                tmpDmat <-
+                                    matrix(rep(1, nrow(gridobj$grid)), ncol = 1)
+                                colnames(tmpDmat) <- paste0("factor(",
+                                                            tmpVar,
+                                                            ")", tmpVarSupport)
+                            }
+                        }
+                        if (!exists("tmpDmat")) {
+                            tmpDmat <- design(as.formula(paste("~ 0 +",
+                                                               splinesD[[j]][k])),
+                                              gridobj$grid)$X
+                        }
+                        nonSplinesDmat <- cbind(nonSplinesDmat, tmpDmat)
+                        rm(tmpDmat)
                     } else {
                         nonSplinesDmat <- cbind(nonSplinesDmat,
                                                 design(~ 1, gridobj$grid)$X)
