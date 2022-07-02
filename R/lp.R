@@ -746,7 +746,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
         if (debug) {
             gurobi::gurobi_write(env$model, "modelCriterion.mps")
             model <- env$model
-            save(model, file = "modelCriterion.Rdata")
+            saveRDS(model, file = "modelCriterion.rds")
             rm(model)
         }
         min.t0   <- Sys.time()
@@ -966,7 +966,7 @@ bound <- function(env, sset, solver,
         if (debug == TRUE){
             gurobi::gurobi_write(env$model, "modelBound.mps")
             model <- env$model
-            save(model, file = "modelBound.Rdata")
+            saveRDS(model, file = "modelBound.rds")
             rm(model)
         }
         env$model$modelsense <- "min"
@@ -1356,11 +1356,11 @@ runMosek <- function(model, modelsense, solver.options, debug = FALSE) {
     if (debug == TRUE){
         if (qcp) {
             Rmosek::mosek_write(prob, "modelCriterion.mps", solver.options)
-            save(prob, file = "modelCriterion.Rdata")
+            saveRDS(prob, file = "modelCriterion.rds")
         }
         if (qcqp) {
             Rmosek::mosek_write(prob, "modelBound.mps", solver.options)
-            save(prob, file = "modelBound.Rdata")
+            saveRDS(prob, file = "modelBound.rds")
         }
     }
     ## Estimate
