@@ -1041,18 +1041,20 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                  call. = FALSE)
         }
         if (hasArg(target)) {
-            if (! target %in% c("ate", "att", "atu", "late", "genlate")) {
+            if (! target %in% c("ate", "att", "atu", "late", "avglate",
+                                "genlate")) {
                 stop(gsub("\\s+", " ",
                           "Specified target parameter is not recognized.
-                      Choose from 'ate', 'att', 'atu', 'late', or 'genlate'."),
+                           Choose from 'ate', 'att', 'atu', 'late', 'avglate',
+                           or 'genlate'."),
                      call. = FALSE)
             }
-            if (target == "late") {
+            if (target %in% c("late", "avglate")) {
                 ## Check the LATE arguments are declared properly.
                 if (!(hasArg(late.to) & hasArg(late.from))) {
                     stop(gsub("\\s+", " ",
-                              "Target paramter 'late' requires arguments
-                          'late.to', and 'late.from'."),
+                              "Target paramters 'late' and 'avglate' require
+                              arguments 'late.to', and 'late.from'."),
                          call. = FALSE)
                 }
                 if (classList(late.to)) late.to <- unlist(late.to)
@@ -1113,7 +1115,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                          call. = FALSE)
                 }
             }
-            if (target == "late" | target == "genlate") {
+            if (target %in% c("late", "avglate", "genlate")) {
                 ## Check that included insturments are declared properly
                 if (hasArg(late.X)) {
                     eval.X <- unlist(late.X)
@@ -1131,12 +1133,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                          'genlate.lb' and 'genlate.ub' arguments will not
                           be used."))
             }
-            if ((target != "late"  & target != "genlate") &
+            if ((target != "late" & target != "avglate" & target != "genlate") &
                 (hasArg("eval.X") | hasArg("late.X"))) {
                 warning(gsub("\\s+", " ",
-                             "Unless target parameter is 'late' or
-                          'genlate', the arguments eval.X' and
-                          'late.X' will not be used."))
+                             "Unless target parameter is 'late', 'avglate', or
+                             'genlate', the arguments eval.X' and
+                             'late.X' will not be used."))
             }
             if ((hasArg(target.weight0) | hasArg(target.weight1))) {
                 stop(gsub("\\s+", " ",
@@ -1150,8 +1152,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         } else {
             if (!hasArg(target.weight0) & !hasArg(target.weight1)) {
                 stop(gsub("\\s+", " ",
-                          "A target weight must be provided. Set
-                           'target' equal to 'ate', 'att', 'atu', 'late', or
+                          "A target weight must be provided. Set 'target'
+                           equal to 'ate', 'att', 'atu', 'late', 'avglate', or
                            'genlate' to estimate standard treatment
                            effect parameters. Alternatively, pass custom weights
                            through 'target.weight0' and 'target.weight1' to
@@ -1740,7 +1742,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 vars_propensity <- all.vars(propensity)
                 if (length(propensity) == 3) {
                     ptreat <- all.vars(propensity)[1]
-                    if (hasArg(target) && target == "late") {
+                    if (hasArg(target) &&
+                        target %in% c("late", "avglate")) {
                         if (!all(late.Z %in% vars_propensity)) {
                             stop (gsub("\\s+", " ",
                                        "All variables in 'late.to' and
@@ -2015,7 +2018,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Check that all LATE variables are included in the propensity
         ## formula, if a propensity score formula is provided
-        if (hasArg(target) && target == "late"  &&
+        if (hasArg(target) && target %in% c("late", "avglate", "genlate") &&
             length(Formula::as.Formula(propensity))[1] != 0) {
             if (!all(late.Z %in% vars_propensity)) {
                 stop(gsub("\\s+", " ",
@@ -2234,8 +2237,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         newargs = list(solver.options.bounds =
                                            solver.options.bounds))
         }
-        if (hasArg(target) && (target == "late" | target == "genlate")) {
-            if (target == "late") {
+        if (hasArg(target) && target %in% c("late", "avglate", "genlate")) {
+            if (target %in% c("late", "avglate")) {
                 estimateCall <- modcall(estimateCall,
                                         newargs = list(late.Z = late.Z,
                                                        late.to = late.to,
@@ -4520,7 +4523,7 @@ genTarget <- function(treat, m0, m1, target,
         eval.X <- NULL
         lateRows <- NULL
     }
-    if (hasArg(target)) target   <- tolower(target)
+    if (hasArg(target)) target <- tolower(target)
     if (hasArg(target)) {
         if (target == "ate") {
             w1 <- wate1(data)
@@ -4534,7 +4537,8 @@ genTarget <- function(treat, m0, m1, target,
             w1 <- watu1(data, 1 - mean(data[[treat]]), pmodobj$phat)
             w0 <- w1
             w0$mp <- -1 * w0$mp
-        } else if (target == "late") {
+        } else if (target == "late" | target == "avglate") {
+            switch.avglate <- target == "avglate"
             if (!is.null(late.X)) {
                 ## Create index to restrict data to those with the
                 ## correct value of X
@@ -4551,7 +4555,8 @@ genTarget <- function(treat, m0, m1, target,
             if (!is.null(m0)) pm0$polymat <- pm0$polymat
             if (!is.null(m1)) pm1$polymat <- pm1$polymat
             w1 <- wlate1(data, late.from, late.to, late.Z,
-                         pmodobj$model, late.X, eval.X)
+                         pmodobj$model, late.X, eval.X,
+                         switch.avglate)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "genlate") {
@@ -4762,15 +4767,15 @@ genTarget <- function(treat, m0, m1, target,
                 assign(paste0("pm", d), NULL)
             }
             ## Integrate splines terms
-            if (noisy == TRUE) {
-                if (d == 0) {
-                    cat("    Integrating spline terms for control group...\n")
-                } else {
-                        cat("    Integrating spline terms for treated group...\n")
-                }
-            }
             noSplineMtr <- splinesobj[[d + 1]]
             if (!is.null(noSplineMtr$splineslist)) {
+                if (noisy == TRUE) {
+                    if (d == 0) {
+                        cat("    Integrating spline terms for control group...\n")
+                    } else {
+                        cat("    Integrating spline terms for treated group...\n")
+                    }
+                }
                 gammaSplines <- 0
                 for (i in 1:length(target.weight)) {
                     wKnotVarsL <- formalArgs(target.knots[[i]])

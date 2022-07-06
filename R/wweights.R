@@ -106,7 +106,7 @@ watu1 <- function(data, expd0, propensity) {
 #'     \code{X} variables on.
 #' @return The bounds of integration over unobservable \code{u}, as
 #'     well as the multiplier in the weight.
-wlate1 <- function(data, from, to, Z, model, X, eval.X) {
+wlate1 <- function(data, from, to, Z, model, X, eval.X, avglate = FALSE) {
     if (!hasArg(eval.X)) {
         fixDataFrom <- data.frame(matrix(from, nrow = 1))
         fixDataTo   <- data.frame(matrix(to, nrow = 1))
@@ -156,6 +156,8 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
         bto <- suppressWarnings(predict.glm(model, fixDataTo,
                                             type = "response"))
     }
+    bfrom.mean <- mean(bfrom)
+    bto.mean <- mean(bto)
     ## Ensure the bounds are within 0 and 1
     if (length(which(bfrom < 0)) > 0 | length(which(bto < 0)) > 0) {
         warning("Propensity scores below 0 set to 0.", immediate. = TRUE)
@@ -167,9 +169,11 @@ wlate1 <- function(data, from, to, Z, model, X, eval.X) {
         bfrom[which(bfrom > 1)] <- 1
         bto[which(bto > 1)] <- 1
     }
-    return(list(lb = bfrom,
-                ub = bto,
-                mp =  1 / abs(bto - bfrom)))
+    output <- list(lb = bfrom,
+                   ub = bto)
+    if (avglate)  output$mp <- 1 / abs(bto - bfrom)
+    if (!avglate) output$mp <- 1 / abs(bto.mean - bfrom.mean)
+    return(output)
 }
 
 #' Target weight for generalized LATE

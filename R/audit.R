@@ -579,6 +579,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                  solver.options = solver.options.criterion,
                                  rescale = rescale,
                                  debug = debug)
+
         ## Try to diagnose cases where the solution is not
         ## available. This could be due to infeasibility or numerical
         ## issues. To deal with infeasibilty, the LP/QCQP problem is

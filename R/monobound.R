@@ -1195,6 +1195,13 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                         nonSplinesDmat <- cbind(nonSplinesDmat,
                                                 design(~ 1, gridobj$grid)$X)
                     }
+                    if (splinesD[[j]][k] == "factor(state)") {
+                        aaa <- apply(abs(nonSplinesDmat), 2,
+                                     function(x) {
+                                         bbb <- x[x > 0]
+                                         min(bbb)
+                                     })
+                    }
                 }
                 colnames(nonSplinesDmat) <-
                     parenthBoolean(colnames(nonSplinesDmat))
@@ -1220,6 +1227,7 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                           genBasisSplines(splines = splines[[2]],
                                           x = uvec,
                                           d = 1))
+
         ## Generate interaction with the splines.
         ## Indexing in the loops takes the following structure:
         ## j: splines index
@@ -1500,16 +1508,23 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
     output$ub0seq  <- ub0seq
     output$ub1seq  <- ub1seq
     output$ubteseq <- ubteseq
+    ## Set rownames of constraint matrix to describe constraint
+    rownames(output$mbA) <- rep('', nrow(output$mbA))
+    if (length(ubteseq) > 0) rownames(output$mbA)[ubteseq] <-
+                                 rep('ubte', length(ubteseq))
     if (exists("mono0seq")) {
         output$mono0seq <- mono0seq
+        rownames(output$mbA)[mono0seq]  <- 'mono0'
         rm(mono0seq)
     }
     if (exists("mono1seq")) {
         output$mono1seq <- mono1seq
+        rownames(output$mbA)[mono1seq]  <- 'mono1'
         rm(mono1seq)
     }
     if (exists("monoteseq")) {
         output$monoteseq <- monoteseq
+        rownames(output$mbA)[monoteseq]  <- 'monote'
         rm(monoteseq)
     }
     return(output)
