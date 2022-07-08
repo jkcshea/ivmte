@@ -1195,13 +1195,6 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                         nonSplinesDmat <- cbind(nonSplinesDmat,
                                                 design(~ 1, gridobj$grid)$X)
                     }
-                    if (splinesD[[j]][k] == "factor(state)") {
-                        aaa <- apply(abs(nonSplinesDmat), 2,
-                                     function(x) {
-                                         bbb <- x[x > 0]
-                                         min(bbb)
-                                     })
-                    }
                 }
                 colnames(nonSplinesDmat) <-
                     parenthBoolean(colnames(nonSplinesDmat))
