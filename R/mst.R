@@ -2052,6 +2052,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         origDataRows <- nrow(data)
         data <- data[complete.cases(data[, vars_data]), ]
+        ## Convert logical variables into integer variables
+        data.class <- sapply(data, class)
+        if (any(data.class == "logical")) {
+            for (j in which(data.class == "logical")) {
+                data[, j] <- as.integer(data[, j])
+            }
+        }
         ## Inform the user if observations have been dropped
         if (origDataRows != nrow(data)) {
             if (origDataRows - nrow(data) == 1) {
