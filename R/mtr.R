@@ -514,6 +514,15 @@ removeSplines <- function(formula, env = parent.frame()) {
                                    splinesSpecCmd)
             splinesSpec <- eval(parse(text = splinesSpecCmd),
                                 envir = env)
+            ## Remove boundary knots
+            if ("knots" %in% names(splinesSpec)) {
+                splinesSpec$knots <-
+                    splinesSpec$knots[splinesSpec$knots > 0]
+                splinesSpec$knots <-
+                    splinesSpec$knots[splinesSpec$knots < 1]
+            }
+            ## Check if there is an intercept option, otherwise impose
+            ## default of no intercept
             if (! "intercept" %in% names(splinesSpec)) {
                 splinesSpec$intercept = FALSE
             }
