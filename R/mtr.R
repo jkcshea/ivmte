@@ -94,7 +94,7 @@ polyparse <- function(formula, data, uname = "u", env = parent.frame(),
     }
     for (sep in c("I\\(", "\\)", "\\*", ":", "  ", "  ")) {
               nterms <- lapply(nterms, gsub, pattern = sep, replacement = " ")
-        }
+    }
     nterms <- strsplit(trimws(unlist(nterms)), " ")
     ## Correct the spltting for factors
     nterms <- lapply(nterms, function(x) {
@@ -484,6 +484,8 @@ removeSplines <- function(formula, env = parent.frame()) {
             interobjStr <- gsub("\\)", "\\\\)",
                                 gsub("\\(", "\\\\(", interobj))
             interobjStr <- gsub("\\^", "\\\\^", interobjStr)
+            interobjStr <- gsub("\\*", "\\\\*", interobjStr)
+            interobjStr <- gsub("\\+", "\\\\+", interobjStr)
             if (interobjStr != "1") {
                 vlist <- unlist(strsplit(interobjStr, ":"))
                 for (v in vlist) {
@@ -578,7 +580,7 @@ removeSplines <- function(formula, env = parent.frame()) {
                     return(x)
                 } else {
                     othops <- 0
-                    for (j in c("\\^", "\\+", "-", "/")) {
+                    for (j in c("\\^", "\\+", "-", "/", "==")) {
                         othops <- max(othops, grepl(j, x))
                     }
                     if (othops == 1) {
