@@ -1500,16 +1500,34 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
     output$ub0seq  <- ub0seq
     output$ub1seq  <- ub1seq
     output$ubteseq <- ubteseq
+    ## Set rownames of constraint matrix to describe constraint
+    rownames(output$mbA) <- rep('', nrow(output$mbA))
+
+    if (length(lb0seq) > 0) rownames(output$mbA)[lb0seq] <-
+                                 rep('lb0', length(lb0seq))
+    if (length(lb1seq) > 0) rownames(output$mbA)[lb1seq] <-
+                                 rep('lb1', length(lb1seq))
+    if (length(lbteseq) > 0) rownames(output$mbA)[lbteseq] <-
+                                 rep('lbte', length(lbteseq))
+    if (length(ub0seq) > 0) rownames(output$mbA)[ub0seq] <-
+                                 rep('ub0', length(ub0seq))
+    if (length(ub1seq) > 0) rownames(output$mbA)[ub1seq] <-
+                                 rep('ub1', length(ub1seq))
+    if (length(ubteseq) > 0) rownames(output$mbA)[ubteseq] <-
+                                 rep('ubte', length(ubteseq))
     if (exists("mono0seq")) {
         output$mono0seq <- mono0seq
+        rownames(output$mbA)[mono0seq]  <- 'mono0'
         rm(mono0seq)
     }
     if (exists("mono1seq")) {
         output$mono1seq <- mono1seq
+        rownames(output$mbA)[mono1seq]  <- 'mono1'
         rm(mono1seq)
     }
     if (exists("monoteseq")) {
         output$monoteseq <- monoteseq
+        rownames(output$mbA)[monoteseq]  <- 'monote'
         rm(monoteseq)
     }
     return(output)
