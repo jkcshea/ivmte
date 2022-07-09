@@ -1185,9 +1185,10 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                             }
                         }
                         if (!exists("tmpDmat")) {
-                            tmpDmat <- design(as.formula(paste("~ 0 +",
-                                                               splinesD[[j]][k])),
-                                              gridobj$grid)$X
+                            tmpDmat <-
+                                design(as.formula(paste("~ 0 +",
+                                                        splinesD[[j]][k])),
+                                       gridobj$grid)$X
                         }
                         nonSplinesDmat <- cbind(nonSplinesDmat, tmpDmat)
                         rm(tmpDmat)
@@ -1220,6 +1221,7 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                           genBasisSplines(splines = splines[[2]],
                                           x = uvec,
                                           d = 1))
+
         ## Generate interaction with the splines.
         ## Indexing in the loops takes the following structure:
         ## j: splines index
@@ -1253,6 +1255,9 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                                 if (substr(q, nchar(q), nchar(q)) == ")") {
                                     q <- gsub("\\)", "\\\\)",
                                               gsub("\\(", "\\\\(", q))
+                                    q <- gsub("\\+", "\\\\+", q)
+                                    q <- gsub("\\*", "\\\\*", q)
+                                    q <- gsub("\\^", "\\\\^", q)
                                     namesApos <-
                                         as.integer(
                                             grepl(paste0(q, "[0-9A-Za-z._]*"),
