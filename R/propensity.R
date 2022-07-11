@@ -21,13 +21,6 @@
 #' @param data \code{data.frame} with which to estimate the model.
 #' @param link Link function with which to estimate probability
 #'     model. Can be chosen from "linear", "logit", or "probit".
-#' @param late.Z A vector of variable names of excluded
-#'     variables. This is required when the target parameter is the
-#'     LATE.
-#' @param late.X A vector of variable names of non-excluded
-#'     variables. This is required when the target parameter is the
-#'     LATE, and the estimation procedure will condition on these
-#'     variables.
 #' @param env environment, the environment for the original
 #'     propensity score formula.
 #' @return A vector of propensity scores for each observation, as well
@@ -52,8 +45,7 @@
 #'                link = "linear")
 #'
 #' @export
-propensity <- function(formula, data, link = "logit", late.Z,
-                       late.X, env = parent.frame()) {
+propensity <- function(formula, data, link = "logit", env = parent.frame()) {
     formula <- Formula::as.Formula(formula)
     environment(formula) <- env
     propVars <- all.vars(formula)
