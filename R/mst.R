@@ -3424,7 +3424,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     ## Estimate propensity scores
     pcall <- modcall(call,
                      newcall = propensity,
-                     keepargs = c("link", "late.Z", "late.X"),
+                     keepargs = c("link"),
                      dropargs = "propensity",
                      newargs = list(data = quote(data),
                                     formula = propensity,
@@ -4551,12 +4551,19 @@ genTarget <- function(treat, m0, m1, target,
                               "no observations with the values specified in
                                'eval.X'."), call. = FALSE)
                 }
+            } else {
+                lateRows <- NULL
             }
             if (!is.null(m0)) pm0$polymat <- pm0$polymat
             if (!is.null(m1)) pm1$polymat <- pm1$polymat
-            w1 <- wlate1(data, late.from, late.to, late.Z,
-                         pmodobj$model, late.X, eval.X,
-                         switch.avglate)
+            w1 <- wlate1(data = data,
+                         from = late.from,
+                         to = late.to, late.Z,
+                         model = pmodobj$model,
+                         X = late.X,
+                         eval.X = eval.X,
+                         avglate = switch.avglate,
+                         late.rows = lateRows)
             w0 <- w1
             w0$mp <- -1 * w0$mp
         } else if (target == "genlate") {
