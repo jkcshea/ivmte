@@ -1185,9 +1185,10 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                             }
                         }
                         if (!exists("tmpDmat")) {
-                            tmpDmat <- design(as.formula(paste("~ 0 +",
-                                                               splinesD[[j]][k])),
-                                              gridobj$grid)$X
+                            tmpDmat <-
+                                design(as.formula(paste("~ 0 +",
+                                                        splinesD[[j]][k])),
+                                       gridobj$grid)$X
                         }
                         nonSplinesDmat <- cbind(nonSplinesDmat, tmpDmat)
                         rm(tmpDmat)
@@ -1254,6 +1255,9 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                                 if (substr(q, nchar(q), nchar(q)) == ")") {
                                     q <- gsub("\\)", "\\\\)",
                                               gsub("\\(", "\\\\(", q))
+                                    q <- gsub("\\+", "\\\\+", q)
+                                    q <- gsub("\\*", "\\\\*", q)
+                                    q <- gsub("\\^", "\\\\^", q)
                                     namesApos <-
                                         as.integer(
                                             grepl(paste0(q, "[0-9A-Za-z._]*"),
@@ -1503,6 +1507,16 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
     output$ubteseq <- ubteseq
     ## Set rownames of constraint matrix to describe constraint
     rownames(output$mbA) <- rep('', nrow(output$mbA))
+    if (length(lb0seq) > 0) rownames(output$mbA)[lb0seq] <-
+                                 rep('lb0', length(lb0seq))
+    if (length(lb1seq) > 0) rownames(output$mbA)[lb1seq] <-
+                                 rep('lb1', length(lb1seq))
+    if (length(lbteseq) > 0) rownames(output$mbA)[lbteseq] <-
+                                 rep('lbte', length(lbteseq))
+    if (length(ub0seq) > 0) rownames(output$mbA)[ub0seq] <-
+                                 rep('ub0', length(ub0seq))
+    if (length(ub1seq) > 0) rownames(output$mbA)[ub1seq] <-
+                                 rep('ub1', length(ub1seq))
     if (length(ubteseq) > 0) rownames(output$mbA)[ubteseq] <-
                                  rep('ubte', length(ubteseq))
     if (exists("mono0seq")) {
