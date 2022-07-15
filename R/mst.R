@@ -4092,7 +4092,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           In order to allow for automatic grid
                           expansion, make sure audit.nx > initgrid.nx
                           or audit.nu > initgrid.nu.")
-                if (any(c(2, 3, 5) %in% audit$errorTypes)) {
+                if (any(c(2, 3, 4, 5) %in% audit$errorTypes)) {
                     tmp <- NULL
                     for (i in 1:length(audit$errorTypes)) {
                         tmp <- c(tmp, statusString(audit$errorTypes[[i]],
@@ -4107,8 +4107,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     audit$status.max <- statusString(audit$status.max,
                                                      solver)
                     audit$error <- paste(errMessage1, "\n\n", errMessage2)
-                    return(audit)
                 }
+                return(audit)
             }
             if (any(codesExpand %in% audit$errorTypes)) {
                 tmpErrMessage <- NULL
