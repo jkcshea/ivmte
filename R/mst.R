@@ -487,12 +487,18 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         } else {
             direct.switch <- TRUE
             if (!hasArg(rescale)) rescale <- FALSE
-            if (!hasArg(direct)) direct <- "qp"
+            ## QP is the default. If no specific method is chosen,
+            ## assign QP0 (Cholesky).
+            if (!hasArg(direct)) {
+                direct <- "qp"
+            }
             direct <- tolower(direct)
-            if (direct == "qp") {
+            if (direct %in% c("qp", "qp0", "qp1", "qp2", "qp3")) {
                 qp.switch <- TRUE
-            } else if (direct == "lp") {
+                if (direct == "qp") direct <- "qp0"
+            } else if (direct %in% c("lp", "lp0", "lp1", "lp2", "lp3")) {
                 qp.switch <- FALSE
+                if (direct == "lp") direct <- "lp0"
             } else {
                 stop(gsub("\\s+", " ",
                           paste0("The 'direct' argument must either be 'LP' or
@@ -513,6 +519,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         for (i in 1:length(envList)) {
             if (is.null(envList[[i]])) envList[[i]] <- parent.frame()
         }
+
+        print("UPDATE QP METHOD ERROR CHECKING. The error message needs to explain all the different decomposition methods.")
 
         ##---------------------------
         ## 1. Check linear programming dependencies
@@ -3407,7 +3415,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     call <- match.call(expand.dots = FALSE)
     if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
         direct.switch <- TRUE
-        qp.switch <- direct == "qp"
+        qp.switch <- direct %in% c("qp0", "qp1", "qp2", "qp3")
     } else {
         direct.switch <- FALSE
     }
@@ -3662,7 +3670,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         if (!direct.switch) {
             stop(gsub("\\s+", " ",
                       "'ivlike' argument must either be a formula or a vector of
-                  formulas."),
+                       formulas."),
                  call. = FALSE)
         } else {
             ## Prepare direct MTR regresion approach.
@@ -4971,6 +4979,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                     yvar, dvar, direct = "QP", noisy = TRUE, ivn = NULL,
                     redundant = NULL) {
     direct.switch <- !('betas' %in% names(sest))
+    direct <- tolower(direct)
     if (!hasArg(subset_index)) {
         subset_index <- NULL
         n <- nrow(data)
@@ -5085,11 +5094,11 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                 ## Determine whether GMM or direct regression ('betas'
                 ## will not be included in 'sest' if the direct
                 ## regression is implemented)
-                if ('betas' %in% names(sest)) {
+                if ("betas" %in% names(sest)) {
                     dvec <- as.vector(data[newsubset, dvar])
                     yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] *
                                     (1 - dvec))
-                }
+                }                    
                 names(yvec) <- newsubset
                 if (!is.null(gs0)) colnames(gs0) <-
                                        paste0('[m0]', colnames(gs0))
@@ -5099,14 +5108,18 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                              paste0('[m0]', colnames(gsSpline0))
                 if (!is.null(gsSpline1)) colnames(gsSpline1) <-
                                              paste0('[m1]', colnames(gsSpline1))
-                sset[[paste0("s", scount)]] <- list(ivspec = ivn,
-                                                    beta = sest$beta[j],
-                                                    g0 = cbind(gs0, gsSpline0),
-                                                    g1 = cbind(gs1, gsSpline1),
-                                                    ys = yvec,
-                                                    w0 = sweight0,
-                                                    w1 = sweight1,
-                                                    n = n)
+                tmp.output <- list(ivspec = ivn,
+                                   beta = sest$beta[j],
+                                   g0 = cbind(gs0, gsSpline0),
+                                   g1 = cbind(gs1, gsSpline1),
+                                   ys = yvec,
+                                   w0 = sweight0,
+                                   w1 = sweight1,
+                                   n = n)
+                if (! "betas" %in% names(sest)) {
+                    tmp.output$direct <- direct
+                }
+                sset[[paste0("s", scount)]] <- tmp.output
             }
         }
         ## update counter (note scount is not referring
@@ -5114,16 +5127,44 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         ## from the IV regressions)
         scount <- scount + 1
     }
+    ## Generate the moments for the direct regression case
     if (direct.switch) {
         drY <- sset$s1$ys
         gs0 <- sset$s1$g0
         gs1 <- sset$s1$g1
         drX <- cbind(gs0, gs1)
-        if (direct == "lp") {
+        if (direct %in% c("lp0", "lp1", "lp2", "lp3")) {
             drN <- length(drY)
             ncomponents <- ncol(drX)
             YB <- sweep(drX, 1, drY, FUN = "*")
-            BB <- t(drX) %*% drX / drN
+            if (direct == "lp0") {
+                BB <- t(drX) %*% drX / drN
+            } else {
+                saveRDS(drX, "drX.rds")
+                drX.qr <- qr(drX, tol = 1e-16)
+                Q <- qr.Q(drX.qr)
+                R <- qr.R(drX.qr)[, sort.list(drX.qr$pivot)]
+                if (direct == "lp1") {
+                    BB <- t(R) %*% R / drN
+                } else if (direct == "lp2") {
+                    BB <- cbind(Matrix::Matrix(0,
+                                               nrow = ncol(drX),
+                                               ncol = ncol(drX)),
+                                t(drX)) / drN
+                    A.y <- cbind(drX, diag(-1, drN))
+                    new.varnames <- paste0('yhat.',
+                                           seq(drN))
+                } else if (direct == "lp3") {
+                    BB <- cbind(Matrix::Matrix(0,
+                                               nrow = ncol(drX),
+                                               ncol = ncol(drX)),
+                                t(R)) / drN
+                    A.y <- cbind(R, diag(-1, ncol(R)))
+                    new.varnames <- paste0('yhat.',
+                                           seq(ncol(R)))
+                }
+            }
+            print("LP SUBSTITUTES MEANS THERE ARE NO MOMENTS TO DO WITH X")
             scount <- 1
             for (i in 1:ncomponents) {
                 EYB <- mean(YB[, i])
@@ -5132,15 +5173,25 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                 g1 <- BB[i, (1 + ncol(gs0)):ncol(drX)]
                 names(g0) <- colnames(BB)[1:ncol(gs0)]
                 names(g1) <- colnames(BB)[(1 + ncol(gs0)):ncol(drX)]
-                sset[[paste0("s", scount)]] <-
-                    list(ivspec = scount,
-                         beta = EYB,
-                         g0 = g0,
-                         g1 = g1,
-                         ys = YB[, i] ,
-                         w0 = drX[, i],
-                         w1 = drX[, i],
-                         n = drN)
+                tmp.sset <- list(ivspec = scount,
+                                 beta = EYB,
+                                 g0 = g0,
+                                 g1 = g1,
+                                 ys = YB[, i],
+                                 w0 = drX[, i],
+                                 w1 = drX[, i],
+                                 n = drN,
+                                 direct = direct)
+                if (direct %in% c("lp2", "lp3")) {
+                    if (direct == "lp2") {                        
+                        gy <- BB[i, (1 + ncol(drX)):(ncol(drX) + drN)]
+                    } else if (direct == "lp3") {
+                        gy <- BB[i, (1 + ncol(drX)):(ncol(drX) + ncol(R))]
+                    }
+                    names(gy) <- new.varnames
+                    tmp.sset$gy <- gy
+                }
+                sset[[paste0("s", scount)]] <- tmp.sset
                 scount <- scount + 1
             }
         }
@@ -5148,10 +5199,12 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
     if (!direct.switch) {
         drX <- drY <- NULL
     }
-    return(list(sset = sset,
-                scount = scount,
-                drX = drX,
-                drY = drY))
+    if (exists("A.y")) sset$A.y <- A.y
+    output <- list(sset = sset,
+                   scount = scount,
+                   drX = drX,
+                   drY = drY)
+    return(output)
 }
 
 #' GMM estimate of TE under point identification

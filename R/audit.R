@@ -386,6 +386,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     } else {
         uname <- "u"
     }
+    ## Determine if decomposition was used
+    if (! "direct" %in% names(sset[[1]])) {
+        direct <- "moments"
+    } else {
+        direct <- sset[[1]]$direct
+    }
     ## Organize variables
     monov <- uname ## `monov' is a placeholder name for the monotone
                    ## variable. I use this in case I want to
@@ -410,8 +416,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         'mte.dec', 'mte.inc',
                         'pm0', 'pm1')
     if (audit_count == 1) {
-        if (!qp.switch) sn <- length(sset)
-        if (qp.switch) sn <- 0
+        if (!qp.switch) {
+            sn <- length(sset)
+            if ("A.y" %in% names(sset)) {
+                sn <- sn - 1
+            }
+        } else {
+            sn <- 0
+        }
         if (is.null(audit.grid)) {
             ## Generate the underlying X grid for the audit
             if (length(xvars) == 0) {
@@ -883,6 +895,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         if (existsolution == FALSE) existsolution <- TRUE
         prevbound <- c(result$min, result$max)
 
+        print('The audit only works if you select the g0 and g1 coefficients correctly in the bound funciton. THe first entries should also be slack, followed by oefficients, and then followed by auxiliary variables.')
+
         ## Test for violations of shape constraints when obtaining the bounds
         monoboundAcall <- modcall(call,
                                   newcall = genmonoboundA,
@@ -1011,6 +1025,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     immediate. = TRUE)
             break
         }
+
         ## Address violations by expanding initial grid
         if (!is.null(violateMat)) {
             if (noisy) cat("    Violations: ", nrow(violateMat), "\n")
@@ -1172,15 +1187,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variable
-                    if (qp.switch) {
-                        tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                               ncol = ncol(sset$s1$g0) +
-                                                   ncol(sset$s1$g1))
-                        colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
-                                                              ncol(sset$s1$g1)))
-                    } else {
-                        tmpA <- NULL
-                    }
+                    tmpA <- aux.A(direct, sset, nrow(tmpMat))
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <- rbind(modelEnv$model$A, tmpMat)
                     rm(addCol, tmpMat)
@@ -1274,15 +1281,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variables
-                    if (qp.switch) {
-                        tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                               ncol = ncol(sset$s1$g0) +
-                                                   ncol(sset$s1$g1))
-                        colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
-                                                              ncol(sset$s1$g1)))
-                    } else {
-                        tmpA <- NULL
-                    }
+                    tmpA <- aux.A(direct, sset, nrow(tmpMat))
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)
@@ -1373,15 +1372,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variable
-                    if (qp.switch) {
-                        tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                               ncol = ncol(sset$s1$g0) +
-                                                   ncol(sset$s1$g1))
-                        colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
-                                                              ncol(sset$s1$g1)))
-                    } else {
-                        tmpA <- NULL
-                    }
+                    tmpA <- aux.A(direct, sset, nrow(tmpMat))
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)
@@ -1646,4 +1637,31 @@ statusString <- function(status, solver) {
     }
     if (status == 0) statusStr <- 'Unknown error'
     return(statusStr)
+}
+
+
+#' Function to generate a matrix of zeroes to exand the initial grid
+#' used in the audit. THe number of columns is equal to the number of
+#' auxiliary variables generated, which depends on the decomposition
+#' approach used to improve numerical stability.
+#'
+#' @param direct String, the decomposition method used (if any).
+#' @param sset  The set of moments used in estimation.
+#' @param nrow Integer, number of rows the matrix should have.
+#' @return A matrix of zeroes.
+aux.A <- function(direct, sset, nrow) {
+    if (direct %in% c("moments", "lp0", "lp1")) {
+        tmpA <- NULL
+    } else if (direct %in% c("lp2", "lp3")) {
+        tmpA <- Matrix::Matrix(0,
+                               nrow = nrow,
+                               ncol = length(sset$s1$gy))
+    } else if (direct %in% c("qp0")) {
+        tmpA <- Matrix::Matrix(0, nrow = nrow,
+                               ncol = ncol(sset$s1$g0) +
+                                   ncol(sset$s1$g1))
+    }
+    if (!is.null(tmpA)) colnames(tmpA) <- paste0("yhat.",
+                                                 seq(ncol(tmpA)))
+    return(tmpA)
 }

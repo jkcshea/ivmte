@@ -163,6 +163,19 @@ lpSetup <- function(env, sset, orig.sset = NULL,
             env$shapeSeq[[i]] <- NULL
         }
     }
+    ## Determine type of decomposition used, if any
+    if ("direct" %in% names(sset[[1]])) {
+        direct <- sset[[1]]$direct
+        if (direct %in% c("lp0", "lp1")) {
+            gny <- 0
+        } else if (direct %in% c("lp2", "lp3")) {
+            gny <- length(sset[[1]]$gy)
+            A.y <- sset$A.y
+            sset[["A.y"]] <- NULL
+        }
+    } else {
+        direct <- "moments"
+    }
     if (!qp) {
         ## Determine lengths
         sn  <- length(sset)
@@ -178,6 +191,8 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         sense <- replicate(sn, "=")
         A <- NULL
         scount <- 0
+        print('DEAL WIHT BOOTTRAPING CENTERING WITH QR DECOM, see "orig.sset"')
+        ## Generate the slack variables
         for (s in names(sset)) {
             avec <- replicate(2 * sn, 0)
             avec[(2 * scount + 1):(2 * scount + 2)] <- c(-1, 1)
@@ -190,6 +205,13 @@ lpSetup <- function(env, sset, orig.sset = NULL,
                 g1fill <- g1fill - orig.sset[[s]]$g1
             }
             avec <- c(avec, g0fill, g1fill)
+            if (direct %in% c("lp2", "lp3")) {
+                gyfill <- sset[[s]]$gy
+                if (!is.null(orig.sset)) {
+                    gyfill <- gyfill - orig.sset[[s]]$gy
+                }
+                avec <- c(avec, gyfill)
+            }
             A <- rbind(A, avec)
             scount <- scount + 1
         }
@@ -212,6 +234,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         gn1 <- ncol(sset$s1$g1)
     }
     ## Add additional equality constraints if included
+    print('ADJUST FOR EQUALITY CONSTRAINTS---DO THIS LATER')
     if (!is.null(equal.coef0) & !is.null(equal.coef1)) {
         equal.coef0 <- paste0('[m0]', equal.coef0)
         equal.coef1 <- paste0('[m1]', equal.coef1)
@@ -228,28 +251,69 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         rm(tmpANames)
     }
     ## Add in additional constraints if included
+    print("Adjust the additional A zero sections for QP")
     if (shape == TRUE) {
-        mbA <- rbind(A, env$mbobj$mbA)
+        if (direct %in% c("moments", "lp0", "lp1")) {
+            tmp.zero1 <- NULL
+        } else if (direct %in% c("lp2", "lp3")) {
+            tmp.zero1 <- Matrix::Matrix(0,
+                                        nrow = nrow(env$mbobj$mbA),
+                                        ncol = gny)
+        } else if (direct %in% c("qp0")) {
+            tmp.zero1 <- Matrix::Matrix(0,
+                                        nrow = nrow(env$mbobj$mbA),
+                                        ncol = gn0 + gn1)
+        }
+        mbA <- rbind(A,
+                     cbind(env$mbobj$mbA, tmp.zero1))
         if (qp) colnames(mbA) <- colnames(env$mbobj$mbA)
         env$mbobj$mbA <- NULL
         sense <- c(sense, env$mbobj$mbs)
         env$mbobj$mbs <- NULL
         rhs <- c(rhs, env$mbobj$mbrhs)
         env$mbobj$mbrhs <- NULL
+        
     } else {
         mbA <- A
     }
     rm(A)
+    print("CORRECT COL NAMES FOR QP")
     if (!qp) {
-        colnames(mbA) <- c(c(rbind(paste0('slack', seq(sn), '-'),
-                                   paste0('slack', seq(sn), '+'))),
-                           names(sset$s1$g0), names(sset$s1$g1))
+        if (direct %in% c("moments", "lp0", "lp1")) {
+            colnames(mbA) <- c(c(rbind(paste0('slack', seq(sn), '-'),
+                                       paste0('slack', seq(sn), '+'))),
+                               names(sset$s1$g0), names(sset$s1$g1))
+        } else if (direct %in% c("lp2", "lp3")) {
+            colnames(mbA) <- c(c(rbind(paste0('slack', seq(sn), '-'),
+                                       paste0('slack', seq(sn), '+'))),
+                               names(sset$s1$g0), names(sset$s1$g1),
+                               paste0("yhat.", seq(gny)))
+        }
     } else {
-        colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1))
+        colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1),
+                           paste0("yhat.", seq(gn0 + gn1)))
     }
     ## Define bounds on parameters
-    ub <- replicate(ncol(mbA), Inf)
+    ## ub <- replicate(ncol(mbA), Inf)
+    ub <- c(unlist(replicate(sn * 2, Inf)), replicate(gn0 + gn1, Inf))
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
+    ## Include constraints for additional variables
+    print("INCLUD CONSTRAINTS FOR ADDITIONAL VARIABLES IN QP ALSO")
+    if (direct %in% c("lp2", "lp3")) {
+        tmp.zero2 <- Matrix::Matrix(0, nrow = nrow(A.y), ncol = sn * 2)
+        tmp.colnames <- colnames(mbA)
+        tmp.rownames <- c(rownames(mbA), paste0("yhat.", seq(nrow(A.y))))
+        mbA <- rbind(cbind(mbA),
+                     cbind(tmp.zero2, A.y))
+        colnames(mbA) <- tmp.colnames
+        rownames(mbA) <- tmp.rownames
+        ub <- c(ub, replicate(gny, Inf))
+        lb <- c(lb, replicate(gny, -Inf))
+        sense <- c(sense, replicate(gny, "="))
+        rhs <- c(rhs, replicate(gny, 0))
+    }
+    ## Rescale if desired
+    print("CHECK RESCALING FOR QP")
     if (qp && rescale) {
         ## Rescale linear constraints
         colNorms0 <- apply(sset$s1$g0, MARGIN = 2, function(x) sqrt(sum(x^2)))
@@ -333,7 +397,7 @@ lpSetupEqualCoef <- function(equal.coef0, equal.coef1, ANames) {
 #'     memory.
 #' @export
 lpSetupInfeasible <- function(env, sset) {
-    sn <- length(sset)
+    sn  <- env$model$sn
     ## Separate shape constraint objects
     env$mbobj$mbA <- env$model$A[-(1:sn), ]
     env$mbobj$mbrhs <- env$model$rhs[-(1:sn)]
@@ -357,13 +421,28 @@ lpSetupInfeasible <- function(env, sset) {
 #' @export
 lpSetupCriterion <- function(env, sset) {
     ## determine lengths
-    sn  <- length(sset)
-    gn0 <- length(sset$s1$g0)
-    gn1 <- length(sset$s1$g1)
+    sn  <- env$model$sn
+    gn0 <- env$model$gn0
+    gn1 <- env$model$gn1
+    if ("direct" %in% names(sset[[1]])) {
+        direct <- sset[[1]]$direct
+        if (direct %in% c("lp0", "lp1")) {
+            gny <- 0
+        } else if (direct %in% c("lp2", "lp3")) {
+            gny <- length(sset[[1]]$gy)
+        }
+    }
     ## generate all vectors/matrices for LP optimization to minimize
     ## observational equivalence
-    env$model$obj <- c(replicate(sn * 2, 1),
-                       replicate(gn0 + gn1, 0))
+    obj <- c(replicate(sn * 2, 1),
+             replicate(gn0 + gn1, 0))
+    print("UPDATE OBJECTIVE FOR QP")
+    if ("direct" %in% names(sset[[1]])) {
+        if (sset[[1]]$direct %in% c("lp2", "lp3")) {
+            obj <- c(obj, replicate(gny, 0))
+        }
+    }
+    env$model$obj <- obj
 }
 
 #' Configure LP environment to be compatible with solvers
@@ -422,9 +501,9 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
                                  orig.criterion,
                                  criterion.tol = 0, setup = TRUE) {
     if (setup) {
-        sn  <- length(sset)
-        gn0 <- length(sset$s1$g0)
-        gn1 <- length(sset$s1$g1)
+        sn  <- env$model$sn
+        gn0 <- env$model$gn0
+        gn1 <- env$model$gn1
         env$model$obj <- c(replicate(sn * 2, 1),
                            replicate(gn0 + gn1, 0))
         ## Prepare to obtain 'recentered' bootstrap
@@ -519,11 +598,20 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
         tmpSlack <- replicate(2 * env$model$sn, 0)
         names(tmpSlack) <- c(rbind(paste0('slack', seq(env$model$sn), '-'),
                                    paste0('slack', seq(env$model$sn), '+')))
-        env$model$obj <- c(tmpSlack, g0, g1)
+        obj <- c(tmpSlack, g0, g1)
         ## Allow for slack in minimum criterion
         env$model$rhs <- c(criterion.min * (1 + criterion.tol), env$model$rhs)
         avec <- c(replicate(2 * env$model$sn, 1),
                   replicate(env$model$gn0 + env$model$gn1, 0))
+        ## Include auxiliary variables
+        if ("direct" %in% names(sset[[1]])) {
+            if (sset[[1]]$direct %in% c("lp2", "lp3")) {
+                gny <- length(sset[[1]]$gy)
+                obj <- c(obj, replicate(gny, 0))
+                avec <- c(avec, replicate(gny, 0))
+            }
+        }
+        env$model$obj <- obj
         env$model$A <- rbind(avec, env$model$A)
         ## Label each row with the corresponding constraint. IV-like
         ## constraints are already labeled.
@@ -1726,18 +1814,29 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     cholQuad$name <- 'SSR'
     env$cholQuad <- cholQuad
     ## Incorporate the Cholesky decomposition
-    tmpA <- Matrix::Matrix(data = 0,
-                           nrow = nrow(env$model$A),
-                           ncol = ncol(env$model$A))
-    colnames(tmpA) <- paste0("yhat.", seq(ncol(env$model$A)))
-    origA.colnames <- colnames(env$model$A)
-    env$model$A <- rbind(cbind(env$model$A, tmpA),
-                         env$cholMats$A)
+    ## Original code ----------------
+    ## tmpA <- Matrix::Matrix(data = 0,
+    ##                        nrow = nrow(env$model$A),
+    ##                        ncol = ncol(env$model$A))
+    ## colnames(tmpA) <- paste0("yhat.", seq(ncol(env$model$A)))
+    ## origA.colnames <- colnames(env$model$A)
+    ## print("am in in qpsetup")
+    ## print(dim(env$model$A))
+    ## print(dim(tmpA))
+    ## print(dim(env$cholMats$A))
+    ## print(colnames(env$model$A))
+    ## print(colnames(tmpA))
+    ## print(colnames(env$cholMats$A))
+    ## env$model$A <- rbind(cbind(env$model$A, tmpA),
+    ##                      env$cholMats$A)
+    ## NEW CODE ----------------------
+    env$model$A <- rbind(env$model$A, env$cholMats$A)
+    ## ---------------------------------
     env$model$rhs <- c(env$model$rhs, env$cholMats$rhs)
     env$model$sense <- c(env$model$sense, env$cholMats$sense)
     env$model$lb <- c(env$model$lb, env$cholMats$lb)
     env$model$ub <- c(env$model$ub, env$cholMats$ub)
-    colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
+    ## colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
 }
 
 #' Configure QCQP problem to find minimum criterion

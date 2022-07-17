@@ -113,6 +113,7 @@ genboundA <- function(A0, A1, sset, gridobj, uname, m0.lb, m0.ub,
     namesA1 <- colnames(A1)
     if (!qp) {
         sn <- length(sset)
+        if ("A.y" %in% names(sset)) sn <- sn - 1
         namesA  <- c(seq(1, 2 * sn),
                      namesA0,
                      namesA1)
@@ -550,9 +551,6 @@ genmonoA <- function(A0, A1, sset, uname, gridobj, gstar0, gstar1,
         sn <- 0
         namesA  <- c(namesA0,
                      namesA1)
-        drY <- sset$s1$ys
-        drX <- cbind(sset$s1$g0, sset$s1$g1)
-        drQ <- sset$s1$Q
     }
     ## The functions below generate the constraint matrix, the sense
     ## vector, and the RHS vector associated with the monotonicity
