@@ -498,6 +498,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         ## Generate environment that is to be updated
         modelEnv <- new.env()
         modelEnv$mbobj <- eval(monoboundAcall)
+        ## Determine if model is direct regression or not
+        if ("direct" %in% names(sset[[1]])) {
+            modelEnv$direct <- sset[[1]]$direct
+        } else {
+            modelEnv$direct <- "moments"
+        }
     }
 
     ## Setup LP problem, or linear components of QCQP problem

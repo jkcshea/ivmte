@@ -164,21 +164,26 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         }
     }
     ## Determine type of decomposition used, if any
-    if ("direct" %in% names(sset[[1]])) {
-        direct <- sset[[1]]$direct
-        if (direct %in% c("lp0", "lp1")) {
-            gny <- 0
-        } else if (direct %in% c("lp2", "lp3")) {
-            gny <- length(sset[[1]]$gy)
-            A.y <- sset$A.y
-            sset[["A.y"]] <- NULL
-        }
-    } else {
-        direct <- "moments"
+    direct <- env$direct
+    if (direct %in% c("lp0", "lp1")) {
+        gny <- 0
+    } else if (direct %in% c("lp2", "lp3")) {
+        gny <- length(sset[[1]]$gy)
+        A.y <- sset$A.y
+        sset$A.y <- NULL
     }
+    ## lp0: LP problem, no decomposition, no auxiliary variables.
+    ## lp1: LP problem, QR decompositoin, no auxiliary variables.
+    ## lp2: LP problem, QR decomposition, auxiliary y = QRx.
+    ## lp3: LP problem, QR decomposition, auxiliary y = Rx.
+    ##
+    ## qp0: QP problem, Cholesky decomposition, y = chol(AA)x.
+    ## qp1: QP problem, QR decompositoin, no auxiliary variables.
+    ## qp2: QP problem, QR decomposition, auxiliary y = QRx.
+    ## qp3: QP problem, QR decomposition, auxiliary y = Rx.
     if (!qp) {
         ## Determine lengths
-        sn  <- length(sset)
+        sn <- length(sset)
         gn0 <- length(sset$s1$g0)
         gn1 <- length(sset$s1$g1)
         ## Generate all vectors/matrices for LP optimization to minimize
@@ -250,7 +255,9 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         rhs <- c(rhs, equal.constraints$rhs)
         rm(tmpANames)
     }
-    ## Add in additional constraints if included
+    ## Expand equality and shape constriants to include auxiliary
+    ## variables (but not the actual constraints for the auxiliray
+    ## variables)
     print("Adjust the additional A zero sections for QP")
     if (shape == TRUE) {
         if (direct %in% c("moments", "lp0", "lp1")) {
@@ -259,10 +266,16 @@ lpSetup <- function(env, sset, orig.sset = NULL,
             tmp.zero1 <- Matrix::Matrix(0,
                                         nrow = nrow(env$mbobj$mbA),
                                         ncol = gny)
-        } else if (direct %in% c("qp0")) {
+        } else if (direct %in% c("qp0", "qp3")) {
+            tmp.zero1 <- Matrix::Matrix(0,
+                                       nrow = nrow(env$mbobj$mbA),
+                                       ncol = gn0 + gn1)
+        } else if (direct == "qp1") {
+            tmp.zero1 <- NULL
+        } else if (direct == "qp2") {
             tmp.zero1 <- Matrix::Matrix(0,
                                         nrow = nrow(env$mbobj$mbA),
-                                        ncol = gn0 + gn1)
+                                        ncol = nrow(sset$s1$g0))
         }
         mbA <- rbind(A,
                      cbind(env$mbobj$mbA, tmp.zero1))
@@ -272,7 +285,6 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         env$mbobj$mbs <- NULL
         rhs <- c(rhs, env$mbobj$mbrhs)
         env$mbobj$mbrhs <- NULL
-        
     } else {
         mbA <- A
     }
@@ -290,14 +302,21 @@ lpSetup <- function(env, sset, orig.sset = NULL,
                                paste0("yhat.", seq(gny)))
         }
     } else {
-        colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1),
-                           paste0("yhat.", seq(gn0 + gn1)))
+        if (direct %in% c("qp0", "qp3")) {
+            colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1),
+                               paste0("yhat.", seq(gn0 + gn1)))
+        } else if (direct == "qp1") {
+            colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1))
+        } else if (direct == "qp2") {
+            colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1),
+                               paste0("yhat.", seq(nrow(sset[[1]]$g0))))
+        }
     }
     ## Define bounds on parameters
     ## ub <- replicate(ncol(mbA), Inf)
     ub <- c(unlist(replicate(sn * 2, Inf)), replicate(gn0 + gn1, Inf))
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
-    ## Include constraints for additional variables
+    ## Include constraints defining the auxliary variables
     print("INCLUD CONSTRAINTS FOR ADDITIONAL VARIABLES IN QP ALSO")
     if (direct %in% c("lp2", "lp3")) {
         tmp.zero2 <- Matrix::Matrix(0, nrow = nrow(A.y), ncol = sn * 2)
@@ -312,6 +331,9 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         sense <- c(sense, replicate(gny, "="))
         rhs <- c(rhs, replicate(gny, 0))
     }
+    ## Note: Auxliary variables for the QP approach are defined in
+    ## qpSetup.
+    ##
     ## Rescale if desired
     print("CHECK RESCALING FOR QP")
     if (qp && rescale) {
@@ -424,23 +446,19 @@ lpSetupCriterion <- function(env, sset) {
     sn  <- env$model$sn
     gn0 <- env$model$gn0
     gn1 <- env$model$gn1
-    if ("direct" %in% names(sset[[1]])) {
-        direct <- sset[[1]]$direct
-        if (direct %in% c("lp0", "lp1")) {
-            gny <- 0
-        } else if (direct %in% c("lp2", "lp3")) {
-            gny <- length(sset[[1]]$gy)
-        }
+    direct <- env$direct
+    if (direct %in% c("lp0", "lp1")) {
+        gny <- 0
+    } else if (direct %in% c("lp2", "lp3")) {
+        gny <- length(sset[[1]]$gy)
     }
     ## generate all vectors/matrices for LP optimization to minimize
     ## observational equivalence
     obj <- c(replicate(sn * 2, 1),
              replicate(gn0 + gn1, 0))
     print("UPDATE OBJECTIVE FOR QP")
-    if ("direct" %in% names(sset[[1]])) {
-        if (sset[[1]]$direct %in% c("lp2", "lp3")) {
-            obj <- c(obj, replicate(gny, 0))
-        }
+    if (direct %in% c("lp2", "lp3")) {
+        obj <- c(obj, replicate(gny, 0))
     }
     env$model$obj <- obj
 }
@@ -1763,6 +1781,8 @@ optionsCplexAPITol <- function(options) {
 #'     optimization.
 #' @export
 qpSetup <- function(env, sset, rescale = TRUE) {
+    ## Determine what decomposition to use
+    direct <- env$direct
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
@@ -1779,64 +1799,100 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$drX <- drX
     env$drN <- drN
     if (rescale) env$normY <- normY
-    ## Add a new variable yhat for each observation, defined using a
-    ## linear constraint
-    AA <- t(drX) %*% drX
-    cholAA <- suppressWarnings(chol(AA, pivot = TRUE))
-    cholRank <- attr(cholAA, 'rank')
-    if (cholRank < nrow(AA)) {
-        cholAA[(cholRank + 1):nrow(cholAA),
-        (cholRank + 1):nrow(cholAA)] <- 0
+    ## Implement decomposition for numerical stability
+
+    if (direct == "qp0") { ## Cholesky decomposition
+        ## Set up the decomposition constraint
+        AA <- t(drX) %*% drX
+        decompAA <- suppressWarnings(chol(AA, pivot = TRUE))
+        cholRank <- attr(decompAA, 'rank')
+        if (cholRank < nrow(AA)) {
+            decompAA[(cholRank + 1):nrow(decompAA),
+            (cholRank + 1):nrow(decompAA)] <- 0
+        }
+        cholOrder <- order(attr(decompAA, 'pivot'))
+        decompAA <- Matrix::Matrix(decompAA)[, cholOrder]
+        tmpI <- Matrix::Diagonal(ncol(AA))
+        tmpRhs <- rep(0, ncol(AA))
+        tmpSense <- rep("=", ncol(AA))
+        tmpUb <- rep(Inf, ncol(AA))
+        tmpLb <- rep(-Inf, ncol(AA))
+        colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
+            names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(ncol(AA)))
+        tmpA <- cbind(decompAA, -tmpI)
+        ## Set up the quadratic objective
+        quadMats <- list()
+        quadMats$q <- -2 * c(t(drX) %*% drY) / drN
+        quadMats$q <- c(quadMats$q, rep(0, ncol(AA)))
+        quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
+                                                    ncol = ncol(AA),
+                                                    nrow = ncol(AA)),
+                                     Matrix::Diagonal(ncol(AA))) / drN
+    } else if (direct == "qp1") { ## No decomposition
+        ## No decomposition constraints/auxiliary variables to set up
+        tmpA <- NULL
+        tmpRhs <- NULL
+        tmpSense <- NULL
+        tmpUb <- tmpLb <- NULL
+        ## Set up the quadratic objective
+        quadMats <- list()
+        quadMats$q <- -2 * c(t(drX) %*% drY) / drN
+        quadMats$Qc <- t(drX) %*% drX / drN
+    } else if (direct == "qp2") { ## QR, auxiliary y = QRx = Ax
+        ## Set up the decomposition constraint
+        decompX <- drX
+        tmpI <- Matrix::Diagonal(drN)
+        tmpRhs <- rep(0, drN)
+        tmpSense <- rep("=", drN)
+        tmpUb <- rep(Inf, drN)
+        tmpLb <- rep(-Inf, drN)
+        colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
+            names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(drN))
+        tmpA <- cbind(decompX, -tmpI)
+        ## Set up the quadratic objective
+        quadMats <- list()
+        quadMats$q <- -2 * drY / drN
+        quadMats$q <- c(rep(0, ncol(drX)), quadMats$q)
+        quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
+                                                    ncol = ncol(drX),
+                                                    nrow = ncol(drX)),
+                                     Matrix::Diagonal(drN)) / drN
+    } else if (direct == "qp3") { ## QR, auxiliary y = Rx
+        ## Set up the decomposition constraint
+        qr.X <- qr(drX, tol = 1e-16)
+        Q <- qr.Q(qr.X)
+        decompX <- qr.R(qr.X)[, sort.list(qr.X$pivot)]
+        tmpI <- Matrix::Diagonal(ncol(drX))
+        tmpRhs <- rep(0, ncol(drX))
+        tmpSense <- rep("=", ncol(drX))
+        tmpUb <- rep(Inf, ncol(drX))
+        tmpLb <- rep(-Inf, ncol(drX))
+        colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
+            names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(ncol(drX)))
+        tmpA <- cbind(decompX, -tmpI)
+        ## Set up the quadratic objective
+        quadMats <- list()
+
+        print(dim(Q))
+        print(dim(drY))
+        print(length(drY))
+        quadMats$q <- -2 * c(t(Q) %*% drY) / drN
+        quadMats$q <- c(rep(0, ncol(drX)), quadMats$q)
+        quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
+                                                    ncol = ncol(drX),
+                                                    nrow = ncol(drX)),
+                                     Matrix::Diagonal(ncol(drX))) / drN
     }
-    cholOrder <- order(attr(cholAA, 'pivot'))
-    cholAA <- Matrix::Matrix(cholAA)[, cholOrder]
-    tmpI <- Matrix::Diagonal(ncol(AA))
-    tmpRhs <- rep(0, ncol(AA))
-    tmpSense <- rep("=", ncol(AA))
-    tmpBounds <- rep(Inf, ncol(AA))
-    colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
-        names(tmpBounds) <- paste0("yhat.", seq(ncol(AA)))
-    cholMats <- list(A = cbind(cholAA, -tmpI),
-                     rhs = tmpRhs,
-                     sense = tmpSense,
-                     ub = tmpBounds,
-                     lb = -tmpBounds)
-    env$cholMats <- cholMats
-    ## Now set up the quadratic constraint
-    cholQuad <- list()
-    cholQuad$q <- -2 * c(t(drX) %*% drY) / drN
-    cholQuad$q <- c(cholQuad$q, rep(0, ncol(AA)))
-    cholQuad$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
-                                          ncol = ncol(AA),
-                                          nrow = ncol(AA)),
-                           Matrix::Diagonal(ncol(AA))) / drN
-    cholQuad$sense <- '<'
-    cholQuad$name <- 'SSR'
-    env$cholQuad <- cholQuad
-    ## Incorporate the Cholesky decomposition
-    ## Original code ----------------
-    ## tmpA <- Matrix::Matrix(data = 0,
-    ##                        nrow = nrow(env$model$A),
-    ##                        ncol = ncol(env$model$A))
-    ## colnames(tmpA) <- paste0("yhat.", seq(ncol(env$model$A)))
-    ## origA.colnames <- colnames(env$model$A)
-    ## print("am in in qpsetup")
-    ## print(dim(env$model$A))
-    ## print(dim(tmpA))
-    ## print(dim(env$cholMats$A))
-    ## print(colnames(env$model$A))
-    ## print(colnames(tmpA))
-    ## print(colnames(env$cholMats$A))
-    ## env$model$A <- rbind(cbind(env$model$A, tmpA),
-    ##                      env$cholMats$A)
-    ## NEW CODE ----------------------
-    env$model$A <- rbind(env$model$A, env$cholMats$A)
-    ## ---------------------------------
-    env$model$rhs <- c(env$model$rhs, env$cholMats$rhs)
-    env$model$sense <- c(env$model$sense, env$cholMats$sense)
-    env$model$lb <- c(env$model$lb, env$cholMats$lb)
-    env$model$ub <- c(env$model$ub, env$cholMats$ub)
-    ## colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
+    ## Impose the decomposition constraints
+    env$model$A <- rbind(env$model$A, tmpA)
+    env$model$rhs <- c(env$model$rhs, tmpRhs)
+    env$model$sense <- c(env$model$sense, tmpSense)
+    env$model$lb <- c(env$model$lb, tmpLb)
+    env$model$ub <- c(env$model$ub, tmpUb)
+    ## Store the quadratic objective matrices
+    quadMats$sense <- '<'
+    quadMats$name <- 'SSR'
+    env$quadMats <- quadMats
 }
 
 #' Configure QCQP problem to find minimum criterion
@@ -1849,8 +1905,8 @@ qpSetup <- function(env, sset, rescale = TRUE) {
 #'     memory.
 #' @export
 qpSetupCriterion <- function(env) {
-    env$model$obj <- env$cholQuad$q
-    env$model$Q <- env$cholQuad$Qc
+    env$model$obj <- env$quadMats$q
+    env$model$Q <- env$quadMats$Qc
     env$model$modelsense <- 'min'
 }
 
@@ -1888,17 +1944,32 @@ qpSetupBound <- function(env, g0, g1,
                          rescale = FALSE,
                          setup = TRUE) {
     if (setup) {
+        direct <- env$direct
         ## Prepare objective
-        env$model$obj <- c(c(g0, g1),
-                           rep(0, ncol(env$drX)))
-        if (rescale) {
-            env$model$obj <- env$model$obj / c(env$colNorms,
-                                               rep(1, ncol(env$drX)))
+        if (direct %in% c("qr0", "qr1")) {
+            env$model$obj <- c(c(g0, g1),
+                               rep(0, ncol(env$drX)))
+            if (rescale) {
+                env$model$obj <- env$model$obj / c(env$colNorms,
+                                                   rep(1, ncol(env$drX)))
+            }
+        } else if (direct == "qr1") {
+            env$model$obj <- c(g0, g1)
+            if (rescale) {
+                env$model$obj <- env$model$obj / env$colNorms
+            }
+        } else if (direct == "qr2") {
+            env$model$obj <- c(c(g0, g1),
+                               rep(0, nrow(env$drX)))
+            if (rescale) {
+                env$model$obj <- env$model$obj / c(env$colNorms,
+                                                   rep(1, nrow(env$drX)))
+            }
         }
         env$model$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
         ## criterion.min excludes the SSY.
-        env$model$quadcon <- list(env$cholQuad)
+        env$model$quadcon <- list(env$quadMats)
         env$model$quadcon[[1]]$rhs <- (env$ssy / env$drN) * criterion.tol +
             criterion.min * (1 + criterion.tol)
     } else {
