@@ -493,10 +493,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 direct <- "qp"
             }
             direct <- tolower(direct)
-            if (direct %in% c("qp", "qp0", "qp1", "qp2", "qp3")) {
+            if (direct %in% c("qp", "qp0", "qp1", "qp2", "qp3", "qp4")) {
                 qp.switch <- TRUE
                 if (direct == "qp") direct <- "qp0"
-            } else if (direct %in% c("lp", "lp0", "lp1", "lp2", "lp3")) {
+            } else if (direct %in% c("lp", "lp0", "lp1", "lp2", "lp3", "lp4")) {
                 qp.switch <- FALSE
                 if (direct == "lp") direct <- "lp0"
             } else {
@@ -3415,7 +3415,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     call <- match.call(expand.dots = FALSE)
     if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
         direct.switch <- TRUE
-        qp.switch <- direct %in% c("qp0", "qp1", "qp2", "qp3")
+        qp.switch <- direct %in% c("qp0", "qp1", "qp2", "qp3", "qp4")
     } else {
         direct.switch <- FALSE
     }
@@ -5098,7 +5098,7 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                     dvec <- as.vector(data[newsubset, dvar])
                     yvec <- yvec * (sest$sw1[, j] * dvec + sest$sw0[, j] *
                                     (1 - dvec))
-                }                    
+                }
                 names(yvec) <- newsubset
                 if (!is.null(gs0)) colnames(gs0) <-
                                        paste0('[m0]', colnames(gs0))
@@ -5133,14 +5133,29 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         gs0 <- sset$s1$g0
         gs1 <- sset$s1$g1
         drX <- cbind(gs0, gs1)
-        if (direct %in% c("lp0", "lp1", "lp2", "lp3")) {
+        if (direct %in% c("lp0", "lp1", "lp2", "lp3", "lp4")) {
             drN <- length(drY)
             ncomponents <- ncol(drX)
             YB <- sweep(drX, 1, drY, FUN = "*")
             if (direct == "lp0") {
                 BB <- t(drX) %*% drX / drN
+            } else if (direct == "lp4") {
+                BB <- t(drX) %*% drX
+                decompBB <- suppressWarnings(chol(BB, pivot = TRUE))
+                cholRank <- attr(decompBB, 'rank')
+                if (cholRank < nrow(BB)) {
+                    decompBB[(cholRank + 1):nrow(decompBB),
+                    (cholRank + 1):nrow(decompBB)] <- 0
+                }
+                cholOrder <- order(attr(decompBB, 'pivot'))
+                decompBB <- Matrix::Matrix(decompBB)[, cholOrder]
+                BB <- cbind(Matrix::Matrix(0,
+                                           nrow = ncol(drX),
+                                           ncol = ncol(drX)),
+                            Matrix::t(decompBB)) / drN
+                A.y <- cbind(decompBB, diag(-1, ncol(decompBB)))
+                new.varnames <- paste0('yhat', seq(ncol(decompBB)))
             } else {
-                saveRDS(drX, "drX.rds")
                 drX.qr <- qr(drX, tol = 1e-16)
                 Q <- qr.Q(drX.qr)
                 R <- qr.R(drX.qr)[, sort.list(drX.qr$pivot)]
@@ -5164,7 +5179,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                            seq(ncol(R)))
                 }
             }
-            print("LP SUBSTITUTES MEANS THERE ARE NO MOMENTS TO DO WITH X")
             scount <- 1
             for (i in 1:ncomponents) {
                 EYB <- mean(YB[, i])
@@ -5182,11 +5196,13 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                                  w1 = drX[, i],
                                  n = drN,
                                  direct = direct)
-                if (direct %in% c("lp2", "lp3")) {
-                    if (direct == "lp2") {                        
+                if (direct %in% c("lp2", "lp3", "lp4")) {
+                    if (direct == "lp2") {
                         gy <- BB[i, (1 + ncol(drX)):(ncol(drX) + drN)]
                     } else if (direct == "lp3") {
                         gy <- BB[i, (1 + ncol(drX)):(ncol(drX) + ncol(R))]
+                    } else if (direct == "lp4") {
+                        gy <- BB[i, (1 + ncol(drX)):(ncol(drX) * 2)]
                     }
                     names(gy) <- new.varnames
                     tmp.sset$gy <- gy

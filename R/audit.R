@@ -1658,14 +1658,17 @@ statusString <- function(status, solver) {
 aux.A <- function(direct, sset, nrow) {
     if (direct %in% c("moments", "lp0", "lp1")) {
         tmpA <- NULL
-    } else if (direct %in% c("lp2", "lp3")) {
+    } else if (direct %in% c("lp2", "lp3", "lp4")) {
         tmpA <- Matrix::Matrix(0,
                                nrow = nrow,
                                ncol = length(sset$s1$gy))
-    } else if (direct %in% c("qp0")) {
+    } else if (direct %in% c("qp0", "qp3")) {
         tmpA <- Matrix::Matrix(0, nrow = nrow,
                                ncol = ncol(sset$s1$g0) +
                                    ncol(sset$s1$g1))
+    } else if (direct %in% c("qp2")) {
+        tmpA <- Matrix::Matrix(0, nrow = nrow,
+                               ncol = ncrow(sset$s1$g0))
     }
     if (!is.null(tmpA)) colnames(tmpA) <- paste0("yhat.",
                                                  seq(ncol(tmpA)))
