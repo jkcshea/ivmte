@@ -2026,7 +2026,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         }
         ## Check that all LATE variables are included in the propensity
         ## formula, if a propensity score formula is provided
-        if (hasArg(target) && target %in% c("late", "avglate", "genlate") &&
+        if (hasArg(target) && target %in% c("late", "avglate") &&
             length(Formula::as.Formula(propensity))[1] != 0) {
             if (!all(late.Z %in% vars_propensity)) {
                 stop(gsub("\\s+", " ",
