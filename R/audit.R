@@ -757,7 +757,11 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         } else {
             drN <- modelEnv$drN
         }
-        minCriterion <- (minobseq$obj * modelEnv$drN + modelEnv$ssy) / drN
+        if (!qp.switch) {
+            minCriterion <- minobseq$obj
+        } else {
+            minCriterion <- (minobseq$obj * modelEnv$drN + modelEnv$ssy) / drN
+        }
         if (qp.switch && noisy) {
             cat("    Minimum criterion: ", fmtResult(minCriterion), "\n",
                 sep = "")
