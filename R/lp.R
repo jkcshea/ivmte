@@ -1258,6 +1258,7 @@ runGurobi <- function(model, solver.options) {
     if (result$status == "UNBOUNDED") status <- 4
     if (result$status == "NUMERIC") status <- 5
     if (result$status == "SUBOPTIMAL") status <- 6
+    if (result$status == "TIME_LIMIT") status <- 9
     optx <- result$x
     return(list(objval = result$objval,
                 optx = result$x,
@@ -1332,6 +1333,7 @@ runCplexAPI <- function(model, lpdir, solver.options) {
         if (solution$lpstat == 4) status <- 3
         if (solution$lpstat == 5) status <- 7
         if (solution$lpstat == 6) status <- 6
+        if (solution$lpstat == 11) status <- 9
     }
     return(list(objval = solution$objval,
                 optx   = solution$x,
@@ -1387,6 +1389,7 @@ runLpSolveAPI <- function(model, modelsense, solver.options) {
     if (solved == 2) status <- 2
     if (solved == 3) status <- 4
     if (solved == 5) status <- 5
+    if (solved == 7) status <- 9
     return(list(objval = lpSolveAPI::get.objective(lpmodel),
                 optx   = lpSolveAPI::get.variables(lpmodel),
                 status = status))

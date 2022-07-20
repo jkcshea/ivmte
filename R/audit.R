@@ -854,6 +854,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                          'problem resulted in
                                           numerical issues.')))
                 }
+                if (result[[tmpName]] == 9) {
+                    errMess <-
+                        paste(errMess,
+                              gsub('\\s+', ' ',
+                                   paste('The', tmpType,
+                                         'problem was terminated
+                                          because the time expended
+                                          exceeded the time limit
+                                          set.')))
+                }
                 errTypes <- c(errTypes, result[[tmpName]])
             }
             ## Include explanation
@@ -1437,7 +1447,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                    result = result,
                    gridobj = list(audit.grid = audit.grid,
                                   violations = violateMat),
-                   auditcount = audit_count,
+                   audit.count = audit_count,
                    minobseq = minobseq$obj,
                    minobseq.status = minobseq$status,
                    status.codes = status.codes,
@@ -1609,6 +1619,7 @@ statusString <- function(status, solver) {
         if (status == 4) statusStr <- 'UNBOUNDED (5)'
         if (status == 5) statusStr <- 'NUMERIC (12)'
         if (status == 6) statusStr <- 'SUBOPTIMAL (13)'
+        if (status == 9) statusStr <- 'TIME_LIMIT (9)'
     }
     if (solver == 'cplexapi') {
         if (status == 1) statusStr <-
@@ -1623,6 +1634,8 @@ statusString <- function(status, solver) {
                              'CPX_STAT_NUM_BEST (6)'
         if (status == 7) statusStr <-
                              'CPX_STAT_OPTIMAL_INFEAS (5)'
+        if (status == 9) statusStr <-
+                             'CPX_STAT_ABORT_TIME_LIM (11)'
     }
     if (solver == 'lpsolveapi') {
         if (status == 1) statusStr <- 'Optimal (0)'
@@ -1656,19 +1669,19 @@ statusString <- function(status, solver) {
 #' @param nrow Integer, number of rows the matrix should have.
 #' @return A matrix of zeroes.
 aux.A <- function(direct, sset, nrow) {
-    if (direct %in% c("moments", "lp0", "lp1")) {
+    if (direct %in% c("moments", "lp0", "lp1", "qp0", "qp1")) {
         tmpA <- NULL
     } else if (direct %in% c("lp2", "lp3", "lp4")) {
         tmpA <- Matrix::Matrix(0,
                                nrow = nrow,
                                ncol = length(sset$s1$gy))
-    } else if (direct %in% c("qp0", "qp3")) {
+    } else if (direct %in% c("qp2")) {
+        tmpA <- Matrix::Matrix(0, nrow = nrow,
+                               ncol = nrow(sset$s1$g0))
+    } else if (direct %in% c("qp3", "qp4")) {
         tmpA <- Matrix::Matrix(0, nrow = nrow,
                                ncol = ncol(sset$s1$g0) +
                                    ncol(sset$s1$g1))
-    } else if (direct %in% c("qp2")) {
-        tmpA <- Matrix::Matrix(0, nrow = nrow,
-                               ncol = ncrow(sset$s1$g0))
     }
     if (!is.null(tmpA)) colnames(tmpA) <- paste0("yhat.",
                                                  seq(ncol(tmpA)))

@@ -4164,7 +4164,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                            tmpErrMessage, ".\n"))
                 autoExpand <- autoExpand + 1
             }
-            if (any(c(2, 3, 5) %in% audit$errorTypes)) {
+            if (any(c(2, 3, 5, 9) %in% audit$errorTypes)) {
                 tmp <- NULL
                 for (i in 1:length(audit$errorTypes)) {
                     tmp <- c(tmp, statusString(audit$errorTypes[[i]],
@@ -4412,7 +4412,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          audit.noX =
                                              audit$gridobj$audit.grid$noX,
                                          violations = audit$gridobj$violations),
-                       audit.count = audit$auditcount,
+                       audit.count = audit$audit.count,
                        audit.criterion = audit$minobseq,
                        audit.criterion.status = audit$minobseq.status,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
@@ -4448,7 +4448,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                              audit$gridobj$audit.grid$uvec,
                                          audit.noX =
                                              audit$gridobj$audit.grid$noX),
-                       audit.count = audit$auditcount,
+                       audit.count = audit$audit.count,
                        audit.criterion = audit$minobseq,
                        audit.criterion.status = audit$minobseq.status,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
@@ -5789,7 +5789,7 @@ print.ivmte <- function(x, ...) {
     stopifnot(inherits(x, "ivmte"))
     if (!is.null(x$bounds)) {
         cat("\n")
-        ## Return bounds, audit cout, and minumum criterion
+        ## Return bounds, audit count, and minumum criterion
         cat(sprintf("Bounds on the target parameter: [%s, %s]\n",
                     fmtResult(x$bounds[1]),
                     fmtResult(x$bounds[2])))
