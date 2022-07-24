@@ -894,6 +894,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             }
             return(list(error = errMess,
                         errorTypes = origErrTypes,
+                        model = result$model,
                         min = result$min,
                         max = result$max,
                         status.min = result$minstatus,
