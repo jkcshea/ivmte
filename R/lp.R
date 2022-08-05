@@ -1978,19 +1978,19 @@ qpSetupBound <- function(env, g0, g1,
     if (setup) {
         direct <- env$direct
         ## Prepare objective
-        if (direct %in% c("qr0", "qr1")) {
+        if (direct %in% c("qp3", "qp4")) {
             env$model$obj <- c(c(g0, g1),
                                rep(0, ncol(env$drX)))
             if (rescale) {
                 env$model$obj <- env$model$obj / c(env$colNorms,
                                                    rep(1, ncol(env$drX)))
             }
-        } else if (direct == "qr1") {
+        } else if (direct %in% c("qp0", "qp1")) {
             env$model$obj <- c(g0, g1)
             if (rescale) {
                 env$model$obj <- env$model$obj / env$colNorms
             }
-        } else if (direct == "qr2") {
+        } else if (direct == "qp2") {
             env$model$obj <- c(c(g0, g1),
                                rep(0, nrow(env$drX)))
             if (rescale) {
