@@ -889,7 +889,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
     names(g0sol) <- names(sset$gstar$g0)
     names(g1sol) <- names(sset$gstar$g1)
     if (rescale) {
-        if (env$direct %in% c("qp0", "qp1")) {
+        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4")) {
             g0sol <- g0sol / env$colNorms[1:ncol(sset$s1$g0)]
             g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
                                           (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
@@ -1166,7 +1166,7 @@ bound <- function(env, sset, solver,
                      (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
     ## Undo the rescaling
     if (rescale) {
-        if (env$direct %in% c("qp0", "qp1")) {
+        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4")) {
             ming0 <- ming0 / env$colNorms[1:ncol(sset$s1$g0)]
             ming1 <- ming1 / env$colNorms[(ncol(sset$s1$g0) + 1):
                                           (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
@@ -1209,7 +1209,7 @@ bound <- function(env, sset, solver,
                    minruntime = runtime.min,
                    error = FALSE)
     if (rescale) {
-        if (env$direct %in% c("qp0", "qp1")) {
+        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4")) {
             output$norms <- env$colNorms
         }
     }
@@ -1841,11 +1841,32 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         tmpLb <- rep(-Inf, ncol(AA))
         colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
             names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(ncol(AA)))
+        ## Adjust for scaling if necessary
+        if (rescale) {
+            ## Rescaling by columns/variables
+            colNorms <- apply(decompAA, MARGIN = 2, function(x) sqrt(sum(x^2)))
+            colNorms[colNorms == 0] <- 1
+            env$colNorms <- colNorms
+            ## Adjust the quadratic constraint
+            decompAA <- sweep(x = decompAA, MARGIN = 2, STATS = colNorms, FUN = '/')
+            ## Adjust the linear constraints
+            colNorms <- c(colNorms, rep(1, length(colNorms)))
+            env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                 STATS = colNorms, FUN = '/')
+        }
         tmpA <- cbind(decompAA, -tmpI)
+        ## if (rescale) {
+        ##     ## Rescaling by rows/constraints
+        ##     scale.mag <- apply(decompAA, 1, magnitude.adjust)
+        ##     tmpA <- sweep(tmpA, 1, 10^scale.mag, "*")
+        ## }
         ## Set up the quadratic objective
         quadMats <- list()
         quadMats$q <- -2 * c(t(drX) %*% drY) / drN
         quadMats$q <- c(quadMats$q, rep(0, ncol(AA)))
+        if (rescale) {
+            quadMats$q <- quadMats$q / colNorms
+        }
         quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
                                                     ncol = ncol(AA),
                                                     nrow = ncol(AA)),
@@ -1870,7 +1891,7 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                                      STATS = colNorms, FUN = '/')
                 ## Adjust the quadratic constraint
                 R <- sweep(x = R, MARGIN = 2, STATS = colNorms, FUN = '/')
-            }            
+            }
             ## Set up the quadratic objective
             quadMats <- list()
             quadMats$q <- -2 * c(t(R) %*% t(Q) %*% drY) / drN
@@ -1878,14 +1899,32 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         } else if (direct == "qp2") { ## QR, auxiliary y = QRx = Ax
             ## Set up the decomposition constraint
             R <- drX
-            tmpI <- Matrix::Diagonal(drN)
-            tmpRhs <- rep(0, drN)
-            tmpSense <- rep("=", drN)
-            tmpUb <- rep(Inf, drN)
-            tmpLb <- rep(-Inf, drN)
+            tmpI <- Matrix::Diagonal(length(drY))
+            tmpRhs <- rep(0, length(drY))
+            tmpSense <- rep("=", length(drY))
+            tmpUb <- rep(Inf, length(drY))
+            tmpLb <- rep(-Inf, length(drY))
             colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
-                names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(drN))
+                names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(length(drY)))
+            ## Adjust for scaling if necessary
+            if (rescale) {
+                ## Rescaling by columns/variables
+                colNorms <- apply(R, MARGIN = 2, function(x) sqrt(sum(x^2)))
+                colNorms[colNorms == 0] <- 1
+                env$colNorms <- colNorms
+                ## Adjust the quadratic constraint
+                R <- sweep(x = R, MARGIN = 2, STATS = colNorms, FUN = '/')
+                ## Adjust the linear constraints
+                colNorms <- c(colNorms, rep(1, length(drY)))
+                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                     STATS = colNorms, FUN = '/')
+            }
             tmpA <- cbind(R, -tmpI)
+            ## if (rescale) {
+            ##     ## Rescaling by rows/constraints
+            ##     scale.mag <- apply(R, 1, magnitude.adjust)
+            ##     tmpA <- sweep(tmpA, 1, 10^scale.mag, "*")
+            ## }
             ## Set up the quadratic objective
             quadMats <- list()
             quadMats$q <- -2 * drY / drN
@@ -1893,7 +1932,7 @@ qpSetup <- function(env, sset, rescale = FALSE) {
             quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
                                                         ncol = ncol(drX),
                                                         nrow = ncol(drX)),
-                                         Matrix::Diagonal(drN)) / drN
+                                         Matrix::Diagonal(length(drY))) / drN
         } else if (direct == "qp3") { ## QR, auxiliary y = Rx
             ## Set up the decomposition constraint
             qr.X <- qr(drX, tol = 1e-16)
@@ -1906,7 +1945,25 @@ qpSetup <- function(env, sset, rescale = FALSE) {
             tmpLb <- rep(-Inf, ncol(drX))
             colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
                 names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(ncol(drX)))
+            ## Adjust for scaling if necessary
+            if (rescale) {
+                ## Rescaling by columns/variables
+                colNorms <- apply(R, MARGIN = 2, function(x) sqrt(sum(x^2)))
+                colNorms[colNorms == 0] <- 1
+                env$colNorms <- colNorms
+                ## Adjust the quadratic constraint
+                R <- sweep(x = R, MARGIN = 2, STATS = colNorms, FUN = '/')
+                ## Adjust the linear constraints
+                colNorms <- c(colNorms, rep(1, length(colNorms)))
+                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                     STATS = colNorms, FUN = '/')
+            }
             tmpA <- cbind(R, -tmpI)
+            ## if (rescale) {
+            ##     ## Rescaling by rows/constraints
+            ##     scale.mag <- apply(R, 1, magnitude.adjust)
+            ##     tmpA <- sweep(tmpA, 1, 10^scale.mag, "*")
+            ## }
             ## Set up the quadratic objective
             quadMats <- list()
             quadMats$q <- -2 * c(t(Q) %*% drY) / drN
@@ -2025,9 +2082,6 @@ qpSetupBound <- function(env, g0, g1,
 #' environment variable, under the entry \code{$model}. See
 #' \code{\link{lpSetup}}.
 #' @param env The LP environment
-#' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QP/QCP
-#'     optimization.
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
 #' @export
@@ -2088,4 +2142,51 @@ matrixTriplets <- function(mat, lower = TRUE) {
                 values = values,
                 dim = dim,
                 lower = lower))
+}
+
+#' Function to automatically adjust magnitudes
+#'
+#' This function will scale a vector of coefficients to try satisfy
+#' Gurobi's scaling guidelines. It first checks the range of
+#' magnitudes, and then rescales accordingly. Gurobi suggest the range
+#' of coefficients should be within 6 orders of magnitude, and
+#' hopefully within [1e-3, 1e+6]. Note that this function cannot
+#' reduce the range of the magnitudes. It can only shift them to avoid
+#' tiny entries.
+#'
+#' @param x Vector to be rescaled
+#' @param return.x Boolean, determine if a rescaled vector should be
+#'     returned, or just the magnitude the vector should be scaled by.
+#' @return Either a rescaled vector, or the magnitude the vector
+#'     should be rescaled by.
+magnitude.adjust <- function(x, return.x = FALSE, tol = 1e-16) {
+    ## Zero out values that fall below the tolerance
+    x[abs(x) < tol] <- 0
+    ## Adjust magnitudes
+    if (all(x == 0)) {
+        if (return.x)  return(x)
+        if (!return.x) return(-Inf)
+    }
+    ## Check range
+    mag.min <- min(magnitude(x), na.rm = TRUE)
+    mag.max <- max(magnitude(x), na.rm = TRUE)
+    range <- mag.max - mag.min
+    if (range <= 9) {
+        ## If range is below 9, then scale up constraint so minimum
+        ## magnitude is of order -3
+        mag.min.diff <- -3 - mag.min
+        if (mag.min.diff != 0) {
+            if (return.x)  return(x * 10^mag.min.diff)
+            if (!return.x) return(mag.min.diff)
+        } else {
+            if (return.x)  return(x)
+            if (!return.x) return(0)
+        }
+    } else {
+        ## If range exceeds 9, then scale up the constraint by its average
+        ## magnitude
+        mag.mean <- mean(magnitude(x), na.rm = TRUE)
+        if (return.x)  return(x * 10^(-mag.mean))
+        if (!return.x) return(-mag.mean)
+    }
 }
