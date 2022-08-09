@@ -37,7 +37,7 @@
 #' @param qp boolean, set to \code{TRUE} if the direct MTR
 #'     regression via QP is used.
 #' @param rescale boolean, set to \code{TRUE} if the MTR components
-#'     should be rescaled to improve stability in the LP/QCQP
+#'     should be rescaled to improve stability in the QCQP
 #'     optimization.
 #' @param solver string, name of the package used to solve the LP/QCQP
 #'     problem.
@@ -154,8 +154,8 @@
 #' @export
 lpSetup <- function(env, sset, orig.sset = NULL,
                     equal.coef0 = NULL, equal.coef1 = NULL,
-                    shape = TRUE, qp = FALSE, rescale = TRUE,
-                    solver) {
+                    shape = TRUE, qp = FALSE, solver) {
+    print("WHY DO YOU NEED TEH QP ARGUMENT in lpsSetup? You can determine it from env$direct.")
     ## Read in constraint grids and sequences
     solver <- tolower(solver)
     for (i in names(env$shapeSeq)) {
@@ -336,31 +336,6 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ## Note: Auxliary variables for the QP approach are defined in
     ## qpSetup.
     ##
-    ## Rescale if desired
-    print("CHECK RESCALING FOR QP")
-    if (qp && rescale) {
-        ## Rescale linear constraints
-        colNorms0 <- apply(sset$s1$g0, MARGIN = 2, function(x) sqrt(sum(x^2)))
-        colNorms1 <- apply(sset$s1$g1, MARGIN = 2, function(x) sqrt(sum(x^2)))
-        colNorms <- c(colNorms0, colNorms1)
-        rm(colNorms0, colNorms1)
-        colNorms[colNorms == 0] <- 1
-
-        print('dim of mbA')
-        print(dim(mbA))
-        print(length(colNorms))
-        print("YOU WERE LOOPING THE RESCALE VALUES! THAT IS INCORRECT")
-        print('pre scale')
-        print(mbA[0:10, 1:10])
-        print(mbA[0:88, 14:26])
-        mbA[, 1:(gn0 + gn1)]  <- sweep(x = mbA[, 1:(gn0 + gn1)],
-                                       MARGIN = 2,
-                                       STATS = colNorms,
-                                       FUN = '/')
-        print('post scale')
-        print(mbA[0:10, 1:10])
-        env$colNorms <- colNorms
-    }
     ## Convert into sparse matrix
     if (solver %in% c("gurobi", "lpsolveapi")) {
         mbA <- Matrix::Matrix(mbA, sparse = TRUE)
@@ -914,9 +889,11 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
     names(g0sol) <- names(sset$gstar$g0)
     names(g1sol) <- names(sset$gstar$g1)
     if (rescale) {
-        g0sol <- g0sol / env$colNorms[1:ncol(sset$s1$g0)]
-        g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
-                                      (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
+        if (env$direct %in% c("qp0", "qp1")) {
+            g0sol <- g0sol / env$colNorms[1:ncol(sset$s1$g0)]
+            g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
+                                          (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
+        }
     }
     output <- list(obj = obseqmin,
                    x = optx,
@@ -1189,12 +1166,14 @@ bound <- function(env, sset, solver,
                      (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
     ## Undo the rescaling
     if (rescale) {
-        ming0 <- ming0 / env$colNorms[1:ncol(sset$s1$g0)]
-        ming1 <- ming1 / env$colNorms[(ncol(sset$s1$g0) + 1):
-                                      (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
-        maxg0 <- maxg0 / env$colNorms[1:ncol(sset$s1$g0)]
-        maxg1 <- maxg1 / env$colNorms[(ncol(sset$s1$g0) + 1):
-                                      (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
+        if (env$direct %in% c("qp0", "qp1")) {
+            ming0 <- ming0 / env$colNorms[1:ncol(sset$s1$g0)]
+            ming1 <- ming1 / env$colNorms[(ncol(sset$s1$g0) + 1):
+                                          (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
+            maxg0 <- maxg0 / env$colNorms[1:ncol(sset$s1$g0)]
+            maxg1 <- maxg1 / env$colNorms[(ncol(sset$s1$g0) + 1):
+                                          (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
+        }
     }
     if (hasArg(sset)) {
         names(ming0) <- names(sset$s1$g0)
@@ -1230,7 +1209,9 @@ bound <- function(env, sset, solver,
                    minruntime = runtime.min,
                    error = FALSE)
     if (rescale) {
-        output$norms <- env$colNorms
+        if (env$direct %in% c("qp0", "qp1")) {
+            output$norms <- env$colNorms
+        }
     }
     if (!smallreturnlist) {
         if (solver != 'rmosek') output$model = env$model
@@ -1801,16 +1782,17 @@ optionsCplexAPITol <- function(options) {
 #'     should be rescaled to improve stability in the LP/QP/QCP
 #'     optimization.
 #' @export
-qpSetup <- function(env, sset, rescale = TRUE) {
+qpSetup <- function(env, sset, rescale = FALSE) {
     ## Determine what decomposition to use
     direct <- env$direct
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
     drN <- length(drY)
+    ## Rescale some matrices for qp0 and qp1
     if (rescale) {
-        drX <- sweep(x = drX, MARGIN = 2, STATS = env$colNorms, FUN = '/')
         normY <- sqrt(sum(drY^2))
+        env$normY <- normY
         drN <- drN * normY
     }
     ## Store the SSY
@@ -1819,15 +1801,24 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$drY <- drY
     env$drX <- drX
     env$drN <- drN
-    if (rescale) env$normY <- normY
     ## Implement decomposition for numerical stability
-
     if (direct == "qp0") {
         ## No decomposition constraints/auxiliary variables to set up
         tmpA <- NULL
         tmpRhs <- NULL
         tmpSense <- NULL
         tmpUb <- tmpLb <- NULL
+        ## Adjust for scaling if necessary
+        if (rescale) {
+            colNorms <- apply(drX, MARGIN = 2, function(x) sqrt(sum(x^2)))
+            colNorms[colNorms == 0] <- 1
+            env$colNorms <- colNorms
+            ## Adjust the linear constraints
+            env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                 STATS = colNorms, FUN = '/')
+            ## Adjust the quadratic constraint
+            drX <- sweep(x = drX, MARGIN = 2, STATS = colNorms, FUN = '/')
+        }
         ## Set up the quadratic objective
         quadMats <- list()
         quadMats$q <- -2 * c(t(drX) %*% drY) / drN
@@ -1869,6 +1860,17 @@ qpSetup <- function(env, sset, rescale = TRUE) {
             tmpRhs <- NULL
             tmpSense <- NULL
             tmpUb <- tmpLb <- NULL
+            ## Adjust for scaling if necessary
+            if (rescale) {
+                colNorms <- apply(R, MARGIN = 2, function(x) sqrt(sum(x^2)))
+                colNorms[colNorms == 0] <- 1
+                env$colNorms <- colNorms
+                ## Adjust the linear constraints
+                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                     STATS = colNorms, FUN = '/')
+                ## Adjust the quadratic constraint
+                R <- sweep(x = R, MARGIN = 2, STATS = colNorms, FUN = '/')
+            }            
             ## Set up the quadratic objective
             quadMats <- list()
             quadMats$q <- -2 * c(t(R) %*% t(Q) %*% drY) / drN
@@ -2029,7 +2031,7 @@ qpSetupBound <- function(env, g0, g1,
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
 #' @export
-qpSetupInfeasible <- function(env, rescale) {
+qpSetupInfeasible <- function(env) {
     ## Separate shape constraint objects
     env$mbobj$mbA <- env$model$A
     env$mbobj$mbrhs <- env$model$rhs

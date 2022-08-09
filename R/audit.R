@@ -513,7 +513,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     }
     lpSetup(env = modelEnv, sset = sset, orig.sset = NULL,
             equal.coef0 = equal.coef0, equal.coef1 = equal.coef1,
-            solver = solver, qp = qp.switch, rescale = rescale)
+            solver = solver, qp = qp.switch)
     ## Setup QCQP problem
     if (qp.switch) qpSetup(env = modelEnv, sset = sset, rescale = rescale)
     ## Prepare solver messages
@@ -636,7 +636,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             if (!qp.switch) {
                 lpSetupInfeasible(modelEnv, sset)
             } else {
-                qpSetupInfeasible(modelEnv, rescale)
+                qpSetupInfeasible(modelEnv)
             }
             if (solver == "gurobi") {
                 if (debug && solver.options.criterion$outputflag == 1) {
