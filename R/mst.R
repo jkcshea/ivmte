@@ -493,7 +493,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 direct <- "qp"
             }
             direct <- tolower(direct)
-            if (direct %in% c("qp", "qp0", "qp1", "qp2", "qp3", "qp4")) {
+            if (direct %in% c("qp", "qp0", "qp1", "qp2", "qp3", "qp4", "qp5")) {
                 qp.switch <- TRUE
                 if (direct == "qp") direct <- "qp0"
             } else if (direct %in% c("lp", "lp0", "lp1", "lp2", "lp3", "lp4")) {
@@ -501,12 +501,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 if (direct == "lp") direct <- "lp0"
             } else {
                 stop(gsub("\\s+", " ",
-                          paste0("The 'direct' argument must either be 'LP' or
-                                 'QP'. Set 'direct' to 'LP' if the direct
-                                 regression should be performed via a
-                                 linear program. Set 'direct' to 'QP' if the
-                                 direct regression should be performed via
-                                 a quadratic program.")),
+                          paste0("The 'direct' argument must either be
+                                 'lp0', ..., 'lp4' for regressions performed
+                                 via a linear program;
+                                 or
+                                 'qp0', ..., 'qp5' for regressions performed
+                                 via a quadratically constrained quadratic
+                                 program.")),
                      call. = FALSE)
             }
         }

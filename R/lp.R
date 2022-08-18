@@ -183,6 +183,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ## qp2: QP problem, QR decomposition, auxiliary y = QRx.
     ## qp3: QP problem, QR decomposition, auxiliary y = Rx.
     ## qp4: QP problem, Cholesky decomposition, y = chol(AA)x.
+    ## qp5: QP problem, rescale by row and columns
     if (!qp) {
         ## Determine lengths
         sn <- length(sset)
@@ -268,7 +269,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
             tmp.zero1 <- Matrix::Matrix(0,
                                         nrow = nrow(env$mbobj$mbA),
                                         ncol = gny)
-        } else if (direct %in% c("qp0", "qp1")) {
+        } else if (direct %in% c("qp0", "qp1", "qp5")) {
             tmp.zero1 <- NULL
         } else if (direct == "qp2") {
             tmp.zero1 <- Matrix::Matrix(0,
@@ -304,7 +305,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
                                paste0("yhat.", seq(gny)))
         }
     } else {
-        if (direct %in% c("qp0", "qp1")) {
+        if (direct %in% c("qp0", "qp1", "qp5")) {
             colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1))
         } else if (direct == "qp2") {
             colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1),
@@ -889,7 +890,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
     names(g0sol) <- names(sset$gstar$g0)
     names(g1sol) <- names(sset$gstar$g1)
     if (rescale) {
-        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4")) {
+        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4", "qp5")) {
             g0sol <- g0sol / env$colNorms[1:ncol(sset$s1$g0)]
             g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
                                           (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
@@ -1166,7 +1167,7 @@ bound <- function(env, sset, solver,
                      (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
     ## Undo the rescaling
     if (rescale) {
-        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4")) {
+        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4", "qp5")) {
             ming0 <- ming0 / env$colNorms[1:ncol(sset$s1$g0)]
             ming1 <- ming1 / env$colNorms[(ncol(sset$s1$g0) + 1):
                                           (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
@@ -1209,7 +1210,7 @@ bound <- function(env, sset, solver,
                    minruntime = runtime.min,
                    error = FALSE)
     if (rescale) {
-        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4")) {
+        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4", "qp5")) {
             output$norms <- env$colNorms
         }
     }
@@ -1871,6 +1872,38 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                                                     ncol = ncol(AA),
                                                     nrow = ncol(AA)),
                                      Matrix::Diagonal(ncol(AA))) / drN
+    } else if (direct == "qp5") {
+        ## No decomposition constraints/auxiliary variables to set up
+        tmpA <- NULL
+        tmpRhs <- NULL
+        tmpSense <- NULL
+        tmpUb <- tmpLb <- NULL
+        ## Adjust for scaling if necessary
+        if (rescale) {
+            mag.lb <- -3 ## Default for minimum magnitude
+            colNorms <- apply(env$model$A, 2, function(x) {
+                min(magnitude(x), na.rm = TRUE)
+            })
+            rowNorms <- apply(env$model$A, 1, function(x) {
+                min(magnitude(x), na.rm = TRUE)
+            })
+            colNorms <- 10^(-mag.lb + colNorms)
+            rowNorms <- 10^(-mag.lb + rowNorms)
+            env$colNorms <- colNorms
+            env$rowNorms <- rowNorms
+            ## Adjust the linear constraints
+            env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                 STATS = colNorms, FUN = '/')
+            env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                 STATS = rowNorms, FUN = '/')
+            env$model$rhs <- env$model$rhs / rowNorms
+            ## Adjust the quadratic constraint
+            drX <- sweep(x = drX, MARGIN = 2, STATS = colNorms, FUN = '/')
+        }
+        ## Set up the quadratic objective
+        quadMats <- list()
+        quadMats$q <- -2 * c(t(drX) %*% drY) / drN
+        quadMats$Qc <- t(drX) %*% drX / drN
     } else {
         qr.X <- qr(drX, tol = 1e-16)
         Q <- qr.Q(qr.X)
@@ -1935,9 +1968,6 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                                          Matrix::Diagonal(length(drY))) / drN
         } else if (direct == "qp3") { ## QR, auxiliary y = Rx
             ## Set up the decomposition constraint
-            qr.X <- qr(drX, tol = 1e-16)
-            Q <- qr.Q(qr.X)
-            R <- qr.R(qr.X)[, sort.list(qr.X$pivot)]
             tmpI <- Matrix::Diagonal(ncol(drX))
             tmpRhs <- rep(0, ncol(drX))
             tmpSense <- rep("=", ncol(drX))
@@ -1953,6 +1983,9 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 env$colNorms <- colNorms
                 ## Adjust the quadratic constraint
                 R <- sweep(x = R, MARGIN = 2, STATS = colNorms, FUN = '/')
+                ## TESTING ---------------
+                saveRDS(R, "R.rds")
+                ## END TESTING -----------
                 ## Adjust the linear constraints
                 colNorms <- c(colNorms, rep(1, length(colNorms)))
                 env$model$A <- sweep(x = env$model$A, MARGIN = 2,
@@ -2044,7 +2077,7 @@ qpSetupBound <- function(env, g0, g1,
                 env$model$obj <- env$model$obj / c(env$colNorms,
                                                    rep(1, ncol(env$drX)))
             }
-        } else if (direct %in% c("qp0", "qp1")) {
+        } else if (direct %in% c("qp0", "qp1", "qp5")) {
             env$model$obj <- c(g0, g1)
             if (rescale) {
                 env$model$obj <- env$model$obj / env$colNorms
