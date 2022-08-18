@@ -1878,15 +1878,22 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         tmpRhs <- NULL
         tmpSense <- NULL
         tmpUb <- tmpLb <- NULL
+        ## TESTING ---------------------
+        ## print("get rid of this save stuff in lp.R")
+        ## saveRDS(env$model$A, "tmpA.rds")
+        ## stop('end of test')
+        ## END TESTING ------------------
         ## Adjust for scaling if necessary
         if (rescale) {
             mag.lb <- -3 ## Default for minimum magnitude
             colNorms <- apply(env$model$A, 2, function(x) {
-                min(magnitude(x), na.rm = TRUE)
+                suppressWarnings(min(magnitude(x), na.rm = TRUE))
             })
             rowNorms <- apply(env$model$A, 1, function(x) {
-                min(magnitude(x), na.rm = TRUE)
+                suppressWarnings(min(magnitude(x), na.rm = TRUE))
             })
+            colNorms[colNorms == Inf] <- mag.lb
+            rowNorms[rowNorms == Inf] <- mag.lb
             colNorms <- 10^(-mag.lb + colNorms)
             rowNorms <- 10^(-mag.lb + rowNorms)
             env$colNorms <- colNorms

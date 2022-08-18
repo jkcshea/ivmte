@@ -1665,7 +1665,7 @@ statusString <- function(status, solver) {
 
 
 #' Function to generate a matrix of zeroes to exand the initial grid
-#' used in the audit. THe number of columns is equal to the number of
+#' used in the audit. The number of columns is equal to the number of
 #' auxiliary variables generated, which depends on the decomposition
 #' approach used to improve numerical stability.
 #'
@@ -1674,7 +1674,7 @@ statusString <- function(status, solver) {
 #' @param nrow Integer, number of rows the matrix should have.
 #' @return A matrix of zeroes.
 aux.A <- function(direct, sset, nrow) {
-    if (direct %in% c("moments", "lp0", "lp1", "qp0", "qp1")) {
+    if (direct %in% c("moments", "lp0", "lp1", "qp0", "qp1", "qp5")) {
         tmpA <- NULL
     } else if (direct %in% c("lp2", "lp3", "lp4")) {
         tmpA <- Matrix::Matrix(0,
