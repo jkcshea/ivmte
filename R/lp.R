@@ -1886,24 +1886,44 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         ## Adjust for scaling if necessary
         if (rescale) {
             mag.lb <- -3 ## Default for minimum magnitude
-            colNorms <- apply(env$model$A, 2, function(x) {
-                suppressWarnings(min(magnitude(x), na.rm = TRUE))
-            })
-            rowNorms <- apply(env$model$A, 1, function(x) {
-                suppressWarnings(min(magnitude(x), na.rm = TRUE))
-            })
-            colNorms[colNorms == Inf] <- mag.lb
-            rowNorms[rowNorms == Inf] <- mag.lb
-            colNorms <- 10^(-mag.lb + colNorms)
-            rowNorms <- 10^(-mag.lb + rowNorms)
+            colFirst <- TRUE ## Default for scaling columns first
+            if (colFirst) {
+                ## Scale columns and then rows
+                colNorms <- apply(env$model$A, 2, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                colNorms[colNorms == Inf] <- mag.lb
+                colNorms <- 10^(-mag.lb + colNorms)
+                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                     STATS = colNorms, FUN = '/')
+                rowNorms <- apply(env$model$A, 1, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                rowNorms[rowNorms == Inf] <- mag.lb
+                rowNorms <- 10^(-mag.lb + rowNorms)
+                env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                     STATS = rowNorms, FUN = '/')
+                env$model$rhs <- env$model$rhs / rowNorms
+            } else {
+                ## Scale rows and then columns
+                rowNorms <- apply(env$model$A, 1, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                rowNorms[rowNorms == Inf] <- mag.lb
+                rowNorms <- 10^(-mag.lb + rowNorms)
+                env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                     STATS = rowNorms, FUN = '/')
+                env$model$rhs <- env$model$rhs / rowNorms
+                colNorms <- apply(env$model$A, 2, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                colNorms[colNorms == Inf] <- mag.lb
+                colNorms <- 10^(-mag.lb + colNorms)
+                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                     STATS = colNorms, FUN = '/')
+            }
             env$colNorms <- colNorms
             env$rowNorms <- rowNorms
-            ## Adjust the linear constraints
-            env$model$A <- sweep(x = env$model$A, MARGIN = 2,
-                                 STATS = colNorms, FUN = '/')
-            env$model$A <- sweep(x = env$model$A, MARGIN = 1,
-                                 STATS = rowNorms, FUN = '/')
-            env$model$rhs <- env$model$rhs / rowNorms
             ## Adjust the quadratic constraint
             drX <- sweep(x = drX, MARGIN = 2, STATS = colNorms, FUN = '/')
         }
