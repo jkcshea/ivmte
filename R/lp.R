@@ -1802,6 +1802,10 @@ qpSetup <- function(env, sset, rescale = FALSE) {
     env$drY <- drY
     env$drX <- drX
     env$drN <- drN
+    ## Defaults for rescaling (minimum magnitude, and whether columns
+    ## should be rescaled before rows)
+    mag.lb <- -3
+    colFirst <- TRUE
     ## Implement decomposition for numerical stability
     if (direct == "qp0") {
         ## No decomposition constraints/auxiliary variables to set up
@@ -1811,82 +1815,6 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         tmpUb <- tmpLb <- NULL
         ## Adjust for scaling if necessary
         if (rescale) {
-            colNorms <- apply(drX, MARGIN = 2, function(x) sqrt(sum(x^2)))
-            colNorms[colNorms == 0] <- 1
-            env$colNorms <- colNorms
-            ## Adjust the linear constraints
-            env$model$A <- sweep(x = env$model$A, MARGIN = 2,
-                                 STATS = colNorms, FUN = '/')
-            ## Adjust the quadratic constraint
-            drX <- sweep(x = drX, MARGIN = 2, STATS = colNorms, FUN = '/')
-        }
-        ## Set up the quadratic objective
-        quadMats <- list()
-        quadMats$q <- -2 * c(t(drX) %*% drY) / drN
-        quadMats$Qc <- t(drX) %*% drX / drN
-    } else if (direct == "qp4") { ## Cholesky decomposition
-        ## Set up the decomposition constraint
-        AA <- t(drX) %*% drX
-        decompAA <- suppressWarnings(chol(AA, pivot = TRUE))
-        cholRank <- attr(decompAA, 'rank')
-        if (cholRank < nrow(AA)) {
-            decompAA[(cholRank + 1):nrow(decompAA),
-            (cholRank + 1):nrow(decompAA)] <- 0
-        }
-        cholOrder <- order(attr(decompAA, 'pivot'))
-        decompAA <- Matrix::Matrix(decompAA)[, cholOrder]
-        tmpI <- Matrix::Diagonal(ncol(AA))
-        tmpRhs <- rep(0, ncol(AA))
-        tmpSense <- rep("=", ncol(AA))
-        tmpUb <- rep(Inf, ncol(AA))
-        tmpLb <- rep(-Inf, ncol(AA))
-        colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
-            names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(ncol(AA)))
-        ## Adjust for scaling if necessary
-        if (rescale) {
-            ## Rescaling by columns/variables
-            colNorms <- apply(decompAA, MARGIN = 2, function(x) sqrt(sum(x^2)))
-            colNorms[colNorms == 0] <- 1
-            env$colNorms <- colNorms
-            ## Adjust the quadratic constraint
-            decompAA <- sweep(x = decompAA, MARGIN = 2, STATS = colNorms, FUN = '/')
-            ## Adjust the linear constraints
-            colNorms <- c(colNorms, rep(1, length(colNorms)))
-            env$model$A <- sweep(x = env$model$A, MARGIN = 2,
-                                 STATS = colNorms, FUN = '/')
-        }
-        tmpA <- cbind(decompAA, -tmpI)
-        ## if (rescale) {
-        ##     ## Rescaling by rows/constraints
-        ##     scale.mag <- apply(decompAA, 1, magnitude.adjust)
-        ##     tmpA <- sweep(tmpA, 1, 10^scale.mag, "*")
-        ## }
-        ## Set up the quadratic objective
-        quadMats <- list()
-        quadMats$q <- -2 * c(t(drX) %*% drY) / drN
-        quadMats$q <- c(quadMats$q, rep(0, ncol(AA)))
-        if (rescale) {
-            quadMats$q <- quadMats$q / colNorms
-        }
-        quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
-                                                    ncol = ncol(AA),
-                                                    nrow = ncol(AA)),
-                                     Matrix::Diagonal(ncol(AA))) / drN
-    } else if (direct == "qp5") {
-        ## No decomposition constraints/auxiliary variables to set up
-        tmpA <- NULL
-        tmpRhs <- NULL
-        tmpSense <- NULL
-        tmpUb <- tmpLb <- NULL
-        ## TESTING ---------------------
-        ## print("get rid of this save stuff in lp.R")
-        ## saveRDS(env$model$A, "tmpA.rds")
-        ## stop('end of test')
-        ## END TESTING ------------------
-        ## Adjust for scaling if necessary
-        if (rescale) {
-            mag.lb <- -3 ## Default for minimum magnitude
-            colFirst <- TRUE ## Default for scaling columns first
             if (colFirst) {
                 ## Scale columns and then rows
                 colNorms <- apply(env$model$A, 2, function(x) {
@@ -1931,6 +1859,107 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         quadMats <- list()
         quadMats$q <- -2 * c(t(drX) %*% drY) / drN
         quadMats$Qc <- t(drX) %*% drX / drN
+    } else if (direct == "qp4") { ## Cholesky decomposition
+        ## Set up the decomposition constraint
+        AA <- t(drX) %*% drX
+        decompAA <- suppressWarnings(chol(AA, pivot = TRUE))
+        cholRank <- attr(decompAA, 'rank')
+        if (cholRank < nrow(AA)) {
+            decompAA[(cholRank + 1):nrow(decompAA),
+            (cholRank + 1):nrow(decompAA)] <- 0
+        }
+        cholOrder <- order(attr(decompAA, 'pivot'))
+        decompAA <- Matrix::Matrix(decompAA)[, cholOrder]
+        tmpI <- Matrix::Diagonal(ncol(AA))
+        tmpRhs <- rep(0, ncol(AA))
+        tmpSense <- rep("=", ncol(AA))
+        tmpUb <- rep(Inf, ncol(AA))
+        tmpLb <- rep(-Inf, ncol(AA))
+        colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
+            names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(ncol(AA)))
+        ## Prepare placeholds for rescaling
+        tmpA <- cbind(decompAA, -tmpI)
+        ncR <- ncol(decompAA)
+        colFirst <- TRUE
+        ## Adjust for scaling if necessary
+        if (rescale) {
+            ## Zero out entries in decompAA smaller than 1e-13
+            decompAA <- apply(decompAA, 2, function(x) {
+                x[abs(x) < 1e-13] <- 0
+                x
+            })
+            if (colFirst) {
+                ## Scale columns and then rows
+                tmpNormA <- env$model$A[, 1:ncR]
+                tmpNormA <- rbind(decompAA, tmpNormA)
+                colNorms <- apply(tmpNormA, 2, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                colNorms[colNorms == Inf] <- mag.lb
+                colNorms <- 10^(-mag.lb + colNorms)
+                colNorms <- c(colNorms, rep(1, length(colNorms)))
+                ## colNorms <- rep(1, length(colNorms)) ## TESTING
+                env$model$A <- rbind(env$model$A, tmpA)
+                env$model$rhs <- c(env$model$rhs, tmpRhs)
+                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                     STATS = colNorms, FUN = '/')
+                rowNorms <- apply(env$model$A, 1, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                print(table(rowNorms))
+                rowNorms[rowNorms == Inf] <- mag.lb
+                rowNorms <- 10^(-mag.lb + rowNorms)
+                ## rowNorms <- rep(1, length(rowNorms)) ## TESTING
+                env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                     STATS = rowNorms, FUN = '/')
+                env$model$rhs <- env$model$rhs / rowNorms
+            } else {
+                ## Scale rows and then columns
+                env$model$A <- rbind(env$model$A, tmpA)
+                env$model$rhs <- c(env$model$rhs, tmpRhs)
+                rowNorms <- apply(env$model$A, 1, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                rowNorms[rowNorms == Inf] <- mag.lb
+                rowNorms <- 10^(-mag.lb + rowNorms)
+                ## rowNorms <- rep(1, length(rowNorms)) ## TESTING
+                env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                     STATS = rowNorms, FUN = '/')
+                env$model$rhs <- env$model$rhs / rowNorms
+                colNorms <- apply(env$model$A, 2, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                colNorms[colNorms == Inf] <- mag.lb
+                colNorms <- 10^(-mag.lb + colNorms)
+                ## colNorms <- rep(1, length(colNorms)) ## TESTING
+                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                     STATS = colNorms, FUN = '/')
+            }
+            env$colNorms <- colNorms[1:ncR]
+            env$rowNorms <- rowNorms[1:ncR]
+            ## Adjust the quadratic constraint
+            drX <- sweep(x = drX, MARGIN = 2,
+                         STATS = colNorms[1:ncR], FUN = '/')
+        } else {
+            ## Add constraints for auxiliary variables
+            env$model$A <- rbind(env$model$A, tmpA)
+            env$model$rhs <- c(env$model$rhs, tmpRhs)
+        }
+
+        ## Set up the quadratic objective
+        quadMats <- list()
+        quadMats$q <- -2 * c(t(drX) %*% drY) / drN
+        quadMats$q <- c(quadMats$q, rep(0, ncol(AA)))
+        if (rescale) {
+            quadMats$q <- quadMats$q / colNorms
+        }
+        quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
+                                                    ncol = ncol(AA),
+                                                    nrow = ncol(AA)),
+                                     Matrix::Diagonal(ncol(AA))) / drN
+
+
+
     } else {
         qr.X <- qr(drX, tol = 1e-16)
         Q <- qr.Q(qr.X)
@@ -1943,12 +1972,43 @@ qpSetup <- function(env, sset, rescale = FALSE) {
             tmpUb <- tmpLb <- NULL
             ## Adjust for scaling if necessary
             if (rescale) {
-                colNorms <- apply(R, MARGIN = 2, function(x) sqrt(sum(x^2)))
-                colNorms[colNorms == 0] <- 1
+                if (colFirst) {
+                    ## Scale columns and then rows
+                    colNorms <- apply(env$model$A, 2, function(x) {
+                        suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                    })
+                    colNorms[colNorms == Inf] <- mag.lb
+                    colNorms <- 10^(-mag.lb + colNorms)
+                    env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                         STATS = colNorms, FUN = '/')
+                    rowNorms <- apply(env$model$A, 1, function(x) {
+                        suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                    })
+                    rowNorms[rowNorms == Inf] <- mag.lb
+                    rowNorms <- 10^(-mag.lb + rowNorms)
+                    env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                         STATS = rowNorms, FUN = '/')
+                    env$model$rhs <- env$model$rhs / rowNorms
+                } else {
+                    ## Scale rows and then columns
+                    rowNorms <- apply(env$model$A, 1, function(x) {
+                        suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                    })
+                    rowNorms[rowNorms == Inf] <- mag.lb
+                    rowNorms <- 10^(-mag.lb + rowNorms)
+                    env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                         STATS = rowNorms, FUN = '/')
+                    env$model$rhs <- env$model$rhs / rowNorms
+                    colNorms <- apply(env$model$A, 2, function(x) {
+                        suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                    })
+                    colNorms[colNorms == Inf] <- mag.lb
+                    colNorms <- 10^(-mag.lb + colNorms)
+                    env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                         STATS = colNorms, FUN = '/')
+                }
                 env$colNorms <- colNorms
-                ## Adjust the linear constraints
-                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
-                                     STATS = colNorms, FUN = '/')
+                env$rowNorms <- rowNorms
                 ## Adjust the quadratic constraint
                 R <- sweep(x = R, MARGIN = 2, STATS = colNorms, FUN = '/')
             }
@@ -1956,8 +2016,11 @@ qpSetup <- function(env, sset, rescale = FALSE) {
             quadMats <- list()
             quadMats$q <- -2 * c(t(R) %*% t(Q) %*% drY) / drN
             quadMats$Qc <- t(R) %*% R / drN
+            ## Add constraints for auxiliary variables
+            env$model$A <- rbind(env$model$A, tmpA)
         } else if (direct == "qp2") { ## QR, auxiliary y = QRx = Ax
             ## Set up the decomposition constraint
+            stop("QP2 is no longer supported")
             R <- drX
             tmpI <- Matrix::Diagonal(length(drY))
             tmpRhs <- rep(0, length(drY))
@@ -1980,11 +2043,6 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                                      STATS = colNorms, FUN = '/')
             }
             tmpA <- cbind(R, -tmpI)
-            ## if (rescale) {
-            ##     ## Rescaling by rows/constraints
-            ##     scale.mag <- apply(R, 1, magnitude.adjust)
-            ##     tmpA <- sweep(tmpA, 1, 10^scale.mag, "*")
-            ## }
             ## Set up the quadratic objective
             quadMats <- list()
             quadMats$q <- -2 * drY / drN
@@ -2002,28 +2060,75 @@ qpSetup <- function(env, sset, rescale = FALSE) {
             tmpLb <- rep(-Inf, ncol(drX))
             colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
                 names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(ncol(drX)))
-            ## Adjust for scaling if necessary
-            if (rescale) {
-                ## Rescaling by columns/variables
-                colNorms <- apply(R, MARGIN = 2, function(x) sqrt(sum(x^2)))
-                colNorms[colNorms == 0] <- 1
-                env$colNorms <- colNorms
-                ## Adjust the quadratic constraint
-                R <- sweep(x = R, MARGIN = 2, STATS = colNorms, FUN = '/')
-                ## TESTING ---------------
-                saveRDS(R, "R.rds")
-                ## END TESTING -----------
-                ## Adjust the linear constraints
-                colNorms <- c(colNorms, rep(1, length(colNorms)))
-                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
-                                     STATS = colNorms, FUN = '/')
-            }
+            ## Zero out entries in R smaller than 1e-13
+            R <- apply(R, 2, function(x) {
+                x[abs(x) < 1e-13] <- 0
+                x
+            })
+            ## Prepare placeholds for rescaling
             tmpA <- cbind(R, -tmpI)
-            ## if (rescale) {
-            ##     ## Rescaling by rows/constraints
-            ##     scale.mag <- apply(R, 1, magnitude.adjust)
-            ##     tmpA <- sweep(tmpA, 1, 10^scale.mag, "*")
-            ## }
+            ncR <- ncol(R)
+            colFirst <- TRUE
+            if (rescale) {
+                if (colFirst) {
+                    ## Scale columns and then rows
+                    tmpNormA <- env$model$A[, 1:ncR]
+                    tmpNormA <- rbind(R, tmpNormA)
+                    colNorms <- apply(tmpNormA, 2, function(x) {
+                        suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                    })
+                    print(table(colNorms))
+                    colNorms[colNorms == Inf] <- mag.lb
+                    colNorms <- 10^(-mag.lb + colNorms)
+                    colNorms <- c(colNorms, rep(1, length(colNorms)))
+                    ## colNorms <- rep(1, length(colNorms)) ## TESTING
+                    env$model$A <- rbind(env$model$A, tmpA)
+                    env$model$rhs <- c(env$model$rhs, tmpRhs)
+                    env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                         STATS = colNorms, FUN = '/')
+                    rowNorms <- apply(env$model$A, 1, function(x) {
+                        suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                    })
+                    print(table(rowNorms))
+                    rowNorms[rowNorms == Inf] <- mag.lb
+                    rowNorms <- 10^(-mag.lb + rowNorms)
+                    ## rowNorms <- rep(1, length(rowNorms)) ## TESTING
+                    env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                         STATS = rowNorms, FUN = '/')
+                    env$model$rhs <- env$model$rhs / rowNorms
+                } else {
+                    ## Scale rows and then columns
+                    env$model$A <- rbind(env$model$A, tmpA)
+                    env$model$rhs <- c(env$model$rhs, tmpRhs)
+                    rowNorms <- apply(env$model$A, 1, function(x) {
+                        suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                    })
+                    rowNorms[rowNorms == Inf] <- mag.lb
+                    rowNorms <- 10^(-mag.lb + rowNorms)
+                    ## rowNorms <- rep(1, length(rowNorms)) ## TESTING
+                    env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                         STATS = rowNorms, FUN = '/')
+                    env$model$rhs <- env$model$rhs / rowNorms
+                    colNorms <- apply(env$model$A, 2, function(x) {
+                        suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                    })
+                    colNorms[colNorms == Inf] <- mag.lb
+                    colNorms <- 10^(-mag.lb + colNorms)
+                    ## colNorms <- rep(1, length(colNorms)) ## TESTING
+                    env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                         STATS = colNorms, FUN = '/')
+                }
+                env$colNorms <- colNorms[1:ncR]
+                env$rowNorms <- rowNorms[1:ncR]
+                ## Adjust the quadratic constraint
+                drX <- sweep(x = drX, MARGIN = 2,
+                             STATS = colNorms[1:ncR], FUN = '/')
+            } else {
+                ## Add constraints for auxiliary variables
+                env$model$A <- rbind(env$model$A, tmpA)
+                env$model$rhs <- c(env$model$rhs, tmpRhs)
+            }
+
             ## Set up the quadratic objective
             quadMats <- list()
             quadMats$q <- -2 * c(t(Q) %*% drY) / drN
@@ -2032,11 +2137,17 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                                                         ncol = ncol(drX),
                                                         nrow = ncol(drX)),
                                          Matrix::Diagonal(ncol(drX))) / drN
+            if (rescale && !colFirst) {
+                quadMats$q <- quadMats$q / colNorms
+                quadMats$Qc <-
+                    Matrix::bdiag(Matrix::Matrix(data = 0,
+                                                 ncol = ncol(drX),
+                                                 nrow = ncol(drX)),
+                                  Matrix::Diagonal(x = 1/colNorms[(ncR + 1):(2 * ncR)]^2)) / drN
+            }
         }
     }
-    ## Impose the decomposition constraints
-    env$model$A <- rbind(env$model$A, tmpA)
-    env$model$rhs <- c(env$model$rhs, tmpRhs)
+    ## Update remaining linear constraints
     env$model$sense <- c(env$model$sense, tmpSense)
     env$model$lb <- c(env$model$lb, tmpLb)
     env$model$ub <- c(env$model$ub, tmpUb)
