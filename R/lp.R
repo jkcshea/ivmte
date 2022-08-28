@@ -1881,7 +1881,7 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         tmpA <- cbind(decompAA, -tmpI)
         ncR <- ncol(decompAA)
         colFirst <- TRUE
-        ## Adjust for scaling if necessary
+        ## Adjust for scaling if desired
         if (rescale) {
             ## Zero out entries in decompAA smaller than 1e-13
             decompAA <- apply(decompAA, 2, function(x) {
@@ -1898,7 +1898,7 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 colNorms[colNorms == Inf] <- mag.lb
                 colNorms <- 10^(-mag.lb + colNorms)
                 colNorms <- c(colNorms, rep(1, length(colNorms)))
-                ## colNorms <- rep(1, length(colNorms)) ## TESTING
+                ## colNorms <- rep(1.1, length(colNorms)) ## TESTING
                 env$model$A <- rbind(env$model$A, tmpA)
                 env$model$rhs <- c(env$model$rhs, tmpRhs)
                 env$model$A <- sweep(x = env$model$A, MARGIN = 2,
@@ -1909,7 +1909,7 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 print(table(rowNorms))
                 rowNorms[rowNorms == Inf] <- mag.lb
                 rowNorms <- 10^(-mag.lb + rowNorms)
-                ## rowNorms <- rep(1, length(rowNorms)) ## TESTING
+                ## rowNorms <- rep(1.00001, length(rowNorms)) ## TESTING
                 env$model$A <- sweep(x = env$model$A, MARGIN = 1,
                                      STATS = rowNorms, FUN = '/')
                 env$model$rhs <- env$model$rhs / rowNorms
@@ -1950,14 +1950,20 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         quadMats <- list()
         quadMats$q <- -2 * c(t(drX) %*% drY) / drN
         quadMats$q <- c(quadMats$q, rep(0, ncol(AA)))
-        if (rescale) {
-            quadMats$q <- quadMats$q / colNorms
-        }
+        ## if (rescale) {
+        ##     quadMats$q <- quadMats$q / colNorms
+        ## }
         quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
                                                     ncol = ncol(AA),
                                                     nrow = ncol(AA)),
                                      Matrix::Diagonal(ncol(AA))) / drN
-
+        if (rescale && !colFirst) {
+            quadMats$Qc <-
+                Matrix::bdiag(Matrix::Matrix(data = 0,
+                                             ncol = ncol(drX),
+                                             nrow = ncol(drX)),
+                              Matrix::Diagonal(x = 1/colNorms[(ncR + 1):(2 * ncR)]^2)) / drN
+        }
 
 
     } else {
@@ -2060,16 +2066,17 @@ qpSetup <- function(env, sset, rescale = FALSE) {
             tmpLb <- rep(-Inf, ncol(drX))
             colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
                 names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(ncol(drX)))
-            ## Zero out entries in R smaller than 1e-13
-            R <- apply(R, 2, function(x) {
-                x[abs(x) < 1e-13] <- 0
-                x
-            })
             ## Prepare placeholds for rescaling
             tmpA <- cbind(R, -tmpI)
             ncR <- ncol(R)
             colFirst <- TRUE
+            ## Adjust for rescaling of desired
             if (rescale) {
+                ## Zero out entries in R smaller than 1e-13
+                R <- apply(R, 2, function(x) {
+                    x[abs(x) < 1e-13] <- 0
+                    x
+                })
                 if (colFirst) {
                     ## Scale columns and then rows
                     tmpNormA <- env$model$A[, 1:ncR]
@@ -2077,11 +2084,10 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                     colNorms <- apply(tmpNormA, 2, function(x) {
                         suppressWarnings(min(magnitude(x), na.rm = TRUE))
                     })
-                    print(table(colNorms))
                     colNorms[colNorms == Inf] <- mag.lb
                     colNorms <- 10^(-mag.lb + colNorms)
                     colNorms <- c(colNorms, rep(1, length(colNorms)))
-                    ## colNorms <- rep(1, length(colNorms)) ## TESTING
+                    ## colNorms <- rep(1.01, length(colNorms)) ## TESTING
                     env$model$A <- rbind(env$model$A, tmpA)
                     env$model$rhs <- c(env$model$rhs, tmpRhs)
                     env$model$A <- sweep(x = env$model$A, MARGIN = 2,
