@@ -607,29 +607,31 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         if (minobseq$status %in% c(0, 2, 3, 4, 5)) {
             origMinStatus <- minobseq$status
             ## Stop if issues are numerical, or unbounded, or unknown.
-            if (origMinStatus == 0) {
-                errMess <-
-                    gsub('\\s+', ' ',
-                         paste('No solution provided by the solver when
+            if (origMinStatus %in% c(0, 4, 5)) {
+                if (origMinStatus == 0) {
+                    errMess <-
+                        gsub('\\s+', ' ',
+                             paste('No solution provided by the solver when
                                minimizing the criterion.',
                                messageAlt))
-                stop(errMess, call. = FALSE)
-            }
-            if (origMinStatus == 4) {
-                errMess <-
-                    gsub('\\s+', ' ',
-                         paste0('No solution to minimizing the criterion
+                }
+                if (origMinStatus == 4) {
+                    errMess <-
+                        gsub('\\s+', ' ',
+                             paste0('No solution to minimizing the criterion
                                 since the model is unbounded.',
                                 messageUnb))
-                stop(errMess, call. = FALSE)
-            }
-            if (origMinStatus == 5) {
-                errMess <-
-                    gsub('\\s+', ' ',
-                         paste('No solution to minimizing the criterion
+                }
+                if (origMinStatus == 5) {
+                    errMess <-
+                        gsub('\\s+', ' ',
+                             paste('No solution to minimizing the criterion
                          due to numerical issues.',
                          messageNum))
-                stop(errMess, call. = FALSE)
+                }
+                return(list(error = errMess,
+                            model = modelEnv,
+                            audit.criterion.status = minobseq$status))
             }
             ## Otherwise, continue and test for infeasibility.
             rm(minobseq)

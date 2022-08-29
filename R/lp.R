@@ -1895,6 +1895,7 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 colNorms <- apply(tmpNormA, 2, function(x) {
                     suppressWarnings(min(magnitude(x), na.rm = TRUE))
                 })
+                print(table(colNorms))
                 colNorms[colNorms == Inf] <- mag.lb
                 colNorms <- 10^(-mag.lb + colNorms)
                 colNorms <- c(colNorms, rep(1, length(colNorms)))
