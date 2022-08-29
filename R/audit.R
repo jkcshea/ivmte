@@ -630,8 +630,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                          messageNum))
                 }
                 return(list(error = errMess,
-                            model = modelEnv,
-                            audit.criterion.status = minobseq$status))
+                            errorTypes = origMinStatus,
+                            model = modelEnv$model,
+                            runtime = c(criterion = minobseq$runtime)))
             }
             ## Otherwise, continue and test for infeasibility.
             rm(minobseq)
