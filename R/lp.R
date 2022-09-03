@@ -1895,7 +1895,8 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 colNorms <- apply(tmpNormA, 2, function(x) {
                     suppressWarnings(min(magnitude(x), na.rm = TRUE))
                 })
-                print(table(colNorms))
+                print("these are the colun norms")
+                print(colNorms)
                 colNorms[colNorms == Inf] <- mag.lb
                 colNorms <- 10^(-mag.lb + colNorms)
                 colNorms <- c(colNorms, rep(1, length(colNorms)))
@@ -1904,15 +1905,20 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 env$model$rhs <- c(env$model$rhs, tmpRhs)
                 env$model$A <- sweep(x = env$model$A, MARGIN = 2,
                                      STATS = colNorms, FUN = '/')
+                print("These are the table norms after rescaling columns")
+                print(table(magnitude(as.vector(env$model$A))))
                 ## Zero out entries with tiny values due to numerical imprecision
                 env$model$A <- apply(env$model$A, 2, function(x) {
                     x[abs(x) < 1e-13] <- 0
                     x
                 })
+                print("These are the table norms after eliminating tiny elements")
+                print(table(magnitude(as.vector(env$model$A))))
                 ## Rescale rows
                 rowNorms <- apply(env$model$A, 1, function(x) {
                     suppressWarnings(min(magnitude(x), na.rm = TRUE))
                 })
+                print("These are the row norms")
                 print(table(rowNorms))
                 rowNorms[rowNorms == Inf] <- mag.lb
                 rowNorms <- 10^(-mag.lb + rowNorms)
@@ -1920,12 +1926,16 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 env$model$A <- sweep(x = env$model$A, MARGIN = 1,
                                      STATS = rowNorms, FUN = '/')
                 env$model$rhs <- env$model$rhs / rowNorms
+                print("These are the table norms after rescaling rows")
+                print(table(magnitude(as.vector(env$model$A))))
                 ## Zero out entries with tiny values due to numerical imprecision
                 env$model$A <- apply(env$model$A, 2, function(x) {
                     x[abs(x) < 1e-13] <- 0
                     x
                 })
                 env$model$rhs[abs(env$model$rhs) < 1e-13] <- 0
+                print("These are the table norms after eliminating tiny elements again")
+                print(table(magnitude(as.vector(env$model$A))))
             } else {
                 ## Scale rows and then columns
                 env$model$A <- rbind(env$model$A, tmpA)
