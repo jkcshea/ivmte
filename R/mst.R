@@ -2296,7 +2296,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 ## If there are errors, return the errors along with
                 ## whatever output is available.
                 if ('errorTypes' %in% names(output)) {
-                    stop(output$error, call. = FALSE)
+                    stop(output$error, call. = FALSE) ## TESTING: RETURN HERE
                 }
                 class(output) <- "ivmte"
             } else {

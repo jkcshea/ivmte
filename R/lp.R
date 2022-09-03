@@ -2141,7 +2141,6 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                     print("These are the magnitude of A after rescaling rows")
                     print(table(magnitude(as.vector(env$model$A))))
                     env$model$rhs[abs(env$model$rhs) < 1e-13] <- 0
-                    print(table(magnitude(as.vector(env$model$A))))
                 } else {
                     ## Scale rows and then columns
                     env$model$A <- rbind(env$model$A, tmpA)
@@ -2306,7 +2305,7 @@ qpSetupInfeasible <- function(env) {
     ## Separate shape constraint objects
     env$mbobj$mbA <- env$model$A
     env$mbobj$mbrhs <- env$model$rhs
-    env$mbobj$mbsense <- env$model$rhs
+    env$mbobj$mbsense <- env$model$sense
     ## Reduce model object so it does not contain any shape constraints
     env$model$A <- matrix(0, nrow = 1, ncol = ncol(env$mbobj$mbA))
     env$model$rhs <- 0

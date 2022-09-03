@@ -597,6 +597,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                  solver.options = solver.options.criterion,
                                  rescale = rescale,
                                  debug = debug)
+        print("This is the output from criterionmin")
+        print(minobseq)
 
         ## Try to diagnose cases where the solution is not
         ## available. This could be due to infeasibility or numerical
@@ -606,6 +608,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         ## likely cause for infeasible solutions.
         if (minobseq$status %in% c(0, 2, 3, 4, 5)) {
             origMinStatus <- minobseq$status
+            output <- list(errorTypes = origMinStatus,
+                           model = modelEnv$model,
+                           runtime = c(criterion = minobseq$runtime))
             ## Stop if issues are numerical, or unbounded, or unknown.
             if (origMinStatus %in% c(0, 4, 5)) {
                 if (origMinStatus == 0) {
@@ -629,10 +634,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                          due to numerical issues.',
                          messageNum))
                 }
-                return(list(error = errMess,
-                            errorTypes = origMinStatus,
-                            model = modelEnv$model,
-                            runtime = c(criterion = minobseq$runtime)))
+                output$error <- errMess
+                return(output)
             }
             ## Otherwise, continue and test for infeasibility.
             rm(minobseq)
@@ -737,19 +740,19 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                    increasing the parameters 'initgrid.nx'
                                    and 'initgrid.nu'.\n")
             if (origMinStatus == 2) {
-                stop(gsub("\\s+", " ",
-                          paste("No solution since the solver proved the
+                errMess <- gsub("\\s+", " ",
+                                paste("No solution since the solver proved the
                                  model was infeasible.",
-                                messageInfDiag)),
-                     call. = FALSE)
+                                 messageInfDiag))
             }
             if (origMinStatus == 3) {
-                stop(gsub("\\s+", " ",
-                          paste("No solution since the solver proved the
+                errMess <- gsub("\\s+", " ",
+                                paste("No solution since the solver proved the
                                  model was infeasible or unbounded.",
-                                messageInfDiag, messageUnbDiag)),
-                     call. = FALSE)
+                                 messageInfDiag, messageUnbDiag))
             }
+            output$error <- errMess
+            return(output)
         }
         if (!qp.switch && noisy) {
             cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
