@@ -597,8 +597,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                  solver.options = solver.options.criterion,
                                  rescale = rescale,
                                  debug = debug)
-        print("This is the output from criterionmin")
-        print(minobseq)
 
         ## Try to diagnose cases where the solution is not
         ## available. This could be due to infeasibility or numerical
@@ -1208,6 +1206,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                     matrix(0, nrow = nrow(addm0),
                                            ncol = addCol))
                     if (rescale) {
+                        ## Rescale columns
                         tmpMat <- sweep(x = tmpMat,
                                         MARGIN = 2,
                                         STATS = modelEnv$colNorms,
@@ -1425,6 +1424,18 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     rm(addmonoteincseq, addmonotedecseq)
                 }
                 rm(addmte)
+                if (rescale) {
+                    ## Rescale the rows
+                    mag.lb <- -3
+                    rowNorms <- apply(modelEnv$model$A, 1, function(x) {
+                        suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                    })
+                    rowNorms[rowNorms == Inf] <- mag.lb
+                    rowNorms <- 10^(-mag.lb + rowNorms)
+                    modelEnv$model$A <- sweep(x = modelEnv$model$A, MARGIN = 1,
+                                         STATS = rowNorms, FUN = '/')
+                    modelEnv$model$rhs <- modelEnv$model$rhs / rowNorms
+                }
                 ## Move on to next iteration of the audit
                 audit_count <- audit_count + 1
                 if (!qp.switch) lpSetupBound(env = modelEnv, setup = FALSE)
