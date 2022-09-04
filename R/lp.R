@@ -155,7 +155,6 @@
 lpSetup <- function(env, sset, orig.sset = NULL,
                     equal.coef0 = NULL, equal.coef1 = NULL,
                     shape = TRUE, qp = FALSE, solver) {
-    print("WHY DO YOU NEED TEH QP ARGUMENT in lpsSetup? You can determine it from env$direct.")
     ## Read in constraint grids and sequences
     solver <- tolower(solver)
     for (i in names(env$shapeSeq)) {
@@ -1890,8 +1889,6 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 colNorms <- apply(tmpNormA, 2, function(x) {
                     suppressWarnings(min(magnitude(x), na.rm = TRUE))
                 })
-                print("these are the colun norms")
-                print(colNorms)
                 colNorms[colNorms == Inf] <- mag.lb
                 colNorms <- 10^(-mag.lb + colNorms)
                 colNorms <- c(colNorms, rep(1, length(colNorms)))
@@ -1900,37 +1897,27 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 env$model$rhs <- c(env$model$rhs, tmpRhs)
                 env$model$A <- sweep(x = env$model$A, MARGIN = 2,
                                      STATS = colNorms, FUN = '/')
-                print("These are the table norms after rescaling columns")
-                print(table(magnitude(as.vector(env$model$A))))
                 ## Zero out entries with tiny values due to numerical imprecision
                 env$model$A <- apply(env$model$A, 2, function(x) {
                     x[abs(x) < 1e-13] <- 0
                     x
                 })
-                print("These are the table norms after eliminating tiny elements")
-                print(table(magnitude(as.vector(env$model$A))))
                 ## Rescale rows
                 rowNorms <- apply(env$model$A, 1, function(x) {
                     suppressWarnings(min(magnitude(x), na.rm = TRUE))
                 })
-                print("These are the row norms")
-                print(table(rowNorms))
                 rowNorms[rowNorms == Inf] <- mag.lb
                 rowNorms <- 10^(-mag.lb + rowNorms)
                 ## rowNorms <- rep(1.00001, length(rowNorms)) ## TESTING
                 env$model$A <- sweep(x = env$model$A, MARGIN = 1,
                                      STATS = rowNorms, FUN = '/')
                 env$model$rhs <- env$model$rhs / rowNorms
-                print("These are the table norms after rescaling rows")
-                print(table(magnitude(as.vector(env$model$A))))
                 ## Zero out entries with tiny values due to numerical imprecision
                 env$model$A <- apply(env$model$A, 2, function(x) {
                     x[abs(x) < 1e-13] <- 0
                     x
                 })
                 env$model$rhs[abs(env$model$rhs) < 1e-13] <- 0
-                print("These are the table norms after eliminating tiny elements again")
-                print(table(magnitude(as.vector(env$model$A))))
             } else {
                 ## Scale rows and then columns
                 env$model$A <- rbind(env$model$A, tmpA)
@@ -2095,19 +2082,14 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                     x[abs(x) < 1e-13] <- 0
                     x
                 })
-                print("R magnitudes")
-                print(table(magnitude(R)))
                 if (colFirst) {
                     ## Scale columns and then rows
-                    print('THe beginning')
                     tmpNormA <- env$model$A[, 1:ncR]
                     tmpNormA <- rbind(R, tmpNormA)
                     colNorms <- apply(tmpNormA, 2, function(x) {
                         suppressWarnings(min(magnitude(x), na.rm = TRUE))
                     })
                     colNorms[colNorms == Inf] <- mag.lb
-                    print("these are the colun norms")
-                    print(colNorms)
                     colNorms <- 10^(-mag.lb + colNorms)
                     colNorms <- c(colNorms, rep(1, length(colNorms)))
                     ## colNorms <- rep(1.01, length(colNorms)) ## TESTING
@@ -2115,36 +2097,26 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                     env$model$rhs <- c(env$model$rhs, tmpRhs)
                     env$model$A <- sweep(x = env$model$A, MARGIN = 2,
                                          STATS = colNorms, FUN = '/')
-                    print("These are the magnitude of A after rescaling the columns")
-                    print(table(magnitude(as.vector(env$model$A))))
                     ## Zero out entries with tiny values due to numerical imprecision
                     env$model$A <- apply(env$model$A, 2, function(x) {
                         x[abs(x) < 1e-3] <- 0
                         x
                     })
-                    print("These are the magnitude of A after remove tiny entires")
-                    print(table(magnitude(as.vector(env$model$A))))
                     ## Rescale rows
                     rowNorms <- apply(env$model$A, 1, function(x) {
                         suppressWarnings(min(magnitude(x), na.rm = TRUE))
                     })
                     rowNorms[rowNorms == Inf] <- mag.lb
-                    print("these are row colun norms")
-                    print(table(rowNorms))
                     rowNorms <- 10^(-mag.lb + rowNorms)
                     ## rowNorms <- rep(1, length(rowNorms)) ## TESTING
                     env$model$A <- sweep(x = env$model$A, MARGIN = 1,
                                          STATS = rowNorms, FUN = '/')
-                    print("These are the magnitude of A after rescaling rows")
-                    print(table(magnitude(as.vector(env$model$A))))
                     env$model$rhs <- env$model$rhs / rowNorms
                     ## Zero out entries with tiny values due to numerical imprecision
                     env$model$A <- apply(env$model$A, 2, function(x) {
                         x[abs(x) < 1e-13] <- 0
                         x
                     })
-                    print("These are the magnitude of A after rescaling rows")
-                    print(table(magnitude(as.vector(env$model$A))))
                     env$model$rhs[abs(env$model$rhs) < 1e-13] <- 0
                 } else {
                     ## Scale rows and then columns
