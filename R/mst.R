@@ -4066,13 +4066,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     newGrid.nu <- initgrid.nu
     newGrid.nx <- initgrid.nx
     ## Select codes for reasons to stop or expand
-    if (!direct.switch) {
-        codesStop <- c(0, 2, 5)
-        codesExpand <- c(3, 4, 6, 7)
-    } else {
-        codesStop <- c(0)
-        codesExpand <- c(2, 3, 4, 5, 6, 7)
-    }
+    codesStop <- c(0, 8)
+    codesExpand <- c(2, 3, 4, 5, 6, 7)
     while(autoExpand <= autoExpandMax) {
         audit <- eval(audit_call)
         if (is.null(audit$error)) {
@@ -4080,7 +4075,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         }
         if (!is.null(audit$errorTypes)) {
             if (any(codesStop %in% audit$errorTypes)) {
-                stop(audit$error, call. = FALSE)
+                return(audit)
             }
             if (initgrid.nx == audit.nx && initgrid.nu == audit.nu) {
                 errMessage1 <- audit$error
@@ -4108,13 +4103,19 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                    solver))
                     }
                     audit$errorTypes <- tmp
-                    audit$audit.criterion.status <-
-                        statusString(audit$audit.criterion.status,
-                                     solver)
-                    audit$status.min <- statusString(audit$status.min,
-                                                     solver)
-                    audit$status.max <- statusString(audit$status.max,
-                                                     solver)
+                    if ("audit.criterion.status" %in% names(audit)) {
+                        audit$audit.criterion.status <-
+                            statusString(audit$audit.criterion.status,
+                                         solver)
+                    } else {
+                        audit$audit.criterion.status <- tmp
+                    }
+                    if ("status.min" %in% names(audit)) {
+                        audit$status.min <- statusString(audit$status.min,
+                                                         solver)
+                        audit$status.max <- statusString(audit$status.max,
+                                                         solver)
+                    }
                     audit$error <- paste(errMessage1, "\n\n", errMessage2)
                     return(audit)
                 }
@@ -4176,13 +4177,16 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     audit$audit.criterion.status <-
                         statusString(audit$audit.criterion.status,
                                      solver)
+                } else {
+                    audit$audit.criterion.status <- tmp
+                }
+                if ("status.min" %in% names(audit)) {
                     audit$status.min <- statusString(audit$status.min,
                                                      solver)
                     audit$status.max <- statusString(audit$status.max,
                                                      solver)
-                } else {
-                    audit$audit.criterion.status <- tmp
                 }
+                print("here checkl 2")
                 return(audit)
             }
             cat("\n    Restarting audit with new settings:\n")
@@ -4238,20 +4242,28 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                    "\ninitgrid.nu = ", newGrid.nu,
                    "\naudit.nx = ", audit.nx,
                    "\naudit.nu = ", audit.nu)
-        if (any(c(2, 3, 5) %in% audit$errorTypes)) {
+        if (any(c(2, 3, 4, 5) %in% audit$errorTypes)) {
             tmp <- NULL
             for (i in 1:length(audit$errorTypes)) {
                 tmp <- c(tmp, statusString(audit$errorTypes[[i]],
                                            solver))
             }
+            print(names(audit))
             audit$errorTypes <- tmp
-            audit$audit.criterion.status <-
-                statusString(audit$audit.criterion.status,
-                             solver)
-            audit$status.min <- statusString(audit$status.min,
-                                             solver)
-            audit$status.max <- statusString(audit$status.max,
-                                             solver)
+            if ("audit.criterion.status" %in% names(audit)) {
+                audit$audit.criterion.status <-
+                    statusString(audit$audit.criterion.status,
+                                 solver)
+            } else {
+                print("Did this work?")
+                audit$audit.criterion.status <- tmp
+            }
+            if ("status.min" %in% names(audit)) {
+                audit$status.min <- statusString(audit$status.min,
+                                                 solver)
+                audit$status.max <- statusString(audit$status.max,
+                                                 solver)
+            }
             audit$error <- paste(errMessage1, "\n\n", errMessage2)
             return(audit)
         }

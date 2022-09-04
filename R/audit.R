@@ -611,7 +611,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            runtime = c(criterion = minobseq$runtime))
             ## Stop if issues are numerical, or unbounded, or unknown.
             if (origMinStatus %in% c(0, 4, 5)) {
-                if (origMinStatus == 0) {
+                if (
+                    origMinStatus == 0) {
                     errMess <-
                         gsub('\\s+', ' ',
                              paste('No solution provided by the solver when
@@ -827,8 +828,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     errMess <-
                         paste(errMess,
                               gsub('\\s+', ' ',
-                                   paste('The solver did not provide a
-                                     solution for the', tmpType,
+                                   paste('The solver provided neither a
+                                     solution nor error code for the', tmpType,
                                      'problem.')))
                 }
                 if (result[[tmpName]] == 2) {
@@ -919,8 +920,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            result$maxstatus))
         if (existsolution == FALSE) existsolution <- TRUE
         prevbound <- c(result$min, result$max)
-
-        print('The audit only works if you select the g0 and g1 coefficients correctly in the bound funciton. THe first entries should also be slack, followed by oefficients, and then followed by auxiliary variables.')
 
         ## Test for violations of shape constraints when obtaining the bounds
         monoboundAcall <- modcall(call,
@@ -1634,6 +1633,7 @@ rhalton <- function(n, base = 2) {
 #'     'lpsolveapi'.
 #' @return Status specific to solver, e.g. 'OPTIMAL (2)'.
 statusString <- function(status, solver) {
+    if (status == 0) statusStr <- 'Unknown error'
     if (solver == 'gurobi') {
         if (status == 1) statusStr <- 'OPTIMAL (2)'
         if (status == 2) statusStr <- 'INFEASIBLE (3)'
@@ -1676,7 +1676,6 @@ statusString <- function(status, solver) {
         if (status == 8) statusStr <- 'UNKNOWN'
         if (status == 10) statusStr <- 'MAX_ITERATIONS (10000)'
     }
-    if (status == 0) statusStr <- 'Unknown error'
     return(statusStr)
 }
 

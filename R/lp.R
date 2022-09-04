@@ -1140,14 +1140,9 @@ bound <- function(env, sset, solver,
     ## Clean up times
     runtime.min <- difftime(time1 = min.t1, time2 = min.t0, units = "secs")
     runtime.max <- difftime(time1 = max.t1, time2 = max.t0, units = "secs")
-    ## ## TESTING --------------
-    ## print("TESTING BELOW")
-    ## error <- TRUE ## THIS LINE IS FOR TESTI
-    ## minstatus <- 3
-    ## maxstatus <- 3
-    ## ## END TESTING -----------------
     ## Return error codes, if any
-    if (maxstatus %in% c(2, 3, 4, 5, 9) || minstatus %in% c(2, 3, 4, 5, 9)) {
+    if (maxstatus %in% c(0, 2, 3, 4, 5, 9) ||
+        minstatus %in% c(0, 2, 3, 4, 5, 9)) {
         return(list(error = TRUE,
                     model = env$model,
                     max = max,
