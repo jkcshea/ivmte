@@ -260,7 +260,6 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ## Expand equality and shape constriants to include auxiliary
     ## variables (but not the actual constraints for the auxiliray
     ## variables)
-    print("Adjust the additional A zero sections for QP")
     if (shape == TRUE) {
         if (direct %in% c("moments", "lp0", "lp1")) {
             tmp.zero1 <- NULL
@@ -291,7 +290,6 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         mbA <- A
     }
     rm(A)
-    print("CORRECT COL NAMES FOR QP")
     if (!qp) {
         if (direct %in% c("moments", "lp0", "lp1")) {
             colnames(mbA) <- c(c(rbind(paste0('slack', seq(sn), '-'),
@@ -315,11 +313,9 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         }
     }
     ## Define bounds on parameters
-    ## ub <- replicate(ncol(mbA), Inf)
     ub <- c(unlist(replicate(sn * 2, Inf)), replicate(gn0 + gn1, Inf))
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
     ## Include constraints defining the auxliary variables
-    print("INCLUD CONSTRAINTS FOR ADDITIONAL VARIABLES IN QP ALSO")
     if (direct %in% c("lp2", "lp3", "lp4")) {
         tmp.zero2 <- Matrix::Matrix(0, nrow = nrow(A.y), ncol = sn * 2)
         tmp.colnames <- colnames(mbA)
@@ -1558,6 +1554,7 @@ magnitude <- function(x) {
 #'     and accounting for \code{debug}.
 #' @export
 optionsGurobi <- function(options, debug) {
+    names(options) <- tolower(names(options))
     if (! "outputflag" %in% names(options)) {
         if (debug)  options$outputflag = 1
         if (!debug) options$outputflag = 0
@@ -1565,11 +1562,14 @@ optionsGurobi <- function(options, debug) {
     if (! "dualreductions" %in% names(options)) {
         options$dualreductions <- 1
     }
-    if (! "FeasibilityTol" %in% names(options)) {
+    if (! "feasibilitytol" %in% names(options)) {
         options$FeasibilityTol <- 1e-06
     }
     if (! "presolve" %in% names(options)) {
         options$presolve <- 1
+    }
+    if (! "nonconvex" %in% names(options)) {
+        options$nonconvex <- 0
     }
     return(options)
 }
@@ -1983,6 +1983,16 @@ qpSetup <- function(env, sset, rescale = FALSE) {
             tmpUb <- tmpLb <- NULL
             ## Adjust for scaling if necessary
             if (rescale) {
+                ## Q <- apply(Q, 2, function(x) {
+                ##     x[abs(x) < 1e-13] <- 0
+                ##     x
+                ## })
+                ## R <- apply(R, 2, function(x) {
+                ##     x[abs(x) < 1e-13] <- 0
+                ##     x
+                ## })
+                ## print(table(magnitude(as.vector(Q))))
+                ## print(table(magnitude(as.vector(R))))
                 if (colFirst) {
                     ## Scale columns and then rows
                     colNorms <- apply(env$model$A, 2, function(x) {

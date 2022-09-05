@@ -222,11 +222,11 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     if (!hasArg(audit.tol)) {
         if (solver == "gurobi") {
             if (hasArg(solver.options) &&
-                !is.null(solver.options$FeasibilityTol)) {
-                audit.tol <- solver.options$FeasibilityTol
+                !is.null(solver.options$feasibilitytol)) {
+                audit.tol <- solver.options$feasibilitytol
             } else if (hasArg(solver.options.bounds) &&
-                       !is.null(solver.options.bounds$FeasibilityTol)) {
-                audit.tol <- solver.options.bounds$FeasibilityTol
+                       !is.null(solver.options.bounds$feasibilitytol)) {
+                audit.tol <- solver.options.bounds$feasibilitytol
             } else {
                 audit.tol <- 1e-06
             }
@@ -259,7 +259,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     if (solver == "gurobi") {
         ## Construct default options
         solver.options.default <- list(dualreductions = 1,
-                                         FeasibilityTol = 1e-06)
+                                         feasibilitytol = 1e-06)
         if (debug)  solver.options.default$outputflag <- 1
         if (!debug) solver.options.default$outputflag <- 0
         if (hasArg(solver.presolve)) solver.options.default$presolve <-
@@ -293,10 +293,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 solver.options.bounds <- solver.options.default
             }
         }
-        ## Turn off non-convex option if using direct regression
+        ## By default, turn off non-convex option if using direct regression
         if (qp.switch) {
-            solver.options.criterion$nonconvex <- 0
-            solver.options.bounds$nonconvex <- 0
+            if (! "nonconvex" %in% names(solver.options.criterion)) {
+                solver.options.criterion$nonconvex <- 0
+            }
+            if (! "nonconvex" %in% names(solver.options.bounds)) {
+                solver.options.bounds$nonconvex <- 0
+            }
         }
     } else {
         if (solver == "cplexapi") {
@@ -591,13 +595,23 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         } else {
             qpSetupCriterion(env = modelEnv)
         }
-        minobseq <- criterionMin(env = modelEnv,
-                                 sset = sset,
-                                 solver = solver,
-                                 solver.options = solver.options.criterion,
-                                 rescale = rescale,
-                                 debug = debug)
-
+        minobseq <- try(criterionMin(env = modelEnv,
+                                     sset = sset,
+                                     solver = solver,
+                                     solver.options = solver.options.criterion,
+                                     rescale = rescale,
+                                     debug = debug),
+                        silent = TRUE)
+        if(class(minobseq) == "try-error") {
+            output <- list(errorTypes = 0,
+                           model = modelEnv$model)
+            output$error <- gsub("\\s+", " ",
+                                 paste0("Solver failed to minimize the criterion
+                                         and the following error was returned: '",
+                                        minobseq, "' The model is returned for
+                                        the user to investigate."))
+            return(output)
+        }
         ## Try to diagnose cases where the solution is not
         ## available. This could be due to infeasibility or numerical
         ## issues. To deal with infeasibilty, the LP/QCQP problem is
@@ -771,7 +785,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             cat("    Minimum criterion: ", fmtResult(minCriterion), "\n",
                 sep = "")
         }
-
         ## Perform specification test
         if (!qp.switch && !is.null(orig.sset) && !is.null(orig.criterion)) {
             lpSetupCriterionBoot(modelEnv, sset, orig.sset,
@@ -809,14 +822,24 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                          criterion.min = minobseq$obj,
                          rescale = rescale)
         }
-        result <- bound(env = modelEnv,
-                        sset = sset,
-                        solver = solver,
-                        solver.options = solver.options.bounds,
-                        noisy = noisy,
-                        smallreturnlist = smallreturnlist,
-                        rescale = rescale,
-                        debug = debug)
+        result <- try(bound(env = modelEnv,
+                            sset = sset,
+                            solver = solver,
+                            solver.options = solver.options.bounds,
+                            noisy = noisy,
+                            smallreturnlist = smallreturnlist,
+                            rescale = rescale,
+                            debug = debug), silent = TRUE)
+        if(class(result) == "try-error") {
+            output <- list(errorTypes = 0,
+                           model = modelEnv$model)
+            output$error <- gsub("\\s+", " ",
+                                 paste0("Solver failed to obtain bounds
+                                         and the following error was returned: '",
+                                        result, "' The model is returned for
+                                        the user to investigate."))
+            return(output)
+        }
         if (result$error == TRUE) {
             errMess <- NULL
             errTypes <- NULL

@@ -4186,7 +4186,6 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     audit$status.max <- statusString(audit$status.max,
                                                      solver)
                 }
-                print("here checkl 2")
                 return(audit)
             }
             cat("\n    Restarting audit with new settings:\n")
@@ -4248,14 +4247,12 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 tmp <- c(tmp, statusString(audit$errorTypes[[i]],
                                            solver))
             }
-            print(names(audit))
             audit$errorTypes <- tmp
             if ("audit.criterion.status" %in% names(audit)) {
                 audit$audit.criterion.status <-
                     statusString(audit$audit.criterion.status,
                                  solver)
             } else {
-                print("Did this work?")
                 audit$audit.criterion.status <- tmp
             }
             if ("status.min" %in% names(audit)) {
