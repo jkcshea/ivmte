@@ -582,6 +582,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                         (i.e. the range of magnitudes exceeds 1e13).
                         This is known to cause numerical issues in
                         problems.\n")
+    messageTime <- gsub("\\s+", " ",
+                        "Try increasing the time limit using the option
+                         'solver.option'.\n")
     ## Add placeholder for violation matrix
     violateMat.prev <- NULL
     violateMat.same <- 0
@@ -618,13 +621,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         ## solved without any shape restrictions. We then check if any
         ## of the lower and upper bounds are violated, which is a
         ## likely cause for infeasible solutions.
-        if (minobseq$status %in% c(0, 2, 3, 4, 5)) {
+        if (minobseq$status %in% c(0, 2, 3, 4, 5, 9)) {
             origMinStatus <- minobseq$status
             output <- list(errorTypes = origMinStatus,
                            model = modelEnv$model,
                            runtime = c(criterion = minobseq$runtime))
             ## Stop if issues are numerical, or unbounded, or unknown.
-            if (origMinStatus %in% c(0, 4, 5)) {
+            if (origMinStatus %in% c(0, 4, 5, 9)) {
                 if (
                     origMinStatus == 0) {
                     errMess <-
@@ -646,6 +649,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                              paste('No solution to minimizing the criterion
                          due to numerical issues.',
                          messageNum))
+                }
+                if (origMinStatus == 9) {
+                    errMess <-
+                        gsub('\\s+', ' ',
+                             paste('No solution to minimizing the criterion
+                         since the time limit was reached.',
+                         messageTime))
                 }
                 output$error <- errMess
                 return(output)
@@ -918,6 +928,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 }
                 if (et == 5) {
                     errMess <- paste(errMess, messageNum)
+                }
+                if (et == 9) {
+                    errMess <- paste(errMess, messageTime)
                 }
             }
             return(list(error = errMess,

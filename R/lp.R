@@ -890,7 +890,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
             g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
                                           (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
         }
-    }
+    }   
     output <- list(obj = obseqmin,
                    x = optx,
                    g0 = g0sol,
@@ -1064,7 +1064,7 @@ bound <- function(env, sset, solver,
         minresult <- runGurobi(env$model, solver.options)
         min.t1 <- Sys.time()
         min <- minresult$objval
-        minstatus <- minresult$status
+        minstatus <- minresult$status        
         minoptx <- minresult$optx
         if (debug && solver.options$outputflag == 1) {
             cat("\nUpper bound optimization statistics:\n")
