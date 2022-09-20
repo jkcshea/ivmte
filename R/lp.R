@@ -233,6 +233,8 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         rownames(A) <- mapply(paste, tmpIvs, tmpBetas, sep = '.')
         rm(tmpIvs, tmpBetas)
     } else {
+        ## Note: Auxliary variables for the QP approach are defined in
+        ## qpSetup.
         sn <- 0
         A <- NULL
         sense <- NULL
@@ -273,7 +275,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
             tmp.zero1 <- Matrix::Matrix(0,
                                         nrow = nrow(env$mbobj$mbA),
                                         ncol = nrow(sset$s1$g0))
-        } else if (direct %in% c("qp3", "qp4")) {
+        } else if (direct %in% c("qp3", "qp4", "qp6", "qp7")) {
             tmp.zero1 <- Matrix::Matrix(0,
                                        nrow = nrow(env$mbobj$mbA),
                                        ncol = gn0 + gn1)
@@ -307,7 +309,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         } else if (direct == "qp2") {
             colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1),
                                paste0("yhat.", seq(nrow(sset[[1]]$g0))))
-        } else if (direct %in% c("qp3", "qp4")) {
+        } else if (direct %in% c("qp3", "qp4", "qp6", "qp7")) {
             colnames(mbA) <- c(colnames(sset$s1$g0), colnames(sset$s1$g1),
                                paste0("yhat.", seq(gn0 + gn1)))
         }
@@ -329,8 +331,6 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         sense <- c(sense, replicate(gny, "="))
         rhs <- c(rhs, replicate(gny, 0))
     }
-    ## Note: Auxliary variables for the QP approach are defined in
-    ## qpSetup.
     ##
     ## Convert into sparse matrix
     if (solver %in% c("gurobi", "lpsolveapi")) {
@@ -885,12 +885,12 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
     names(g0sol) <- names(sset$gstar$g0)
     names(g1sol) <- names(sset$gstar$g1)
     if (rescale) {
-        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4", "qp5")) {
+        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4", "qp5", "qp6", "qp7")) {
             g0sol <- g0sol / env$colNorms[1:ncol(sset$s1$g0)]
             g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
                                           (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
         }
-    }   
+    }
     output <- list(obj = obseqmin,
                    x = optx,
                    g0 = g0sol,
@@ -1064,7 +1064,7 @@ bound <- function(env, sset, solver,
         minresult <- runGurobi(env$model, solver.options)
         min.t1 <- Sys.time()
         min <- minresult$objval
-        minstatus <- minresult$status        
+        minstatus <- minresult$status
         minoptx <- minresult$optx
         if (debug && solver.options$outputflag == 1) {
             cat("\nUpper bound optimization statistics:\n")
@@ -1157,7 +1157,7 @@ bound <- function(env, sset, solver,
                      (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
     ## Undo the rescaling
     if (rescale) {
-        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4", "qp5")) {
+        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4", "qp5", "qp6", "qp7")) {
             ming0 <- ming0 / env$colNorms[1:ncol(sset$s1$g0)]
             ming1 <- ming1 / env$colNorms[(ncol(sset$s1$g0) + 1):
                                           (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
@@ -1200,7 +1200,7 @@ bound <- function(env, sset, solver,
                    minruntime = runtime.min,
                    error = FALSE)
     if (rescale) {
-        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4", "qp5")) {
+        if (env$direct %in% c("qp0", "qp1", "qp3", "qp4", "qp5", "qp6", "qp7")) {
             output$norms <- env$colNorms
         }
     }
@@ -1950,7 +1950,6 @@ qpSetup <- function(env, sset, rescale = FALSE) {
             env$model$A <- rbind(env$model$A, tmpA)
             env$model$rhs <- c(env$model$rhs, tmpRhs)
         }
-
         ## Set up the quadratic objective
         quadMats <- list()
         quadMats$q <- -2 * c(t(drX) %*% drY) / drN
@@ -1969,8 +1968,200 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                                              nrow = ncol(drX)),
                               Matrix::Diagonal(x = 1/colNorms[(ncR + 1):(2 * ncR)]^2)) / drN
         }
+    } else if (direct %in% c("qp6", "qp7")) {
+        ## This approach rescales the design matrix before applying
+        ## the QR decomposition.
+        ##
+        ## First rescale the design matrix separately from the
+        ## constraint matrix (you will also need to rescale the A
+        ## matrix).
+        colNorms.drx <- apply(drX, 2, function(x) {
+            suppressWarnings(min(magnitude(x), na.rm = TRUE))
+        })
+        colNorms.drx[colNorms.drx == Inf] <- mag.lb
+        colNorms.drx <- 10^(-mag.lb + colNorms.drx)
+        drX <- sweep(x = drX, MARGIN = 2,
+                     STATS = colNorms.drx, FUN = '/')
+        env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                             STATS = colNorms.drx, FUN = '/')
+        ## Later, you can rescale things again.
+        rescale.again <- TRUE ## Switch for determining wheter you
+                              ## want to rescale again.
+        if (direct == "qp6") {
+            ## Now perform the decomposition
+            qr.X <- qr(drX, tol = 1e-16)
+            Q <- qr.Q(qr.X)
+            R <- qr.R(qr.X)[, sort.list(qr.X$pivot)]
+            ## Now set up the decomposition constraint
+            tmpI <- Matrix::Diagonal(ncol(drX))
+            tmpRhs <- rep(0, ncol(drX))
+            tmpSense <- rep("=", ncol(drX))
+            tmpUb <- rep(Inf, ncol(drX))
+            tmpLb <- rep(-Inf, ncol(drX))
+            colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
+                names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(ncol(drX)))
+            ## Prepare placeholds for rescaling
+            tmpA <- cbind(R, -tmpI)
+            ncR <- ncol(R)
+            if (rescale.again) {
+                ## Zero out entries in R smaller than 1e-13
+                R <- apply(R, 2, function(x) {
+                    x[abs(x) < 1e-13] <- 0
+                    x
+                })
+                ## Scale columns and then rows
+                tmpNormA <- env$model$A[, 1:ncR]
+                tmpNormA <- rbind(R, tmpNormA)
+                colNorms <- apply(tmpNormA, 2, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                colNorms[colNorms == Inf] <- mag.lb
+                colNorms <- 10^(-mag.lb + colNorms)
+                colNorms <- c(colNorms, rep(1, length(colNorms)))
+                ## colNorms <- rep(1.01, length(colNorms)) ## TESTING
+                env$model$A <- rbind(env$model$A, tmpA)
+                env$model$rhs <- c(env$model$rhs, tmpRhs)
+                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                     STATS = colNorms, FUN = '/')
+                ## Zero out entries with tiny values due to numerical imprecision
+                env$model$A <- apply(env$model$A, 2, function(x) {
+                    x[abs(x) < 1e-3] <- 0
+                    x
+                })
+                ## Rescale rows
+                rowNorms <- apply(env$model$A, 1, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                rowNorms[rowNorms == Inf] <- mag.lb
+                rowNorms <- 10^(-mag.lb + rowNorms)
+                ## rowNorms <- rep(1, length(rowNorms)) ## TESTING
+                env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                     STATS = rowNorms, FUN = '/')
+                env$model$rhs <- env$model$rhs / rowNorms
+                ## Zero out entries with tiny values due to numerical imprecision
+                env$model$A <- apply(env$model$A, 2, function(x) {
+                    x[abs(x) < 1e-13] <- 0
+                    x
+                })
+                env$model$rhs[abs(env$model$rhs) < 1e-13] <- 0
+
+                env$colNorms <- colNorms[1:ncR] * colNorms.drx[1:ncR]
+                env$rowNorms <- rowNorms[1:ncR]
+            } else {
+                ## Add constraints for auxiliary variables
+                env$model$A <- rbind(env$model$A, tmpA)
+                env$model$rhs <- c(env$model$rhs, tmpRhs)
+                env$colNorms <- colNorms.drx
+            }
+            ## Set up the quadratic objective
+            quadMats <- list()
+            quadMats$q <- -2 * c(t(Q) %*% drY) / drN
+            quadMats$q <- c(rep(0, ncol(drX)), quadMats$q)
+            quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
+                                                        ncol = ncol(drX),
+                                                        nrow = ncol(drX)),
+                                         Matrix::Diagonal(ncol(drX))) / drN
+            print("THis is the obj magnitude")
+            print(magnitude(quadMats$q))
+        } else if (direct == "qp7") {
+            ## Set up the decomposition constraint
+            AA <- t(drX) %*% drX
+            decompAA <- suppressWarnings(chol(AA, pivot = TRUE))
+            cholRank <- attr(decompAA, 'rank')
+            if (cholRank < nrow(AA)) {
+                decompAA[(cholRank + 1):nrow(decompAA),
+                (cholRank + 1):nrow(decompAA)] <- 0
+            }
+            cholOrder <- order(attr(decompAA, 'pivot'))
+            decompAA <- Matrix::Matrix(decompAA)[, cholOrder]
+            tmpI <- Matrix::Diagonal(ncol(AA))
+            tmpRhs <- rep(0, ncol(AA))
+            tmpSense <- rep("=", ncol(AA))
+            tmpUb <- rep(Inf, ncol(AA))
+            tmpLb <- rep(-Inf, ncol(AA))
+            colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
+                names(tmpUb) <- names(tmpLb) <- paste0("yhat.", seq(ncol(AA)))
+            ## Prepare placeholds for rescaling
+            tmpA <- cbind(decompAA, -tmpI)
+            ncR <- ncol(decompAA)
+            ## Adjust for scaling if desired
+            if (rescale.again) {
+                ## Zero out entries in decompAA smaller than 1e-13
+                decompAA <- apply(decompAA, 2, function(x) {
+                    x[abs(x) < 1e-13] <- 0
+                    x
+                })
+                ## Scale columns and then rows
+                tmpq <- -2 * c(t(drX) %*% drY) / drN
+                tmpq <- NULL ## TESTING
+                tmpNormA <- env$model$A[, 1:ncR]
+                tmpNormA <- rbind(decompAA, tmpNormA, tmpq)
+                colNorms <- apply(tmpNormA, 2, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                colNorms[colNorms == Inf] <- mag.lb
+                colNorms <- 10^(-mag.lb + colNorms)
+                colNorms <- c(colNorms, rep(1, length(colNorms)))
+                ## colNorms <- rep(1.1, length(colNorms)) ## TESTING
+                env$model$A <- rbind(env$model$A, tmpA)
+                env$model$rhs <- c(env$model$rhs, tmpRhs)
+                env$model$A <- sweep(x = env$model$A, MARGIN = 2,
+                                     STATS = colNorms, FUN = '/')
+                ## Zero out entries with tiny values due to numerical imprecision
+                env$model$A <- apply(env$model$A, 2, function(x) {
+                    x[abs(x) < 1e-13] <- 0
+                    x
+                })
+                ## Rescale rows
+                rowNorms <- apply(env$model$A, 1, function(x) {
+                    suppressWarnings(min(magnitude(x), na.rm = TRUE))
+                })
+                rowNorms[rowNorms == Inf] <- mag.lb
+                rowNorms <- 10^(-mag.lb + rowNorms)
+                ## rowNorms <- rep(1.00001, length(rowNorms)) ## TESTING
+                env$model$A <- sweep(x = env$model$A, MARGIN = 1,
+                                     STATS = rowNorms, FUN = '/')
+                env$model$rhs <- env$model$rhs / rowNorms
+                ## Zero out entries with tiny values due to numerical imprecision
+                env$model$A <- apply(env$model$A, 2, function(x) {
+                    x[abs(x) < 1e-13] <- 0
+                    x
+                })
+                env$model$rhs[abs(env$model$rhs) < 1e-13] <- 0
+                env$colNorms <- colNorms[1:ncR] * colNorms.drx[1:ncR]
+                env$rowNorms <- rowNorms[1:ncR]
+                ## Adjust the quadratic constraint
+                drX <- sweep(x = drX, MARGIN = 2,
+                             STATS = colNorms[1:ncR], FUN = '/')
+            } else {
+                ## Add constraints for auxiliary variables
+                env$model$A <- rbind(env$model$A, tmpA)
+                env$model$rhs <- c(env$model$rhs, tmpRhs)
+                env$colNorms <- colNorms.drx
+            }
+            ## Set up the quadratic objective
+            quadMats <- list()
+            quadMats$q <- -2 * c(t(drX) %*% drY) / drN
+            quadMats$q <- c(quadMats$q, rep(0, ncol(AA)))
+            print("THis is the obj magnitude")
+            print(magnitude(quadMats$q))
+            ## if (rescale) {
+            ##     quadMats$q <- quadMats$q / colNorms
+            ## }
+            quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
+                                                        ncol = ncol(AA),
+                                                        nrow = ncol(AA)),
+                                         Matrix::Diagonal(ncol(AA))) / drN
+        }
 
 
+
+
+
+
+
+
+        ## stop('end of test')
     } else {
         qr.X <- qr(drX, tol = 1e-16)
         Q <- qr.Q(qr.X)
@@ -2160,7 +2351,6 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 env$model$A <- rbind(env$model$A, tmpA)
                 env$model$rhs <- c(env$model$rhs, tmpRhs)
             }
-
             ## Set up the quadratic objective
             quadMats <- list()
             quadMats$q <- -2 * c(t(Q) %*% drY) / drN
@@ -2179,6 +2369,10 @@ qpSetup <- function(env, sset, rescale = FALSE) {
             }
         }
     }
+
+    print("This is the column norms")
+    print(env$colNorms)
+
     ## Update remaining linear constraints
     env$model$sense <- c(env$model$sense, tmpSense)
     env$model$lb <- c(env$model$lb, tmpLb)
@@ -2240,7 +2434,7 @@ qpSetupBound <- function(env, g0, g1,
     if (setup) {
         direct <- env$direct
         ## Prepare objective
-        if (direct %in% c("qp3", "qp4")) {
+        if (direct %in% c("qp3", "qp4", "qp6", "qp7")) {
             env$model$obj <- c(c(g0, g1),
                                rep(0, ncol(env$drX)))
             if (rescale) {

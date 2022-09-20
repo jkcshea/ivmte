@@ -1735,7 +1735,7 @@ aux.A <- function(direct, sset, nrow) {
     } else if (direct %in% c("qp2")) {
         tmpA <- Matrix::Matrix(0, nrow = nrow,
                                ncol = nrow(sset$s1$g0))
-    } else if (direct %in% c("qp3", "qp4")) {
+    } else if (direct %in% c("qp3", "qp4", "qp6", "qp7")) {
         tmpA <- Matrix::Matrix(0, nrow = nrow,
                                ncol = ncol(sset$s1$g0) +
                                    ncol(sset$s1$g1))

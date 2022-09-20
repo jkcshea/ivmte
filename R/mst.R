@@ -493,8 +493,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 direct <- "qp"
             }
             direct <- tolower(direct)
-            if (direct %in% c("qp", "qp0", "qp1", "qp2", "qp3", "qp4", "qp5")) {
+            if (direct %in% c("qp", "qp0", "qp1", "qp2", "qp3", "qp4", "qp5", "qp6", "qp7")) {
                 qp.switch <- TRUE
+                print("do you want to lock qp6 and qp7 for rescale?")
+                if (direct %in% c("qp6", "qp7") && !rescale) {
+                    stop("QP6 and QP7 must have rescale = TRUE.")
+                }
                 if (direct == "qp") direct <- "qp0"
             } else if (direct %in% c("lp", "lp0", "lp1", "lp2", "lp3", "lp4")) {
                 qp.switch <- FALSE
@@ -505,7 +509,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                  'lp0', ..., 'lp4' for regressions performed
                                  via a linear program;
                                  or
-                                 'qp0', ..., 'qp5' for regressions performed
+                                 'qp0', ..., 'qp7' for regressions performed
                                  via a quadratically constrained quadratic
                                  program.")),
                      call. = FALSE)
