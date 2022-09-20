@@ -1810,8 +1810,10 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         ## Adjust for scaling if necessary
         if (rescale) {
             if (colFirst) {
+                tmpq <- -2 * c(t(drX) %*% drY) / drN
+                tmpNormA <- rbind(env$model$A, tmpq)
                 ## Scale columns and then rows
-                colNorms <- apply(env$model$A, 2, function(x) {
+                colNorms <- apply(tmpNormA, 2, function(x) {
                     suppressWarnings(min(magnitude(x), na.rm = TRUE))
                 })
                 colNorms[colNorms == Inf] <- mag.lb
@@ -1883,9 +1885,10 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 x
             })
             if (colFirst) {
+                tmpq <- -2 * c(t(drX) %*% drY) / drN
                 ## Scale columns and then rows
                 tmpNormA <- env$model$A[, 1:ncR]
-                tmpNormA <- rbind(decompAA, tmpNormA)
+                tmpNormA <- rbind(decompAA, tmpNormA, tmpq)
                 colNorms <- apply(tmpNormA, 2, function(x) {
                     suppressWarnings(min(magnitude(x), na.rm = TRUE))
                 })
@@ -1952,8 +1955,8 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         }
         ## Set up the quadratic objective
         quadMats <- list()
-        quadMats$q <- -2 * c(t(drX) %*% drY) / drN
-        quadMats$q <- c(quadMats$q, rep(0, ncol(AA)))
+        quadMats$q <- -2 * c(t(drX) %*% drY) / quadMats
+        dr$Nq <- c(quadMats$q, rep(0, ncol(AA)))
         ## if (rescale) {
         ##     quadMats$q <- quadMats$q / colNorms
         ## }
@@ -2093,7 +2096,7 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 })
                 ## Scale columns and then rows
                 tmpq <- -2 * c(t(drX) %*% drY) / drN
-                tmpq <- NULL ## TESTING
+                ## tmpq <- NULL ## TESTING
                 tmpNormA <- env$model$A[, 1:ncR]
                 tmpNormA <- rbind(decompAA, tmpNormA, tmpq)
                 colNorms <- apply(tmpNormA, 2, function(x) {
@@ -2153,15 +2156,6 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                                                         nrow = ncol(AA)),
                                          Matrix::Diagonal(ncol(AA))) / drN
         }
-
-
-
-
-
-
-
-
-        ## stop('end of test')
     } else {
         qr.X <- qr(drX, tol = 1e-16)
         Q <- qr.Q(qr.X)
@@ -2185,8 +2179,10 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 ## print(table(magnitude(as.vector(Q))))
                 ## print(table(magnitude(as.vector(R))))
                 if (colFirst) {
+                    tmpq <- -2 * c(t(R) %*% t(Q) %*% drY) / drN
+                    tmpNormA <- rbind(env$model$A, tmpq)
                     ## Scale columns and then rows
-                    colNorms <- apply(env$model$A, 2, function(x) {
+                    colNorms <- apply(tmpNormA, 2, function(x) {
                         suppressWarnings(min(magnitude(x), na.rm = TRUE))
                     })
                     colNorms[colNorms == Inf] <- mag.lb
