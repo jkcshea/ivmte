@@ -1801,7 +1801,9 @@ qpSetup <- function(env, sset, g0, g1, rescale = FALSE) {
     mag.lb <- -3
     colFirst <- TRUE
     ## Prepare objective vector to be incorporated for rescaling
+    rescale.obj <- FALSE
     tmpobj <- c(g0, g1)
+    if (!rescale.obj) tmpobj <- NULL
     ## Implement decomposition for numerical stability
     if (direct == "qp0") {
         ## No decomposition constraints/auxiliary variables to set up
@@ -1813,6 +1815,7 @@ qpSetup <- function(env, sset, g0, g1, rescale = FALSE) {
         if (rescale) {
             if (colFirst) {
                 tmpq <- -2 * c(t(drX) %*% drY) / drN
+                if (!rescale.obj) tmpq <- NULL
                 tmpNormA <- rbind(env$model$A, tmpq, tmpobj)
                 ## Scale columns and then rows
                 colNorms <- apply(tmpNormA, 2, function(x) {
@@ -1888,6 +1891,7 @@ qpSetup <- function(env, sset, g0, g1, rescale = FALSE) {
             })
             if (colFirst) {
                 tmpq <- -2 * c(t(drX) %*% drY) / drN
+                if (!rescale.obj) tmpq <- NULL
                 ## Scale columns and then rows
                 tmpNormA <- env$model$A[, 1:ncR]
                 tmpNormA <- rbind(decompAA, tmpNormA, tmpq, tmpobj)
@@ -2095,6 +2099,7 @@ qpSetup <- function(env, sset, g0, g1, rescale = FALSE) {
                 })
                 ## Scale columns and then rows
                 tmpq <- -2 * c(t(drX) %*% drY) / drN
+                if (!rescale.obj) tmpq <- NULL
                 tmpNormA <- env$model$A[, 1:ncR]
                 tmpNormA <- rbind(decompAA, tmpNormA, tmpq, tmpobj)
                 colNorms <- apply(tmpNormA, 2, function(x) {
@@ -2168,6 +2173,7 @@ qpSetup <- function(env, sset, g0, g1, rescale = FALSE) {
             if (rescale) {
                 if (colFirst) {
                     tmpq <- -2 * c(t(R) %*% t(Q) %*% drY) / drN
+                    if (!rescale.obj) tmpq <- NULL
                     tmpNormA <- rbind(env$model$A, tmpq, tmpobj)
                     ## Scale columns and then rows
                     colNorms <- apply(tmpNormA, 2, function(x) {
