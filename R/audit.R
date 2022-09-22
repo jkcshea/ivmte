@@ -519,7 +519,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             equal.coef0 = equal.coef0, equal.coef1 = equal.coef1,
             solver = solver, qp = qp.switch)
     ## Setup QCQP problem
-    if (qp.switch) qpSetup(env = modelEnv, sset = sset, rescale = rescale)
+    if (qp.switch) qpSetup(env = modelEnv, sset = sset,
+                           g0 = gstar0, g1 = gstar1,
+                           rescale = rescale)
     ## Prepare solver messages
     ##
     ## Status codes: 0-unknown; 1-optimal; 2-infeasible; 3-infeasible

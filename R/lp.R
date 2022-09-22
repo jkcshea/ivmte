@@ -1777,7 +1777,7 @@ optionsCplexAPITol <- function(options) {
 #'     should be rescaled to improve stability in the LP/QP/QCP
 #'     optimization.
 #' @export
-qpSetup <- function(env, sset, rescale = FALSE) {
+qpSetup <- function(env, sset, g0, g1, rescale = FALSE) {
     ## Determine what decomposition to use
     direct <- env$direct
     ## Construct the constraint vectors and matrices
@@ -1800,6 +1800,8 @@ qpSetup <- function(env, sset, rescale = FALSE) {
     ## should be rescaled before rows)
     mag.lb <- -3
     colFirst <- TRUE
+    ## Prepare objective vector to be incorporated for rescaling
+    tmpobj <- c(g0, g1)
     ## Implement decomposition for numerical stability
     if (direct == "qp0") {
         ## No decomposition constraints/auxiliary variables to set up
@@ -1811,7 +1813,7 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         if (rescale) {
             if (colFirst) {
                 tmpq <- -2 * c(t(drX) %*% drY) / drN
-                tmpNormA <- rbind(env$model$A, tmpq)
+                tmpNormA <- rbind(env$model$A, tmpq, tmpobj)
                 ## Scale columns and then rows
                 colNorms <- apply(tmpNormA, 2, function(x) {
                     suppressWarnings(min(magnitude(x), na.rm = TRUE))
@@ -1888,7 +1890,7 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 tmpq <- -2 * c(t(drX) %*% drY) / drN
                 ## Scale columns and then rows
                 tmpNormA <- env$model$A[, 1:ncR]
-                tmpNormA <- rbind(decompAA, tmpNormA, tmpq)
+                tmpNormA <- rbind(decompAA, tmpNormA, tmpq, tmpobj)
                 colNorms <- apply(tmpNormA, 2, function(x) {
                     suppressWarnings(min(magnitude(x), na.rm = TRUE))
                 })
@@ -1955,11 +1957,8 @@ qpSetup <- function(env, sset, rescale = FALSE) {
         }
         ## Set up the quadratic objective
         quadMats <- list()
-        quadMats$q <- -2 * c(t(drX) %*% drY) / quadMats
-        dr$Nq <- c(quadMats$q, rep(0, ncol(AA)))
-        ## if (rescale) {
-        ##     quadMats$q <- quadMats$q / colNorms
-        ## }
+        quadMats$q <- -2 * c(t(drX) %*% drY) / drN
+        quadMats$q <- c(quadMats$q, rep(0, ncol(AA)))
         quadMats$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
                                                     ncol = ncol(AA),
                                                     nrow = ncol(AA)),
@@ -2096,9 +2095,8 @@ qpSetup <- function(env, sset, rescale = FALSE) {
                 })
                 ## Scale columns and then rows
                 tmpq <- -2 * c(t(drX) %*% drY) / drN
-                ## tmpq <- NULL ## TESTING
                 tmpNormA <- env$model$A[, 1:ncR]
-                tmpNormA <- rbind(decompAA, tmpNormA, tmpq)
+                tmpNormA <- rbind(decompAA, tmpNormA, tmpq, tmpobj)
                 colNorms <- apply(tmpNormA, 2, function(x) {
                     suppressWarnings(min(magnitude(x), na.rm = TRUE))
                 })
@@ -2168,19 +2166,9 @@ qpSetup <- function(env, sset, rescale = FALSE) {
             tmpUb <- tmpLb <- NULL
             ## Adjust for scaling if necessary
             if (rescale) {
-                ## Q <- apply(Q, 2, function(x) {
-                ##     x[abs(x) < 1e-13] <- 0
-                ##     x
-                ## })
-                ## R <- apply(R, 2, function(x) {
-                ##     x[abs(x) < 1e-13] <- 0
-                ##     x
-                ## })
-                ## print(table(magnitude(as.vector(Q))))
-                ## print(table(magnitude(as.vector(R))))
                 if (colFirst) {
                     tmpq <- -2 * c(t(R) %*% t(Q) %*% drY) / drN
-                    tmpNormA <- rbind(env$model$A, tmpq)
+                    tmpNormA <- rbind(env$model$A, tmpq, tmpobj)
                     ## Scale columns and then rows
                     colNorms <- apply(tmpNormA, 2, function(x) {
                         suppressWarnings(min(magnitude(x), na.rm = TRUE))
@@ -2450,6 +2438,8 @@ qpSetupBound <- function(env, g0, g1,
                                                    rep(1, nrow(env$drX)))
             }
         }
+        print("Magnitudes of the objective vector.")
+        print(table(magnitude(env$model$obj), useNA = "ifany"))
         env$model$Q <- NULL
         ## Add in the quadratic constraint, accounting for how
         ## criterion.min excludes the SSY.
