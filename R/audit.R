@@ -171,8 +171,11 @@
 #' @export
 audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                   vars_mtr, terms_mtr0, terms_mtr1, vars_data,
-                  initgrid.nu = 20, initgrid.nx = 20,
-                  audit.nx = 2500, audit.nu = 25, audit.add = 100,
+                  initgrid.nx = 20, initgrid.nu = 20,
+                  audit.nx = 2500, audit.nu = 25,
+                  initgrid.x, initgrid.u,
+                  audit.x, audit.u,
+                  audit.add = 100,
                   audit.max = 25, audit.tol,
                   audit.grid = NULL,
                   m1.ub, m0.ub, m1.lb, m0.lb, mte.ub, mte.lb,
@@ -395,6 +398,44 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     xvars <- xvars[xvars != uname]
     xvars <- xvars[xvars %in% vars_data]
     otherx  <- xvars[xvars != monov]
+    ## If there are custom grids, then check that all variables are
+    ## indeed in the MTRs
+    if (hasArg(initgrid.x)) {
+        if (hasArg(initgrid.nx)) {
+            warning(gsub("\\s+", " ",
+                         "Argument 'initgrid.nx' is ignored when
+                          a custom initial grid 'initgrid.x' is passed."),
+                    call. = FALSE, immediate. = FALSE)
+        }
+        if (!(all(colnames(initgrid.x) %in% xvars) &
+              all(xvars %in% colnames(initgrid.x)))) {
+            stop(gsub("\\s+", " ",
+                      "The argument 'initgrid.x' must be a data.frame
+                       or data.table containing all and only the variables
+                       included in the MTR specifications."),
+                 call. = FALSE, immediate. = FALSE)
+        }
+    } else {
+        initgrid.x <- NULL
+    }
+    if (hasArg(audit.x)) {
+        if (hasArg(audit.nx)) {
+            warning(gsub("\\s+", " ",
+                         "Argument 'audit.nx' is ignored when
+                          a custom audit grid 'audit.x' is passed."),
+                    call. = FALSE, immediate. = FALSE)
+        }
+        if (!(all(colnames(audit.x) %in% xvars) &
+              all(xvars %in% colnames(audit.x)))) {
+            stop(gsub("\\s+", " ",
+                      "The argument 'audit.x' must be a data.frame
+                       or data.table containing all and only the variables
+                       included in the MTR specifications."),
+                 call. = FALSE, immediate. = FALSE)
+        }
+    } else {
+        audit.x <- NULL
+    }
     ## Begin performing the audit
     prevbound <- c(-Inf, Inf)
     existsolution <- FALSE
@@ -417,36 +458,59 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             if (length(xvars) == 0) {
                 noX <- TRUE
                 support <- NULL
+                if (hasArg(initgrid.x) | hasArg(audit.x)) {
+                    warning(gsub("\\s+", " ",
+                                 "Arguments 'initgrid.x' and 'audit.x'
+                                  are ignored because MTR specifications
+                                  do not include any covariates."),
+                            call. = FALSE, immediate. = FALSE)
+                }
             } else {
                 noX <- FALSE
-                support <- unique(data[, xvars])
-                ## Check if support is vector or matrix; it can be a vector if
-                ## there is only one X term
-                if (is.null(dim(support))) {
-                    support <- data.frame(support)
-                    colnames(support) <- xvars
+                if (is.null(audit.x)) {
+                    support <- unique(data[, xvars])
+                    ## Check if support is vector or matrix; it can be a vector if
+                    ## there is only one X term
+                    if (is.null(dim(support))) {
+                        support <- data.frame(support)
+                        colnames(support) <- xvars
+                    }
+                    rownames(support) <- seq(1, nrow(support))
+                    ## Select first iteration of the grid
+                    full_index <- seq(1, nrow(support))
+                    initgrid.nx <- min(initgrid.nx, nrow(support))
+                    audit.nx <- min(audit.nx, nrow(support))
+                    a_grid_index <- sort(sample(full_index,
+                                                audit.nx,
+                                                replace = FALSE,
+                                                prob = replicate(length(full_index),
+                                                (1 / length(full_index)))))
+                    ## Restrict support the audit points
+                    support <- support[a_grid_index, ]
+                    if (is.null(dim(support))) {
+                        support <- data.frame(support)
+                        colnames(support) <- xvars
+                    }
+                    rm(a_grid_index)
+                } else {
+                    support <- audit.x
                 }
-                rownames(support) <- seq(1, nrow(support))
-                ## Select first iteration of the grid
-                full_index <- seq(1, nrow(support))
-                initgrid.nx <- min(initgrid.nx, nrow(support))
-                audit.nx <- min(audit.nx, nrow(support))
-                a_grid_index <- sort(sample(full_index,
-                                            audit.nx,
-                                            replace = FALSE,
-                                            prob = replicate(length(full_index),
-                                            (1 / length(full_index)))))
-                ## Restrict support the audit points
-                support <- support[a_grid_index, ]
-                if (is.null(dim(support))) {
-                    support <- data.frame(support)
-                    colnames(support) <- xvars
-                }
-                rownames(support) <- seq(nrow(support))
-                rm(a_grid_index)
             }
             ## Generate the underlying U grid for the audit
-            a_uvec <- sort(c(0, 1, round(rhalton(audit.nu), 8)))
+            if (!hasArg(audit.u)) {
+                a_uvec <- sort(c(0, 1, round(rhalton(audit.nu), 8)))
+            } else {
+                a_uvec <- audit.u
+                if (hasArg(audit.nu)) {
+                    warning(gsub("\\s+", " ",
+                                 "Argument 'audit.nu' is ignored when
+                                  a custom audit grid 'audit.u' is passed."),
+                            call. = FALSE, immediate. = FALSE)
+                }
+                if (hasArg(initgrid.u)) {
+                    a_uvec <- sort(unique(c(a_uvec, initgrid.u)))
+                }
+            }
             audit.grid <- list(support = support,
                                uvec = a_uvec,
                                noX = noX)
@@ -460,16 +524,73 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         if (noX) {
             grid_index <- NULL
         } else {
-            initgrid.nx <- min(initgrid.nx, nrow(support))
-            grid_index <- sort(
-                sample(seq(nrow(support)),
-                       initgrid.nx,
-                       replace = FALSE))
+            if (is.null(initgrid.x)) {
+                initgrid.nx <- min(initgrid.nx, nrow(support))
+                grid_index <- sort(
+                    sample(seq(nrow(support)),
+                           initgrid.nx,
+                           replace = FALSE))
+            } else {
+                ## Combine the custom grid with the full support
+                initgrid.x <- initgrid.x[, xvars]
+                if (is.null(dim(initgrid.x))) {
+                    initgrid.x <- data.frame(initgrid.x)
+                    colnames(initgrid.x) <- xvars
+                }
+                tmp.init <- c(rep(TRUE, nrow(initgrid.x)),
+                              rep(FALSE, nrow(support)))
+                support <- rbind(initgrid.x, support)
+                ## Now determine where the indexes would be after
+                ## removing duplicates
+                support$.duplicate.check <- duplicated(support)
+                support$.init.check <- tmp.init
+                support <- support[!(support$.duplicate.check == TRUE &
+                                     support$.init.check == FALSE), ]
+                rownames(support) <- seq(nrow(support))
+                grid_index <- which(support$.init.check)
+                support$.init.check <- NULL
+                support$.duplicate.check <- NULL
+            }
         }
-        if (initgrid.nu > 0) {
-            uvec <- sort(c(0, 1, round(rhalton(initgrid.nu), 8)))
+        if (!hasArg(initgrid.u)) {
+            if (initgrid.nu > 0) {
+                if (!hasArg(audit.u)) {
+                    uvec <- sort(c(0, 1, round(rhalton(initgrid.nu), 8)))
+                } else {
+                    ## if (initgrid.nu > length(audit.u)) {
+                    ##     stop(gsub("\\s+", " ",
+                    ##               "A custom audit grid for the unobservable term
+                    ##                has been passed to the argument 'audit.u'.
+                    ##                Since no custom initial grid for the
+                    ##                unobservable term has been passed, the
+                    ##                initial grid is constructed by sampling from
+                    ##                the grid declared in 'audit.u'. Please
+                    ##                set 'initgrid.u' to a value less than or
+                    ##                equal to the length of the grid declared in
+                    ##                'audit.u'."),
+                    ##          call. = FALSE)
+                    ## }
+                    initgrid.nu <- min(length(a_uvec), initgrid.nu)
+                    uvec <- sample(a_uvec, initgrid.nu, FALSE)
+                }
+            } else {
+                uvec <- c(0, 1)
+            }
         } else {
-            uvec <- c(0, 1)
+            warning(gsub("\\s+", " ",
+                         "Argument 'initgrid.nu' is ignored when
+                          a custom initial grid 'initgrid.u' is passed."),
+                    call. = FALSE, immediate. = FALSE)
+            if (! is.vector(initgrid.u)) {
+                stop(gsub("\\s+", " ",
+                          "Argument 'initgrid.u' should be a vector of values
+                           between 0 and 1. This vector corresponds to the
+                           values taken by the unobservable variable and is used
+                           to impose the shape constraints."),
+                     call. = FALSE,
+                     immediate. = FALSE)
+            }
+            uvec <- sort(unique(c(0, 1, initgrid.u)))
         }
         monoboundAcall <- modcall(call,
                                   newcall = genmonoboundA,

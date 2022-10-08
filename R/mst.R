@@ -205,6 +205,18 @@ utils::globalVariables("u")
 #'     components of the MTRs are satisfied. The initial grid used to
 #'     impose the shape constraints in the LP/QCQP problem are
 #'     constructed from a subset of these points.
+#' @param initgrid.x \code{data.frame} or \code{data.table} containing
+#'     the combination of covariates used to impose shape restrictions
+#'     in the audit procedure.
+#' @param initgrid.u vector of values between 0 and 1 containing the
+#'     values of the unobserved variable used to impose shape
+#'     restrictions in the audit procedure.
+#' @param audit.x \code{data.frame} or \code{data.table} containing
+#'     the combination of covariates used to test for violations of
+#'     the shape restrictions in the audit procedure.
+#' @param audit.u vector of values between 0 and 1 containing the
+#'     values of the unobserved variable used to test for violations
+#'     of the shape restrictions in the audit procedure.
 #' @param audit.add maximum number of points to add to the initial
 #'     constraint grid for imposing each kind of shape constraint. For
 #'     example, if there are 5 different kinds of shape constraints,
@@ -435,6 +447,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   lpsolver.options.criterion, lpsolver.options.bounds,
                   criterion.tol = 1e-4,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
+                  initgrid.x, initgrid.u, audit.x, audit.u,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
                   audit.tol, direct, rescale,
                   point, point.eyeweight = FALSE,
@@ -3393,6 +3406,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           solver.options.bounds, criterion.tol = 0.01,
                           initgrid.nx = 20, initgrid.nu = 20,
                           audit.nx = 2500, audit.nu = 25,
+                          initgrid.x, initgrid.u, audit.x, audit.u,
                           audit.add = 100, audit.max = 25, audit.tol,
                           audit.grid = NULL, direct, rescale = TRUE,
                           point = FALSE, point.eyeweight = FALSE,
@@ -3986,8 +4000,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         cat("\nPerforming audit procedure...\n")
     }
     audit.args <- c("uname", "vars_data",
-                    "initgrid.nu", "initgrid.nx",
-                    "audit.nx", "audit.nu", "audit.add",
+                    "initgrid.nx", "initgrid.nu",
+                    "audit.nx", "audit.nu",
+                    "initgrid.x", "initgrid.u",
+                    "audit.x", "audit.u",
+                    "audit.add",
                     "audit.max", "audit.tol",
                     "audit.grid", "rescale",
                     "m1.ub", "m0.ub",

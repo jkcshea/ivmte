@@ -76,7 +76,26 @@ design <- function(formula, data, subset, treat, orig.names) {
     if (onesided == FALSE) Y <- model.response(mf, "numeric")
     if (onesided == TRUE)  Y <- NULL
     mtX <- terms(formula, data = data, rhs = 1)
-    X   <- model.matrix(mtX, mf)
+    X <- try(model.matrix(mtX, mf), silent = TRUE)
+    if (length(X) == 1 && class(X) == "try-error") {
+        if (grepl("contrasts", X)) {
+            stop(gsub("\\s+", " ",
+                      "R was unable to construct a design matrix since the
+                      formula involved a contrast for a variable, but the data
+                      provided for that variable has no variation.
+                      This can occur when constructing the audit grids, which
+                      are constructed from a random subset of the data.
+                      This error can be resolved by adjusting the seed.
+                      A better solution is simply to increase the size of
+                      'initgrid.nx' or 'audit.nx'. If custom
+                      grids are passed, then make sure the custom grids contain
+                      variation for variables declared to be factors in the
+                      MTRs."),
+                 call. = FALSE)
+        } else {
+            stop("Unknown error in construction of design matrix.")
+        }
+    }
     if (hasArg(treat) && hasArg(orig.names)) {
         if (any(origPos)) {
             for (i in 1:length(origInter)) {
