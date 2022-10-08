@@ -1307,11 +1307,13 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             stop("'audit.nx' must be an integer greater than or equal to 1.",
                  call. = FALSE)
         }
-        if (audit.nx < initgrid.nx) {
-            stop("'audit.nx' must be larger than 'initgrid.nx'.")
+        if (audit.nx < initgrid.nx && !hasArg(initgrid.x)) {
+            stop("'audit.nx' must be larger than 'initgrid.nx'.",
+                 call. = FALSE)
         }
-        if (audit.nu < initgrid.nu) {
-            stop("'audit.nu' must be larger than 'initgrid.nu'.")
+        if (audit.nu < initgrid.nu && !hasArg(initgrid.u)) {
+            stop("'audit.nu' must be larger than 'initgrid.nu'.",
+                 call. = FALSE)
         }
         if (!((audit.add %% 1 == 0) & audit.add > 0)) {
             stop("'audit.add' must be an integer greater than or equal to 1.",
