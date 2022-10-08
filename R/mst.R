@@ -207,13 +207,15 @@ utils::globalVariables("u")
 #'     constructed from a subset of these points.
 #' @param initgrid.x \code{data.frame} or \code{data.table} containing
 #'     the combination of covariates used to impose shape restrictions
-#'     in the audit procedure.
+#'     in the audit procedure. The data must contain all and only the
+#'     variables in the MTR functions.
 #' @param initgrid.u vector of values between 0 and 1 containing the
 #'     values of the unobserved variable used to impose shape
 #'     restrictions in the audit procedure.
 #' @param audit.x \code{data.frame} or \code{data.table} containing
 #'     the combination of covariates used to test for violations of
-#'     the shape restrictions in the audit procedure.
+#'     the shape restrictions in the audit procedure. The data must
+#'     contain all and only the variables in the MTR functions.
 #' @param audit.u vector of values between 0 and 1 containing the
 #'     values of the unobserved variable used to test for violations
 #'     of the shape restrictions in the audit procedure.
@@ -237,8 +239,8 @@ utils::globalVariables("u")
 #'     then the regression approach is performed by solving linear
 #'     programs.
 #' @param rescale boolean, set to \code{FALSE} by default. This
-#'     rescalels the MTR components to improve stability in the
-#'     QCQP optimization.
+#'     rescalels the MTR components to improve stability in the QCQP
+#'     optimization.
 #' @param point boolean. Set to \code{TRUE} if it is believed that the
 #'     treatment effects are point identified. If set to \code{TRUE}
 #'     and IV-like formulas are passed, then a two-step GMM procedure
