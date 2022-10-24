@@ -951,7 +951,8 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
 #' cat("The bounds are [",  bounds$min, ",", bounds$max, "].\n")
 #'
 #' @export
-bound <- function(env, sset, solver,
+bound <- function(env, sset, g0, g1, soft = FALSE,
+                  criterion.tol, solver,
                   solver.options, noisy = FALSE,
                   smallreturnlist = FALSE,
                   rescale = FALSE,
@@ -959,35 +960,85 @@ bound <- function(env, sset, solver,
     solver <- tolower(solver)
     ## Obtain lower and upper bounds
     if (solver == "gurobi") {
-        if (debug && solver.options$outputflag == 1) {
-            cat("\nLower bound optimization statistics:\n")
-            cat("------------------------------------\n")
+        if (!soft) {
+            if (debug && solver.options$outputflag == 1) {
+                cat("\nLower bound optimization statistics:\n")
+                cat("------------------------------------\n")
+            }
+            if (debug == TRUE){
+                gurobi::gurobi_write(env$model, "modelBound.mps")
+                model <- env$model
+                saveRDS(model, file = "modelBound.rds")
+                rm(model)
+            }
+            env$model$modelsense <- "min"
+            min.t0 <- Sys.time()
+            minresult <- runGurobi(env$model, solver.options)
+            min.t1 <- Sys.time()
+            min <- minresult$objval
+            minstatus <- minresult$status
+            minoptx <- minresult$optx
+            if (debug && solver.options$outputflag == 1) {
+                cat("\nUpper bound optimization statistics:\n")
+                cat("------------------------------------\n")
+            }
+            env$model$modelsense <- "max"
+            max.t0 <- Sys.time()
+            maxresult <- runGurobi(env$model, solver.options)
+            max.t1 <- Sys.time()
+            max <- maxresult$objval
+            maxstatus <- maxresult$status
+            maxoptx <- maxresult$optx
+            if (debug) cat("\n")
+        } else {
+            ## Minmization problem
+            if (debug && solver.options$outputflag == 1) {
+                cat("\nLower bound optimization statistics:\n")
+                cat("------------------------------------\n")
+            }
+
+            print("CHECK HOW THE CRITERIONS LOOK")
+            env$model$modelsense <- "min"
+            env$model$obj <- c(g0, g1) + criterion.tol * env$quadMats$q
+            env$model$Q <- criterion.tol * env$quadMats$Qc
+            if (debug == TRUE){
+                gurobi::gurobi_write(env$model, "modelBoundMin.mps")
+                model <- env$model
+                saveRDS(model, file = "modelBoundMin.rds")
+                rm(model)
+            }
+            min.t0 <- Sys.time()
+            minresult <- runGurobi(env$model, solver.options)
+            min.t1 <- Sys.time()
+            min <- sum(minresult$optx * c(g0, g1))
+            print("This is min")
+            print(min)
+            minstatus <- minresult$status
+            minoptx <- minresult$optx
+            ## Maximization problem
+            if (debug && solver.options$outputflag == 1) {
+                cat("\nUpper bound optimization statistics:\n")
+                cat("------------------------------------\n")
+            }
+            env$model$modelsense <- "max"
+            env$model$obj <- c(g0, g1) - criterion.tol * env$quadMats$q
+            env$model$Q <- -criterion.tol * env$quadMats$Qc
+            if (debug == TRUE){
+                gurobi::gurobi_write(env$model, "modelBoundMax.mps")
+                model <- env$model
+                saveRDS(model, file = "modelBoundMax.rds")
+                rm(model)
+            }
+            max.t0 <- Sys.time()
+            maxresult <- runGurobi(env$model, solver.options)
+            max.t1 <- Sys.time()
+            max <- sum(maxresult$optx * c(g0, g1))
+            print("This is max")
+            print(max)
+            maxstatus <- maxresult$status
+            maxoptx <- maxresult$optx
+            if (debug) cat("\n")
         }
-        if (debug == TRUE){
-            gurobi::gurobi_write(env$model, "modelBound.mps")
-            model <- env$model
-            saveRDS(model, file = "modelBound.rds")
-            rm(model)
-        }
-        env$model$modelsense <- "min"
-        min.t0 <- Sys.time()
-        minresult <- runGurobi(env$model, solver.options)
-        min.t1 <- Sys.time()
-        min <- minresult$objval
-        minstatus <- minresult$status
-        minoptx <- minresult$optx
-        if (debug && solver.options$outputflag == 1) {
-            cat("\nUpper bound optimization statistics:\n")
-            cat("------------------------------------\n")
-        }
-        env$model$modelsense <- "max"
-        max.t0 <- Sys.time()
-        maxresult <- runGurobi(env$model, solver.options)
-        max.t1 <- Sys.time()
-        max <- maxresult$objval
-        maxstatus <- maxresult$status
-        maxoptx <- maxresult$optx
-        if (debug) cat("\n")
     } else if (solver == "cplexapi") {
         min.t0 <- Sys.time()
         minresult <- runCplexAPI(env$model, cplexAPI::CPX_MIN, solver.options)
@@ -1675,6 +1726,73 @@ optionsCplexAPITol <- function(options) {
 #'     optimization.
 #' @export
 qpSetup <- function(env, sset, rescale = TRUE) {
+    ## ## Original code -----------------------------
+    ## ## Construct the constraint vectors and matrices
+    ## drY <- sset$s1$ys
+    ## drX <- cbind(sset$s1$g0, sset$s1$g1)
+    ## drN <- length(drY)
+    ## if (rescale) {
+    ##     drX <- sweep(x = drX, MARGIN = 2, STATS = env$colNorms, FUN = '/')
+    ##     normY <- sqrt(sum(drY^2))
+    ##     drN <- drN * normY
+    ## }
+    ## ## Store the SSY
+    ## env$ssy <- sum(drY^2)
+    ## ## Store the regression matrices
+    ## env$drY <- drY
+    ## env$drX <- drX
+    ## env$drN <- drN
+    ## if (rescale) env$normY <- normY
+    ## ## Add a new variable yhat for each observation, defined using a
+    ## ## linear constraint
+    ## AA <- t(drX) %*% drX
+    ## cholAA <- suppressWarnings(chol(AA, pivot = TRUE))
+    ## cholRank <- attr(cholAA, 'rank')
+    ## if (cholRank < nrow(AA)) {
+    ##     cholAA[(cholRank + 1):nrow(cholAA),
+    ##     (cholRank + 1):nrow(cholAA)] <- 0
+    ## }
+    ## cholOrder <- order(attr(cholAA, 'pivot'))
+    ## cholAA <- Matrix::Matrix(cholAA)[, cholOrder]
+    ## tmpI <- Matrix::Diagonal(ncol(AA))
+    ## tmpRhs <- rep(0, ncol(AA))
+    ## tmpSense <- rep("=", ncol(AA))
+    ## tmpBounds <- rep(Inf, ncol(AA))
+    ## colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
+    ##     names(tmpBounds) <- paste0("yhat.", seq(ncol(AA)))
+    ## cholMats <- list(A = cbind(cholAA, -tmpI),
+    ##                  rhs = tmpRhs,
+    ##                  sense = tmpSense,
+    ##                  ub = tmpBounds,
+    ##                  lb = -tmpBounds)
+    ## env$cholMats <- cholMats
+    ## ## Now set up the quadratic constraint
+    ## cholQuad <- list()
+    ## cholQuad$q <- -2 * c(t(drX) %*% drY) / drN
+    ## cholQuad$q <- c(cholQuad$q, rep(0, ncol(AA)))
+    ## cholQuad$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
+    ##                                       ncol = ncol(AA),
+    ##                                       nrow = ncol(AA)),
+    ##                        Matrix::Diagonal(ncol(AA))) / drN
+    ## cholQuad$sense <- '<'
+    ## cholQuad$name <- 'SSR'
+    ## env$cholQuad <- cholQuad
+    ## ## Incorporate the Cholesky decomposition
+    ## tmpA <- Matrix::Matrix(data = 0,
+    ##                        nrow = nrow(env$model$A),
+    ##                        ncol = ncol(env$model$A))
+    ## colnames(tmpA) <- paste0("yhat.", seq(ncol(env$model$A)))
+    ## origA.colnames <- colnames(env$model$A)
+    ## env$model$A <- rbind(cbind(env$model$A, tmpA),
+    ##                      env$cholMats$A)
+    ## env$model$rhs <- c(env$model$rhs, env$cholMats$rhs)
+    ## env$model$sense <- c(env$model$sense, env$cholMats$sense)
+    ## env$model$lb <- c(env$model$lb, env$cholMats$lb)
+    ## env$model$ub <- c(env$model$ub, env$cholMats$ub)
+    ## colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
+
+    ## New code ----------------------------------
+
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
@@ -1690,54 +1808,28 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$drY <- drY
     env$drX <- drX
     env$drN <- drN
-    if (rescale) env$normY <- normY
-    ## Add a new variable yhat for each observation, defined using a
-    ## linear constraint
-    AA <- t(drX) %*% drX
-    cholAA <- suppressWarnings(chol(AA, pivot = TRUE))
-    cholRank <- attr(cholAA, 'rank')
-    if (cholRank < nrow(AA)) {
-        cholAA[(cholRank + 1):nrow(cholAA),
-        (cholRank + 1):nrow(cholAA)] <- 0
-    }
-    cholOrder <- order(attr(cholAA, 'pivot'))
-    cholAA <- Matrix::Matrix(cholAA)[, cholOrder]
-    tmpI <- Matrix::Diagonal(ncol(AA))
-    tmpRhs <- rep(0, ncol(AA))
-    tmpSense <- rep("=", ncol(AA))
-    tmpBounds <- rep(Inf, ncol(AA))
-    colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
-        names(tmpBounds) <- paste0("yhat.", seq(ncol(AA)))
-    cholMats <- list(A = cbind(cholAA, -tmpI),
-                     rhs = tmpRhs,
-                     sense = tmpSense,
-                     ub = tmpBounds,
-                     lb = -tmpBounds)
-    env$cholMats <- cholMats
-    ## Now set up the quadratic constraint
-    cholQuad <- list()
-    cholQuad$q <- -2 * c(t(drX) %*% drY) / drN
-    cholQuad$q <- c(cholQuad$q, rep(0, ncol(AA)))
-    cholQuad$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
-                                          ncol = ncol(AA),
-                                          nrow = ncol(AA)),
-                           Matrix::Diagonal(ncol(AA))) / drN
-    cholQuad$sense <- '<'
-    cholQuad$name <- 'SSR'
-    env$cholQuad <- cholQuad
-    ## Incorporate the Cholesky decomposition
-    tmpA <- Matrix::Matrix(data = 0,
-                           nrow = nrow(env$model$A),
-                           ncol = ncol(env$model$A))
-    colnames(tmpA) <- paste0("yhat.", seq(ncol(env$model$A)))
-    origA.colnames <- colnames(env$model$A)
-    env$model$A <- rbind(cbind(env$model$A, tmpA),
-                         env$cholMats$A)
-    env$model$rhs <- c(env$model$rhs, env$cholMats$rhs)
-    env$model$sense <- c(env$model$sense, env$cholMats$sense)
-    env$model$lb <- c(env$model$lb, env$cholMats$lb)
-    env$model$ub <- c(env$model$ub, env$cholMats$ub)
-    colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
+
+    ## No decomposition constraints/auxiliary variables to set up
+    tmpA <- NULL
+    tmpRhs <- NULL
+    tmpSense <- NULL
+    tmpUb <- tmpLb <- NULL
+    ## Set up the quadratic objective
+    quadMats <- list()
+    quadMats$q <- -2 * c(t(drX) %*% drY) / drN
+    quadMats$Qc <- t(drX) %*% drX / drN
+
+    ## Impose the decomposition constraints
+    env$model$A <- rbind(env$model$A, tmpA)
+    env$model$rhs <- c(env$model$rhs, tmpRhs)
+    env$model$sense <- c(env$model$sense, tmpSense)
+    env$model$lb <- c(env$model$lb, tmpLb)
+    env$model$ub <- c(env$model$ub, tmpUb)
+    ## Store the quadratic objective matrices
+    quadMats$sense <- '<'
+    quadMats$name <- 'SSR'
+    env$quadMats <- quadMats
+    ## End new code ------------------------------
 }
 
 #' Configure QCQP problem to find minimum criterion
@@ -1750,8 +1842,8 @@ qpSetup <- function(env, sset, rescale = TRUE) {
 #'     memory.
 #' @export
 qpSetupCriterion <- function(env) {
-    env$model$obj <- env$cholQuad$q
-    env$model$Q <- env$cholQuad$Qc
+    env$model$obj <- env$quadMats$q
+    env$model$Q <- env$quadMats$Qc
     env$model$modelsense <- 'min'
 }
 
@@ -1784,30 +1876,40 @@ qpSetupCriterion <- function(env) {
 #'     problem for Gurobi or MOSEK.
 #' @export
 qpSetupBound <- function(env, g0, g1,
+                         soft = FALSE,
                          criterion.tol,
                          criterion.min,
                          rescale = FALSE,
                          setup = TRUE) {
-    if (setup) {
-        ## Prepare objective
-        env$model$obj <- c(c(g0, g1),
-                           rep(0, ncol(env$drX)))
-        if (rescale) {
-            env$model$obj <- env$model$obj / c(env$colNorms,
-                                               rep(1, ncol(env$drX)))
+    if (!soft) {
+        if (setup) {
+            ## Prepare objective
+            env$model$obj <- c(g0, g1)
+            if (rescale) {
+                env$model$obj <- env$model$obj / c(env$colNorms,
+                                                   rep(1, ncol(env$drX)))
+            }
+            env$model$Q <- NULL
+            ## Add in the quadratic constraint, accounting for how
+            ## criterion.min excludes the SSY.
+            env$model$quadcon <- list(env$quadMats)
+            env$model$quadcon[[1]]$rhs <- (env$ssy / env$drN) * criterion.tol +
+                criterion.min * (1 + criterion.tol)
+        } else {
+            ## Delete components of the model that will be replaced (to
+            ## avoid mistakes)
+            env$model$obj <- NULL
+            env$model$Q <- NULL
+            env$model$quadcon <- NULL
         }
-        env$model$Q <- NULL
-        ## Add in the quadratic constraint, accounting for how
-        ## criterion.min excludes the SSY.
-        env$model$quadcon <- list(env$cholQuad)
-        env$model$quadcon[[1]]$rhs <- (env$ssy / env$drN) * criterion.tol +
-            criterion.min * (1 + criterion.tol)
     } else {
-        ## Delete components of the model that will be replaced (to
-        ## avoid mistakes)
-        env$model$obj <- NULL
-        env$model$Q <- NULL
-        env$model$quadcon <- NULL
+        if (setup) {
+            print("Address how qpSetupBound has become redundant")
+        } else {
+            env$model$obj <- NULL
+            env$model$Q <- NULL
+            env$model$quadcon <- NULL
+        }
     }
 }
 

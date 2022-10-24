@@ -448,6 +448,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                   lpsolver.presolve,
                   lpsolver.options.criterion, lpsolver.options.bounds,
                   criterion.tol = 1e-4,
+                  soft = FALSE,
                   initgrid.nx = 20, initgrid.nu = 20, audit.nx = 2500,
                   initgrid.x, initgrid.u, audit.x, audit.u,
                   audit.nu = 25, audit.add = 100, audit.max = 25,
@@ -883,6 +884,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                               'components' argument becomes redundant."),
                         call. = FALSE)
             }
+        }
+        ## Check if the `soft` argument is boolean
+        if (!is.logical(soft)) {
+            stop(gsub("\\s+", " ",
+                      "The 'soft' argument should be TRUE or FALSE.
+                       If set to TRUE, then a soft constraint is used
+                       to derive the bounds."),
+                 call. = FALSE)
         }
         ## Check the subset input---of the three lists that are input,
         ## only this can be omitted by the user, in which case no
@@ -3407,7 +3416,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                           propensity, link = "logit", treat, solver,
                           solver.options, solver.presolve,
                           solver.options.criterion,
-                          solver.options.bounds, criterion.tol = 0.01,
+                          solver.options.bounds, criterion.tol = 1e-4,
+                          soft = FALSE,
                           initgrid.nx = 20, initgrid.nu = 20,
                           audit.nx = 2500, audit.nu = 25,
                           initgrid.x, initgrid.u, audit.x, audit.u,
@@ -4017,7 +4027,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                     "m0.inc", "m1.dec", "m1.inc", "mte.dec",
                     "mte.inc", "solver.options", "solver.presolve",
                     "solver.options.criterion", "solver.options.bounds",
-                    "criterion.tol",
+                    "criterion.tol", "soft",
                     "orig.sset", "orig.criterion",
                     "smallreturnlist", "noisy", "debug")
     audit_call <- modcall(call,
