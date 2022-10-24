@@ -892,6 +892,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                          g0 = gstar0,
                          g1 = gstar1,
                          sset = sset,
+                         soft = soft,
                          criterion.tol = criterion.tol,
                          criterion.min = minobseq$obj,
                          solver = solver,
@@ -905,29 +906,19 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                          criterion.min = minobseq$obj,
                          rescale = rescale)
         }
-        if (!qp.switch) {
-            result <- bound(env = modelEnv,
-                            sset = sset,
-                            solver = solver,
-                            solver.options = solver.options.bounds,
-                            noisy = noisy,
-                            smallreturnlist = smallreturnlist,
-                            rescale = rescale,
-                            debug = debug)
-        } else {
-            result <- bound(env = modelEnv,
-                            sset = sset,
-                            g0 = gstar0,
-                            g1 = gstar1,
-                            soft = soft,
-                            criterion.tol = criterion.tol,
-                            solver = solver,
-                            solver.options = solver.options.bounds,
-                            noisy = noisy,
-                            smallreturnlist = smallreturnlist,
-                            rescale = rescale,
-                            debug = debug)
-        }
+        result <- bound(env = modelEnv,
+                        sset = sset,
+                        g0 = gstar0,
+                        g1 = gstar1,
+                        soft = soft,
+                        qp = qp.switch,
+                        criterion.tol = criterion.tol,
+                        solver = solver,
+                        solver.options = solver.options.bounds,
+                        noisy = noisy,
+                        smallreturnlist = smallreturnlist,
+                        rescale = rescale,
+                        debug = debug)
         if (result$error == TRUE) {
             errMess <- NULL
             errTypes <- NULL

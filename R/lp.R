@@ -511,7 +511,8 @@ lpSetupCriterionBoot <- function(env, sset, orig.sset,
 #' @return Nothing, as this modifies an environment variable to save
 #'     memory.
 #' @export
-lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
+lpSetupBound <- function(env, g0, g1, sset, soft = FALSE,
+                         criterion.tol, criterion.min,
                          solver, setup = TRUE) {
     if (setup) {
         solver <- tolower(solver)
@@ -519,16 +520,21 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
         tmpSlack <- replicate(2 * env$model$sn, 0)
         names(tmpSlack) <- c(rbind(paste0('slack', seq(env$model$sn), '-'),
                                    paste0('slack', seq(env$model$sn), '+')))
-        env$model$obj <- c(tmpSlack, g0, g1)
-        ## Allow for slack in minimum criterion
-        env$model$rhs <- c(criterion.min * (1 + criterion.tol), env$model$rhs)
         avec <- c(replicate(2 * env$model$sn, 1),
                   replicate(env$model$gn0 + env$model$gn1, 0))
-        env$model$A <- rbind(avec, env$model$A)
+        if (!soft) {
+            env$model$obj <- c(tmpSlack, g0, g1)
+            ## Allow for slack in minimum criterion
+            env$model$rhs <- c(criterion.min * (1 + criterion.tol),
+                               env$model$rhs)
+            env$model$A <- rbind(avec, env$model$A)
+            rownames(env$model$A)[1] <- 'criterion'
+            tmpOffset <- env$model$sn + 1
+        } else {
+            tmpOffset <- 0
+        }
         ## Label each row with the corresponding constraint. IV-like
         ## constraints are already labeled.
-        rownames(env$model$A)[1] <- 'criterion'
-        tmpOffset <- env$model$sn + 1
         if (length(env$mbobj$lb0seq) > 0) {
             rownames(env$model$A)[env$mbobj$lb0seq + tmpOffset] <- 'm0.lb'
         }
@@ -590,16 +596,20 @@ lpSetupBound <- function(env, g0, g1, sset, criterion.tol, criterion.min,
             rm(tmpInc)
         }
         ## Adjust syntax for solver.
-        if (solver %in% c("gurobi", "lpsolveapi", "rmosek")) {
-            env$model$sense <- c("<=", env$model$sense)
-        }
-        if (solver == "cplexapi") {
-            env$model$sense <- c("L", env$model$sense)
+        if (!soft) {
+            if (solver %in% c("gurobi", "lpsolveapi", "rmosek")) {
+                env$model$sense <- c("<=", env$model$sense)
+            }
+            if (solver == "cplexapi") {
+                env$model$sense <- c("L", env$model$sense)
+            }
         }
     } else {
-        env$model$rhs <- env$model$rhs[-1]
-        env$model$sense <- env$model$sense[-1]
-        env$model$A <- env$model$A[-1, ]
+        if (!soft) {
+            env$model$rhs <- env$model$rhs[-1]
+            env$model$sense <- env$model$sense[-1]
+            env$model$A <- env$model$A[-1, ]
+        }
     }
 }
 
@@ -953,6 +963,7 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
 #' @export
 bound <- function(env, sset, g0, g1, soft = FALSE,
                   criterion.tol, solver,
+                  qp,
                   solver.options, noisy = FALSE,
                   smallreturnlist = FALSE,
                   rescale = FALSE,
@@ -996,11 +1007,20 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                 cat("\nLower bound optimization statistics:\n")
                 cat("------------------------------------\n")
             }
-
-            print("CHECK HOW THE CRITERIONS LOOK")
             env$model$modelsense <- "min"
-            env$model$obj <- c(g0, g1) + criterion.tol * env$quadMats$q
-            env$model$Q <- criterion.tol * env$quadMats$Qc
+            if (!qp) {
+                tmpSlack <- replicate(2 * env$model$sn, 0)
+                names(tmpSlack) <- c(rbind(paste0('slack', seq(env$model$sn), '-'),
+                                           paste0('slack', seq(env$model$sn), '+')))
+                avec <- c(replicate(2 * env$model$sn, 1),
+                          replicate(env$model$gn0 + env$model$gn1, 0))
+                env$model$obj <- c(tmpSlack, g0, g1) +
+                    criterion.tol * avec
+            } else {
+                env$model$obj <- c(g0, g1) +
+                    criterion.tol * env$quadMats$q * env$drN
+                env$model$Q <- criterion.tol * env$quadMats$Qc * env$drN
+            }
             if (debug == TRUE){
                 gurobi::gurobi_write(env$model, "modelBoundMin.mps")
                 model <- env$model
@@ -1011,8 +1031,6 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             minresult <- runGurobi(env$model, solver.options)
             min.t1 <- Sys.time()
             min <- sum(minresult$optx * c(g0, g1))
-            print("This is min")
-            print(min)
             minstatus <- minresult$status
             minoptx <- minresult$optx
             ## Maximization problem
@@ -1021,8 +1039,14 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                 cat("------------------------------------\n")
             }
             env$model$modelsense <- "max"
-            env$model$obj <- c(g0, g1) - criterion.tol * env$quadMats$q
-            env$model$Q <- -criterion.tol * env$quadMats$Qc
+            if (!qp) {
+                env$model$obj <- c(tmpSlack, g0, g1) -
+                    criterion.tol * avec
+            } else {
+                env$model$obj <- c(g0, g1) -
+                    criterion.tol * env$quadMats$q * env$drN
+                env$model$Q <- -criterion.tol * env$quadMats$Qc * env$drN
+            }
             if (debug == TRUE){
                 gurobi::gurobi_write(env$model, "modelBoundMax.mps")
                 model <- env$model
@@ -1033,8 +1057,6 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             maxresult <- runGurobi(env$model, solver.options)
             max.t1 <- Sys.time()
             max <- sum(maxresult$optx * c(g0, g1))
-            print("This is max")
-            print(max)
             maxstatus <- maxresult$status
             maxoptx <- maxresult$optx
             if (debug) cat("\n")
