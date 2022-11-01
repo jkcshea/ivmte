@@ -1301,7 +1301,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variable
-                    if (qp.switch) {
+                    if (qp.switch && !soft) {
                         tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
                                                ncol = ncol(sset$s1$g0) +
                                                    ncol(sset$s1$g1))
@@ -1310,6 +1310,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     } else {
                         tmpA <- NULL
                     }
+                    tmpA <- NULL
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <- rbind(modelEnv$model$A, tmpMat)
                     rm(addCol, tmpMat)
@@ -1403,7 +1404,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variables
-                    if (qp.switch) {
+                    if (qp.switch && !soft) {
                         tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
                                                ncol = ncol(sset$s1$g0) +
                                                    ncol(sset$s1$g1))
@@ -1412,6 +1413,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     } else {
                         tmpA <- NULL
                     }
+                    tmpA <- NULL
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)
@@ -1502,7 +1504,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variable
-                    if (qp.switch) {
+                    if (qp.switch  && !soft) {
                         tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
                                                ncol = ncol(sset$s1$g0) +
                                                    ncol(sset$s1$g1))
@@ -1511,6 +1513,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     } else {
                         tmpA <- NULL
                     }
+                    tmpA <- NULL
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)

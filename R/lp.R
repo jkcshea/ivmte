@@ -1925,9 +1925,7 @@ qpSetupBound <- function(env, g0, g1,
             env$model$quadcon <- NULL
         }
     } else {
-        if (setup) {
-            print("Address how qpSetupBound has become redundant")
-        } else {
+        if (!setup) {
             env$model$obj <- NULL
             env$model$Q <- NULL
             env$model$quadcon <- NULL
