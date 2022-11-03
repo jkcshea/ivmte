@@ -225,6 +225,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             cat("    Criterion constraint: Soft\n")
         }
     }
+
     ## Determine if whether IV-like moments or direct MTR regression
     ## will be used.
     qp.switch <- (length(sset) == 1 & !is.null(dim(sset$s1$g0)))
@@ -304,10 +305,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 solver.options.bounds <- solver.options.default
             }
         }
+        print(solver.options.criterion)
+        print(solver.options.bounds)
         ## Turn off non-convex option if using direct regression
         if (qp.switch) {
-            solver.options.criterion$nonconvex <- 0
-            solver.options.bounds$nonconvex <- 0
+            if (!"nonconvex" %in% names(solver.options.criterion)) {
+                solver.options.criterion$nonconvex <- 0
+            }
+            if (!"nonconvex" %in% names(solver.options.bounds)) {
+                solver.options.bounds$nonconvex <- 0
+            }
         }
     } else {
         if (solver == "cplexapi") {
