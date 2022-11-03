@@ -5171,9 +5171,12 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                          ys = YB[, i] ,
                          w0 = drX[, i],
                          w1 = drX[, i],
-                         n = drN)
+                         n = drN,
+                         direct = direct)
                 scount <- scount + 1
             }
+        } else {
+            sset[[1]]$direct <- direct
         }
     }
     if (!direct.switch) {

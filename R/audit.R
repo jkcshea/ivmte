@@ -218,6 +218,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     "\n", call. = FALSE, immediate. = FALSE)
         }
     }
+    if ("direct" %in% names(sset[[1]])) {
+        if (!soft) {
+            cat("    Criterion constraint: Hard\n")
+        } else {
+            cat("    Criterion constraint: Soft\n")
+        }
+    }
     ## Determine if whether IV-like moments or direct MTR regression
     ## will be used.
     qp.switch <- (length(sset) == 1 & !is.null(dim(sset$s1$g0)))
@@ -861,10 +868,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         } else {
             drN <- modelEnv$drN
         }
-        minCriterion <- (minobseq$obj * modelEnv$drN + modelEnv$ssy) / drN
-        if (qp.switch && noisy) {
-            cat("    Minimum criterion: ", fmtResult(minCriterion), "\n",
-                sep = "")
+        if (qp.switch) {
+            minCriterion <- (minobseq$obj * modelEnv$drN + modelEnv$ssy) / drN
+            if (noisy) {
+                cat("    Minimum criterion: ", fmtResult(minCriterion), "\n",
+                    sep = "")
+            }
         }
 
         ## Perform specification test
@@ -989,20 +998,26 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     errMess <- paste(errMess, messageNum)
                 }
             }
-            return(list(error = errMess,
-                        errorTypes = origErrTypes,
-                        min = result$min,
-                        max = result$max,
-                        status.min = result$minstatus,
-                        status.max = result$maxstatus,
-                        runtime = c(criterion = minobseq$runtime,
-                                    min = result$minruntime,
-                                    max = result$maxruntime),
-                        audit.criterion = minCriterion,
-                        audit.criterion.raw = minobseq$obj,
-                        audit.criterion.status = minobseq$status,
-                        audit.count = audit_count - 1,
-                        audit.grid = audit.grid))
+            output <- list(error = errMess,
+                           errorTypes = origErrTypes,
+                           min = result$min,
+                           max = result$max,
+                           status.min = result$minstatus,
+                           status.max = result$maxstatus,
+                           runtime = c(criterion = minobseq$runtime,
+                                       min = result$minruntime,
+                                       max = result$maxruntime),
+                           audit.criterion.status = minobseq$status,
+                           audit.count = audit_count - 1,
+                           audit.grid = audit.grid)
+            if (qp.switch) {
+                output$audit.criterion <- minCriterion
+                output$audit.criterion.raw <- minobseq$obj
+            } else {
+                output$audit.criterion <- minobseq$obj
+                output$audit.criterion.raw <- minobseq$obj
+            }
+            return(output)
         }
         ## Save results
         solVecMin <- c(result$ming0, result$ming1)

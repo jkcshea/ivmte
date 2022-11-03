@@ -1030,7 +1030,16 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             min.t0 <- Sys.time()
             minresult <- runGurobi(env$model, solver.options)
             min.t1 <- Sys.time()
-            min <- sum(minresult$optx * c(g0, g1))
+            if (!qp) {
+                min <- sum(minresult$optx * c(tmpSlack, g0, g1))
+                min.overall <- minresult$objval
+                min.criterion <- (min.overall - min) / criterion.tol
+            } else {
+                min <- sum(minresult$optx * c(g0, g1))
+                min.overall <- minresult$objval
+                min.criterion <- ((min.overall - min) / criterion.tol +
+                                  env$ssy) / env$drN
+            }
             minstatus <- minresult$status
             minoptx <- minresult$optx
             ## Maximization problem
@@ -1056,7 +1065,16 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             max.t0 <- Sys.time()
             maxresult <- runGurobi(env$model, solver.options)
             max.t1 <- Sys.time()
-            max <- sum(maxresult$optx * c(g0, g1))
+            if (!qp) {
+                max <- sum(maxresult$optx * c(tmpSlack, g0, g1))
+                max.overall <- maxresult$objval
+                max.criterion <- -(max.overall - max) / criterion.tol
+            } else {
+                max <- sum(maxresult$optx * c(g0, g1))
+                max.overall <- maxresult$objval
+                max.criterion <- (-(max.overall - max) / criterion.tol +
+                                  env$ssy) / env$drN
+            }
             maxstatus <- maxresult$status
             maxoptx <- maxresult$optx
             if (debug) cat("\n")
@@ -1178,6 +1196,12 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                    minstatus = minstatus,
                    minruntime = runtime.min,
                    error = FALSE)
+    if (soft) {
+        output$minoverall <- min.overall
+        output$mincriterion <- min.criterion
+        output$maxoverall <- max.overall
+        output$maxcriterion <- max.criterion
+    }
     if (rescale) {
         output$norms <- env$colNorms
     }
