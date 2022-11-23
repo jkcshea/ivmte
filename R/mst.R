@@ -234,10 +234,10 @@ utils::globalVariables("u")
 #'     changed if the feasibility tolerance of the solver is changed,
 #'     or if numerical issues result in discrepancies between the
 #'     solver's feasibility check and the audit.
-#' @param direct either "QP" or "LP". If "QP", then the regression
-#'     approach is performed by solving quadratic programs. If "LP",
-#'     then the regression approach is performed by solving linear
-#'     programs.
+#' @param direct either "QP", "l1", "l2", or "linf". If "QP" or "l2",
+#'     then the regression approach is performed by solving quadratic
+#'     programs. If "l1" or "linf", then the regression approach is
+#'     performed by solving linear programs.
 #' @param rescale boolean, set to \code{FALSE} by default. This
 #'     rescalels the MTR components to improve stability in the QCQP
 #'     optimization.
@@ -505,14 +505,15 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             if (!hasArg(rescale)) rescale <- FALSE
             if (!hasArg(direct)) direct <- "qp"
             direct <- tolower(direct)
-            if (direct == "qp") {
+            if (direct == "qp" | direct == "l2") {
                 qp.switch <- TRUE
-            } else if (direct == "lp") {
+            } else if (direct == "l1" | direct == "linf") {
                 qp.switch <- FALSE
             } else {
                 stop(gsub("\\s+", " ",
-                          paste0("The 'direct' argument must either be 'LP' or
-                                 'QP'. Set 'direct' to 'LP' if the direct
+                          paste0("The 'direct' argument must either be 'l1',
+                                  'l2', 'linf', or 'qp'.
+                                 Set 'direct' to 'LP' if the direct
                                  regression should be performed via a
                                  linear program. Set 'direct' to 'QP' if the
                                  direct regression should be performed via
@@ -2170,7 +2171,14 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                         'm0.ub', 'm1.lb', 'm0.lb',
                                         'mte.ub', 'mte.lb', 'm0.dec',
                                         'm0.inc', 'm1.dec', 'm1.inc',
-                                        'mte.dec', 'mte.inc', 'link'))
+                                        'mte.dec', 'mte.inc', 'link',
+                                        'direct', 'criterion.tol',
+                                        'soft', 'equal.coef',
+                                        'initgrid.nx', 'initgrid.nu',
+                                        'audit.nx', 'audit.nu',
+                                        'initgrid.x', 'initgrid.u',
+                                        'audit.x', 'audit.u', 'audit.max',
+                                        'audit.tol'))
         opList <- eval(opList)
         if (!direct.switch) {
             opList$ivlike <- ivlike
@@ -2179,7 +2187,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             opList$outcome <- vars_y
         }
         if (hasArg(point)) opList$point <- point
-        if (hasArg(subset)) opList$subset <- subset
+        if (hasArg(subset) && subset != "") opList$subset <- subset
         if (hasArg(propensity)) opList$propensity <- propensity
         if (hasArg(uname)) opList$uname <- uname
         if (hasArg(treat)) opList$treat <- treat
@@ -5145,12 +5153,13 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
         ## from the IV regressions)
         scount <- scount + 1
     }
+    ## Construct the sset when a direct regression is used,
     if (direct.switch) {
         drY <- sset$s1$ys
         gs0 <- sset$s1$g0
         gs1 <- sset$s1$g1
         drX <- cbind(gs0, gs1)
-        if (direct == "lp") {
+        if (direct %in% c("l1", "l2", "linf")) {
             drN <- length(drY)
             ncomponents <- ncol(drX)
             YB <- sweep(drX, 1, drY, FUN = "*")
@@ -5159,8 +5168,8 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
             for (i in 1:ncomponents) {
                 EYB <- mean(YB[, i])
                 names(EYB) <- paste0('direct', i)
-                g0 <- BB[i, 1:ncol(gs0)]
-                g1 <- BB[i, (1 + ncol(gs0)):ncol(drX)]
+                g0 <- BB[1:ncol(gs0), i]
+                g1 <- BB[(1 + ncol(gs0)):ncol(drX), i]
                 names(g0) <- colnames(BB)[1:ncol(gs0)]
                 names(g1) <- colnames(BB)[(1 + ncol(gs0)):ncol(drX)]
                 sset[[paste0("s", scount)]] <-

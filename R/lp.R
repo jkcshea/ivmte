@@ -208,8 +208,14 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         A <- NULL
         sense <- NULL
         rhs <- NULL
-        gn0 <- ncol(sset$s1$g0)
-        gn1 <- ncol(sset$s1$g1)
+        if (sset$s1$direct == "qp") {
+            gn0 <- ncol(sset$s1$g0)
+            gn1 <- ncol(sset$s1$g1)
+        }
+        if (sset$s1$direct == "l2") {
+            gn0 <- length(sset$s1$g0)
+            gn1 <- length(sset$s1$g1)
+        }
     }
     ## Add additional equality constraints if included
     if (!is.null(equal.coef0) & !is.null(equal.coef1)) {
@@ -250,6 +256,29 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     ## Define bounds on parameters
     ub <- replicate(ncol(mbA), Inf)
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
+    ## Include additional constraints and variable if the infinity
+    ## norm is used
+    if (!qp && sset[[1]]$direct == "linf") {
+        ## Introduce the new slack variable
+        tmpANames <- colnames(mbA)
+        ub <- c(ub, Inf)
+        lb <- c(lb, 0)
+        mbA <- cbind(mbA, 0)
+        colnames(mbA) <- c(tmpANames, 'slack.max')
+        ## Introduce the new constraints forcing the slack variable to
+        ## be the max
+        tmpRowNames <- rownames(mbA)
+        tmpRowNamesAdd <- colnames(mbA)[1:(2 * sn)]
+        for (i in 1:(2 * sn)) {
+            tmpA <- rep(0, ncol(mbA))
+            tmpA[i] <- -1
+            tmpA[length(tmpA)] <- 1
+            mbA <- rbind(mbA, tmpA)
+            sense <- c(sense, ">=")
+            rhs <- c(rhs, 0)
+        }
+        rownames(mbA) <- c(tmpRowNames, tmpRowNamesAdd)
+    }
     if (qp && rescale) {
         ## Rescale linear constraints
         colNorms0 <- apply(sset$s1$g0, MARGIN = 2, function(x) sqrt(sum(x^2)))
@@ -356,14 +385,19 @@ lpSetupInfeasible <- function(env, sset) {
 #'     memory.
 #' @export
 lpSetupCriterion <- function(env, sset) {
-    ## determine lengths
+    ## Determine lengths
     sn  <- length(sset)
     gn0 <- length(sset$s1$g0)
     gn1 <- length(sset$s1$g1)
-    ## generate all vectors/matrices for LP optimization to minimize
-    ## observational equivalence
-    env$model$obj <- c(replicate(sn * 2, 1),
-                       replicate(gn0 + gn1, 0))
+    ## Construct objective
+    if ("direct" %in% names(sset[[1]]) &&
+        sset[[1]]$direct == "linf") {
+        env$model$obj <- rep(0, ncol(env$model$A))
+        env$model$obj[length(env$model$obj)] <- 1
+    } else {
+        env$model$obj <- c(replicate(sn * 2, 1),
+                           replicate(gn0 + gn1, 0))
+    }
 }
 
 #' Configure LP environment to be compatible with solvers
@@ -524,6 +558,13 @@ lpSetupBound <- function(env, g0, g1, sset, soft = FALSE,
                   replicate(env$model$gn0 + env$model$gn1, 0))
         if (!soft) {
             env$model$obj <- c(tmpSlack, g0, g1)
+            ## Make adjustments for l-infinity norm
+            if ("direct" %in% names(sset[[1]]) &&
+                sset[[1]]$direct == "linf") {
+                env$model$obj <- c(env$model$obj, 0)
+                avec <- rep(0, ncol(env$model$A))
+                avec[ncol(env$model$A)] <- 1
+            }
             ## Allow for slack in minimum criterion
             env$model$rhs <- c(criterion.min * (1 + criterion.tol),
                                env$model$rhs)
@@ -1012,14 +1053,24 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                 tmpSlack <- replicate(2 * env$model$sn, 0)
                 names(tmpSlack) <- c(rbind(paste0('slack', seq(env$model$sn), '-'),
                                            paste0('slack', seq(env$model$sn), '+')))
-                avec <- c(replicate(2 * env$model$sn, 1),
-                          replicate(env$model$gn0 + env$model$gn1, 0))
-                env$model$obj <- c(tmpSlack, g0, g1) +
-                    criterion.tol * avec
+                if ("direct" %in% names(sset[[1]]) &&
+                    sset[[1]]$direct == "l1") {
+                    avec <- c(replicate(2 * env$model$sn, 1),
+                              replicate(env$model$gn0 + env$model$gn1, 0))
+                    env$model$obj <- c(tmpSlack, g0, g1) +
+                        criterion.tol * avec
+                }
+                if ("direct" %in% names(sset[[1]]) &&
+                    sset[[1]]$direct == "linf") {
+                    avec <- rep(0, ncol(env$model$A))
+                    avec[length(avec)] <- 1
+                    env$model$obj <- c(tmpSlack, g0, g1, 0) +
+                        criterion.tol * avec
+                }
             } else {
                 env$model$obj <- c(g0, g1) +
-                    criterion.tol * env$quadMats$q * env$drN
-                env$model$Q <- criterion.tol * env$quadMats$Qc * env$drN
+                    criterion.tol * env$quadMats$q
+                env$model$Q <- criterion.tol * env$quadMats$Qc
             }
             if (debug == TRUE){
                 gurobi::gurobi_write(env$model, "modelBoundMin.mps")
@@ -1031,14 +1082,20 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             minresult <- runGurobi(env$model, solver.options)
             min.t1 <- Sys.time()
             if (!qp) {
-                min <- sum(minresult$optx * c(tmpSlack, g0, g1))
+                if ("direct" %in% names(sset[[1]]) &&
+                    sset[[1]]$direct == "l1") {
+                    min <- sum(minresult$optx * c(tmpSlack, g0, g1))
+                }
+                if ("direct" %in% names(sset[[1]]) &&
+                    sset[[1]]$direct == "linf") {
+                    min <- sum(minresult$optx * c(tmpSlack, g0, g1, 0))
+                }
                 min.overall <- minresult$objval
                 min.criterion <- (min.overall - min) / criterion.tol
             } else {
                 min <- sum(minresult$optx * c(g0, g1))
                 min.overall <- minresult$objval
-                min.criterion <- ((min.overall - min) / criterion.tol +
-                                  env$ssy) / env$drN
+                min.criterion <- (min.overall - min) / criterion.tol + env$ssy
             }
             minstatus <- minresult$status
             minoptx <- minresult$optx
@@ -1049,12 +1106,20 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             }
             env$model$modelsense <- "max"
             if (!qp) {
-                env$model$obj <- c(tmpSlack, g0, g1) -
-                    criterion.tol * avec
+                if ("direct" %in% names(sset[[1]]) &&
+                    sset[[1]]$direct == "l1") {
+                    env$model$obj <- c(tmpSlack, g0, g1) -
+                        criterion.tol * avec
+                }
+                if ("direct" %in% names(sset[[1]]) &&
+                    sset[[1]]$direct == "linf") {
+                    env$model$obj <- c(tmpSlack, g0, g1, 0) -
+                        criterion.tol * avec
+                }
             } else {
                 env$model$obj <- c(g0, g1) -
-                    criterion.tol * env$quadMats$q * env$drN
-                env$model$Q <- -criterion.tol * env$quadMats$Qc * env$drN
+                    criterion.tol * env$quadMats$q
+                env$model$Q <- -criterion.tol * env$quadMats$Qc
             }
             if (debug == TRUE){
                 gurobi::gurobi_write(env$model, "modelBoundMax.mps")
@@ -1066,14 +1131,20 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             maxresult <- runGurobi(env$model, solver.options)
             max.t1 <- Sys.time()
             if (!qp) {
-                max <- sum(maxresult$optx * c(tmpSlack, g0, g1))
+                if ("direct" %in% names(sset[[1]]) &&
+                    sset[[1]]$direct == "l1") {
+                    max <- sum(maxresult$optx * c(tmpSlack, g0, g1))
+                }
+                if ("direct" %in% names(sset[[1]]) &&
+                    sset[[1]]$direct == "linf") {
+                    max <- sum(maxresult$optx * c(tmpSlack, g0, g1, 0))
+                }
                 max.overall <- maxresult$objval
                 max.criterion <- -(max.overall - max) / criterion.tol
             } else {
                 max <- sum(maxresult$optx * c(g0, g1))
                 max.overall <- maxresult$objval
-                max.criterion <- (-(max.overall - max) / criterion.tol +
-                                  env$ssy) / env$drN
+                max.criterion <- -(max.overall - max) / criterion.tol + env$ssy
             }
             maxstatus <- maxresult$status
             maxoptx <- maxresult$optx
@@ -1772,73 +1843,6 @@ optionsCplexAPITol <- function(options) {
 #'     optimization.
 #' @export
 qpSetup <- function(env, sset, rescale = TRUE) {
-    ## ## Original code -----------------------------
-    ## ## Construct the constraint vectors and matrices
-    ## drY <- sset$s1$ys
-    ## drX <- cbind(sset$s1$g0, sset$s1$g1)
-    ## drN <- length(drY)
-    ## if (rescale) {
-    ##     drX <- sweep(x = drX, MARGIN = 2, STATS = env$colNorms, FUN = '/')
-    ##     normY <- sqrt(sum(drY^2))
-    ##     drN <- drN * normY
-    ## }
-    ## ## Store the SSY
-    ## env$ssy <- sum(drY^2)
-    ## ## Store the regression matrices
-    ## env$drY <- drY
-    ## env$drX <- drX
-    ## env$drN <- drN
-    ## if (rescale) env$normY <- normY
-    ## ## Add a new variable yhat for each observation, defined using a
-    ## ## linear constraint
-    ## AA <- t(drX) %*% drX
-    ## cholAA <- suppressWarnings(chol(AA, pivot = TRUE))
-    ## cholRank <- attr(cholAA, 'rank')
-    ## if (cholRank < nrow(AA)) {
-    ##     cholAA[(cholRank + 1):nrow(cholAA),
-    ##     (cholRank + 1):nrow(cholAA)] <- 0
-    ## }
-    ## cholOrder <- order(attr(cholAA, 'pivot'))
-    ## cholAA <- Matrix::Matrix(cholAA)[, cholOrder]
-    ## tmpI <- Matrix::Diagonal(ncol(AA))
-    ## tmpRhs <- rep(0, ncol(AA))
-    ## tmpSense <- rep("=", ncol(AA))
-    ## tmpBounds <- rep(Inf, ncol(AA))
-    ## colnames(tmpI) <- names(tmpRhs) <- names(tmpSense) <-
-    ##     names(tmpBounds) <- paste0("yhat.", seq(ncol(AA)))
-    ## cholMats <- list(A = cbind(cholAA, -tmpI),
-    ##                  rhs = tmpRhs,
-    ##                  sense = tmpSense,
-    ##                  ub = tmpBounds,
-    ##                  lb = -tmpBounds)
-    ## env$cholMats <- cholMats
-    ## ## Now set up the quadratic constraint
-    ## cholQuad <- list()
-    ## cholQuad$q <- -2 * c(t(drX) %*% drY) / drN
-    ## cholQuad$q <- c(cholQuad$q, rep(0, ncol(AA)))
-    ## cholQuad$Qc <- Matrix::bdiag(Matrix::Matrix(data = 0,
-    ##                                       ncol = ncol(AA),
-    ##                                       nrow = ncol(AA)),
-    ##                        Matrix::Diagonal(ncol(AA))) / drN
-    ## cholQuad$sense <- '<'
-    ## cholQuad$name <- 'SSR'
-    ## env$cholQuad <- cholQuad
-    ## ## Incorporate the Cholesky decomposition
-    ## tmpA <- Matrix::Matrix(data = 0,
-    ##                        nrow = nrow(env$model$A),
-    ##                        ncol = ncol(env$model$A))
-    ## colnames(tmpA) <- paste0("yhat.", seq(ncol(env$model$A)))
-    ## origA.colnames <- colnames(env$model$A)
-    ## env$model$A <- rbind(cbind(env$model$A, tmpA),
-    ##                      env$cholMats$A)
-    ## env$model$rhs <- c(env$model$rhs, env$cholMats$rhs)
-    ## env$model$sense <- c(env$model$sense, env$cholMats$sense)
-    ## env$model$lb <- c(env$model$lb, env$cholMats$lb)
-    ## env$model$ub <- c(env$model$ub, env$cholMats$ub)
-    ## colnames(env$model$A) <- c(origA.colnames, colnames(tmpA))
-
-    ## New code ----------------------------------
-
     ## Construct the constraint vectors and matrices
     drY <- sset$s1$ys
     drX <- cbind(sset$s1$g0, sset$s1$g1)
@@ -1854,7 +1858,6 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     env$drY <- drY
     env$drX <- drX
     env$drN <- drN
-
     ## No decomposition constraints/auxiliary variables to set up
     tmpA <- NULL
     tmpRhs <- NULL
@@ -1862,9 +1865,18 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     tmpUb <- tmpLb <- NULL
     ## Set up the quadratic objective
     quadMats <- list()
-    quadMats$q <- -2 * c(t(drX) %*% drY) / drN
-    quadMats$Qc <- t(drX) %*% drX / drN
-
+    if (sset$s1$direct == "qp") {
+        quadMats$q <- -2 * c(t(drX) %*% drY) / drN
+        quadMats$Qc <- t(drX) %*% drX / drN
+    }
+    if (sset$s1$direct == "l2") {
+        ey <- Reduce(c, lapply(sset, function(x) x$beta))
+        B0 <- Reduce(cbind, lapply(sset, function(x) x$g0))
+        B1 <- Reduce(cbind, lapply(sset, function(x) x$g1))
+        B <- rbind(B0, B1)
+        quadMats$q <- -2 * c(B %*% ey)
+        quadMats$Qc <- B %*% B
+    }
     ## Impose the decomposition constraints
     env$model$A <- rbind(env$model$A, tmpA)
     env$model$rhs <- c(env$model$rhs, tmpRhs)
@@ -1875,7 +1887,6 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     quadMats$sense <- '<'
     quadMats$name <- 'SSR'
     env$quadMats <- quadMats
-    ## End new code ------------------------------
 }
 
 #' Configure QCQP problem to find minimum criterion

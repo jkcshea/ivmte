@@ -1521,17 +1521,17 @@ genmonoboundA <- function(pm0, pm1, support, grid_index, uvec,
                                  rep('ubte', length(ubteseq))
     if (exists("mono0seq")) {
         output$mono0seq <- mono0seq
-        rownames(output$mbA)[mono0seq]  <- 'mono0'
+        rownames(output$mbA)[mono0seq[, 1]]  <- 'mono0'
         rm(mono0seq)
     }
     if (exists("mono1seq")) {
         output$mono1seq <- mono1seq
-        rownames(output$mbA)[mono1seq]  <- 'mono1'
+        rownames(output$mbA)[mono1seq[, 1]]  <- 'mono1'
         rm(mono1seq)
     }
     if (exists("monoteseq")) {
         output$monoteseq <- monoteseq
-        rownames(output$mbA)[monoteseq]  <- 'monote'
+        rownames(output$mbA)[monoteseq[, 1]]  <- 'monote'
         rm(monoteseq)
     }
     return(output)

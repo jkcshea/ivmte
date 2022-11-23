@@ -228,7 +228,13 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
 
     ## Determine if whether IV-like moments or direct MTR regression
     ## will be used.
-    qp.switch <- (length(sset) == 1 & !is.null(dim(sset$s1$g0)))
+    qp.switch <- FALSE
+    if ("direct" %in% names(sset[[1]])) {
+        if (sset[[1]]$direct %in% c("qp", "l2")) {
+            qp.switch <- TRUE
+        }
+    }
+    ## qp.switch <- (length(sset) == 1 & !is.null(dim(sset$s1$g0)))
     if (!qp.switch) rescale <- FALSE
     ## Set the audit tolerance
     if (!hasArg(audit.tol)) {
@@ -305,8 +311,6 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 solver.options.bounds <- solver.options.default
             }
         }
-        print(solver.options.criterion)
-        print(solver.options.bounds)
         ## Turn off non-convex option if using direct regression
         if (qp.switch) {
             if (!"nonconvex" %in% names(solver.options.criterion)) {
@@ -1310,7 +1314,17 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 if (!is.null(addm0)) {
                     ## Update the constraint matrix
                     if (!qp.switch) addCol <- length(sset$s1$g1)
-                    if (qp.switch) addCol <- ncol(sset$s1$g1)
+                    if (qp.switch) {
+                        if ("direct" %in% names(sset[[1]]) &&
+                            sset[[1]]$direct == "qp") {
+                            addCol <- ncol(sset$s1$g1)
+                        }
+                        if ("direct" %in% names(sset[[1]]) &&
+                            sset[[1]]$direct == "l2") {
+                            addCol <- length(sset$s1$g1)
+                        }
+
+                    }
                     tmpMat <- cbind(matrix(0, nrow = nrow(addm0),
                                            ncol = 2 * sn),
                                     addm0,
@@ -1323,16 +1337,25 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variable
-                    if (qp.switch && !soft) {
-                        tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                               ncol = ncol(sset$s1$g0) +
-                                                   ncol(sset$s1$g1))
-                        colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
-                                                              ncol(sset$s1$g1)))
+                    ## if (qp.switch && !soft) {
+                    ##     tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
+                    ##                            ncol = ncol(sset$s1$g0) +
+                    ##                                ncol(sset$s1$g1))
+                    ##     colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
+                    ##                                           ncol(sset$s1$g1)))
+                    ## } else if (!qp.switch &&
+                    ##            "direct" %in% names(sset[[1]]) &&
+                    ##            sset[[1]]$direct == "linf") {
+                    ##     tmpA <- 0
+                    ## } else {
+                    ##     tmpA <- NULL
+                    ## }
+                    if ("direct" %in% names(sset[[1]]) &&
+                        sset[[1]]$direct == "linf") {
+                        tmpA <- 0
                     } else {
                         tmpA <- NULL
                     }
-                    tmpA <- NULL
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <- rbind(modelEnv$model$A, tmpMat)
                     rm(addCol, tmpMat)
@@ -1413,7 +1436,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 if (!is.null(addm1)) {
                     ## Update the constraint matrix
                     if (!qp.switch) addCol <- length(sset$s1$g0)
-                    if (qp.switch) addCol <- ncol(sset$s1$g0)
+                    if (qp.switch) {
+                        if ("direct" %in% names(sset[[1]]) &&
+                            sset[[1]]$direct == "qp") {
+                            addCol <- ncol(sset$s1$g0)
+                        }
+                        if ("direct" %in% names(sset[[1]]) &&
+                            sset[[1]]$direct == "l2") {
+                            addCol <- length(sset$s1$g0)
+                        }
+                    }
                     tmpMat <- cbind(matrix(0, nrow = nrow(addm1),
                                            ncol = 2 * sn),
                                     matrix(0, nrow = nrow(addm1),
@@ -1426,16 +1458,25 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variables
-                    if (qp.switch && !soft) {
-                        tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                               ncol = ncol(sset$s1$g0) +
-                                                   ncol(sset$s1$g1))
-                        colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
-                                                              ncol(sset$s1$g1)))
+                    ## if (qp.switch && !soft) {
+                    ##     tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
+                    ##                            ncol = ncol(sset$s1$g0) +
+                    ##                                ncol(sset$s1$g1))
+                    ##     colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
+                    ##                                           ncol(sset$s1$g1)))
+                    ## } else if (!qp.switch &&
+                    ##            "direct" %in% names(sset[[1]]) &&
+                    ##            sset[[1]]$direct == "linf") {
+                    ##     tmpA <- 0
+                    ## } else {
+                    ##     tmpA <- NULL
+                    ## }
+                    if ("direct" %in% names(sset[[1]]) &&
+                        sset[[1]]$direct == "linf") {
+                        tmpA <- 0
                     } else {
                         tmpA <- NULL
                     }
-                    tmpA <- NULL
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)
@@ -1526,16 +1567,38 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                         FUN = '/')
                     }
                     ## Expand additional constraints to allow for new variable
-                    if (qp.switch  && !soft) {
-                        tmpA <- Matrix::Matrix(0, nrow = nrow(tmpMat),
-                                               ncol = ncol(sset$s1$g0) +
-                                                   ncol(sset$s1$g1))
-                        colnames(tmpA) <- paste0("yhat.", seq(ncol(sset$s1$g0) +
-                                                              ncol(sset$s1$g1)))
+                    ## if (qp.switch && !soft) {
+                    ##     if (sset$s1$direct == "qp") {
+                    ##         tmpA <- Matrix::Matrix(0,
+                    ##                                nrow = nrow(tmpMat),
+                    ##                                ncol = ncol(sset$s1$g0) +
+                    ##                                    ncol(sset$s1$g1))
+                    ##         colnames(tmpA) <- paste0("yhat.",
+                    ##                                  seq(ncol(sset$s1$g0) +
+                    ##                                      ncol(sset$s1$g1)))
+                    ##     }
+                    ##     if (sset$s1$direct == "l2") {
+                    ##         tmpA <- Matrix::Matrix(0,
+                    ##                                nrow = nrow(tmpMat),
+                    ##                                ncol = length(sset$s1$g0) +
+                    ##                                    length(sset$s1$g1))
+                    ##         colnames(tmpA) <- paste0("yhat.",
+                    ##                                  seq(length(sset$s1$g0) +
+                    ##                                      length(sset$s1$g1)))
+                    ##     }
+                    ## } else if (!qp.switch &&
+                    ##            "direct" %in% names(sset[[1]]) &&
+                    ##            sset[[1]]$direct == "linf") {
+                    ##     tmpA <- 0
+                    ## } else {
+                    ##     tmpA <- NULL
+                    ## }
+                    if ("direct" %in% names(sset[[1]]) &&
+                        sset[[1]]$direct == "linf") {
+                        tmpA <- 0
                     } else {
                         tmpA <- NULL
                     }
-                    tmpA <- NULL
                     tmpMat <- cbind(tmpMat, tmpA)
                     modelEnv$model$A <-
                         rbind(modelEnv$model$A, tmpMat)
