@@ -219,7 +219,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         }
     }
     if ("direct" %in% names(sset[[1]])) {
-        if (sset[[1]]$direct == "l1") norm.str <- "l1 norm,"
+        if (sset[[1]]$direct == "l1") norm.str <- "l1 norm"
         if (sset[[1]]$direct == "l2") norm.str <- "l2 norm"
         if (sset[[1]]$direct == "linf") norm.str <- "l-infinity norm"
         if (sset[[1]]$direct == "ls") norm.str <- "least squares"

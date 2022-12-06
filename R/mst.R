@@ -2398,7 +2398,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                    point = FALSE,
                                                    bootstrap = TRUE))
                         bootEstimate <- try(eval(bootCall), silent = TRUE)
-                        if (is.list(bootEstimate)) {
+                        if (is.list(bootEstimate) &&
+                            "bounds" %in% names(bootEstimate)) {
                             tmpSuccess <- TRUE
                             output$bound <- bootEstimate$bound
                             if (specification.test) {
@@ -2454,7 +2455,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 ## until 'future.apply' is installed.
                 tmpFuture <- ('future.apply' %in% loadedNamespaces() |
                               'future' %in% loadedNamespaces())
-                tmpFuture <- FALSE
                 if (tmpFuture) {
                     if (!requireNamespace('future.apply', quietly = TRUE)) {
                         tmpFuture <- FALSE
@@ -2485,9 +2485,18 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                             bootCriterion <- c(bootCriterion,
                                                bootEstimate$audit.criterion)
                         }
-                        propEstimates <-
-                            cbind(propEstimates,
-                                  bootEstimate$propensity.coef)
+                        tmp.propEstimates <-
+                            data.frame(var = names(bootEstimate$propensity.coef),
+                                       y = bootEstimate$propensity.coef)
+                        colnames(tmp.propEstimates)[2] <- paste0('b', b)
+                        if (is.null(propEstimates)) {
+                            propEstimates <- tmp.propEstimates
+                        } else {
+                            propEstimates <- merge(propEstimates,
+                                                   tmp.propEstimates,
+                                                   by = "var",
+                                                   all = TRUE)
+                        }
                         bootFailIndex <- c(bootFailIndex,
                                            bootEstimate$bootFailN)
                         rm(bootEstimate)
@@ -2520,11 +2529,20 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                            x$audit.criterion
                                                        }))
                     }
-                    propEstimates <- Reduce(cbind,
-                                            lapply(bootEstimate,
-                                                   function(x) {
-                                                       x$propensity.coef
-                                                   }))
+                    for (b in 1:bootstraps) {
+                        tmp.propEstimates <-
+                            data.frame(var = names(bootEstimate[[b]]$propensity.coef),
+                                       y = bootEstimate[[b]]$propensity.coef)
+                        colnames(tmp.propEstimates)[2] <- paste0('b', b)
+                        if (is.null(propEstimates)) {
+                            propEstimates <- tmp.propEstimates
+                        } else {
+                            propEstimates <- merge(propEstimates,
+                                                   tmp.propEstimates,
+                                                   by = "var",
+                                                   all = TRUE)
+                        }
+                    }
                     bootFailIndex <- Reduce(c,
                                             lapply(bootEstimate,
                                                    function(x) {
@@ -2603,12 +2621,17 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     } else {
                         propCoef <- origEstimate$propensity.coef
                     }
-                    propSE  <- apply(propEstimates, 1, sd)
+                    propN <- apply(!is.na(propEstimates[, 2:ncol(propEstimates)]),
+                                   1, sum)
+                    propSE <- apply(propEstimates[, 2:ncol(propEstimates)],
+                                    1, sd, na.rm = TRUE)
+                    names(propN) <- names(propSE) <- propEstimates[, 1]
                     for (level in levels) {
                         pLower <- (1 - level) / 2
                         pUpper <- 1 - (1 - level) / 2
                         probVec <- c(pLower, pUpper)
-                        tmpPropCi1 <- apply(propEstimates, 1, quantile,
+                        tmpPropCi1 <- apply(propEstimates[, 2:ncol(propEstimates)],
+                                            1, quantile,
                                             probs = probVec,
                                             type = 1,
                                             na.rm = TRUE)
@@ -2689,8 +2712,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     output$specification.p.value <- criterionPValue
                 }
                 if (!is.null(propEstimates)) {
+                    propSE <- cbind(se = propSE, bootstraps = propN)
                     output$propensity.se <- propSE
                     output$propensity.ci  <- propensity.ci
+
                 }
                 if (direct.switch) {
                     output$audit.criterion.bootstraps <- bootCriterion
@@ -2871,8 +2896,20 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                 noisy = noisy)
                     teEstimates  <- c(teEstimates, bootEstimate$point.estimate)
                     mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
-                    propEstimates <- cbind(propEstimates,
-                                           bootEstimate$propensity.coef)
+                    ## propEstimates <- cbind(propEstimates,
+                    ##                        bootEstimate$propensity.coef)
+                    tmp.propEstimates <-
+                        data.frame(var = names(bootEstimate$propensity.coef),
+                                   y = bootEstimate$propensity.coef)
+                    colnames(tmp.propEstimates)[2] <- paste0('b', b)
+                    if (is.null(propEstimates)) {
+                        propEstimates <- tmp.propEstimates
+                    } else {
+                        propEstimates <- merge(propEstimates,
+                                               tmp.propEstimates,
+                                               by = "var",
+                                               all = TRUE)
+                    }
                     jstats <- c(jstats, bootEstimate$jstat)
                     SSRs <- c(SSRs, bootEstimate$SSR)
                     bootFailIndex <- c(bootFailIndex,
@@ -2894,9 +2931,23 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                 function(x) x$point.estimate))
                 mtrEstimates <- Reduce(cbind, lapply(bootEstimate,
                                                      function(x) x$mtr.coef))
-                propEstimates <- Reduce(cbind,
-                                        lapply(bootEstimate,
-                                               function(x) x$propensity.coef))
+                ## propEstimates <- Reduce(cbind,
+                ##                         lapply(bootEstimate,
+                ##                                function(x) x$propensity.coef))
+                for (b in 1:bootstraps) {
+                    tmp.propEstimates <-
+                        data.frame(var = names(bootEstimate[[b]]$propensity.coef),
+                                   y = bootEstimate[[b]]$propensity.coef)
+                    colnames(tmp.propEstimates)[2] <- paste0('b', b)
+                    if (is.null(propEstimates)) {
+                        propEstimates <- tmp.propEstimates
+                    } else {
+                        propEstimates <- merge(propEstimates,
+                                               tmp.propEstimates,
+                                               by = "var",
+                                               all = TRUE)
+                    }
+                }
                 jstats <- Reduce(c, lapply(bootEstimate,
                                            function(x) {
                                                if (is.null(x$jstat)) NULL
@@ -2935,7 +2986,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             jstats <- unname(jstats)
             mtrSE  <- apply(mtrEstimates, 1, sd)
             if (!is.null(propEstimates)) {
-                propSE  <- apply(propEstimates, 1, sd)
+                propN <- apply(!is.na(propEstimates[, 2:ncol(propEstimates)]),
+                               1, sum)
+                propSE <- apply(propEstimates[, 2:ncol(propEstimates)],
+                                1, sd, na.rm = TRUE)
             }
             ## Construct p-values (point estimate and J-test)
             pvalue <- c(nonparametric =
@@ -2973,7 +3027,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              type = 1))
                 if (!is.null(propEstimates)) {
                     assign(paste0("propci1", level * 100),
-                           apply(propEstimates, 1, quantile,
+                           apply(propEstimates[, 2:ncol(propEstimates)],
+                                 1, quantile,
                                  probs = probVec,
                                  type = 1,
                                  na.rm = TRUE))
@@ -3014,7 +3069,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             output1 <- c(origEstimate,
                          list(point.estimate.se = bootSE,
                               mtr.se = mtrSE))
-            if (!is.null(propEstimates)) output1$propensity.se <- propSE
+            if (!is.null(propEstimates)) {
+                propSE <- cbind(se = propSE, bootstraps = propN)
+                output1$propensity.se <- propSE
+            }
             output1 <- c(output1,
                          list(point.estimate.bootstraps = teEstimates,
                               mtr.bootstraps = t(mtrEstimates)))
