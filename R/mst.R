@@ -2627,18 +2627,21 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                     1, sd, na.rm = TRUE)
                     names(propN) <- names(propSE) <- propEstimates[, 1]
                     for (level in levels) {
+                        print("I must be in here for nonpoint")
                         pLower <- (1 - level) / 2
                         pUpper <- 1 - (1 - level) / 2
                         probVec <- c(pLower, pUpper)
-                        tmpPropCi1 <- apply(propEstimates[, 2:ncol(propEstimates)],
-                                            1, quantile,
-                                            probs = probVec,
-                                            type = 1,
-                                            na.rm = TRUE)
-                        tmpPropCi2 <- sweep(x = tcrossprod(c(qnorm(pLower),
-                                                             qnorm(pUpper)),
-                                                           propSE), MARGIN = 2,
-                                            propCoef, FUN = "+")
+                        tmpPropCi1 <- rbind(apply(propEstimates[, 2:ncol(propEstimates)],
+                                                  1, quantile,
+                                                  probs = probVec,
+                                                  type = 1,
+                                                  na.rm = TRUE),
+                                            bootstraps = propN)
+                        tmpPropCi2 <- rbind(sweep(x = tcrossprod(c(qnorm(pLower),
+                                                                   qnorm(pUpper)),
+                                                                 propSE), MARGIN = 2,
+                                                  propCoef, FUN = "+"),
+                                            bootstraps = propN)
                         colnames(tmpPropCi2) <- colnames(tmpPropCi1)
                         rownames(tmpPropCi2) <- rownames(tmpPropCi1)
                         propensity.ci$nonparametric[[paste0("level",
@@ -2896,8 +2899,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                 noisy = noisy)
                     teEstimates  <- c(teEstimates, bootEstimate$point.estimate)
                     mtrEstimates <- cbind(mtrEstimates, bootEstimate$mtr.coef)
-                    ## propEstimates <- cbind(propEstimates,
-                    ##                        bootEstimate$propensity.coef)
                     tmp.propEstimates <-
                         data.frame(var = names(bootEstimate$propensity.coef),
                                    y = bootEstimate$propensity.coef)
@@ -2931,9 +2932,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                 function(x) x$point.estimate))
                 mtrEstimates <- Reduce(cbind, lapply(bootEstimate,
                                                      function(x) x$mtr.coef))
-                ## propEstimates <- Reduce(cbind,
-                ##                         lapply(bootEstimate,
-                ##                                function(x) x$propensity.coef))
                 for (b in 1:bootstraps) {
                     tmp.propEstimates <-
                         data.frame(var = names(bootEstimate[[b]]$propensity.coef),
@@ -3027,11 +3025,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                              type = 1))
                 if (!is.null(propEstimates)) {
                     assign(paste0("propci1", level * 100),
-                           apply(propEstimates[, 2:ncol(propEstimates)],
-                                 1, quantile,
-                                 probs = probVec,
-                                 type = 1,
-                                 na.rm = TRUE))
+                           rbind(apply(propEstimates[, 2:ncol(propEstimates)],
+                                       1, quantile,
+                                       probs = probVec,
+                                       type = 1,
+                                       na.rm = TRUE),
+                                 bootstraps = propN))
                 }
                 ## Conf. int. 2: percentile method using Z statistics
                 tmpCi2 <- origEstimate$point.estimate +
@@ -3054,10 +3053,11 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     propCoef <- origEstimate$propensity.coef
                 }
                 if (!is.null(propEstimates)) {
-                    tmpPropCi2 <- sweep(x = tcrossprod(c(qnorm(pLower),
-                                                         qnorm(pUpper)),
-                                                       propSE), MARGIN = 2,
-                                        propCoef, FUN = "+")
+                    tmpPropCi2 <- rbind(sweep(x = tcrossprod(c(qnorm(pLower),
+                                                               qnorm(pUpper)),
+                                                             propSE), MARGIN = 2,
+                                              propCoef, FUN = "+"),
+                                        bootstraps = propN)
                     colnames(tmpPropCi2) <- colnames(get(paste0("propci1",
                                                                 level * 100)))
                     rownames(tmpPropCi2) <- rownames(get(paste0("propci1",
