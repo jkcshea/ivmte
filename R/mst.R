@@ -234,8 +234,9 @@ utils::globalVariables("u")
 #'     changed if the feasibility tolerance of the solver is changed,
 #'     or if numerical issues result in discrepancies between the
 #'     solver's feasibility check and the audit.
-#' @param direct either "QP", "l1", "l2", or "linf". If "QP" or "l2",
-#'     then the regression approach is performed by solving quadratic
+#' @param direct either "ls" (least squares), "l1" (l1 norm), "l2" (l2
+#'     norm), or "linf" (l-infinity norm). If "ls" or "l2", then the
+#'     regression approach is performed by solving quadratic
 #'     programs. If "l1" or "linf", then the regression approach is
 #'     performed by solving linear programs.
 #' @param rescale boolean, set to \code{FALSE} by default. This
@@ -503,21 +504,17 @@ ivmte <- function(data, target, late.from, late.to, late.X,
         } else {
             direct.switch <- TRUE
             if (!hasArg(rescale)) rescale <- FALSE
-            if (!hasArg(direct)) direct <- "qp"
+            if (!hasArg(direct)) direct <- "ls"
             direct <- tolower(direct)
-            if (direct == "qp" | direct == "l2") {
+            if (direct == "ls" | direct == "l2") {
                 qp.switch <- TRUE
             } else if (direct == "l1" | direct == "linf") {
                 qp.switch <- FALSE
             } else {
                 stop(gsub("\\s+", " ",
-                          paste0("The 'direct' argument must either be 'l1',
-                                  'l2', 'linf', or 'qp'.
-                                 Set 'direct' to 'LP' if the direct
-                                 regression should be performed via a
-                                 linear program. Set 'direct' to 'QP' if the
-                                 direct regression should be performed via
-                                 a quadratic program.")),
+                          paste0("The 'direct' argument must either be 'l1'
+                                 (l1 norm), 'l2' (l2 norm), 'linf' (l-infinity
+                                 norm), or 'ls' (least squares).")),
                      call. = FALSE)
             }
         }
@@ -886,13 +883,25 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         call. = FALSE)
             }
         }
-        ## Check if the `soft` argument is boolean
+        ## Check if the `soft' argument is boolean.
         if (!is.logical(soft)) {
             stop(gsub("\\s+", " ",
                       "The 'soft' argument should be TRUE or FALSE.
                        If set to TRUE, then a soft constraint is used
                        to derive the bounds."),
                  call. = FALSE)
+        }
+        ## Make sure the `soft' argument is only used for a direct
+        ## regression.
+        if (hasArg(ivlike) && !is.null(ivlike) && hasArg(soft)) {
+            warning(gsub("\\s+", " ",
+                         "If the 'ivlike' argument is passed, then the
+                          estimation procedure uses a moment-matching approach
+                          involving 'hard' constraints. So the 'soft' argument
+                          will be ignored."),
+                    call. = FALSE,
+                    immediate. = FALSE)
+            soft <- FALSE
         }
         ## Check the subset input---of the three lists that are input,
         ## only this can be omitted by the user, in which case no
@@ -2227,7 +2236,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                              "late.Z", "late.to", "late.from",
                                              "late.X", "eval.X",
                                              "specification.test",
-                                             "noisy"),
+                                             "noisy",
+                                             "soft"),
                                 newargs = list(m0 = quote(m0),
                                                m1 = quote(m1),
                                                target.weight0 =
@@ -2253,7 +2263,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                propensity = quote(propensity),
                                                splinesobj = quote(splinesobj),
                                                components = quote(components),
-                                               environments = quote(envList)))
+                                               environments = quote(envList),
+                                               soft = soft))
         if (hasArg(solver.options) | hasArg(lpsolver.options)) {
             estimateCall <-
                 modcall(call = estimateCall,
@@ -3443,7 +3454,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     call <- match.call(expand.dots = FALSE)
     if (!hasArg(ivlike) | (hasArg(ivlike) && is.null(ivlike))) {
         direct.switch <- TRUE
-        qp.switch <- direct == "qp"
+        qp.switch <- direct %in% c('ls', 'l2')
     } else {
         direct.switch <- FALSE
     }
@@ -3733,7 +3744,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             sset <- setobj$sset
             if (direct.switch && qp.switch) {
                 sset$s1$ivspec <- NULL
-                sset$s1$beta <- NULL
+                ## sset$s1$beta <- NULL
             }
             ## Now perform the MTR regression and check for
             ## collinearities
@@ -5007,7 +5018,7 @@ genTarget <- function(treat, m0, m1, target,
 #' @export
 genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                     ncomponents, scount, subset_index, means = TRUE,
-                    yvar, dvar, direct = "QP", noisy = TRUE, ivn = NULL,
+                    yvar, dvar, direct = "ls", noisy = TRUE, ivn = NULL,
                     redundant = NULL) {
     direct.switch <- !('betas' %in% names(sest))
     if (!hasArg(subset_index)) {
@@ -5740,6 +5751,7 @@ rescaleX <- function(sset, dVec, drY, drN) {
 #' @param x The scalar to be formated
 #' @return A scalar.
 fmtResult <- function(x) {
+    if (!is.numeric(x)) return(NA)
     if (abs(x) < 1) {
         fx <- signif(x, digits = 7)
     } else if (abs(x) >= 1 & abs(x) < 1e+7) {

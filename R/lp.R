@@ -208,7 +208,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
         A <- NULL
         sense <- NULL
         rhs <- NULL
-        if (sset$s1$direct == "qp") {
+        if (sset$s1$direct == "ls") {
             gn0 <- ncol(sset$s1$g0)
             gn1 <- ncol(sset$s1$g1)
         }
@@ -258,7 +258,7 @@ lpSetup <- function(env, sset, orig.sset = NULL,
     lb <- c(unlist(replicate(sn * 2, 0)), replicate(gn0 + gn1, -Inf))
     ## Include additional constraints and variable if the infinity
     ## norm is used
-    if (!qp && sset[[1]]$direct == "linf") {
+    if ("direct" %in% names(sset[[1]]) && !qp && sset[[1]]$direct == "linf") {
         ## Introduce the new slack variable
         tmpANames <- colnames(mbA)
         ub <- c(ub, Inf)
@@ -1865,7 +1865,7 @@ qpSetup <- function(env, sset, rescale = TRUE) {
     tmpUb <- tmpLb <- NULL
     ## Set up the quadratic objective
     quadMats <- list()
-    if (sset$s1$direct == "qp") {
+    if (sset$s1$direct == "ls") {
         quadMats$q <- -2 * c(t(drX) %*% drY) / drN
         quadMats$Qc <- t(drX) %*% drX / drN
     }

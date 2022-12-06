@@ -219,10 +219,14 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         }
     }
     if ("direct" %in% names(sset[[1]])) {
+        if (sset[[1]]$direct == "l1") norm.str <- "l1 norm,"
+        if (sset[[1]]$direct == "l2") norm.str <- "l2 norm"
+        if (sset[[1]]$direct == "linf") norm.str <- "l-infinity norm"
+        if (sset[[1]]$direct == "ls") norm.str <- "least squares"
         if (!soft) {
-            cat("    Criterion constraint: Hard\n")
+            cat("    Criterion constraint: Hard,", norm.str, "\n")
         } else {
-            cat("    Criterion constraint: Soft\n")
+            cat("    Criterion constraint: Soft,", norm.str, "\n")
         }
     }
 
@@ -230,7 +234,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     ## will be used.
     qp.switch <- FALSE
     if ("direct" %in% names(sset[[1]])) {
-        if (sset[[1]]$direct %in% c("qp", "l2")) {
+        if (sset[[1]]$direct %in% c("ls", "l2")) {
             qp.switch <- TRUE
         }
     }
@@ -1316,7 +1320,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (!qp.switch) addCol <- length(sset$s1$g1)
                     if (qp.switch) {
                         if ("direct" %in% names(sset[[1]]) &&
-                            sset[[1]]$direct == "qp") {
+                            sset[[1]]$direct == "ls") {
                             addCol <- ncol(sset$s1$g1)
                         }
                         if ("direct" %in% names(sset[[1]]) &&
@@ -1438,7 +1442,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     if (!qp.switch) addCol <- length(sset$s1$g0)
                     if (qp.switch) {
                         if ("direct" %in% names(sset[[1]]) &&
-                            sset[[1]]$direct == "qp") {
+                            sset[[1]]$direct == "ls") {
                             addCol <- ncol(sset$s1$g0)
                         }
                         if ("direct" %in% names(sset[[1]]) &&
