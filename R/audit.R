@@ -697,7 +697,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                        "A possible reason for unboundedness is that
                         the initial grid is too small. Try
                         increasing the parameters 'initgrid.nx'
-                        and 'initgrid.nu'.\n")
+                        and 'initgrid.nu'.\n") ## The same message is
+                                               ## used in mst.R
     messageNum <- gsub("\\s+", " ",
                        "A possible reason for numerical issues is that
                         covariates are not scaled appropriately
@@ -1013,12 +1014,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     errMess <- paste(errMess, messageNum)
                 }
             }
+            status.codes <- c(criterion = minobseq$status,
+                              min = result$minstatus,
+                              max = result$maxstatus)
             output <- list(error = errMess,
                            errorTypes = origErrTypes,
                            min = result$min,
                            max = result$max,
                            status.min = result$minstatus,
                            status.max = result$maxstatus,
+                           status.codes = status.codes,
                            runtime = c(criterion = minobseq$runtime,
                                        min = result$minruntime,
                                        max = result$maxruntime),

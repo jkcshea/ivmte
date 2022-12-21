@@ -4374,6 +4374,12 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         ## }
     }
     ## Provide warnings if criterion minmization is suboptimal.
+    messageUnb <- gsub("\\s+", " ",
+                       "A possible reason for unboundedness is that
+                        the initial grid is too small. Try
+                        increasing the parameters 'initgrid.nx'
+                        and 'initgrid.nu'.\n") ## The same message is
+                                               ## used in audit.R
     messageSub <- gsub("\\s+", " ",
                        "Tolerance parameters for the solver
                         can be passed through the argument
@@ -4429,14 +4435,40 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     if (!is.null(bWarn)) warning(bWarn, call. = FALSE,
                                  immediate. = TRUE)
 
-
-
     ## Check status of bounds
     bWarn <- NULL
     bWarnTypes <- NULL
     for (type in c(2, 3)) {
         if (type == 2) tmpType <- 'minimization'
         if (type == 3) tmpType <- 'maximization'
+        if (audit$status.codes[type] == 2) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste('The',  tmpType, 'problem is
+                                 infeasible.')))
+        }
+        if (audit$status.codes[type] == 3) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste('The',  tmpType, 'problem is
+                                 infeasible or unbounded.')))
+        }
+        if (audit$status.codes[type] == 4) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste('The',  tmpType, 'problem is
+                                 unbounded.')))
+        }
+        if (audit$status.codes[type] == 5) {
+            bWarn <-
+                paste(bWarn,
+                      gsub("\\s+", " ",
+                           paste('The',  tmpType, 'problem resulted
+                                 in a numerical error.')))
+        }
         if (audit$status.codes[type] == 6) {
             bWarn <-
                 paste(bWarn,
@@ -4475,6 +4507,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     }
     bWarnTypes <- sort(unique(bWarnTypes))
     for (wt in bWarnTypes) {
+        if (wt == 4) {
+            bWarn <- paste(bWarn, messageUnb)
+        }
         if (wt == 6) {
             bWarn <- paste(bWarn, messageSub)
         }
