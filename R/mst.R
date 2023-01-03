@@ -2580,6 +2580,10 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     fmtResult(origEstimate$bounds[1]), ", ",
                     fmtResult(origEstimate$bounds[2]), "]\n",
                     sep = "")
+                if (soft) {
+                    cat("Minimum criterion: ", fmtResult(origEstimate$minobseq), "\n",
+                        sep = "")
+                }
                 if (origEstimate$audit.count == 1) rs <- "round."
                 if (origEstimate$audit.count > 1) rs <- "rounds."
                 if (origEstimate$audit.count < audit.max) {
@@ -4353,7 +4357,12 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     }
     if (noisy) {
         cat("Bounds on the target parameter: [",
-            fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n\n", sep = "")
+            fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n", sep = "")
+        if (soft) {
+            cat("Minimum criterion: ", fmtResult(audit$minobseq), "\n",
+                sep = "")
+        }
+        cat("\n")
         ## if (any(audit$result$modelstats[, 3] > 6)) {
         ##     bMessage <- "The following sets of coefficients defining the
         ##             LP problem exhibit ranges exceeding 6 orders of magnitude: "

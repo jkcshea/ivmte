@@ -708,22 +708,28 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
     ## Add placeholder for violation matrix
     violateMat.prev <- NULL
     violateMat.same <- 0
+    lpSetupSolver(env = modelEnv, solver = solver)
     while (audit_count <= audit.max) {
         if (noisy) {
             cat("\n    Audit count: ", audit_count, "\n", sep = "")
         }
-        lpSetupSolver(env = modelEnv, solver = solver)
         if (!qp.switch) {
             lpSetupCriterion(env = modelEnv, sset = sset)
         } else {
             qpSetupCriterion(env = modelEnv)
         }
-        minobseq <- criterionMin(env = modelEnv,
-                                 sset = sset,
-                                 solver = solver,
-                                 solver.options = solver.options.criterion,
-                                 rescale = rescale,
-                                 debug = debug)
+        if (!soft) {
+            minobseq <- criterionMin(env = modelEnv,
+                                     sset = sset,
+                                     solver = solver,
+                                     solver.options = solver.options.criterion,
+                                     rescale = rescale,
+                                     debug = debug)
+        } else {
+            minobseq <- list(status = NA,
+                             runtime = NA,
+                             obj = NA)
+        }
 
         ## Try to diagnose cases where the solution is not
         ## available. This could be due to infeasibility or numerical
@@ -875,7 +881,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                      call. = FALSE)
             }
         }
-        if (!qp.switch && noisy) {
+        if (!qp.switch && noisy && !soft) {
             cat("    Minimum criterion: ", fmtResult(minobseq$obj), "\n",
                 sep = "")
         }
@@ -886,7 +892,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         }
         if (qp.switch) {
             minCriterion <- (minobseq$obj * modelEnv$drN + modelEnv$ssy) / drN
-            if (noisy) {
+            if (noisy && !soft) {
                 cat("    Minimum criterion: ", fmtResult(minCriterion), "\n",
                     sep = "")
             }
@@ -1652,6 +1658,20 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
         violateMat$type.string <- NULL
         violateMat$group.name <- NULL
         violateMat$pos <- NULL
+    }
+    ## Minimize criterion at the end when using soft thresholds
+    if (soft) {
+        if (!qp.switch) {
+            lpSetupCriterion(env = modelEnv, sset = sset)
+        } else {
+            qpSetupCriterion(env = modelEnv)
+        }
+        minobseq <- criterionMin(env = modelEnv,
+                                 sset = sset,
+                                 solver = solver,
+                                 solver.options = solver.options.criterion,
+                                 rescale = rescale,
+                                 debug = debug)
     }
     ## Clean up status codes
     status.codes <- c(criterion = minobseq$status,
