@@ -1844,7 +1844,11 @@ optionsCplexAPITol <- function(options) {
 #' @export
 qpSetup <- function(env, sset, rescale = TRUE) {
     ## Construct the constraint vectors and matrices
-    drY <- sset$s1$ys
+    if ("drY" %in% names(sset[[1]])) {
+        drY <- sset$s1$drY
+    } else {
+        drY <- sset$s1$ys
+    }
     drX <- cbind(sset$s1$g0, sset$s1$g1)
     drN <- length(drY)
     if (rescale) {

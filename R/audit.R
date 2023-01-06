@@ -1676,6 +1676,9 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                  solver.options = solver.options.criterion,
                                  rescale = rescale,
                                  debug = debug)
+        if (qp.switch) {
+            minCriterion <- (minobseq$obj * modelEnv$drN + modelEnv$ssy) / drN
+        }
     }
     ## Clean up status codes
     status.codes <- c(criterion = minobseq$status,

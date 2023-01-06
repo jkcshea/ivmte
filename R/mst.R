@@ -2631,7 +2631,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                     1, sd, na.rm = TRUE)
                     names(propN) <- names(propSE) <- propEstimates[, 1]
                     for (level in levels) {
-                        print("I must be in here for nonpoint")
                         pLower <- (1 - level) / 2
                         pUpper <- 1 - (1 - level) / 2
                         probVec <- c(pLower, pUpper)
@@ -5296,6 +5295,9 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                          n = drN,
                          direct = direct)
                 scount <- scount + 1
+            }
+            if (direct == "l2") {
+                sset[["s1"]]$drY <- drY
             }
         } else {
             sset[[1]]$direct <- direct
