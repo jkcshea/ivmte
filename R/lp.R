@@ -572,7 +572,7 @@ lpSetupBound <- function(env, g0, g1, sset, soft = FALSE,
             rownames(env$model$A)[1] <- 'criterion'
             tmpOffset <- env$model$sn + 1
         } else {
-            tmpOffset <- 0
+            tmpOffset <- env$model$sn
         }
         ## Label each row with the corresponding constraint. IV-like
         ## constraints are already labeled.
@@ -1842,26 +1842,19 @@ optionsCplexAPITol <- function(options) {
 #'     should be rescaled to improve stability in the LP/QP/QCP
 #'     optimization.
 #' @export
-qpSetup <- function(env, sset, rescale = TRUE) {
+qpSetup <- function(env, sset) {
     ## Construct the constraint vectors and matrices
-    if ("drY" %in% names(sset[[1]])) {
-        drY <- sset$s1$drY
-    } else {
+    if (sset$s1$direct == "ls") {
         drY <- sset$s1$ys
+        drX <- cbind(sset$s1$g0, sset$s1$g1)
+        drN <- length(drY)
+        ## Store the regression matrices
+        env$drY <- drY
+        env$drX <- drX
+        env$drN <- drN
+        ## Store the SSY
+        env$ssy <- sum(drY^2)
     }
-    drX <- cbind(sset$s1$g0, sset$s1$g1)
-    drN <- length(drY)
-    if (rescale) {
-        drX <- sweep(x = drX, MARGIN = 2, STATS = env$colNorms, FUN = '/')
-        normY <- sqrt(sum(drY^2))
-        drN <- drN * normY
-    }
-    ## Store the SSY
-    env$ssy <- sum(drY^2)
-    ## Store the regression matrices
-    env$drY <- drY
-    env$drX <- drX
-    env$drN <- drN
     ## No decomposition constraints/auxiliary variables to set up
     tmpA <- NULL
     tmpRhs <- NULL
@@ -1877,9 +1870,16 @@ qpSetup <- function(env, sset, rescale = TRUE) {
         ey <- Reduce(c, lapply(sset, function(x) x$beta))
         B0 <- Reduce(cbind, lapply(sset, function(x) x$g0))
         B1 <- Reduce(cbind, lapply(sset, function(x) x$g1))
-        B <- rbind(B0, B1)
+        B <- rbind(B0, B1) ## This B matrix is actually the Gram
+                           ## matrix in the normal equation. The
+                           ## object 'ey' is also the product of the
+                           ## drY and drX (see genSSet() in mst.R
         quadMats$q <- -2 * c(B %*% ey)
         quadMats$Qc <- B %*% B
+    }
+    if (sset$s1$direct == "l2") {
+        env$drN <- 1
+        env$ssy <- as.vector(t(ey) %*% ey)
     }
     ## Impose the decomposition constraints
     env$model$A <- rbind(env$model$A, tmpA)

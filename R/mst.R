@@ -5296,9 +5296,6 @@ genSSet <- function(data, sset, sest, splinesobj, pmodobj, pm0, pm1,
                          direct = direct)
                 scount <- scount + 1
             }
-            if (direct == "l2") {
-                sset[["s1"]]$drY <- drY
-            }
         } else {
             sset[[1]]$direct <- direct
         }
