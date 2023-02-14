@@ -2581,7 +2581,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     fmtResult(origEstimate$bounds[2]), "]\n",
                     sep = "")
                 if (soft) {
-                    cat("Minimum criterion: ", fmtResult(origEstimate$minobseq), "\n",
+                    cat("Minimum criterion: ", fmtResult(origEstimate$audit.criterion), "\n",
                         sep = "")
                 }
                 if (origEstimate$audit.count == 1) rs <- "round."
@@ -3529,6 +3529,11 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
     uname <- deparse(substitute(uname))
     uname <- gsub("~", "", uname)
     uname <- gsub("\\\"", "", uname)
+    ## Determine if we have covariates
+    xvars <- unique(vars_mtr)
+    xvars <- xvars[xvars != uname]
+    xvars <- xvars[xvars %in% vars_data]
+    noX <- length(xvars) == 0
 
     ##---------------------------
     ## 1. Obtain propensity scores
@@ -4285,16 +4290,25 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             }
             cat("\n    Restarting audit with new settings:\n")
             if (any(c(3, 4, 6, 7) %in% audit$errorTypes)) {
+                autoExpandMax.x <- FALSE
+                autoExpandMax.u <- FALSE
+                if (!noX) {
+                    newGrid.nx <- min(ceiling(newGrid.nx * 1.5), audit.nx)
+                    auditExpandMax.x <- newGrid.nx == audit.nx
+                    cat("    initgrid.nx = ", newGrid.nx, "\n")
+                    audit_call <- modcall(audit_call,
+                                          dropargs = c("initgrid.nx"),
+                                          newargs = list(initgrid.nx = newGrid.nx))
+                } else {
+                    auditExpandMax.x <- TRUE
+                }
                 newGrid.nu <- min(ceiling(newGrid.nu * 1.5), audit.nu)
-                newGrid.nx <- min(ceiling(newGrid.nx * 1.5), audit.nx)
-                cat("    initgrid.nx = ", newGrid.nx, "\n")
+                auditExpandMax.u <- newGrid.nu == audit.nu
                 cat("    initgrid.nu = ", newGrid.nu, "\n")
                 audit_call <-
                     modcall(audit_call,
-                            dropargs = c("initgrid.nu", "initgrid.nx",
-                                         "audit.grid"),
+                            dropargs = c("initgrid.nu", "audit.grid"),
                             newargs = list(initgrid.nu = newGrid.nu,
-                                           initgrid.nx = newGrid.nx,
                                            audit.grid = audit$audit.grid))
             }
             if (any(c(2, 3, 5) %in% audit$errorTypes)) {
@@ -4309,7 +4323,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                             dropargs = c("criterion.tol"),
                             newargs = list(criterion.tol = criterion.tol))
             }
-            if (newGrid.nu == audit.nu && newGrid.nx == audit.nx) {
+            if (auditExpandMax.u && auditExpandMax.x) {
                 autoExpand <- autoExpandMax
             }
             if (autoExpand == autoExpandMax) {
@@ -4358,7 +4372,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
         cat("Bounds on the target parameter: [",
             fmtResult(audit$min), ", ", fmtResult(audit$max), "]\n", sep = "")
         if (soft) {
-            cat("Minimum criterion: ", fmtResult(audit$minobseq), "\n",
+            cat("Minimum criterion: ", fmtResult(audit$audit.criterion), "\n",
                 sep = "")
         }
         cat("\n")
@@ -4555,9 +4569,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                          audit.noX =
                                              audit$gridobj$audit.grid$noX,
                                          violations = audit$gridobj$violations),
-                       audit.count = audit$auditcount,
-                       audit.criterion = audit$minobseq,
-                       audit.criterion.status = audit$minobseq.status,
+                       audit.count = audit$audit.count,
+                       audit.criterion = audit$audit.criterion,
+                       audit.criterion.status = audit$audit.criterion.status,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
                                            m1 = splinesobj[[2]]$splinesdict))
         if (!direct.switch) output$s.set <- sset
@@ -4566,7 +4580,7 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
             output$Y <- drY
             output$init.SSR <- drSSR
             output$init.gstar.coef <- drCoef
-            output$audit.criterion.raw <- audit$minobseq.raw
+            output$audit.criterion.raw <- audit$audit.criterion.raw
         }
     } else {
         if (!direct.switch) {
@@ -4591,9 +4605,9 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                              audit$gridobj$audit.grid$uvec,
                                          audit.noX =
                                              audit$gridobj$audit.grid$noX),
-                       audit.count = audit$auditcount,
-                       audit.criterion = audit$minobseq,
-                       audit.criterion.status = audit$minobseq.status,
+                       audit.count = audit$audit.count,
+                       audit.criterion = audit$audit.criterion,
+                       audit.criterion.status = audit$audit.criterion.status,
                        splines.dict = list(m0 = splinesobj[[1]]$splinesdict,
                                            m1 = splinesobj[[2]]$splinesdict))
         if (!direct.switch) output$s.set <- sset
@@ -5876,10 +5890,29 @@ print.ivmte <- function(x, ...) {
     stopifnot(inherits(x, "ivmte"))
     if (!is.null(x$bounds)) {
         cat("\n")
+        warn.min <- NULL
+        warn.max <- NULL
+        if (! x$result$minstatus %in% c("OPTIMAL (2)",
+                                        "CPX_STAT_OPTIMAL (1)",
+                                        "Optimal (0)",
+                                        "OPTIMAL")) {
+            warn.min <- paste0("Lower bound optimization status is ",
+                               x$result$minstatus, ".")
+        }
+        if (! x$result$maxstatus %in% c("OPTIMAL (2)",
+                                        "CPX_STAT_OPTIMAL (1)",
+                                        "Optimal (0)",
+                                        "OPTIMAL")) {
+            warn.max <- paste0("Upper bound optimization status is ",
+                               x$result$maxstatus, ".")
+        }
+        if (!is.null(warn.min) | !is.null(warn.max)) {
+            warning(gsub("\\s+", " ", paste(warn.min, warn.max)),
+                    call. = FALSE, immediate. = FALSE)
+        }
         ## Return bounds, audit cout, and minumum criterion
         cat(sprintf("Bounds on the target parameter: [%s, %s]\n",
-                    fmtResult(x$bounds[1]),
-                    fmtResult(x$bounds[2])))
+                    fmtResult(x$bounds[1]), fmtResult(x$bounds[2])))
         if (!is.null(x$audit.grid$violations)) {
             cat(sprintf("Audit reached audit.max (%s)\n",
                         x$audit.count))
@@ -5912,6 +5945,26 @@ summary.ivmte <- function(object, ...) {
     ## Summary for the partially identified case
     if (!is.null(object$bounds)) {
         cat("\n")
+        warn.min <- NULL
+        warn.max <- NULL
+        if (! object$result$minstatus %in% c("OPTIMAL (2)",
+                                             "CPX_STAT_OPTIMAL (1)",
+                                             "Optimal (0)",
+                                             "OPTIMAL")) {
+            warn.min <- paste0("Lower bound optimization status is ",
+                               object$result$minstatus, ".")
+        }
+        if (! object$result$maxstatus %in% c("OPTIMAL (2)",
+                                             "CPX_STAT_OPTIMAL (1)",
+                                             "Optimal (0)",
+                                             "OPTIMAL")) {
+            warn.max <- paste0("Upper bound optimization status is ",
+                               object$result$maxstatus, ".")
+        }
+        if (!is.null(warn.min) | !is.null(warn.max)) {
+            warning(gsub("\\s+", " ", paste(warn.min, warn.max)),
+                    call. = FALSE, immediate. = FALSE)
+        }
         ## Return bounds, audit count, and minumum criterion
         cat(sprintf("Bounds on the target parameter: [%s, %s]\n",
                     fmtResult(object$bounds[1]),

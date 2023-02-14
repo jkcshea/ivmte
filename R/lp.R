@@ -826,12 +826,14 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
             cat("\nMinimum criterion optimization statistics:\n")
             cat("------------------------------------------\n")
         }
+        env$model$problem <- "criterion"
         min.t0   <- Sys.time()
         result   <- runMosek(env$model, 'min', solver.options, debug)
         min.t1   <- Sys.time()
         obseqmin <- result$objval
         optx     <- result$optx
         status   <- result$status
+        env$model$problem <- NULL
         if (debug) cat("\n")
     } else {
         stop(gsub('\\s+', ' ',
@@ -1011,32 +1013,46 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                   debug = FALSE) {
     solver <- tolower(solver)
     ## Obtain lower and upper bounds
-    if (solver == "gurobi") {
+    if (solver %in% c("gurobi", "rmosek") ) {
         if (!soft) {
-            if (debug && solver.options$outputflag == 1) {
+            if (debug &&
+                (solver == "gurobi" && solver.options$outputflag == 1) |
+                (solver == "rmosek" && solver.options$verbose == 10)) {
                 cat("\nLower bound optimization statistics:\n")
                 cat("------------------------------------\n")
             }
-            if (debug == TRUE){
+            if (debug && solver == "gurobi") {
                 gurobi::gurobi_write(env$model, "modelBound.mps")
                 model <- env$model
                 saveRDS(model, file = "modelBound.rds")
                 rm(model)
             }
-            env$model$modelsense <- "min"
             min.t0 <- Sys.time()
-            minresult <- runGurobi(env$model, solver.options)
+            if (solver == "gurobi") {
+                env$model$modelsense <- "min"
+                minresult <- runGurobi(env$model, solver.options)
+            } else {
+                env$model$problem <- "bounds"
+                minresult <- runMosek(env$model, 'min', solver.options, debug)
+                env$model$problem <- NULL
+            }
             min.t1 <- Sys.time()
             min <- minresult$objval
             minstatus <- minresult$status
             minoptx <- minresult$optx
-            if (debug && solver.options$outputflag == 1) {
+            if (debug &&
+                (solver == "gurobi" && solver.options$outputflag == 1) |
+                (solver == "rmosek" && solver.options$verbose == 10)) {
                 cat("\nUpper bound optimization statistics:\n")
                 cat("------------------------------------\n")
             }
-            env$model$modelsense <- "max"
             max.t0 <- Sys.time()
-            maxresult <- runGurobi(env$model, solver.options)
+            if (solver == "gurobi") {
+                env$model$modelsense <- "max"
+                maxresult <- runGurobi(env$model, solver.options)
+            } else {
+                maxresult <- runMosek(env$model, 'max', solver.options)
+            }
             max.t1 <- Sys.time()
             max <- maxresult$objval
             maxstatus <- maxresult$status
@@ -1044,11 +1060,12 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             if (debug) cat("\n")
         } else {
             ## Minmization problem
-            if (debug && solver.options$outputflag == 1) {
+            if (debug &&
+                (solver == "gurobi" && solver.options$outputflag == 1) |
+                (solver == "rmosek" && solver.options$verbose == 10)) {
                 cat("\nLower bound optimization statistics:\n")
                 cat("------------------------------------\n")
             }
-            env$model$modelsense <- "min"
             if (!qp) {
                 tmpSlack <- replicate(2 * env$model$sn, 0)
                 names(tmpSlack) <- c(rbind(paste0('slack', seq(env$model$sn), '-'),
@@ -1072,14 +1089,21 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                     criterion.tol * env$quadMats$q
                 env$model$Q <- criterion.tol * env$quadMats$Qc
             }
-            if (debug == TRUE){
+            if (debug == TRUE && solver == "gurobi") {
                 gurobi::gurobi_write(env$model, "modelBoundMin.mps")
                 model <- env$model
                 saveRDS(model, file = "modelBoundMin.rds")
                 rm(model)
             }
             min.t0 <- Sys.time()
-            minresult <- runGurobi(env$model, solver.options)
+            if (solver == "gurobi") {
+                env$model$modelsense <- "min"
+                minresult <- runGurobi(env$model, solver.options)
+            } else {
+                env$model$problem <- "bounds"
+                minresult <- runMosek(env$model, 'min', solver.options, debug)
+                env$model$problem <- NULL
+            }
             min.t1 <- Sys.time()
             if (!qp) {
                 if ("direct" %in% names(sset[[1]]) &&
@@ -1100,11 +1124,12 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             minstatus <- minresult$status
             minoptx <- minresult$optx
             ## Maximization problem
-            if (debug && solver.options$outputflag == 1) {
+            if (debug &&
+                (solver == "gurobi" && solver.options$outputflag == 1) |
+                (solver == "rmosek" && solver.options$verbose == 10)) {
                 cat("\nUpper bound optimization statistics:\n")
                 cat("------------------------------------\n")
             }
-            env$model$modelsense <- "max"
             if (!qp) {
                 if ("direct" %in% names(sset[[1]]) &&
                     sset[[1]]$direct == "l1") {
@@ -1121,14 +1146,19 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                     criterion.tol * env$quadMats$q
                 env$model$Q <- -criterion.tol * env$quadMats$Qc
             }
-            if (debug == TRUE){
+            if (debug == TRUE && solver == "gurobi"){
                 gurobi::gurobi_write(env$model, "modelBoundMax.mps")
                 model <- env$model
                 saveRDS(model, file = "modelBoundMax.rds")
                 rm(model)
             }
             max.t0 <- Sys.time()
-            maxresult <- runGurobi(env$model, solver.options)
+            if (solver == "gurobi") {
+                env$model$modelsense <- "max"
+                maxresult <- runGurobi(env$model, solver.options)
+            } else {
+                maxresult <- runMosek(env$model, 'max', solver.options)
+            }
             max.t1 <- Sys.time()
             if (!qp) {
                 if ("direct" %in% names(sset[[1]]) &&
@@ -1176,28 +1206,28 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
-    } else if (solver == 'rmosek') {
-        if (debug && solver.options$verbose == 10) {
-            cat("\nLower bound optimization statistics:\n")
-            cat("------------------------------------\n")
-        }
-        min.t0 <- Sys.time()
-        minresult <- runMosek(env$model, 'min', solver.options, debug)
-        min.t1 <- Sys.time()
-        min       <- minresult$objval
-        minoptx   <- minresult$optx
-        minstatus <- minresult$status
-        if (debug && solver.options$verbose == 10) {
-            cat("\nUpper bound optimization statistics:\n")
-            cat("------------------------------------\n")
-        }
-        max.t0 <- Sys.time()
-        maxresult <- runMosek(env$model, 'max', solver.options)
-        max.t1 <- Sys.time()
-        max       <- maxresult$objval
-        maxoptx   <- maxresult$optx
-        maxstatus <- maxresult$status
-        if (debug) cat("\n")
+    ## } else if (solver == 'rmosek') {
+    ##     if (debug && solver.options$verbose == 10) {
+    ##         cat("\nLower bound optimization statistics:\n")
+    ##         cat("------------------------------------\n")
+    ##     }
+    ##     min.t0 <- Sys.time()
+    ##     minresult <- runMosek(env$model, 'min', solver.options, debug)
+    ##     min.t1 <- Sys.time()
+    ##     min       <- minresult$objval
+    ##     minoptx   <- minresult$optx
+    ##     minstatus <- minresult$status
+    ##     if (debug && solver.options$verbose == 10) {
+    ##         cat("\nUpper bound optimization statistics:\n")
+    ##         cat("------------------------------------\n")
+    ##     }
+    ##     max.t0 <- Sys.time()
+    ##     maxresult <- runMosek(env$model, 'max', solver.options)
+    ##     max.t1 <- Sys.time()
+    ##     max       <- maxresult$objval
+    ##     maxoptx   <- maxresult$optx
+    ##     maxstatus <- maxresult$status
+    ##     if (debug) cat("\n")
     } else {
         stop(gsub('\\s+', ' ',
                   "Invalid solver. Option 'solver' must be either 'gurobi',
@@ -1522,11 +1552,11 @@ runMosek <- function(model, modelsense, solver.options, debug = FALSE) {
     }
     ## Export model if debugging
     if (debug == TRUE){
-        if (qcp) {
+        if (model$problem == "criterion") {
             Rmosek::mosek_write(prob, "modelCriterion.mps", solver.options)
             saveRDS(prob, file = "modelCriterion.rds")
         }
-        if (qcqp) {
+        if (model$problem == "bounds") {
             Rmosek::mosek_write(prob, "modelBound.mps", solver.options)
             saveRDS(prob, file = "modelBound.rds")
         }

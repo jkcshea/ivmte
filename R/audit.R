@@ -481,7 +481,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
             if (length(xvars) == 0) {
                 noX <- TRUE
                 support <- NULL
-                if (hasArg(initgrid.x) | hasArg(audit.x)) {
+                if ((hasArg(initgrid.x) && !is.null(initgrid.x)) |
+                    (hasArg(audit.x) && !is.null(audit.x))) {
                     warning(gsub("\\s+", " ",
                                  "Arguments 'initgrid.x' and 'audit.x'
                                   are ignored because MTR specifications
@@ -1020,9 +1021,35 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                     errMess <- paste(errMess, messageNum)
                 }
             }
+            ## If using the soft threshold approach, the criterion is
+            ## minimized after the bounds. But if there is an error
+            ## with the bounds, the criterion is never estimated, so
+            ## it must be done here.
+            if ("direct" %in% names(sset[[1]]) & soft) {
+                if (!qp.switch) {
+                    lpSetupCriterion(env = modelEnv, sset = sset)
+                } else {
+                    qpSetupCriterion(env = modelEnv)
+                }
+                minobseq <- criterionMin(env = modelEnv,
+                                         sset = sset,
+                                         solver = solver,
+                                         solver.options = solver.options.criterion,
+                                         rescale = rescale,
+                                         debug = debug)
+                if (qp.switch) {
+                    minCriterion <- (minobseq$obj * modelEnv$drN + modelEnv$ssy) / drN
+                }
+            }
+            ## Prepare output
+            if (audit_count == 1) audit_count <- 2
+            ## Clean up status codes
             status.codes <- c(criterion = minobseq$status,
                               min = result$minstatus,
                               max = result$maxstatus)
+            result[['minstatus']] <- statusString(result[['minstatus']], solver)
+            result[['maxstatus']] <- statusString(result[['maxstatus']], solver)
+            minobseq$status <- statusString(minobseq$status, solver)
             output <- list(error = errMess,
                            errorTypes = origErrTypes,
                            min = result$min,
@@ -1035,7 +1062,8 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                                        max = result$maxruntime),
                            audit.criterion.status = minobseq$status,
                            audit.count = audit_count - 1,
-                           audit.grid = audit.grid)
+                           audit.grid = audit.grid,
+                           result = result)
             if (qp.switch) {
                 output$audit.criterion <- minCriterion
                 output$audit.criterion.raw <- minobseq$obj
@@ -1693,16 +1721,16 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                    result = result,
                    gridobj = list(audit.grid = audit.grid,
                                   violations = violateMat),
-                   auditcount = audit_count,
-                   minobseq = minobseq$obj,
-                   minobseq.status = minobseq$status,
+                   audit.count = audit_count,
+                   audit.criterion = minobseq$obj,
+                   audit.criterion.status = minobseq$status,
                    status.codes = status.codes,
                    runtime = c(criterion = minobseq$runtime,
                                min = result$minruntime,
                                max = result$maxruntime))
     if (qp.switch) {
-        output$minobseq <- minCriterion
-        output$minobseq.raw <- minobseq$obj
+        output$audit.criterion <- minCriterion
+        output$audit.criterion.raw <- minobseq$obj
     }
     if (!is.null(orig.sset) && !is.null(orig.criterion)) {
         output$spectest = minobseqTest$obj
