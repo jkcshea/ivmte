@@ -4215,13 +4215,16 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                    solver))
                     }
                     audit$errorTypes <- tmp
-                    audit$audit.criterion.status <-
-                        statusString(audit$audit.criterion.status,
-                                     solver)
-                    audit$status.min <- statusString(audit$status.min,
-                                                     solver)
-                    audit$status.max <- statusString(audit$status.max,
-                                                     solver)
+                    audit$audit.criterion.status <- audit$audit.criterion.status
+                    audit$status.min <- audit$status.min
+                    audit$status.max <- audit$status.max
+                    ## audit$audit.criterion.status <-
+                    ##     statusString(audit$audit.criterion.status,
+                    ##                  solver)
+                    ## audit$status.min <- statusString(audit$status.min,
+                    ##                                  solver)
+                    ## audit$status.max <- statusString(audit$status.max,
+                    ##                                  solver)
                     audit$error <- paste(errMessage1, "\n\n", errMessage2)
                 }
                 return(audit)
@@ -4279,13 +4282,16 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                                solver))
                 }
                 audit$errorTypes <- tmp
-                audit$audit.criterion.status <-
-                    statusString(audit$audit.criterion.status,
-                                 solver)
-                audit$status.min <- statusString(audit$status.min,
-                                                 solver)
-                audit$status.max <- statusString(audit$status.max,
-                                                 solver)
+                audit$audit.criterion.status <- audit$audit.criterion.status
+                audit$status.min <- audit$status.min
+                audit$status.max <- audit$status.max
+                ## audit$audit.criterion.status <-
+                ##     statusString(audit$audit.criterion.status,
+                ##                  solver)
+                ## audit$status.min <- statusString(audit$status.min,
+                ##                                  solver)
+                ## audit$status.max <- statusString(audit$status.max,
+                ##                                  solver)
                 return(audit)
             }
             cat("\n    Restarting audit with new settings:\n")

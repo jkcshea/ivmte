@@ -1059,7 +1059,7 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             maxoptx <- maxresult$optx
             if (debug) cat("\n")
         } else {
-            ## Minmization problem
+            ## Minimization problem for soft constraint
             if (debug &&
                 (solver == "gurobi" && solver.options$outputflag == 1) |
                 (solver == "rmosek" && solver.options$verbose == 10)) {
@@ -1116,6 +1116,24 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                 }
                 min.overall <- minresult$objval
                 min.criterion <- (min.overall - min) / criterion.tol
+                if ("alternative" %in% names(minresult)) {
+                    ## Update the bounds for the alternative
+                    ## solutions, if they exist
+                    if ("direct" %in% names(sset[[1]]) &&
+                        sset[[1]]$direct == "l1") {
+                        minresult$alternative$bound <-
+                            sum(minresult$alternative$optx * c(tmpSlack, g0, g1))
+                    }
+                    if ("direct" %in% names(sset[[1]]) &&
+                        sset[[1]]$direct == "linf") {
+                        minresult$alternative$bound <- sum(minresult$optx *
+                                                           c(tmpSlack, g0, g1, 0))
+                    }
+                    alt.min.overall <- minresult$alternative$objval
+                    minresult$alternative$min.criterion <-
+                        (alt.min.overall - minresult$alternative$bound) /
+                        criterion.tol
+                }
             } else {
                 min <- sum(minresult$optx * c(g0, g1))
                 min.overall <- minresult$objval
@@ -1123,7 +1141,7 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             }
             minstatus <- minresult$status
             minoptx <- minresult$optx
-            ## Maximization problem
+            ## Maximization problem for soft constraint
             if (debug &&
                 (solver == "gurobi" && solver.options$outputflag == 1) |
                 (solver == "rmosek" && solver.options$verbose == 10)) {
@@ -1171,6 +1189,24 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                 }
                 max.overall <- maxresult$objval
                 max.criterion <- -(max.overall - max) / criterion.tol
+                if ("alternative" %in% names(maxresult)) {
+                    ## Update the bounds for the alternative
+                    ## solutions, if they exist
+                    if ("direct" %in% names(sset[[1]]) &&
+                        sset[[1]]$direct == "l1") {
+                        maxresult$alternative$bound <-
+                            sum(maxresult$alternative$optx * c(tmpSlack, g0, g1))
+                    }
+                    if ("direct" %in% names(sset[[1]]) &&
+                        sset[[1]]$direct == "linf") {
+                        maxresult$alternative$bound <- sum(maxresult$optx *
+                                                           c(tmpSlack, g0, g1, 0))
+                    }
+                    alt.min.overall <- maxresult$alternative$objval
+                    maxresult$alternative$min.criterion <-
+                        (alt.min.overall - maxresult$alternative$bound) /
+                        criterion.tol
+                }
             } else {
                 max <- sum(maxresult$optx * c(g0, g1))
                 max.overall <- maxresult$objval
@@ -1206,28 +1242,6 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
         max       <- maxresult$objval
         maxoptx   <- maxresult$optx
         maxstatus <- maxresult$status
-    ## } else if (solver == 'rmosek') {
-    ##     if (debug && solver.options$verbose == 10) {
-    ##         cat("\nLower bound optimization statistics:\n")
-    ##         cat("------------------------------------\n")
-    ##     }
-    ##     min.t0 <- Sys.time()
-    ##     minresult <- runMosek(env$model, 'min', solver.options, debug)
-    ##     min.t1 <- Sys.time()
-    ##     min       <- minresult$objval
-    ##     minoptx   <- minresult$optx
-    ##     minstatus <- minresult$status
-    ##     if (debug && solver.options$verbose == 10) {
-    ##         cat("\nUpper bound optimization statistics:\n")
-    ##         cat("------------------------------------\n")
-    ##     }
-    ##     max.t0 <- Sys.time()
-    ##     maxresult <- runMosek(env$model, 'max', solver.options)
-    ##     max.t1 <- Sys.time()
-    ##     max       <- maxresult$objval
-    ##     maxoptx   <- maxresult$optx
-    ##     maxstatus <- maxresult$status
-    ##     if (debug) cat("\n")
     } else {
         stop(gsub('\\s+', ' ',
                   "Invalid solver. Option 'solver' must be either 'gurobi',
@@ -1311,6 +1325,23 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
         if (solver == 'rmosek') {
             output$model <- minresult$prob
             output$model$sense <- NULL
+            output$method <- c(min = minresult$method,
+                               max = maxresult$method)
+            output$alternative <-
+                list(bound = c(min = minresult$alternative$bound,
+                               max = maxresult$alternative$bound),
+                     min.criterion = c(min = minresult$alternative$min.criterion,
+                                       max = maxresult$alternative$min.criterion),
+                     method = c(min = minresult$alternative$method,
+                                max = maxresult$alternative$method),
+                     solution.status = c(min = minresult$alternative$solution.status,
+                                         max = maxresult$alternative$solution.status),
+                     problem.status = c(min = minresult$alternative$problem.status,
+                                        max = maxresult$alternative$problem.status))
+                     ## objval = c(min = minresult$alternative$objval,
+                     ##            max = maxresult$alternative$objval),
+                     ## optx = list(min = minresult$alternative$optx,
+                     ##             max = maxresult$alternative$optx))
         }
     }
     return(output)
@@ -1572,14 +1603,27 @@ runMosek <- function(model, modelsense, solver.options, debug = FALSE) {
         solutionstatus <- NA
         problemstatus <- NA
     } else {
+        ## Use interior solution as default. If suboptimal and basic
+        ## simplex is optimal, then switch to basic simplex.
         if (!is.null(result$sol$itr$xc)) {
             optx <- result$sol$itr$xx
             solutionstatus <- result$sol$itr$solsta
             problemstatus <- result$sol$itr$prosta
+            method <- "Interior-point"
         } else {
             optx <- result$sol$bas$xx
             solutionstatus <- result$sol$bas$solsta
             problemstatus <- result$sol$bas$prosta
+            method <- "Basic simplex"
+        }
+        if (!is.null(result$sol$itr$xc) & !is.null(result$sol$bas$xc)) {
+            if (result$sol$itr$solsta != "OPTIMAL" &&
+                result$sol$bas$solsta == "OPTIMAL") {
+                optx <- result$sol$bas$xx
+                solutionstatus <- result$sol$bas$solsta
+                problemstatus <- result$sol$bas$prosta
+                method <- "Basic simplex"
+            }
         }
         if (solutionstatus == 'OPTIMAL') {
             status <- 1
@@ -1610,6 +1654,50 @@ runMosek <- function(model, modelsense, solver.options, debug = FALSE) {
             if (qcqp) {
                 optx <- optx[1:nvars]
             }
+            ## Store alternative results using different optimization
+            ## methods
+            if (method == "Interior-point" &&
+                !is.null(result$sol$bas$xc)) {
+                alt.optx <- result$sol$bas$xx
+                if (!qcp) {
+                    alt.objval <- sum(alt.optx * model$obj)
+                } else {
+                    alt.objval <-
+                        t(alt.optx) %*% model$Q %*% alt.optx +
+                        t(alt.optx) %*% model$obj
+                }
+                if (qcqp) {
+                    alt.optx <- alt.optx[1:nvars]
+                }
+                alt.method <- "Basic simplex"
+                alt.solutionstatus <- result$sol$bas$solsta
+                alt.problemstatus <- result$sol$bas$prosta
+            } else if (method == "Basic simplex" &&
+                       !is.null(result$sol$itr$xc)) {
+                alt.optx <- result$sol$itr$xx
+                if (!qcp) {
+                    alt.objval <- sum(alt.optx * model$obj)
+                } else {
+                    alt.objval <-
+                        t(alt.optx) %*% model$Q %*% alt.optx +
+                        t(alt.optx) %*% model$obj
+                }
+                if (qcqp) {
+                    alt.optx <- alt.optx[1:nvars]
+                }
+                alt.method <- "Interior-point"
+                alt.solutionstatus <- result$sol$itr$solsta
+                alt.problemstatus <- result$sol$itr$prosta
+            }
+            if (exists("alt.optx")) {
+                alt.results <- list(objval = as.numeric(alt.objval),
+                                    optx = as.vector(alt.optx),
+                                    solution.status = alt.solutionstatus,
+                                    problem.status = alt.problemstatus,
+                                    method = alt.method)
+            } else {
+                alt.results <- NULL
+            }
         }
     }
     return(list(objval = as.numeric(objval),
@@ -1618,7 +1706,9 @@ runMosek <- function(model, modelsense, solver.options, debug = FALSE) {
                 status = status,
                 solutionstatus = solutionstatus,
                 problemstatus = problemstatus,
-                prob = prob))
+                prob = prob,
+                method = method,
+                alternative = alt.results))
 }
 
 #' Check magnitude of real number
