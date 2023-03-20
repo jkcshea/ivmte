@@ -847,12 +847,17 @@ criterionMin <- function(env, sset, solver, solver.options, rescale = FALSE,
                   (2 * env$model$sn + env$model$gn0)]
     g1sol <- optx[(2 * env$model$sn + env$model$gn0 + 1) :
                   (2 * env$model$sn + env$model$gn0 + env$model$gn1)]
-    names(g0sol) <- names(sset$gstar$g0)
-    names(g1sol) <- names(sset$gstar$g1)
     if (rescale) {
         g0sol <- g0sol / env$colNorms[1:ncol(sset$s1$g0)]
         g1sol <- g1sol / env$colNorms[(ncol(sset$s1$g0) + 1):
                                       (ncol(sset$s1$g0) + ncol(sset$s1$g1))]
+    }
+    if (is.null(dim(sset[[1]]$g0))) {
+        names(g0sol) <- names(sset[[1]]$g0)
+        names(g1sol) <- names(sset[[1]]$g1)
+    } else {
+        names(g0sol) <- colnames(sset[[1]]$g0)
+        names(g1sol) <- colnames(sset[[1]]$g1)
     }
     output <- list(obj = obseqmin,
                    x = optx,
