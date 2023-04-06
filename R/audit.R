@@ -601,10 +601,12 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                 uvec <- c(0, 1)
             }
         } else {
-            warning(gsub("\\s+", " ",
-                         "Argument 'initgrid.nu' is ignored when
+            if (hasArg(initgrid.nu)) {
+                warning(gsub("\\s+", " ",
+                             "Argument 'initgrid.nu' is ignored when
                           a custom initial grid 'initgrid.u' is passed."),
-                    call. = FALSE, immediate. = FALSE)
+                        call. = FALSE, immediate. = FALSE)
+            }
             if (! is.vector(initgrid.u)) {
                 stop(gsub("\\s+", " ",
                           "Argument 'initgrid.u' should be a vector of values
