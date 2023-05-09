@@ -1065,7 +1065,7 @@ audit <- function(data, uname, m0, m1, pm0, pm1, splinesobj,
                            audit.criterion.status = minobseq$status,
                            audit.count = audit_count - 1,
                            audit.grid = audit.grid,
-                           criterion = minoobseq,
+                           criterion = minobseq,
                            result = result)
             if (qp.switch) {
                 output$audit.criterion <- minCriterion
