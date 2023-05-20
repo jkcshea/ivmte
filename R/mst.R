@@ -699,15 +699,6 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                         call. = FALSE)
             }
         }
-        if (qp.switch && !(solver %in% c('gurobi', 'rmosek', 'none'))) {
-            stop(gsub("\\s+", " ",
-                      paste0("A direct regression via quadratic programming
-                              may only be peformed if
-                              the solver is Gurobi or MOSEK. Please install
-                              either solver and set 'solver = \"gurobi\"'
-                              or 'solver = \"rmosek\"'.")),
-                    call. = FALSE)
-        }
         if (debug) {
             if (! solver %in% c("gurobi", "rmosek")) {
                 if (requireNamespace("gurobi", quietly = TRUE)) {
@@ -3923,6 +3914,15 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                 ## the estimate from the original sample was point
                 ## identified, then it is unnecssary to solve the
                 ## QCQP.
+                if (qp.switch && !(solver %in% c('gurobi', 'rmosek', 'none'))) {
+                    stop(gsub("\\s+", " ",
+                              paste0("A direct regression via quadratic programming
+                              may only be peformed if
+                              the solver is Gurobi or MOSEK. Please install
+                              either solver and set 'solver = \"gurobi\"'
+                              or 'solver = \"rmosek\"'.")),
+                         call. = FALSE)
+                }
                 if (bootstrap & point) return(gsub('\\s+', ' ',
                                                    'Failed point identification
                                                     bootstrap, although target
