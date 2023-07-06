@@ -1073,26 +1073,27 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             }
             if (!qp) {
                 tmpSlack <- replicate(2 * env$model$sn, 0)
-                names(tmpSlack) <- c(rbind(paste0('slack', seq(env$model$sn), '-'),
-                                           paste0('slack', seq(env$model$sn), '+')))
+                names(tmpSlack) <-
+                    c(rbind(paste0('slack', seq(env$model$sn), '-'),
+                            paste0('slack', seq(env$model$sn), '+')))
                 if ("direct" %in% names(sset[[1]]) &&
                     sset[[1]]$direct == "l1") {
                     avec <- c(replicate(2 * env$model$sn, 1),
                               replicate(env$model$gn0 + env$model$gn1, 0))
                     env$model$obj <- c(tmpSlack, g0, g1) +
-                        criterion.tol * avec
+                        criterion.tol["lower"] * avec
                 }
                 if ("direct" %in% names(sset[[1]]) &&
                     sset[[1]]$direct == "linf") {
                     avec <- rep(0, ncol(env$model$A))
                     avec[length(avec)] <- 1
                     env$model$obj <- c(tmpSlack, g0, g1, 0) +
-                        criterion.tol * avec
+                        criterion.tol["lower"] * avec
                 }
             } else {
                 env$model$obj <- c(g0, g1) +
-                    criterion.tol * env$quadMats$q
-                env$model$Q <- criterion.tol * env$quadMats$Qc
+                    criterion.tol["lower"] * env$quadMats$q
+                env$model$Q <- criterion.tol["lower"] * env$quadMats$Qc
             }
             if (debug == TRUE && solver == "gurobi") {
                 gurobi::gurobi_write(env$model, "modelBoundMin.mps")
@@ -1120,7 +1121,7 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                     min <- sum(minresult$optx * c(tmpSlack, g0, g1, 0))
                 }
                 min.overall <- minresult$objval
-                min.criterion <- (min.overall - min) / criterion.tol
+                min.criterion <- (min.overall - min) / criterion.tol["lower"]
                 if ("alternative" %in% names(minresult)) {
                     ## Update the bounds for the alternative
                     ## solutions, if they exist
@@ -1137,12 +1138,13 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                     alt.min.overall <- minresult$alternative$objval
                     minresult$alternative$min.criterion <-
                         (alt.min.overall - minresult$alternative$bound) /
-                        criterion.tol
+                        criterion.tol["lower"]
                 }
             } else {
                 min <- sum(minresult$optx * c(g0, g1))
                 min.overall <- minresult$objval
-                min.criterion <- (min.overall - min) / criterion.tol + env$ssy
+                min.criterion <- (min.overall - min) /
+                    criterion.tol["lower"] + env$ssy
             }
             minstatus <- minresult$status
             minoptx <- minresult$optx
@@ -1157,17 +1159,17 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                 if ("direct" %in% names(sset[[1]]) &&
                     sset[[1]]$direct == "l1") {
                     env$model$obj <- c(tmpSlack, g0, g1) -
-                        criterion.tol * avec
+                        criterion.tol["upper"] * avec
                 }
                 if ("direct" %in% names(sset[[1]]) &&
                     sset[[1]]$direct == "linf") {
                     env$model$obj <- c(tmpSlack, g0, g1, 0) -
-                        criterion.tol * avec
+                        criterion.tol["upper"] * avec
                 }
             } else {
                 env$model$obj <- c(g0, g1) -
-                    criterion.tol * env$quadMats$q
-                env$model$Q <- -criterion.tol * env$quadMats$Qc
+                    criterion.tol["upper"] * env$quadMats$q
+                env$model$Q <- -criterion.tol["upper"] * env$quadMats$Qc
             }
             if (debug == TRUE && solver == "gurobi"){
                 gurobi::gurobi_write(env$model, "modelBoundMax.mps")
@@ -1193,7 +1195,7 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                     max <- sum(maxresult$optx * c(tmpSlack, g0, g1, 0))
                 }
                 max.overall <- maxresult$objval
-                max.criterion <- -(max.overall - max) / criterion.tol
+                max.criterion <- -(max.overall - max) / criterion.tol["upper"]
                 if ("alternative" %in% names(maxresult)) {
                     ## Update the bounds for the alternative
                     ## solutions, if they exist
@@ -1210,12 +1212,13 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
                     alt.min.overall <- maxresult$alternative$objval
                     maxresult$alternative$min.criterion <-
                         (alt.min.overall - maxresult$alternative$bound) /
-                        criterion.tol
+                        criterion.tol["upper"]
                 }
             } else {
                 max <- sum(maxresult$optx * c(g0, g1))
                 max.overall <- maxresult$objval
-                max.criterion <- -(max.overall - max) / criterion.tol + env$ssy
+                max.criterion <- -(max.overall - max) /
+                    criterion.tol["upper"] + env$ssy
             }
             maxstatus <- maxresult$status
             maxoptx <- maxresult$optx

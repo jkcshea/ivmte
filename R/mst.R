@@ -173,7 +173,9 @@ utils::globalVariables("u")
 #' @param lpsolver.options.bounds list, deprecated argument for
 #'     \code{solver.options.bounds}.
 #' @param criterion.tol tolerance for the criterion function, and is
-#'     set to 1e-4 by default. The criterion measures how well the
+#'     set to 1e-4 by default. Different values for the lower and
+#'     upper bounds can be passed using a list or vector with the
+#'     names 'lower' and 'upper'.The criterion measures how well the
 #'     IV-like moments/conditional means are matched using the
 #'     l1-norm. Statistical noise may prohibit the theoretical LP/QCQP
 #'     problem from being feasible. That is, there may not exist a set
@@ -1302,8 +1304,53 @@ ivmte <- function(data, target, late.from, late.to, late.X,
             }
         }
         ## Audit checks
-        if (!(is.numeric(criterion.tol) & criterion.tol >= 0)) {
-            stop("Cannot set 'criterion.tol' below 0.", call. = FALSE)
+        if (is.list(criterion.tol)) {
+            criterion.tol <- unlist(criterion.tol)
+        }
+        if (is.numeric(criterion.tol)) {
+            if (min(criterion.tol) < 0) {
+                stop("Cannot set 'criterion.tol' below 0.", call. = FALSE)
+            }
+            if (length(criterion.tol) == 1) {
+                if (soft) {
+                    criterion.tol <- c(lower = criterion.tol,
+                                       upper = criterion.tol)
+                }
+            } else if (length(criterion.tol) == 2) {
+                if (!soft) {
+                    stop(gsub("\\s+", " ",
+                              "'criterion.tol' should only have length
+                               graeter than one if 'soft = TRUE'."),
+                         call. = FALSE)
+                }
+                if (is.null(names(criterion.tol))) {
+                    stop(gsub("\\s+", " ",
+                              "Length of 'criterion.tol' is 2.
+                               If 'criterion.tol' differs for the lower and
+                               upper bounds, pass the values of 'criterion.tol'
+                               in a list or vector with entries named 'lower'
+                               and 'upper'."),
+                         call. = FALSE)
+                } else {
+                    names(criterion.tol) <- tolower(names(criterion.tol))
+                }
+            } else if (length(criterion.tol) > 2) {
+                stop(gsub("\\s+", " ",
+                          "If 'criterion.tol' differs for the lower and upper
+                           bounds, pass the values of 'criterion.tol' in a
+                           list or vector with entires named 'lower' and
+                           'upper'."),
+                     call. = FALSE)
+            }
+        } else {
+            stop(gsub("\\s+", " ",
+                      "'criterion.tol' should be numerical. Either pass
+                       one number that should be used for both the lower
+                       and upper bound, or pass a vector/list with names
+                       'lower' and 'upper' to indicate the values of
+                       'criterion.tol' that should be used for the lower
+                       and upper bounds."),
+                 call. = FALSE)
         }
         if (!((initgrid.nu %% 1 == 0) & initgrid.nu >= 0)) {
             stop(gsub("\\s+", " ",
@@ -2215,6 +2262,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                              "solver.presolve",
                                              "solver.options.criterion",
                                              "solver.options.bounds",
+                                             "criterion.tol",
                                              "lpsolver",
                                              "lpsolver.options",
                                              "lpsolver.presolve",
@@ -2243,6 +2291,7 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                                subset = quote(subset),
                                                solver = quote(solver),
                                                direct = direct,
+                                               criterion.tol = criterion.tol,
                                                rescale = rescale,
                                                noisy = TRUE,
                                                vars_y = quote(vars_y),
@@ -2572,7 +2621,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                     fmtResult(origEstimate$bounds[2]), "]\n",
                     sep = "")
                 if (soft) {
-                    cat("Minimum criterion: ", fmtResult(origEstimate$audit.criterion), "\n",
+                    cat("Minimum criterion: ",
+                        fmtResult(origEstimate$audit.criterion), "\n",
                         sep = "")
                 }
                 if (origEstimate$audit.count == 1) rs <- "round."
@@ -4318,12 +4368,14 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                            audit.grid = audit$audit.grid))
             }
             if (any(c(2, 3, 5) %in% audit$errorTypes)) {
-                if (criterion.tol > 0)  {
+                if (min(criterion.tol) > 0)  {
                     criterion.tol <- criterion.tol * 2
                 } else {
-                    criterion.tol <- 0.05
+                    criterion.tol <- c(lower = 0.05,
+                                       upper = 0.05)
                 }
-                cat("    criterion.tol = ", criterion.tol, "\n")
+                cat("    criterion.tol (lower) = ", criterion.tol["lower"], "\n")
+                cat("    criterion.tol (upper) = ", criterion.tol["upper"], "\n")
                 audit_call <-
                     modcall(audit_call,
                             dropargs = c("criterion.tol"),
