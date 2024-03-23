@@ -1305,6 +1305,7 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
         names(ming0) <- names(maxg0) <- names(sset$s1$g0)
         names(ming1) <- names(maxg1) <- names(sset$s1$g1)
     }
+    names(env$model$obj) <- colnames(env$model$A)
     ## Return output
     output <- list(max = max,
                    maxg0 = maxg0,
