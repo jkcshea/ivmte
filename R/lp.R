@@ -1036,7 +1036,7 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             if (solver == "gurobi") {
                 env$model$modelsense <- "min"
                 minresult <- runGurobi(env$model, solver.options)
-            } else {
+            } else if (solver == "rmosek") {
                 env$model$problem <- "bounds"
                 minresult <- runMosek(env$model, 'min', solver.options, debug)
                 env$model$problem <- NULL
@@ -1055,7 +1055,7 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             if (solver == "gurobi") {
                 env$model$modelsense <- "max"
                 maxresult <- runGurobi(env$model, solver.options)
-            } else {
+            } else if (solver == "rmosek") {
                 maxresult <- runMosek(env$model, 'max', solver.options)
             }
             max.t1 <- Sys.time()
@@ -1105,7 +1105,7 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             if (solver == "gurobi") {
                 env$model$modelsense <- "min"
                 minresult <- runGurobi(env$model, solver.options)
-            } else {
+            } else if (solver == "rmosek") {
                 env$model$problem <- "bounds"
                 minresult <- runMosek(env$model, 'min', solver.options, debug)
                 env$model$problem <- NULL
@@ -1181,7 +1181,7 @@ bound <- function(env, sset, g0, g1, soft = FALSE,
             if (solver == "gurobi") {
                 env$model$modelsense <- "max"
                 maxresult <- runGurobi(env$model, solver.options)
-            } else {
+            } else if (solver == "rmosek") {
                 maxresult <- runMosek(env$model, 'max', solver.options)
             }
             max.t1 <- Sys.time()
