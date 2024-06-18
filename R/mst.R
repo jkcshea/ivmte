@@ -3933,7 +3933,8 @@ ivmteEstimate <- function(data, target, late.Z, late.from, late.to,
                                       regression. Shape constraints are
                                       ignored."),
                                 call. = FALSE)
-                    } else {
+                    }
+                    if (!hasArg(point)) {
                         warning(gsub("\\s+", " ",
                                      "MTR is point identified via linear
                                       regression."),
