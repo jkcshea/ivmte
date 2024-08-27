@@ -578,11 +578,12 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                 solver <- "lpsolveapi"
             } else {
                 solver <- "none"
-                point <- TRUE
-                if (direct.switch)  tmp.method <- 'OLS,'
-                if (!direct.switch) tmp.method <- 'GMM,'
-                warning(gsub("\\s+", " ",
-                             paste("None of the compatible solvers are
+                if (!(hasArg(point) && point == TRUE)) {
+                    point <- TRUE
+                    if (direct.switch)  tmp.method <- 'OLS,'
+                    if (!direct.switch) tmp.method <- 'GMM,'
+                    warning(gsub("\\s+", " ",
+                                 paste("None of the compatible solvers are
                                     installed, so estimation is only possible
                                     under point identification.
                                     MTR coefficients will be estimated
@@ -590,7 +591,8 @@ ivmte <- function(data, target, late.from, late.to, late.X,
                                     the target parameter will be returned
                                     only if the MTR coefficients are point
                                     identified.")),
-                        call. = FALSE)
+                            call. = FALSE)
+                }
             }
         }
         if (! solver %in% c("gurobi",
